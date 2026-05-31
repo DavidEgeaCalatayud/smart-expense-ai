@@ -1,15 +1,24 @@
-import { Plus } from 'lucide-react';
+import { Check, Plus, X } from 'lucide-react';
 import type { FormEvent } from 'react';
 import type { TransactionCategory, TransactionFormValues } from '../../types/transactions';
 
 interface TransactionFormProps {
   categories: TransactionCategory[];
   values: TransactionFormValues;
+  isEditing?: boolean;
   onChange: (values: TransactionFormValues) => void;
   onSubmit: () => void;
+  onCancelEdit?: () => void;
 }
 
-export function TransactionForm({ categories, values, onChange, onSubmit }: TransactionFormProps) {
+export function TransactionForm({
+  categories,
+  values,
+  isEditing = false,
+  onChange,
+  onSubmit,
+  onCancelEdit,
+}: TransactionFormProps) {
   const handleSubmit = (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
     onSubmit();
@@ -17,9 +26,26 @@ export function TransactionForm({ categories, values, onChange, onSubmit }: Tran
 
   return (
     <form onSubmit={handleSubmit} className="rounded-3xl border border-slate-200 bg-white p-6 shadow-soft">
-      <div className="mb-6">
-        <h2 className="text-lg font-bold">Add transaction</h2>
-        <p className="text-sm text-slate-500">Create a manual movement until backend persistence is connected.</p>
+      <div className="mb-6 flex items-start justify-between gap-4">
+        <div>
+          <h2 className="text-lg font-bold">{isEditing ? 'Edit transaction' : 'Add transaction'}</h2>
+          <p className="text-sm text-slate-500">
+            {isEditing
+              ? 'Update the selected movement before backend persistence is connected.'
+              : 'Create a manual movement until backend persistence is connected.'}
+          </p>
+        </div>
+
+        {isEditing && onCancelEdit && (
+          <button
+            type="button"
+            onClick={onCancelEdit}
+            className="inline-flex h-10 w-10 items-center justify-center rounded-2xl border border-slate-200 text-slate-500 transition hover:bg-slate-50 hover:text-slate-900"
+            aria-label="Cancel edit"
+          >
+            <X size={18} />
+          </button>
+        )}
       </div>
 
       <div className="grid gap-4 md:grid-cols-2">
@@ -127,8 +153,8 @@ export function TransactionForm({ categories, values, onChange, onSubmit }: Tran
         type="submit"
         className="mt-6 inline-flex w-full items-center justify-center gap-2 rounded-2xl bg-slate-950 px-5 py-3 text-sm font-semibold text-white shadow-soft transition hover:-translate-y-0.5 hover:bg-slate-800"
       >
-        <Plus size={18} />
-        Add transaction
+        {isEditing ? <Check size={18} /> : <Plus size={18} />}
+        {isEditing ? 'Save changes' : 'Add transaction'}
       </button>
     </form>
   );
