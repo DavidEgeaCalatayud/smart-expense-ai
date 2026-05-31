@@ -1,57 +1,160 @@
-import { Download, Plus } from 'lucide-react';
-import { RecentTransactionsTable } from '../components/dashboard/RecentTransactionsTable';
+import { Download, ReceiptText } from 'lucide-react';
+import { useMemo, useState } from 'react';
+import { MetricCard } from '../components/dashboard/MetricCard';
 import { PageHeader } from '../components/layout/PageHeader';
-import { Badge } from '../components/ui/Badge';
-import { recentTransactions } from '../data/dashboardData';
+import { TransactionFilters } from '../components/transactions/TransactionFilters';
+import { TransactionForm } from '../components/transactions/TransactionForm';
+import { TransactionsTable } from '../components/transactions/TransactionsTable';
+import { initialDetailedTransactions, transactionCategories } from '../data/transactionsData';
+import type { DetailedTransaction, TransactionFilters as TransactionFiltersType, TransactionFormValues } from '../types/transactions';
+import { formatCurrency } from '../utils/formatters';
 
-const categories = [
-  { label: 'Food', value: '€420', tone: 'green' },
-  { label: 'Subscriptions', value: '€86', tone: 'blue' },
-  { label: 'Shopping', value: '€310', tone: 'amber' },
-  { label: 'Transport', value: '€155', tone: 'slate' },
-] as const;
+const defaultFormValues: TransactionFormValues = {
+  merchant: '',
+  description: '',
+  category: 'Food',
+  amount: '',
+  date: new Date().toISOString().slice(0, 10),
+  type: 'expense',
+  paymentMethod: 'card',
+  isRecurring: false,
+};
+
+const defaultFilters: TransactionFiltersType = {
+  search: '',
+  category: 'all',
+  status: 'all',
+  type: 'all',
+};
 
 export function TransactionsPage() {
+  const [transactions, setTransactions] = useState<DetailedTransaction[]>(initialDetailedTransactions);
+  const [formValues, setFormValues] = useState<TransactionFormValues>(defaultFormValues);
+  const [filters, setFilters] = useState<TransactionFiltersType>(defaultFilters);
+
+  const filteredTransactions = useMemo(() => {
+    const normalizedSearch = filters.search.trim().toLowerCase();
+
+    return transactions.filter((transaction) => {
+      const matchesSearch =
+        normalizedSearch.length === 0 ||
+        transaction.merchant.toLowerCase().includes(normalizedSearch) ||
+        transaction.description.toLowerCase().includes(normalizedSearch);
+
+      const matchesCategory = filters.category === 'all' || transaction.category === filters.category;
+      const matchesStatus = filters.status === 'all' || transaction.status === filters.status;
+      const matchesType = filters.type === 'all' || transaction.type === filters.type;
+
+      return matchesSearch && matchesCategory && matchesStatus && matchesType;
+    });
+  }, [filters, transactions]);
+
+  const totalExpenses = useMemo(
+    () => transactions.filter((transaction) => transaction.type === 'expense').reduce((total, item) => total + item.amount, 0),
+    [transactions],
+  );
+
+  const totalIncome = useMemo(
+    () => transactions.filter((transaction) => transaction.type === 'income').reduce((total, item) => total + item.amount, 0),
+    [transactions],
+  );
+
+  const anomalyCount = useMemo(
+    () => transactions.filter((transaction) => transaction.status === 'anomaly').length,
+    [transactions],
+  );
+
+  const recurringCount = useMemo(
+    () => transactions.filter((transaction) => transaction.isRecurring).length,
+    [transactions],
+  );
+
+  const handleAddTransaction = () => {
+    const amount = Number(formValues.amount);
+
+    if (!formValues.merchant.trim() || Number.isNaN(amount) || amount <= 0) {
+      return;
+    }
+
+    const newTransaction: DetailedTransaction = {
+      id: `trx_${Date.now()}`,
+      merchant: formValues.merchant.trim(),
+      description: formValues.description.trim(),
+      category: formValues.category,
+      amount,
+      date: formValues.date,
+      type: formValues.type,
+      paymentMethod: formValues.paymentMethod,
+      status: amount > 120 && formValues.type === 'expense' ? 'review' : 'normal',
+      aiConfidence: formValues.description.trim().length > 0 ? 84 : 68,
+      isRecurring: formValues.isRecurring,
+    };
+
+    setTransactions((currentTransactions) => [newTransaction, ...currentTransactions]);
+    setFormValues(defaultFormValues);
+  };
+
   return (
     <>
       <PageHeader
         eyebrow="Transaction management"
         title="Transactions"
-        description="Review, classify and prepare your financial movements for AI analysis."
+        description="Create, filter and review financial movements before sending them to the AI analysis engine."
         action={
-          <div className="flex flex-col gap-3 sm:flex-row">
-            <button
-              type="button"
-              className="inline-flex items-center justify-center gap-2 rounded-2xl border border-slate-200 bg-white px-5 py-3 text-sm font-semibold text-slate-700 shadow-sm transition hover:bg-slate-50"
-            >
-              <Download size={18} />
-              Import CSV
-            </button>
-            <button
-              type="button"
-              className="inline-flex items-center justify-center gap-2 rounded-2xl bg-slate-950 px-5 py-3 text-sm font-semibold text-white shadow-soft transition hover:-translate-y-0.5 hover:bg-slate-800"
-            >
-              <Plus size={18} />
-              Add transaction
-            </button>
-          </div>
+          <button
+            type="button"
+            className="inline-flex items-center justify-center gap-2 rounded-2xl border border-slate-200 bg-white px-5 py-3 text-sm font-semibold text-slate-700 shadow-sm transition hover:bg-slate-50"
+          >
+            <Download size={18} />
+            Import CSV
+          </button>
         }
       />
 
       <section className="mb-6 grid gap-5 md:grid-cols-2 xl:grid-cols-4">
-        {categories.map((category) => (
-          <article key={category.label} className="rounded-3xl border border-slate-200 bg-white p-5 shadow-soft">
-            <div className="mb-4 flex items-center justify-between">
-              <p className="text-sm font-medium text-slate-500">{category.label}</p>
-              <Badge tone={category.tone}>{category.label}</Badge>
-            </div>
-            <p className="text-2xl font-bold tracking-tight">{category.value}</p>
-            <p className="mt-2 text-sm text-slate-500">Current month detected spending</p>
-          </article>
-        ))}
+        <MetricCard
+          title="Total expenses"
+          value={formatCurrency(totalExpenses)}
+          detail="Manual and detected expenses"
+          trend="up"
+          icon={<ReceiptText size={20} />}
+        />
+        <MetricCard
+          title="Total income"
+          value={formatCurrency(totalIncome)}
+          detail="Current registered income"
+          trend="down"
+          icon={<ReceiptText size={20} />}
+        />
+        <MetricCard
+          title="Recurring items"
+          value={String(recurringCount)}
+          detail="Subscriptions and repeated movements"
+          trend="neutral"
+          icon={<ReceiptText size={20} />}
+        />
+        <MetricCard
+          title="Needs review"
+          value={String(anomalyCount)}
+          detail="Detected anomalies"
+          trend="warning"
+          icon={<ReceiptText size={20} />}
+        />
       </section>
 
-      <RecentTransactionsTable transactions={recentTransactions} />
+      <section className="grid gap-6 xl:grid-cols-[0.75fr_1.25fr]">
+        <TransactionForm
+          categories={transactionCategories}
+          values={formValues}
+          onChange={setFormValues}
+          onSubmit={handleAddTransaction}
+        />
+
+        <div className="space-y-6">
+          <TransactionFilters categories={transactionCategories} filters={filters} onChange={setFilters} />
+          <TransactionsTable transactions={filteredTransactions} />
+        </div>
+      </section>
     </>
   );
 }
