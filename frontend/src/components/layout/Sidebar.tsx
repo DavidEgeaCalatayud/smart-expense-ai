@@ -7,13 +7,15 @@ import {
   ShieldCheck,
   WalletCards,
 } from 'lucide-react';
+import { NavLink } from 'react-router-dom';
+import { ROUTES } from '../../routes/paths';
 
 const navigationItems = [
-  { icon: LayoutDashboard, label: 'Dashboard', active: true },
-  { icon: CreditCard, label: 'Transactions' },
-  { icon: LineChart, label: 'Predictions' },
-  { icon: Bell, label: 'Alerts' },
-  { icon: ShieldCheck, label: 'Security' },
+  { icon: LayoutDashboard, label: 'Dashboard', to: ROUTES.dashboard },
+  { icon: CreditCard, label: 'Transactions', to: ROUTES.transactions },
+  { icon: LineChart, label: 'Predictions', to: ROUTES.predictions },
+  { icon: Bell, label: 'Alerts', to: ROUTES.alerts },
+  { icon: ShieldCheck, label: 'Security', to: ROUTES.security },
 ];
 
 export function Sidebar() {
@@ -31,18 +33,21 @@ export function Sidebar() {
 
       <nav className="space-y-2" aria-label="Main navigation">
         {navigationItems.map((item) => (
-          <button
+          <NavLink
             key={item.label}
-            type="button"
-            className={`flex w-full items-center gap-3 rounded-2xl px-4 py-3 text-left text-sm font-medium transition ${
-              item.active
-                ? 'bg-brand-50 text-brand-700'
-                : 'text-slate-500 hover:bg-slate-100 hover:text-slate-900'
-            }`}
+            to={item.to}
+            end={item.to === ROUTES.dashboard}
+            className={({ isActive }) =>
+              `flex w-full items-center gap-3 rounded-2xl px-4 py-3 text-left text-sm font-medium transition ${
+                isActive
+                  ? 'bg-brand-50 text-brand-700'
+                  : 'text-slate-500 hover:bg-slate-100 hover:text-slate-900'
+              }`
+            }
           >
             <item.icon size={18} />
             {item.label}
-          </button>
+          </NavLink>
         ))}
       </nav>
 
