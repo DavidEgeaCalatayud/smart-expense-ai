@@ -27,10 +27,47 @@ const defaultFilters: TransactionFiltersType = {
   type: 'all',
 };
 
+const mapTransactionToFormValues = (transaction: DetailedTransaction): TransactionFormValues => ({
+  merchant: transaction.merchant,
+  description: transaction.description,
+  category: transaction.category,
+  amount: String(transaction.amount),
+  date: transaction.date,
+  type: transaction.type,
+  paymentMethod: transaction.paymentMethod,
+  isRecurring: transaction.isRecurring,
+});
+
+const buildTransactionFromForm = (
+  formValues: TransactionFormValues,
+  existingTransaction?: DetailedTransaction,
+): DetailedTransaction | null => {
+  const amount = Number(formValues.amount);
+
+  if (!formValues.merchant.trim() || Number.isNaN(amount) || amount <= 0) {
+    return null;
+  }
+
+  return {
+    id: existingTransaction?.id ?? `trx_${Date.now()}`,
+    merchant: formValues.merchant.trim(),
+    description: formValues.description.trim(),
+    category: formValues.category,
+    amount,
+    date: formValues.date,
+    type: formValues.type,
+    paymentMethod: formValues.paymentMethod,
+    status: existingTransaction?.status ?? (amount > 120 && formValues.type === 'expense' ? 'review' : 'normal'),
+    aiConfidence: formValues.description.trim().length > 0 ? 84 : 68,
+    isRecurring: formValues.isRecurring,
+  };
+};
+
 export function TransactionsPage() {
   const [transactions, setTransactions] = useState<DetailedTransaction[]>(initialDetailedTransactions);
   const [formValues, setFormValues] = useState<TransactionFormValues>(defaultFormValues);
   const [filters, setFilters] = useState<TransactionFiltersType>(defaultFilters);
+  const [editingTransactionId, setEditingTransactionId] = useState<string | null>(null);
 
   const filteredTransactions = useMemo(() => {
     const normalizedSearch = filters.search.trim().toLowerCase();
@@ -69,28 +106,44 @@ export function TransactionsPage() {
     [transactions],
   );
 
-  const handleAddTransaction = () => {
-    const amount = Number(formValues.amount);
+  const handleSubmitTransaction = () => {
+    const currentTransaction = transactions.find((transaction) => transaction.id === editingTransactionId);
+    const transactionPayload = buildTransactionFromForm(formValues, currentTransaction);
 
-    if (!formValues.merchant.trim() || Number.isNaN(amount) || amount <= 0) {
+    if (!transactionPayload) {
       return;
     }
 
-    const newTransaction: DetailedTransaction = {
-      id: `trx_${Date.now()}`,
-      merchant: formValues.merchant.trim(),
-      description: formValues.description.trim(),
-      category: formValues.category,
-      amount,
-      date: formValues.date,
-      type: formValues.type,
-      paymentMethod: formValues.paymentMethod,
-      status: amount > 120 && formValues.type === 'expense' ? 'review' : 'normal',
-      aiConfidence: formValues.description.trim().length > 0 ? 84 : 68,
-      isRecurring: formValues.isRecurring,
-    };
+    if (editingTransactionId) {
+      setTransactions((currentTransactions) =>
+        currentTransactions.map((transaction) =>
+          transaction.id === editingTransactionId ? transactionPayload : transaction,
+        ),
+      );
+    } else {
+      setTransactions((currentTransactions) => [transactionPayload, ...currentTransactions]);
+    }
 
-    setTransactions((currentTransactions) => [newTransaction, ...currentTransactions]);
+    setEditingTransactionId(null);
+    setFormValues(defaultFormValues);
+  };
+
+  const handleEditTransaction = (transaction: DetailedTransaction) => {
+    setEditingTransactionId(transaction.id);
+    setFormValues(mapTransactionToFormValues(transaction));
+  };
+
+  const handleDeleteTransaction = (transactionId: string) => {
+    setTransactions((currentTransactions) => currentTransactions.filter((transaction) => transaction.id !== transactionId));
+
+    if (editingTransactionId === transactionId) {
+      setEditingTransactionId(null);
+      setFormValues(defaultFormValues);
+    }
+  };
+
+  const handleCancelEdit = () => {
+    setEditingTransactionId(null);
     setFormValues(defaultFormValues);
   };
 
@@ -146,13 +199,19 @@ export function TransactionsPage() {
         <TransactionForm
           categories={transactionCategories}
           values={formValues}
+          isEditing={editingTransactionId !== null}
           onChange={setFormValues}
-          onSubmit={handleAddTransaction}
+          onSubmit={handleSubmitTransaction}
+          onCancelEdit={handleCancelEdit}
         />
 
         <div className="space-y-6">
           <TransactionFilters categories={transactionCategories} filters={filters} onChange={setFilters} />
-          <TransactionsTable transactions={filteredTransactions} />
+          <TransactionsTable
+            transactions={filteredTransactions}
+            onEdit={handleEditTransaction}
+            onDelete={handleDeleteTransaction}
+          />
         </div>
       </section>
     </>
