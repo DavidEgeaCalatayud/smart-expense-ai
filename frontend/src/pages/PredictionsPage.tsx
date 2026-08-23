@@ -1,4 +1,4 @@
-import { BrainCircuit, CalendarClock, LineChart, Repeat2 } from 'lucide-react';
+import { BrainCircuit, CalendarClock, LineChart, Repeat } from 'lucide-react';
 import { PageHeader } from '../components/layout/PageHeader';
 import { EmptyStateCard } from '../components/ui/EmptyStateCard';
 
@@ -9,7 +9,7 @@ const plannedFeatures = [
     description: 'Project end-of-month spending from persisted historical transactions.',
   },
   {
-    icon: Repeat2,
+    icon: Repeat,
     title: 'Recurring charge projection',
     description: 'Estimate upcoming recurring payments from real recurring transaction patterns.',
   },
