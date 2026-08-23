@@ -17,6 +17,10 @@ coverage/
 .cache/
 .next/
 
+# Test artifacts
+playwright-report/
+test-results/
+
 # IDE and OS files
 .vscode/
 .idea/
