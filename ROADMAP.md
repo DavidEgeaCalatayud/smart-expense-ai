@@ -84,11 +84,13 @@ Goal: prepare the project for a subscription-based model.
 
 Goal: prepare the application for real deployment.
 
-- [ ] Add backend automated tests.
-- [ ] Add frontend automated tests.
-- [ ] Add GitHub Actions CI.
-- [ ] Run frontend build and lint in CI.
-- [ ] Validate Alembic migrations in CI.
+- [x] Add backend automated tests.
+- [x] Add frontend automated tests.
+- [x] Add GitHub Actions CI.
+- [x] Run frontend tests, type checking, build and lint in CI.
+- [x] Validate Alembic migrations against PostgreSQL in CI.
+- [x] Add critical Playwright end-to-end coverage.
+- [ ] Configure `Quality gate` as a required check for `main`.
 - [ ] Add Docker Compose.
 - [ ] Add staging deployment.
 - [ ] Add production configuration.

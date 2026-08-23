@@ -18,6 +18,10 @@ Implemented today:
 - Five most recent transactions displayed on the dashboard.
 - Recurring transactions stored as an explicit user-provided flag.
 - Transparent rule-based review: expenses above 120 EUR are marked as `review`.
+- Backend unit and PostgreSQL integration tests with pytest.
+- Frontend component/page tests with Vitest and React Testing Library.
+- Critical browser CRUD coverage with Playwright.
+- GitHub Actions quality gates for migrations, tests, TypeScript, ESLint and production builds.
 
 Not implemented yet:
 
@@ -149,9 +153,24 @@ npm run dev
 Useful validation commands:
 
 ```bash
-npm run build
+npm run test
+npm run typecheck
 npm run lint
+npm run build
 ```
+
+## Testing and CI
+
+The repository now has four automated quality layers:
+
+1. Backend unit tests.
+2. Backend API integration tests against migrated PostgreSQL.
+3. Frontend tests with Vitest and React Testing Library.
+4. Critical end-to-end browser coverage with Playwright.
+
+GitHub Actions runs the same gates for pushes and pull requests targeting `main`, including `alembic upgrade head` against a clean PostgreSQL service database.
+
+See [`docs/testing.md`](docs/testing.md) for local commands, test-database safety and CI details.
 
 ## Technology Stack
 
@@ -162,6 +181,9 @@ npm run lint
 - Vite
 - Tailwind CSS
 - Recharts
+- Vitest
+- React Testing Library
+- Playwright
 
 ### Backend
 
@@ -172,6 +194,7 @@ npm run lint
 - PostgreSQL
 - Alembic
 - Psycopg 3
+- pytest
 
 ## Product Roadmap
 
@@ -179,11 +202,11 @@ The detailed roadmap is maintained in [`ROADMAP.md`](ROADMAP.md).
 
 Near-term priorities are:
 
-1. Automated tests and CI.
-2. Stronger transaction UX and responsive behavior.
-3. Authentication and per-user transaction ownership.
-4. User-managed categories when required.
-5. A real intelligence layer built over sufficient historical transaction data.
+1. Stronger transaction UX and responsive behavior.
+2. Authentication and per-user transaction ownership.
+3. User-managed categories when required.
+4. A real intelligence layer built over sufficient historical transaction data.
+5. Docker and deployment automation.
 
 ## Business Model
 
