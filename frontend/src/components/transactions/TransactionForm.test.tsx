@@ -25,11 +25,16 @@ describe('TransactionForm', () => {
   it('emits user changes and submits the form', () => {
     const onChange = vi.fn();
     const onSubmit = vi.fn();
+    const validValues: TransactionFormValues = {
+      ...values,
+      merchant: 'Initial Market',
+      amount: '10',
+    };
 
     render(
       <TransactionForm
         categories={categories}
-        values={values}
+        values={validValues}
         onChange={onChange}
         onSubmit={onSubmit}
       />,
@@ -39,7 +44,7 @@ describe('TransactionForm', () => {
       target: { value: 'Local Market' },
     });
 
-    expect(onChange).toHaveBeenCalledWith({ ...values, merchant: 'Local Market' });
+    expect(onChange).toHaveBeenCalledWith({ ...validValues, merchant: 'Local Market' });
     expect(screen.getByRole('option', { name: 'Food' })).toBeInTheDocument();
 
     fireEvent.click(screen.getByRole('button', { name: 'Add transaction' }));
