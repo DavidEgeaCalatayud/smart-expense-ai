@@ -47,7 +47,7 @@ test('critical transaction flow persists through the API and updates the dashboa
 
   await page.getByRole('link', { name: 'Dashboard' }).click();
   await expect(page.getByText(merchant)).toBeVisible();
-  const expenseMetric = page.locator('article').filter({ hasText: 'Expenses this month' });
+  const expenseMetric = page.getByText('Expenses this month', { exact: true }).locator('..');
   await expect(expenseMetric).toContainText('€42.50');
 
   await page.getByRole('link', { name: 'Transactions' }).click();
