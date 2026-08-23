@@ -5,7 +5,7 @@ import { PageHeader } from '../components/layout/PageHeader';
 import { TransactionFilters } from '../components/transactions/TransactionFilters';
 import { TransactionForm } from '../components/transactions/TransactionForm';
 import { TransactionsTable } from '../components/transactions/TransactionsTable';
-import { transactionCategories } from '../data/transactionsData';
+import { fetchCategories } from '../services/categoriesApi';
 import {
   createTransaction,
   deleteTransaction,
@@ -14,21 +14,22 @@ import {
 } from '../services/transactionsApi';
 import type {
   DetailedTransaction,
+  TransactionCategory,
   TransactionFilters as TransactionFiltersType,
   TransactionFormValues,
 } from '../types/transactions';
 import { formatCurrency } from '../utils/formatters';
 
-const defaultFormValues: TransactionFormValues = {
+const buildDefaultFormValues = (category = ''): TransactionFormValues => ({
   merchant: '',
   description: '',
-  category: 'Food',
+  category,
   amount: '',
   date: new Date().toISOString().slice(0, 10),
   type: 'expense',
   paymentMethod: 'card',
   isRecurring: false,
-};
+});
 
 const defaultFilters: TransactionFiltersType = {
   search: '',
@@ -53,7 +54,8 @@ const getErrorMessage = (error: unknown, fallback: string) =>
 
 export function TransactionsPage() {
   const [transactions, setTransactions] = useState<DetailedTransaction[]>([]);
-  const [formValues, setFormValues] = useState<TransactionFormValues>(defaultFormValues);
+  const [categories, setCategories] = useState<TransactionCategory[]>([]);
+  const [formValues, setFormValues] = useState<TransactionFormValues>(() => buildDefaultFormValues());
   const [filters, setFilters] = useState<TransactionFiltersType>(defaultFilters);
   const [editingTransactionId, setEditingTransactionId] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(true);
@@ -64,16 +66,26 @@ export function TransactionsPage() {
   useEffect(() => {
     let isActive = true;
 
-    const loadTransactions = async () => {
+    const loadPageData = async () => {
       try {
-        const loadedTransactions = await fetchTransactions();
+        const [loadedTransactions, loadedCategories] = await Promise.all([
+          fetchTransactions(),
+          fetchCategories(),
+        ]);
 
         if (isActive) {
           setTransactions(loadedTransactions);
+          setCategories(loadedCategories);
+
+          const defaultExpenseCategory =
+            loadedCategories.find((category) => category.transactionType === 'expense')?.name ??
+            loadedCategories[0]?.name ??
+            '';
+          setFormValues(buildDefaultFormValues(defaultExpenseCategory));
         }
       } catch (loadError) {
         if (isActive) {
-          setError(getErrorMessage(loadError, 'Unable to load transactions'));
+          setError(getErrorMessage(loadError, 'Unable to load transaction data'));
         }
       } finally {
         if (isActive) {
@@ -82,7 +94,7 @@ export function TransactionsPage() {
       }
     };
 
-    void loadTransactions();
+    void loadPageData();
 
     return () => {
       isActive = false;
@@ -105,6 +117,16 @@ export function TransactionsPage() {
       return matchesSearch && matchesCategory && matchesStatus && matchesType;
     });
   }, [filters, transactions]);
+
+  const compatibleFormCategories = useMemo(
+    () => categories.filter((category) => category.transactionType === formValues.type),
+    [categories, formValues.type],
+  );
+
+  const defaultExpenseCategory = useMemo(
+    () => categories.find((category) => category.transactionType === 'expense')?.name ?? categories[0]?.name ?? '',
+    [categories],
+  );
 
   const totalExpenses = useMemo(
     () =>
@@ -132,6 +154,20 @@ export function TransactionsPage() {
     [transactions],
   );
 
+  const handleFormChange = (nextValues: TransactionFormValues) => {
+    const compatibleCategories = categories.filter(
+      (category) => category.transactionType === nextValues.type,
+    );
+    const categoryIsCompatible = compatibleCategories.some(
+      (category) => category.name === nextValues.category,
+    );
+
+    setFormValues({
+      ...nextValues,
+      category: categoryIsCompatible ? nextValues.category : compatibleCategories[0]?.name ?? '',
+    });
+  };
+
   const handleSubmitTransaction = async () => {
     setError(null);
     setIsSubmitting(true);
@@ -150,7 +186,7 @@ export function TransactionsPage() {
       }
 
       setEditingTransactionId(null);
-      setFormValues(defaultFormValues);
+      setFormValues(buildDefaultFormValues(defaultExpenseCategory));
     } catch (submitError) {
       setError(getErrorMessage(submitError, 'Unable to save transaction'));
     } finally {
@@ -176,7 +212,7 @@ export function TransactionsPage() {
 
       if (editingTransactionId === transactionId) {
         setEditingTransactionId(null);
-        setFormValues(defaultFormValues);
+        setFormValues(buildDefaultFormValues(defaultExpenseCategory));
       }
     } catch (deleteError) {
       setError(getErrorMessage(deleteError, 'Unable to delete transaction'));
@@ -187,7 +223,7 @@ export function TransactionsPage() {
 
   const handleCancelEdit = () => {
     setEditingTransactionId(null);
-    setFormValues(defaultFormValues);
+    setFormValues(buildDefaultFormValues(defaultExpenseCategory));
   };
 
   return (
@@ -249,21 +285,21 @@ export function TransactionsPage() {
 
       <section className="grid gap-6 xl:grid-cols-[0.75fr_1.25fr]">
         <TransactionForm
-          categories={transactionCategories}
+          categories={compatibleFormCategories}
           values={formValues}
           isEditing={editingTransactionId !== null}
-          isSubmitting={isSubmitting || isLoading}
-          onChange={setFormValues}
+          isSubmitting={isSubmitting || isLoading || compatibleFormCategories.length === 0}
+          onChange={handleFormChange}
           onSubmit={handleSubmitTransaction}
           onCancelEdit={handleCancelEdit}
         />
 
         <div className="space-y-6">
-          <TransactionFilters categories={transactionCategories} filters={filters} onChange={setFilters} />
+          <TransactionFilters categories={categories} filters={filters} onChange={setFilters} />
 
           {isLoading ? (
             <div className="rounded-3xl border border-slate-200 bg-white p-8 text-center text-sm text-slate-500 shadow-soft">
-              Loading transactions...
+              Loading transactions and categories...
             </div>
           ) : (
             <TransactionsTable
