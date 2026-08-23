@@ -34,7 +34,7 @@ test('critical transaction flow persists through the API and updates the dashboa
   await page.goto('/transactions');
   await expect(page.getByRole('heading', { name: 'Transactions' })).toBeVisible();
   await expect(page.getByRole('button', { name: 'Add transaction' })).toBeEnabled();
-  await expect(page.getByLabel('Category')).toHaveValue('Food');
+  await expect(page.getByLabel('Category').first()).toHaveValue('Food');
 
   await page.getByLabel('Merchant').fill(merchant);
   await page.getByLabel('Amount').fill('42.50');
