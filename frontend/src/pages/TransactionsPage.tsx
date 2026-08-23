@@ -1,12 +1,22 @@
 import { Download, ReceiptText } from 'lucide-react';
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { MetricCard } from '../components/dashboard/MetricCard';
 import { PageHeader } from '../components/layout/PageHeader';
 import { TransactionFilters } from '../components/transactions/TransactionFilters';
 import { TransactionForm } from '../components/transactions/TransactionForm';
 import { TransactionsTable } from '../components/transactions/TransactionsTable';
-import { initialDetailedTransactions, transactionCategories } from '../data/transactionsData';
-import type { DetailedTransaction, TransactionFilters as TransactionFiltersType, TransactionFormValues } from '../types/transactions';
+import { transactionCategories } from '../data/transactionsData';
+import {
+  createTransaction,
+  deleteTransaction,
+  fetchTransactions,
+  updateTransaction,
+} from '../services/transactionsApi';
+import type {
+  DetailedTransaction,
+  TransactionFilters as TransactionFiltersType,
+  TransactionFormValues,
+} from '../types/transactions';
 import { formatCurrency } from '../utils/formatters';
 
 const defaultFormValues: TransactionFormValues = {
@@ -38,36 +48,46 @@ const mapTransactionToFormValues = (transaction: DetailedTransaction): Transacti
   isRecurring: transaction.isRecurring,
 });
 
-const buildTransactionFromForm = (
-  formValues: TransactionFormValues,
-  existingTransaction?: DetailedTransaction,
-): DetailedTransaction | null => {
-  const amount = Number(formValues.amount);
-
-  if (!formValues.merchant.trim() || Number.isNaN(amount) || amount <= 0) {
-    return null;
-  }
-
-  return {
-    id: existingTransaction?.id ?? `trx_${Date.now()}`,
-    merchant: formValues.merchant.trim(),
-    description: formValues.description.trim(),
-    category: formValues.category,
-    amount,
-    date: formValues.date,
-    type: formValues.type,
-    paymentMethod: formValues.paymentMethod,
-    status: existingTransaction?.status ?? (amount > 120 && formValues.type === 'expense' ? 'review' : 'normal'),
-    aiConfidence: formValues.description.trim().length > 0 ? 84 : 68,
-    isRecurring: formValues.isRecurring,
-  };
-};
+const getErrorMessage = (error: unknown, fallback: string) =>
+  error instanceof Error ? error.message : fallback;
 
 export function TransactionsPage() {
-  const [transactions, setTransactions] = useState<DetailedTransaction[]>(initialDetailedTransactions);
+  const [transactions, setTransactions] = useState<DetailedTransaction[]>([]);
   const [formValues, setFormValues] = useState<TransactionFormValues>(defaultFormValues);
   const [filters, setFilters] = useState<TransactionFiltersType>(defaultFilters);
   const [editingTransactionId, setEditingTransactionId] = useState<string | null>(null);
+  const [isLoading, setIsLoading] = useState(true);
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [deletingTransactionId, setDeletingTransactionId] = useState<string | null>(null);
+  const [error, setError] = useState<string | null>(null);
+
+  useEffect(() => {
+    let isActive = true;
+
+    const loadTransactions = async () => {
+      try {
+        const loadedTransactions = await fetchTransactions();
+
+        if (isActive) {
+          setTransactions(loadedTransactions);
+        }
+      } catch (loadError) {
+        if (isActive) {
+          setError(getErrorMessage(loadError, 'Unable to load transactions'));
+        }
+      } finally {
+        if (isActive) {
+          setIsLoading(false);
+        }
+      }
+    };
+
+    void loadTransactions();
+
+    return () => {
+      isActive = false;
+    };
+  }, []);
 
   const filteredTransactions = useMemo(() => {
     const normalizedSearch = filters.search.trim().toLowerCase();
@@ -87,17 +107,23 @@ export function TransactionsPage() {
   }, [filters, transactions]);
 
   const totalExpenses = useMemo(
-    () => transactions.filter((transaction) => transaction.type === 'expense').reduce((total, item) => total + item.amount, 0),
+    () =>
+      transactions
+        .filter((transaction) => transaction.type === 'expense')
+        .reduce((total, item) => total + item.amount, 0),
     [transactions],
   );
 
   const totalIncome = useMemo(
-    () => transactions.filter((transaction) => transaction.type === 'income').reduce((total, item) => total + item.amount, 0),
+    () =>
+      transactions
+        .filter((transaction) => transaction.type === 'income')
+        .reduce((total, item) => total + item.amount, 0),
     [transactions],
   );
 
-  const anomalyCount = useMemo(
-    () => transactions.filter((transaction) => transaction.status === 'anomaly').length,
+  const needsReviewCount = useMemo(
+    () => transactions.filter((transaction) => transaction.status !== 'normal').length,
     [transactions],
   );
 
@@ -106,39 +132,56 @@ export function TransactionsPage() {
     [transactions],
   );
 
-  const handleSubmitTransaction = () => {
-    const currentTransaction = transactions.find((transaction) => transaction.id === editingTransactionId);
-    const transactionPayload = buildTransactionFromForm(formValues, currentTransaction);
+  const handleSubmitTransaction = async () => {
+    setError(null);
+    setIsSubmitting(true);
 
-    if (!transactionPayload) {
-      return;
+    try {
+      if (editingTransactionId) {
+        const updatedTransaction = await updateTransaction(editingTransactionId, formValues);
+        setTransactions((currentTransactions) =>
+          currentTransactions.map((transaction) =>
+            transaction.id === editingTransactionId ? updatedTransaction : transaction,
+          ),
+        );
+      } else {
+        const createdTransaction = await createTransaction(formValues);
+        setTransactions((currentTransactions) => [createdTransaction, ...currentTransactions]);
+      }
+
+      setEditingTransactionId(null);
+      setFormValues(defaultFormValues);
+    } catch (submitError) {
+      setError(getErrorMessage(submitError, 'Unable to save transaction'));
+    } finally {
+      setIsSubmitting(false);
     }
-
-    if (editingTransactionId) {
-      setTransactions((currentTransactions) =>
-        currentTransactions.map((transaction) =>
-          transaction.id === editingTransactionId ? transactionPayload : transaction,
-        ),
-      );
-    } else {
-      setTransactions((currentTransactions) => [transactionPayload, ...currentTransactions]);
-    }
-
-    setEditingTransactionId(null);
-    setFormValues(defaultFormValues);
   };
 
   const handleEditTransaction = (transaction: DetailedTransaction) => {
+    setError(null);
     setEditingTransactionId(transaction.id);
     setFormValues(mapTransactionToFormValues(transaction));
   };
 
-  const handleDeleteTransaction = (transactionId: string) => {
-    setTransactions((currentTransactions) => currentTransactions.filter((transaction) => transaction.id !== transactionId));
+  const handleDeleteTransaction = async (transactionId: string) => {
+    setError(null);
+    setDeletingTransactionId(transactionId);
 
-    if (editingTransactionId === transactionId) {
-      setEditingTransactionId(null);
-      setFormValues(defaultFormValues);
+    try {
+      await deleteTransaction(transactionId);
+      setTransactions((currentTransactions) =>
+        currentTransactions.filter((transaction) => transaction.id !== transactionId),
+      );
+
+      if (editingTransactionId === transactionId) {
+        setEditingTransactionId(null);
+        setFormValues(defaultFormValues);
+      }
+    } catch (deleteError) {
+      setError(getErrorMessage(deleteError, 'Unable to delete transaction'));
+    } finally {
+      setDeletingTransactionId(null);
     }
   };
 
@@ -152,7 +195,7 @@ export function TransactionsPage() {
       <PageHeader
         eyebrow="Transaction management"
         title="Transactions"
-        description="Create, filter and review financial movements before sending them to the AI analysis engine."
+        description="Create, edit, filter and review persistent financial movements."
         action={
           <button
             type="button"
@@ -164,11 +207,20 @@ export function TransactionsPage() {
         }
       />
 
+      {error && (
+        <div
+          role="alert"
+          className="mb-6 rounded-2xl border border-rose-200 bg-rose-50 px-4 py-3 text-sm font-medium text-rose-700"
+        >
+          {error}
+        </div>
+      )}
+
       <section className="mb-6 grid gap-5 md:grid-cols-2 xl:grid-cols-4">
         <MetricCard
           title="Total expenses"
           value={formatCurrency(totalExpenses)}
-          detail="Manual and detected expenses"
+          detail="Persisted expense transactions"
           trend="up"
           icon={<ReceiptText size={20} />}
         />
@@ -188,8 +240,8 @@ export function TransactionsPage() {
         />
         <MetricCard
           title="Needs review"
-          value={String(anomalyCount)}
-          detail="Detected anomalies"
+          value={String(needsReviewCount)}
+          detail="Transactions currently flagged for review"
           trend="warning"
           icon={<ReceiptText size={20} />}
         />
@@ -200,6 +252,7 @@ export function TransactionsPage() {
           categories={transactionCategories}
           values={formValues}
           isEditing={editingTransactionId !== null}
+          isSubmitting={isSubmitting || isLoading}
           onChange={setFormValues}
           onSubmit={handleSubmitTransaction}
           onCancelEdit={handleCancelEdit}
@@ -207,11 +260,22 @@ export function TransactionsPage() {
 
         <div className="space-y-6">
           <TransactionFilters categories={transactionCategories} filters={filters} onChange={setFilters} />
-          <TransactionsTable
-            transactions={filteredTransactions}
-            onEdit={handleEditTransaction}
-            onDelete={handleDeleteTransaction}
-          />
+
+          {isLoading ? (
+            <div className="rounded-3xl border border-slate-200 bg-white p-8 text-center text-sm text-slate-500 shadow-soft">
+              Loading transactions...
+            </div>
+          ) : (
+            <TransactionsTable
+              transactions={filteredTransactions}
+              onEdit={handleEditTransaction}
+              onDelete={(transactionId) => {
+                if (deletingTransactionId === null) {
+                  void handleDeleteTransaction(transactionId);
+                }
+              }}
+            />
+          )}
         </div>
       </section>
     </>
