@@ -1,22 +1,113 @@
-import { AlertTriangle, LineChart, PiggyBank, Plus, Wallet } from 'lucide-react';
-import { AlertsPanel } from '../components/dashboard/AlertsPanel';
+import { PiggyBank, Plus, ReceiptText, Repeat, Wallet } from 'lucide-react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { MetricCard } from '../components/dashboard/MetricCard';
 import { RecentTransactionsTable } from '../components/dashboard/RecentTransactionsTable';
 import { SpendingChart } from '../components/dashboard/SpendingChart';
 import { PageHeader } from '../components/layout/PageHeader';
-import { alerts, monthlyExpenses, recentTransactions } from '../data/dashboardData';
-import { formatCurrency } from '../utils/formatters';
+import { ROUTES } from '../routes/paths';
+import { fetchTransactions } from '../services/transactionsApi';
+import type { MonthlyExpense } from '../types/dashboard';
+import type { DetailedTransaction } from '../types/transactions';
+import { formatCurrencyWithDecimals } from '../utils/formatters';
+
+const getMonthKey = (date: Date) =>
+  `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}`;
+
+const buildMonthlyExpenses = (transactions: DetailedTransaction[]): MonthlyExpense[] => {
+  const today = new Date();
+
+  return Array.from({ length: 6 }, (_, index) => {
+    const monthOffset = 5 - index;
+    const monthDate = new Date(today.getFullYear(), today.getMonth() - monthOffset, 1);
+    const monthKey = getMonthKey(monthDate);
+    const amount = transactions
+      .filter(
+        (transaction) =>
+          transaction.type === 'expense' && transaction.date.startsWith(monthKey),
+      )
+      .reduce((total, transaction) => total + transaction.amount, 0);
+
+    return {
+      month: monthDate.toLocaleDateString('en-US', { month: 'short' }),
+      amount,
+    };
+  });
+};
+
+const getErrorMessage = (error: unknown) =>
+  error instanceof Error ? error.message : 'Unable to load dashboard data';
 
 export function DashboardPage() {
+  const navigate = useNavigate();
+  const [transactions, setTransactions] = useState<DetailedTransaction[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+
+  const loadTransactions = useCallback(async () => {
+    setIsLoading(true);
+    setError(null);
+
+    try {
+      setTransactions(await fetchTransactions());
+    } catch (loadError) {
+      setError(getErrorMessage(loadError));
+    } finally {
+      setIsLoading(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    void loadTransactions();
+  }, [loadTransactions]);
+
+  const currentMonthKey = getMonthKey(new Date());
+  const currentMonthLabel = new Date().toLocaleDateString('en-US', {
+    month: 'long',
+    year: 'numeric',
+  });
+
+  const currentMonthTransactions = useMemo(
+    () => transactions.filter((transaction) => transaction.date.startsWith(currentMonthKey)),
+    [currentMonthKey, transactions],
+  );
+
+  const monthlyExpenses = useMemo(
+    () =>
+      currentMonthTransactions
+        .filter((transaction) => transaction.type === 'expense')
+        .reduce((total, transaction) => total + transaction.amount, 0),
+    [currentMonthTransactions],
+  );
+
+  const monthlyIncome = useMemo(
+    () =>
+      currentMonthTransactions
+        .filter((transaction) => transaction.type === 'income')
+        .reduce((total, transaction) => total + transaction.amount, 0),
+    [currentMonthTransactions],
+  );
+
+  const monthlyBalance = monthlyIncome - monthlyExpenses;
+
+  const recurringCount = useMemo(
+    () => currentMonthTransactions.filter((transaction) => transaction.isRecurring).length,
+    [currentMonthTransactions],
+  );
+
+  const spendingTrend = useMemo(() => buildMonthlyExpenses(transactions), [transactions]);
+  const recentTransactions = useMemo(() => transactions.slice(0, 5), [transactions]);
+
   return (
     <>
       <PageHeader
-        eyebrow="Financial intelligence dashboard"
-        title="Expense analysis with AI alerts"
-        description="Track your spending, detect anomalies and predict future expenses before they become a problem."
+        eyebrow="Financial dashboard"
+        title="Your financial overview"
+        description="Track persisted income, expenses and recent activity from your real transaction data."
         action={
           <button
             type="button"
+            onClick={() => navigate(ROUTES.transactions)}
             className="inline-flex items-center justify-center gap-2 rounded-2xl bg-slate-950 px-5 py-3 text-sm font-semibold text-white shadow-soft transition hover:-translate-y-0.5 hover:bg-slate-800"
           >
             <Plus size={18} />
@@ -25,63 +116,68 @@ export function DashboardPage() {
         }
       />
 
-      <section className="mb-6 rounded-3xl border border-brand-100 bg-gradient-to-br from-brand-50 to-white p-6 shadow-soft">
-        <div className="flex flex-col justify-between gap-5 xl:flex-row xl:items-center">
-          <div>
-            <p className="text-sm font-semibold text-brand-700">AI monthly forecast</p>
-            <h2 className="mt-2 text-2xl font-bold tracking-tight text-slate-950">
-              You are projected to spend {formatCurrency(1470)} this month
-            </h2>
-            <p className="mt-2 max-w-3xl text-sm leading-6 text-slate-600">
-              The system detected higher shopping activity and two recurring subscription payments that should be reviewed.
-            </p>
-          </div>
-          <div className="rounded-2xl bg-white px-5 py-4 shadow-sm">
-            <p className="text-xs font-semibold uppercase tracking-wide text-slate-400">Risk level</p>
-            <p className="mt-1 text-2xl font-bold text-amber-600">Medium</p>
-          </div>
+      {error && (
+        <div
+          role="alert"
+          className="mb-6 flex flex-col gap-3 rounded-2xl border border-rose-200 bg-rose-50 px-4 py-3 text-sm font-medium text-rose-700 sm:flex-row sm:items-center sm:justify-between"
+        >
+          <span>{error}</span>
+          <button
+            type="button"
+            onClick={() => void loadTransactions()}
+            className="self-start rounded-xl border border-rose-200 bg-white px-3 py-2 text-xs font-semibold transition hover:bg-rose-100 sm:self-auto"
+          >
+            Retry
+          </button>
         </div>
-      </section>
+      )}
 
-      <section className="grid gap-5 md:grid-cols-2 xl:grid-cols-4">
-        <MetricCard
-          title="Monthly spending"
-          value={formatCurrency(1290)}
-          detail="12% above average"
-          trend="up"
-          icon={<Wallet size={20} />}
-        />
-        <MetricCard
-          title="Predicted total"
-          value={formatCurrency(1470)}
-          detail="End-of-month forecast"
-          trend="up"
-          icon={<LineChart size={20} />}
-        />
-        <MetricCard
-          title="Potential savings"
-          value={formatCurrency(215)}
-          detail="Based on recurring costs"
-          trend="down"
-          icon={<PiggyBank size={20} />}
-        />
-        <MetricCard
-          title="Active alerts"
-          value="3"
-          detail="1 high priority"
-          trend="warning"
-          icon={<AlertTriangle size={20} />}
-        />
-      </section>
+      {isLoading ? (
+        <div className="rounded-3xl border border-slate-200 bg-white p-10 text-center text-sm text-slate-500 shadow-soft">
+          Loading dashboard data...
+        </div>
+      ) : (
+        <>
+          <section className="grid gap-5 md:grid-cols-2 xl:grid-cols-4">
+            <MetricCard
+              title="Expenses this month"
+              value={formatCurrencyWithDecimals(monthlyExpenses)}
+              detail={currentMonthLabel}
+              trend="up"
+              icon={<ReceiptText size={20} />}
+            />
+            <MetricCard
+              title="Income this month"
+              value={formatCurrencyWithDecimals(monthlyIncome)}
+              detail={currentMonthLabel}
+              trend="neutral"
+              icon={<Wallet size={20} />}
+            />
+            <MetricCard
+              title="Balance"
+              value={formatCurrencyWithDecimals(monthlyBalance)}
+              detail="Income minus expenses this month"
+              trend={monthlyBalance < 0 ? 'warning' : 'neutral'}
+              icon={<PiggyBank size={20} />}
+            />
+            <MetricCard
+              title="Recurring this month"
+              value={String(recurringCount)}
+              detail="Persisted recurring movements"
+              trend="neutral"
+              icon={<Repeat size={20} />}
+            />
+          </section>
 
-      <section className="mt-6 grid gap-6 xl:grid-cols-[1.35fr_0.65fr]">
-        <SpendingChart data={monthlyExpenses} />
-        <AlertsPanel alerts={alerts} />
-      </section>
+          <section className="mt-6">
+            <SpendingChart data={spendingTrend} />
+          </section>
 
-      <div className="mt-6">
-        <RecentTransactionsTable transactions={recentTransactions} />
-      </div>
+          <div className="mt-6">
+            <RecentTransactionsTable transactions={recentTransactions} />
+          </div>
+        </>
+      )}
     </>
   );
 }
