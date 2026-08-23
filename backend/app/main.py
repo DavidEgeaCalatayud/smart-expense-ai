@@ -1,5 +1,7 @@
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
+
+from app.routers.categories import router as categories_router
 from app.routers.transactions import router as transactions_router
 
 app = FastAPI(
@@ -22,4 +24,5 @@ def health_check() -> dict[str, str]:
     return {"status": "ok"}
 
 
+app.include_router(categories_router, prefix="/api")
 app.include_router(transactions_router, prefix="/api")
