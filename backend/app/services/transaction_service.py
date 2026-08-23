@@ -48,10 +48,20 @@ def _parse_transaction_date(value: str) -> date:
         raise TransactionInputError("Transaction date must use YYYY-MM-DD format") from exc
 
 
-def _get_category(db: Session, category_name: str) -> Category:
+def _get_category(
+    db: Session,
+    category_name: str,
+    transaction_type: TransactionType,
+) -> Category:
     category = db.scalar(select(Category).where(Category.name == category_name))
     if category is None:
         raise TransactionInputError(f"Unknown category: {category_name}")
+
+    if category.transaction_type != transaction_type.value:
+        raise TransactionInputError(
+            f"Category {category_name} is not valid for {transaction_type.value} transactions"
+        )
+
     return category
 
 
@@ -93,7 +103,7 @@ def list_transactions(db: Session) -> list[Transaction]:
 
 
 def create_transaction(db: Session, payload: TransactionCreate) -> Transaction:
-    category = _get_category(db, payload.category)
+    category = _get_category(db, payload.category, payload.type)
     transaction = TransactionModel(
         category=category,
         merchant=payload.merchant,
@@ -130,7 +140,7 @@ def update_transaction(
     if transaction is None:
         return None
 
-    transaction.category = _get_category(db, payload.category)
+    transaction.category = _get_category(db, payload.category, payload.type)
     transaction.merchant = payload.merchant
     transaction.description = payload.description
     transaction.amount = Decimal(str(payload.amount))
