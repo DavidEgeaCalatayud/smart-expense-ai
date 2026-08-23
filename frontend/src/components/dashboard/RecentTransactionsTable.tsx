@@ -1,9 +1,9 @@
-import type { Transaction } from '../../types/dashboard';
+import type { DetailedTransaction } from '../../types/transactions';
 import { formatCurrencyWithDecimals } from '../../utils/formatters';
 import { Badge } from '../ui/Badge';
 
 interface RecentTransactionsTableProps {
-  transactions: Transaction[];
+  transactions: DetailedTransaction[];
 }
 
 const statusTone = {
@@ -18,7 +18,7 @@ export function RecentTransactionsTable({ transactions }: RecentTransactionsTabl
       <div className="mb-6 flex items-center justify-between">
         <div>
           <h2 className="text-lg font-bold">Recent transactions</h2>
-          <p className="text-sm text-slate-500">Latest detected movements</p>
+          <p className="text-sm text-slate-500">Latest persisted movements</p>
         </div>
       </div>
 
@@ -34,17 +34,32 @@ export function RecentTransactionsTable({ transactions }: RecentTransactionsTabl
             </tr>
           </thead>
           <tbody>
-            {transactions.map((transaction) => (
-              <tr key={transaction.id} className="border-b border-slate-100 last:border-0">
-                <td className="py-4 font-semibold text-slate-900">{transaction.merchant}</td>
-                <td className="py-4 text-slate-500">{transaction.category}</td>
-                <td className="py-4 text-slate-500">{transaction.date}</td>
-                <td className="py-4">
-                  <Badge tone={statusTone[transaction.status]}>{transaction.status}</Badge>
+            {transactions.length === 0 ? (
+              <tr>
+                <td colSpan={5} className="py-10 text-center text-sm text-slate-500">
+                  No transactions yet. Add your first transaction to populate the dashboard.
                 </td>
-                <td className="py-4 text-right font-bold">{formatCurrencyWithDecimals(transaction.amount)}</td>
               </tr>
-            ))}
+            ) : (
+              transactions.map((transaction) => (
+                <tr key={transaction.id} className="border-b border-slate-100 last:border-0">
+                  <td className="py-4 font-semibold text-slate-900">{transaction.merchant}</td>
+                  <td className="py-4 text-slate-500">{transaction.category}</td>
+                  <td className="py-4 text-slate-500">{transaction.date}</td>
+                  <td className="py-4">
+                    <Badge tone={statusTone[transaction.status]}>{transaction.status}</Badge>
+                  </td>
+                  <td
+                    className={`py-4 text-right font-bold ${
+                      transaction.type === 'income' ? 'text-emerald-600' : 'text-slate-950'
+                    }`}
+                  >
+                    {transaction.type === 'income' ? '+' : '-'}
+                    {formatCurrencyWithDecimals(transaction.amount)}
+                  </td>
+                </tr>
+              ))
+            )}
           </tbody>
         </table>
       </div>
