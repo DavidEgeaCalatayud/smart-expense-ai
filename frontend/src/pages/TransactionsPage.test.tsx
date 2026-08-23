@@ -56,7 +56,7 @@ describe('TransactionsPage', () => {
     expect(await screen.findByText('Persisted Market')).toBeInTheDocument();
     expect(fetchTransactions).toHaveBeenCalledOnce();
     expect(fetchCategories).toHaveBeenCalledOnce();
-    expect(screen.getByRole('option', { name: 'Food' })).toBeInTheDocument();
+    expect(screen.getAllByRole('option', { name: 'Food' })).toHaveLength(2);
   });
 
   it('creates a transaction through the API before adding it to the table', async () => {
