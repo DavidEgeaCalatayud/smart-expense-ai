@@ -5,6 +5,7 @@ export type PaymentMethod = 'card' | 'cash' | 'bank_transfer' | 'direct_debit';
 export interface TransactionCategory {
   id: string;
   name: string;
+  transactionType: TransactionType;
 }
 
 export interface DetailedTransaction {
