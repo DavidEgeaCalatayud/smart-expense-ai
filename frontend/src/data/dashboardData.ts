@@ -1,4 +1,4 @@
-import type { Alert, MonthlyExpense, Transaction } from '../types/dashboard';
+import type { Alert, MonthlyExpense } from '../types/dashboard';
 
 export const monthlyExpenses: MonthlyExpense[] = [
   { month: 'Jan', amount: 980 },
@@ -7,41 +7,6 @@ export const monthlyExpenses: MonthlyExpense[] = [
   { month: 'Apr', amount: 1210 },
   { month: 'May', amount: 1375 },
   { month: 'Jun', amount: 1290 },
-];
-
-export const recentTransactions: Transaction[] = [
-  {
-    id: 'trx_001',
-    merchant: 'Mercadona',
-    category: 'Food',
-    amount: 64.35,
-    date: '2026-05-30',
-    status: 'normal',
-  },
-  {
-    id: 'trx_002',
-    merchant: 'Netflix',
-    category: 'Subscriptions',
-    amount: 15.99,
-    date: '2026-05-29',
-    status: 'review',
-  },
-  {
-    id: 'trx_003',
-    merchant: 'Spotify',
-    category: 'Subscriptions',
-    amount: 10.99,
-    date: '2026-05-28',
-    status: 'normal',
-  },
-  {
-    id: 'trx_004',
-    merchant: 'Amazon',
-    category: 'Shopping',
-    amount: 129.99,
-    date: '2026-05-27',
-    status: 'anomaly',
-  },
 ];
 
 export const alerts: Alert[] = [
