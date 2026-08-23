@@ -16,7 +16,7 @@ export function TransactionFilters({ categories, filters, onChange }: Transactio
         </div>
         <div>
           <h2 className="text-base font-bold">Filters</h2>
-          <p className="text-sm text-slate-500">Search and classify movements faster.</p>
+          <p className="text-sm text-slate-500">Search and filter persisted movements.</p>
         </div>
       </div>
 
@@ -48,7 +48,7 @@ export function TransactionFilters({ categories, filters, onChange }: Transactio
         </label>
 
         <label className="space-y-2">
-          <span className="text-sm font-semibold text-slate-700">Status</span>
+          <span className="text-sm font-semibold text-slate-700">Review status</span>
           <select
             value={filters.status}
             onChange={(event) => onChange({ ...filters, status: event.target.value })}
@@ -56,8 +56,7 @@ export function TransactionFilters({ categories, filters, onChange }: Transactio
           >
             <option value="all">All statuses</option>
             <option value="normal">Normal</option>
-            <option value="review">Review</option>
-            <option value="anomaly">Anomaly</option>
+            <option value="review">Needs review</option>
           </select>
         </label>
 

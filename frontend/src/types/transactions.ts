@@ -1,5 +1,5 @@
 export type TransactionType = 'expense' | 'income';
-export type TransactionStatus = 'normal' | 'review' | 'anomaly';
+export type TransactionStatus = 'normal' | 'review';
 export type PaymentMethod = 'card' | 'cash' | 'bank_transfer' | 'direct_debit';
 
 export interface TransactionCategory {
@@ -18,7 +18,6 @@ export interface DetailedTransaction {
   type: TransactionType;
   paymentMethod: PaymentMethod;
   status: TransactionStatus;
-  aiConfidence: number;
   isRecurring: boolean;
 }
 

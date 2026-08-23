@@ -10,7 +10,6 @@ class TransactionType(str, Enum):
 class TransactionStatus(str, Enum):
     normal = "normal"
     review = "review"
-    anomaly = "anomaly"
 
 
 class PaymentMethod(str, Enum):
@@ -42,10 +41,9 @@ class TransactionCreate(TransactionBase):
 
 
 class TransactionUpdate(TransactionBase):
-    status: TransactionStatus | None = None
+    pass
 
 
 class Transaction(TransactionBase):
     id: str
     status: TransactionStatus
-    aiConfidence: int = Field(..., ge=0, le=100)

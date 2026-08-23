@@ -109,7 +109,7 @@ DELETE /api/transactions/{transaction_id}
 
 Categories are loaded from PostgreSQL and include their compatible transaction type (`expense` or `income`). The transaction API validates that the selected category matches the transaction type.
 
-The public transaction contract remains compatible with the frontend while persistence is handled internally with SQLAlchemy and PostgreSQL.
+Persistence is handled internally with SQLAlchemy and PostgreSQL.
 
 ## API Docs
 
@@ -131,11 +131,12 @@ The old in-memory transaction store and frontend transaction/category mocks have
 
 The Transactions page loads both transactions and categories from the API. The Dashboard derives current-month totals, balance, recurring items, the six-month spending trend and recent transactions from persisted transaction data.
 
-`status` and `aiConfidence` remain compatibility fields derived by the service for now; they are not persisted as database columns.
+`status` is currently a transparent deterministic review rule: expenses above 120 EUR are returned as `review`; all other transactions are `normal`. No AI confidence score or anomaly result is exposed until a real analysis service exists.
 
 Next backend steps:
 
-- Remove or redesign the temporary AI compatibility fields.
+- Add automated tests and CI for persistence and API contracts.
 - Add category CRUD only when user-managed categories are needed.
 - Add authentication later.
 - Add transaction ownership by user when authentication is introduced.
+- Implement predictive and anomaly services only when they can use real persisted data and validated logic.

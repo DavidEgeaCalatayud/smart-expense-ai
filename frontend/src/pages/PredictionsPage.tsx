@@ -1,72 +1,56 @@
-import { BrainCircuit, CalendarClock, LineChart, TrendingUp } from 'lucide-react';
-import { MetricCard } from '../components/dashboard/MetricCard';
-import { SpendingChart } from '../components/dashboard/SpendingChart';
+import { BrainCircuit, CalendarClock, LineChart, Repeat2 } from 'lucide-react';
 import { PageHeader } from '../components/layout/PageHeader';
-import { monthlyExpenses } from '../data/dashboardData';
-import { formatCurrency } from '../utils/formatters';
+import { EmptyStateCard } from '../components/ui/EmptyStateCard';
 
-const predictionItems = [
-  'Recurring subscriptions are expected to charge €82 during the next 30 days.',
-  'Shopping expenses are trending above the last 3-month average.',
-  'Food spending remains stable and does not require immediate action.',
+const plannedFeatures = [
+  {
+    icon: LineChart,
+    title: 'Monthly spending forecast',
+    description: 'Project end-of-month spending from persisted historical transactions.',
+  },
+  {
+    icon: Repeat2,
+    title: 'Recurring charge projection',
+    description: 'Estimate upcoming recurring payments from real recurring transaction patterns.',
+  },
+  {
+    icon: CalendarClock,
+    title: 'Explainable forecast window',
+    description: 'Show the period, evidence and assumptions behind every prediction.',
+  },
 ];
 
 export function PredictionsPage() {
   return (
     <>
       <PageHeader
-        eyebrow="Predictive analysis"
+        eyebrow="Planned intelligence"
         title="Predictions"
-        description="Estimate future spending, recurring charges and financial risk before the month ends."
+        description="Predictive analytics will be enabled when a real forecasting backend is implemented and validated."
       />
 
       <section className="grid gap-5 md:grid-cols-3">
-        <MetricCard
-          title="Predicted spending"
-          value={formatCurrency(1470)}
-          detail="Estimated end-of-month total"
-          trend="up"
-          icon={<TrendingUp size={20} />}
-        />
-        <MetricCard
-          title="Next recurring charges"
-          value={formatCurrency(82)}
-          detail="Expected in 30 days"
-          trend="neutral"
-          icon={<CalendarClock size={20} />}
-        />
-        <MetricCard
-          title="Model confidence"
-          value="74%"
-          detail="Based on current mock dataset"
-          trend="neutral"
-          icon={<BrainCircuit size={20} />}
-        />
-      </section>
-
-      <section className="mt-6 grid gap-6 xl:grid-cols-[1.2fr_0.8fr]">
-        <SpendingChart data={monthlyExpenses} />
-
-        <article className="rounded-3xl border border-slate-200 bg-white p-6 shadow-soft">
-          <div className="mb-5 flex items-center gap-3">
-            <div className="flex h-11 w-11 items-center justify-center rounded-2xl bg-brand-50 text-brand-700">
-              <LineChart size={20} />
-            </div>
-            <div>
-              <h2 className="text-lg font-bold">Forecast explanation</h2>
-              <p className="text-sm text-slate-500">Simple rules and statistical baseline</p>
-            </div>
-          </div>
-
-          <div className="space-y-4">
-            {predictionItems.map((item) => (
-              <div key={item} className="rounded-2xl border border-slate-200 p-4 text-sm leading-6 text-slate-600">
-                {item}
+        {plannedFeatures.map((feature) => (
+          <article key={feature.title} className="rounded-3xl border border-slate-200 bg-white p-5 shadow-soft">
+            <div className="mb-4 flex items-center justify-between gap-3">
+              <div className="flex h-11 w-11 items-center justify-center rounded-2xl bg-brand-50 text-brand-700">
+                <feature.icon size={20} />
               </div>
-            ))}
-          </div>
-        </article>
+              <span className="rounded-full bg-slate-100 px-3 py-1 text-xs font-semibold text-slate-600">Planned</span>
+            </div>
+            <h2 className="font-bold text-slate-950">{feature.title}</h2>
+            <p className="mt-2 text-sm leading-6 text-slate-500">{feature.description}</p>
+          </article>
+        ))}
       </section>
+
+      <div className="mt-6">
+        <EmptyStateCard
+          icon={<BrainCircuit size={22} />}
+          title="No prediction model is active yet"
+          description="The current application persists and analyses transaction totals without presenting invented forecasts or confidence scores."
+        />
+      </div>
     </>
   );
 }

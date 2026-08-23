@@ -1,4 +1,4 @@
-import { BrainCircuit, Pencil, Repeat, Trash2 } from 'lucide-react';
+import { Pencil, Repeat, Trash2 } from 'lucide-react';
 import type { DetailedTransaction } from '../../types/transactions';
 import { formatCurrencyWithDecimals } from '../../utils/formatters';
 import { Badge } from '../ui/Badge';
@@ -12,7 +12,11 @@ interface TransactionsTableProps {
 const statusTone = {
   normal: 'green',
   review: 'amber',
-  anomaly: 'red',
+} as const;
+
+const statusLabels = {
+  normal: 'Normal',
+  review: 'Needs review',
 } as const;
 
 const typeTone = {
@@ -33,13 +37,13 @@ export function TransactionsTable({ transactions, onEdit, onDelete }: Transactio
       <div className="mb-6 flex flex-col justify-between gap-3 sm:flex-row sm:items-center">
         <div>
           <h2 className="text-lg font-bold">Transaction list</h2>
-          <p className="text-sm text-slate-500">Detailed movements prepared for AI classification.</p>
+          <p className="text-sm text-slate-500">Persistent movements with transparent rule-based review.</p>
         </div>
         <Badge tone="brand">{transactions.length} results</Badge>
       </div>
 
       <div className="overflow-x-auto">
-        <table className="w-full min-w-[1160px] border-collapse text-left text-sm">
+        <table className="w-full min-w-[1040px] border-collapse text-left text-sm">
           <thead>
             <tr className="border-b border-slate-200 text-xs uppercase tracking-wide text-slate-400">
               <th className="pb-3 font-semibold">Merchant</th>
@@ -48,8 +52,7 @@ export function TransactionsTable({ transactions, onEdit, onDelete }: Transactio
               <th className="pb-3 font-semibold">Date</th>
               <th className="pb-3 font-semibold">Type</th>
               <th className="pb-3 font-semibold">Method</th>
-              <th className="pb-3 font-semibold">AI</th>
-              <th className="pb-3 font-semibold">Status</th>
+              <th className="pb-3 font-semibold">Review</th>
               <th className="pb-3 text-right font-semibold">Amount</th>
               <th className="pb-3 text-right font-semibold">Actions</th>
             </tr>
@@ -57,7 +60,7 @@ export function TransactionsTable({ transactions, onEdit, onDelete }: Transactio
           <tbody>
             {transactions.length === 0 ? (
               <tr>
-                <td colSpan={10} className="py-10 text-center text-sm text-slate-500">
+                <td colSpan={9} className="py-10 text-center text-sm text-slate-500">
                   No transactions match the current filters.
                 </td>
               </tr>
@@ -82,13 +85,7 @@ export function TransactionsTable({ transactions, onEdit, onDelete }: Transactio
                   </td>
                   <td className="py-4 text-slate-500">{paymentMethodLabels[transaction.paymentMethod]}</td>
                   <td className="py-4">
-                    <div className="inline-flex items-center gap-2 rounded-full bg-slate-100 px-3 py-1 text-xs font-semibold text-slate-700">
-                      <BrainCircuit size={14} />
-                      {transaction.aiConfidence}%
-                    </div>
-                  </td>
-                  <td className="py-4">
-                    <Badge tone={statusTone[transaction.status]}>{transaction.status}</Badge>
+                    <Badge tone={statusTone[transaction.status]}>{statusLabels[transaction.status]}</Badge>
                   </td>
                   <td
                     className={`py-4 text-right font-bold ${

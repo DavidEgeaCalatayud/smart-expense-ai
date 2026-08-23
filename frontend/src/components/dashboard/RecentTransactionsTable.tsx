@@ -9,7 +9,11 @@ interface RecentTransactionsTableProps {
 const statusTone = {
   normal: 'green',
   review: 'amber',
-  anomaly: 'red',
+} as const;
+
+const statusLabels = {
+  normal: 'Normal',
+  review: 'Needs review',
 } as const;
 
 export function RecentTransactionsTable({ transactions }: RecentTransactionsTableProps) {
@@ -29,7 +33,7 @@ export function RecentTransactionsTable({ transactions }: RecentTransactionsTabl
               <th className="pb-3 font-semibold">Merchant</th>
               <th className="pb-3 font-semibold">Category</th>
               <th className="pb-3 font-semibold">Date</th>
-              <th className="pb-3 font-semibold">Status</th>
+              <th className="pb-3 font-semibold">Review</th>
               <th className="pb-3 text-right font-semibold">Amount</th>
             </tr>
           </thead>
@@ -47,7 +51,7 @@ export function RecentTransactionsTable({ transactions }: RecentTransactionsTabl
                   <td className="py-4 text-slate-500">{transaction.category}</td>
                   <td className="py-4 text-slate-500">{transaction.date}</td>
                   <td className="py-4">
-                    <Badge tone={statusTone[transaction.status]}>{transaction.status}</Badge>
+                    <Badge tone={statusTone[transaction.status]}>{statusLabels[transaction.status]}</Badge>
                   </td>
                   <td
                     className={`py-4 text-right font-bold ${

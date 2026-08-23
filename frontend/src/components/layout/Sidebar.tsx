@@ -2,10 +2,10 @@ import {
   Bell,
   Brain,
   CreditCard,
+  Database,
   LayoutDashboard,
   LineChart,
   ShieldCheck,
-  WalletCards,
 } from 'lucide-react';
 import { NavLink } from 'react-router-dom';
 import { ROUTES } from '../../routes/paths';
@@ -27,7 +27,7 @@ export function Sidebar() {
         </div>
         <div>
           <p className="text-lg font-bold tracking-tight">Smart Expense AI</p>
-          <p className="text-sm text-slate-500">Predictive finance</p>
+          <p className="text-sm text-slate-500">Personal finance workspace</p>
         </div>
       </div>
 
@@ -53,11 +53,11 @@ export function Sidebar() {
 
       <div className="mt-10 rounded-3xl bg-slate-950 p-5 text-white shadow-soft">
         <div className="mb-4 flex h-10 w-10 items-center justify-center rounded-2xl bg-white/10">
-          <WalletCards size={20} />
+          <Database size={20} />
         </div>
-        <p className="mb-2 text-sm font-semibold">AI Insight</p>
+        <p className="mb-2 text-sm font-semibold">Live data</p>
         <p className="text-sm leading-6 text-slate-300">
-          Your spending is trending 12% above your usual monthly average.
+          Dashboard and transactions use persisted PostgreSQL data. Predictive features are marked as planned.
         </p>
       </div>
     </aside>

@@ -25,13 +25,10 @@ class TransactionInputError(ValueError):
 
 
 def calculate_status(amount: float, transaction_type: TransactionType) -> TransactionStatus:
+    """Flag high-value expenses for deterministic user review."""
     if transaction_type == TransactionType.expense and amount > 120:
         return TransactionStatus.review
     return TransactionStatus.normal
-
-
-def calculate_ai_confidence(description: str) -> int:
-    return 84 if description.strip() else 68
 
 
 def _parse_transaction_id(transaction_id: str) -> UUID | None:
@@ -79,7 +76,6 @@ def _to_schema(transaction: TransactionModel) -> Transaction:
         type=transaction_type,
         paymentMethod=PaymentMethod(transaction.payment_method),
         status=calculate_status(amount, transaction_type),
-        aiConfidence=calculate_ai_confidence(transaction.description),
         isRecurring=transaction.is_recurring,
     )
 
@@ -149,7 +145,6 @@ def update_transaction(
     transaction.payment_method = payload.paymentMethod.value
     transaction.is_recurring = payload.isRecurring
 
-    # status remains a derived compatibility field until the intelligence layer is real.
     _commit(db)
     return _to_schema(transaction)
 

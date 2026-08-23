@@ -1,51 +1,56 @@
 import { AlertTriangle, BellRing, CheckCircle2 } from 'lucide-react';
-import { AlertsPanel } from '../components/dashboard/AlertsPanel';
-import { MetricCard } from '../components/dashboard/MetricCard';
 import { PageHeader } from '../components/layout/PageHeader';
 import { EmptyStateCard } from '../components/ui/EmptyStateCard';
-import { alerts } from '../data/dashboardData';
+
+const plannedFeatures = [
+  {
+    icon: BellRing,
+    title: 'Rule and anomaly alerts',
+    description: 'Surface suspicious or unusual movements only after a real detection service is implemented.',
+  },
+  {
+    icon: AlertTriangle,
+    title: 'Duplicate charge review',
+    description: 'Link possible duplicated payments to the persisted transactions that triggered the alert.',
+  },
+  {
+    icon: CheckCircle2,
+    title: 'Review workflow',
+    description: 'Let users resolve, dismiss and audit alerts instead of displaying static warning counts.',
+  },
+];
 
 export function AlertsPage() {
   return (
     <>
       <PageHeader
-        eyebrow="Anomaly monitoring"
+        eyebrow="Planned monitoring"
         title="Alerts"
-        description="Review duplicated subscriptions, suspicious charges and spending deviations detected by the AI engine."
+        description="Automated alerts will be enabled when detection rules and review persistence are implemented."
       />
 
-      <section className="mb-6 grid gap-5 md:grid-cols-3">
-        <MetricCard
-          title="Open alerts"
-          value="3"
-          detail="Pending user review"
-          trend="warning"
-          icon={<BellRing size={20} />}
-        />
-        <MetricCard
-          title="High priority"
-          value="1"
-          detail="Requires attention"
-          trend="warning"
-          icon={<AlertTriangle size={20} />}
-        />
-        <MetricCard
-          title="Resolved this month"
-          value="8"
-          detail="Reviewed and closed"
-          trend="down"
-          icon={<CheckCircle2 size={20} />}
-        />
+      <section className="grid gap-5 md:grid-cols-3">
+        {plannedFeatures.map((feature) => (
+          <article key={feature.title} className="rounded-3xl border border-slate-200 bg-white p-5 shadow-soft">
+            <div className="mb-4 flex items-center justify-between gap-3">
+              <div className="flex h-11 w-11 items-center justify-center rounded-2xl bg-brand-50 text-brand-700">
+                <feature.icon size={20} />
+              </div>
+              <span className="rounded-full bg-slate-100 px-3 py-1 text-xs font-semibold text-slate-600">Planned</span>
+            </div>
+            <h2 className="font-bold text-slate-950">{feature.title}</h2>
+            <p className="mt-2 text-sm leading-6 text-slate-500">{feature.description}</p>
+          </article>
+        ))}
       </section>
 
-      <section className="grid gap-6 xl:grid-cols-[0.8fr_1.2fr]">
-        <AlertsPanel alerts={alerts} />
+      <div className="mt-6">
         <EmptyStateCard
           icon={<AlertTriangle size={22} />}
-          title="Alert details panel"
-          description="When the backend is connected, selecting an alert will show related transactions, detection reason, confidence score and recommended actions."
+          title="No automated alert engine is active yet"
+          description="Transactions can currently be flagged for simple rule-based review, but anomaly and duplicate-charge detection are not presented as implemented features."
         />
-      </section>
+      </div>
     </>
   );
 }
