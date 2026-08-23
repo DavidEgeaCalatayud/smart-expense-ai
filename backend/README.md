@@ -7,6 +7,10 @@ FastAPI backend for Smart Expense AI.
 - Python
 - FastAPI
 - Pydantic
+- SQLAlchemy 2
+- PostgreSQL
+- Alembic
+- Psycopg 3
 - Uvicorn
 
 ## Getting Started
@@ -35,6 +39,50 @@ The API will run by default at:
 http://localhost:8000
 ```
 
+## Database Configuration
+
+Copy the repository `.env.example` file to `.env` and update `DATABASE_URL` with your local PostgreSQL credentials.
+
+Example:
+
+```txt
+DATABASE_URL=postgresql+psycopg://smart_expense_user:smart_expense_password@localhost:5432/smart_expense_ai
+```
+
+Both the application SQLAlchemy engine and Alembic read the same `DATABASE_URL` through `app/core/config.py`.
+
+## Database Migrations
+
+Run Alembic commands from the `backend` directory.
+
+Apply all migrations:
+
+```bash
+alembic upgrade head
+```
+
+Check the current revision:
+
+```bash
+alembic current
+```
+
+After changing SQLAlchemy models, create a migration with:
+
+```bash
+alembic revision --autogenerate -m "describe the schema change"
+```
+
+Review generated migrations before applying them.
+
+Rollback one migration:
+
+```bash
+alembic downgrade -1
+```
+
+The initial migration creates the `categories` and `transactions` tables.
+
 ## Health Check
 
 ```txt
@@ -60,12 +108,14 @@ http://localhost:8000/docs
 
 ## Current Status
 
-The backend currently uses an in-memory store. Data will reset when the server restarts.
+The PostgreSQL configuration, SQLAlchemy models and Alembic migration infrastructure are now present.
+
+The transaction endpoints still use the existing in-memory store, so API data will continue to reset when the server restarts until the persistence service is connected.
 
 Next backend steps:
 
-- Add PostgreSQL.
-- Add SQLAlchemy models.
-- Add Alembic migrations.
-- Add authentication.
-- Add transaction ownership by user.
+- Seed the initial categories.
+- Replace the in-memory transaction store with SQLAlchemy persistence.
+- Connect the existing transaction CRUD endpoints to database sessions.
+- Add authentication later.
+- Add transaction ownership by user when authentication is introduced.
