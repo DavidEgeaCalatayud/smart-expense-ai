@@ -97,16 +97,19 @@ alembic downgrade -1
 GET /health
 ```
 
-## Transaction Endpoints
+## API Endpoints
 
 ```txt
+GET    /api/categories
 GET    /api/transactions
 POST   /api/transactions
 PUT    /api/transactions/{transaction_id}
 DELETE /api/transactions/{transaction_id}
 ```
 
-The public transaction contract remains compatible with the current frontend while persistence is handled internally with SQLAlchemy and PostgreSQL.
+Categories are loaded from PostgreSQL and include their compatible transaction type (`expense` or `income`). The transaction API validates that the selected category matches the transaction type.
+
+The public transaction contract remains compatible with the frontend while persistence is handled internally with SQLAlchemy and PostgreSQL.
 
 ## API Docs
 
@@ -118,19 +121,21 @@ http://localhost:8000/docs
 
 ## Current Status
 
-Transaction CRUD is now persistent:
+Transaction CRUD and categories are persistent:
 
 ```txt
-router -> transaction service -> SQLAlchemy session -> PostgreSQL
+React -> FastAPI -> service -> SQLAlchemy session -> PostgreSQL
 ```
 
-The old in-memory transaction store has been removed. Transactions survive backend restarts as long as PostgreSQL is running and migrations have been applied.
+The old in-memory transaction store and frontend transaction/category mocks have been removed. Transactions survive backend restarts as long as PostgreSQL is running and migrations have been applied.
+
+The Transactions page loads both transactions and categories from the API. The Dashboard derives current-month totals, balance, recurring items, the six-month spending trend and recent transactions from persisted transaction data.
 
 `status` and `aiConfidence` remain compatibility fields derived by the service for now; they are not persisted as database columns.
 
 Next backend steps:
 
-- Connect `TransactionsPage` to the existing REST client and remove frontend transaction mocks.
-- Add category management when needed.
+- Remove or redesign the temporary AI compatibility fields.
+- Add category CRUD only when user-managed categories are needed.
 - Add authentication later.
 - Add transaction ownership by user when authentication is introduced.
