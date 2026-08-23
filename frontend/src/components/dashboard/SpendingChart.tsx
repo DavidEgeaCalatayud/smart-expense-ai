@@ -21,9 +21,9 @@ export function SpendingChart({ data }: SpendingChartProps) {
       <div className="mb-6 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <div>
           <h2 className="text-lg font-bold">Spending trend</h2>
-          <p className="text-sm text-slate-500">Historical monthly expenses</p>
+          <p className="text-sm text-slate-500">Expenses from persisted transactions</p>
         </div>
-        <Badge tone="brand">AI forecast ready</Badge>
+        <Badge tone="brand">Last 6 months</Badge>
       </div>
 
       <div className="h-80">
