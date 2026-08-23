@@ -61,6 +61,16 @@ Apply all migrations:
 alembic upgrade head
 ```
 
+This creates the `categories` and `transactions` tables and seeds the initial categories:
+
+- Food
+- Subscriptions
+- Shopping
+- Transport
+- Health
+- Salary
+- Other
+
 Check the current revision:
 
 ```bash
@@ -81,8 +91,6 @@ Rollback one migration:
 alembic downgrade -1
 ```
 
-The initial migration creates the `categories` and `transactions` tables.
-
 ## Health Check
 
 ```txt
@@ -98,6 +106,8 @@ PUT    /api/transactions/{transaction_id}
 DELETE /api/transactions/{transaction_id}
 ```
 
+The public transaction contract remains compatible with the current frontend while persistence is handled internally with SQLAlchemy and PostgreSQL.
+
 ## API Docs
 
 FastAPI generates interactive documentation automatically:
@@ -108,14 +118,19 @@ http://localhost:8000/docs
 
 ## Current Status
 
-The PostgreSQL configuration, SQLAlchemy models and Alembic migration infrastructure are now present.
+Transaction CRUD is now persistent:
 
-The transaction endpoints still use the existing in-memory store, so API data will continue to reset when the server restarts until the persistence service is connected.
+```txt
+router -> transaction service -> SQLAlchemy session -> PostgreSQL
+```
+
+The old in-memory transaction store has been removed. Transactions survive backend restarts as long as PostgreSQL is running and migrations have been applied.
+
+`status` and `aiConfidence` remain compatibility fields derived by the service for now; they are not persisted as database columns.
 
 Next backend steps:
 
-- Seed the initial categories.
-- Replace the in-memory transaction store with SQLAlchemy persistence.
-- Connect the existing transaction CRUD endpoints to database sessions.
+- Connect `TransactionsPage` to the existing REST client and remove frontend transaction mocks.
+- Add category management when needed.
 - Add authentication later.
 - Add transaction ownership by user when authentication is introduced.
