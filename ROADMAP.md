@@ -5,51 +5,71 @@
 Goal: prepare the repository and define the product direction.
 
 - [x] Create repository.
-- [x] Add README.
-- [x] Add project gitignore.
-- [x] Add product specification.
-- [x] Add architecture documentation.
-- [ ] Define final technical stack.
-- [ ] Create backend base project.
-- [ ] Create frontend base project.
+- [x] Add README and product documentation.
+- [x] Define the current technical stack.
+- [x] Create backend base project with FastAPI.
+- [x] Create frontend base project with React and TypeScript.
+- [x] Add environment configuration.
 - [ ] Add Docker configuration.
 
-## Phase 1 - MVP Core
+## Phase 1 - Persistent MVP Core
 
-Goal: build the first usable version of the product.
+Goal: make the first usable version persist real financial data.
+
+- [x] Define transaction and category models.
+- [x] Add PostgreSQL persistence with SQLAlchemy 2.
+- [x] Add Alembic migrations.
+- [x] Seed initial categories.
+- [x] Create transaction CRUD endpoints.
+- [x] Connect Transactions page to the REST API.
+- [x] Load categories from the backend.
+- [x] Validate category/type compatibility.
+- [x] Remove transaction/category frontend mocks.
+- [x] Build dashboard metrics from persisted transactions.
+- [x] Build six-month expense chart from persisted transactions.
+- [x] Show recent persisted transactions.
+- [x] Add transparent rule-based review for high-value expenses.
+- [ ] Improve responsive transaction UX.
+- [ ] Add delete confirmation and operation feedback.
+- [ ] Add user-managed category CRUD when needed.
+
+## Phase 2 - Accounts and Data Ownership
+
+Goal: isolate financial data by user before adding sensitive integrations.
 
 - [ ] User registration.
 - [ ] User login.
-- [ ] Transaction creation.
-- [ ] Transaction editing.
-- [ ] Transaction deletion.
-- [ ] Transaction listing.
-- [ ] Basic category management.
-- [ ] Monthly expense summary.
-- [ ] Basic dashboard charts.
+- [ ] Authentication/session strategy.
+- [ ] Add user ownership to transactions.
+- [ ] Add user ownership to categories where applicable.
+- [ ] Enforce per-user authorization in every endpoint.
+- [ ] Add account and privacy controls.
 
-## Phase 2 - Financial Intelligence
+## Phase 3 - Financial Intelligence
 
-Goal: add the first layer of intelligent analysis.
+Goal: implement real analysis without simulated AI outputs.
 
-- [ ] Detect recurring transactions.
+- [ ] Detect recurring transactions from historical data.
 - [ ] Detect duplicated subscriptions.
 - [ ] Detect abnormal transaction amounts.
-- [ ] Generate basic financial insights.
-- [ ] Add alert list.
+- [ ] Add persisted alert entities and review workflow.
 - [ ] Add alert severity levels.
+- [ ] Generate explainable financial insights.
+- [ ] Validate analysis rules against real datasets.
 
-## Phase 3 - Prediction
+## Phase 4 - Prediction
 
 Goal: estimate future spending and provide proactive warnings.
 
 - [ ] Predict end-of-month spending.
 - [ ] Predict recurring charges.
-- [ ] Compare predicted spending with historical average.
+- [ ] Compare predicted spending with historical averages.
 - [ ] Add warning thresholds.
 - [ ] Add category-level spending forecasts.
+- [ ] Expose prediction evidence and assumptions.
+- [ ] Add model evaluation before displaying confidence metrics.
 
-## Phase 4 - Premium SaaS Preparation
+## Phase 5 - Premium SaaS Preparation
 
 Goal: prepare the project for a subscription-based model.
 
@@ -60,12 +80,15 @@ Goal: prepare the project for a subscription-based model.
 - [ ] Add exportable reports.
 - [ ] Add advanced insights.
 
-## Phase 5 - Production Readiness
+## Phase 6 - Production Readiness
 
 Goal: prepare the application for real deployment.
 
-- [ ] Add automated tests.
-- [ ] Add CI pipeline.
+- [ ] Add backend automated tests.
+- [ ] Add frontend automated tests.
+- [ ] Add GitHub Actions CI.
+- [ ] Run frontend build and lint in CI.
+- [ ] Validate Alembic migrations in CI.
 - [ ] Add Docker Compose.
 - [ ] Add staging deployment.
 - [ ] Add production configuration.

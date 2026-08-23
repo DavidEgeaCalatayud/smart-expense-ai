@@ -1,192 +1,195 @@
 # Smart Expense AI
 
-**Smart Expense AI** is a personal finance application that uses artificial intelligence to analyze purchases, detect spending patterns, predict future expenses and alert users about financial anomalies.
+Smart Expense AI is a personal finance application being built around reliable transaction data first, with predictive and anomaly-detection features planned for later stages.
 
-The objective is not only to classify transactions, but to help users understand their financial behavior and anticipate problems before they happen.
+The current MVP does **not** simulate AI results. Transactions, categories and dashboard metrics use persisted PostgreSQL data; forecasting and automated alerts remain explicitly marked as planned until a real analysis layer is implemented.
 
-## Project Idea
+## Current Capabilities
 
-Most expense tracking tools are focused on manual tracking or simple automatic categorization. Smart Expense AI is designed to go one step further by combining transaction analysis, predictive models and automatic alerting.
+Implemented today:
 
-The application should be able to answer questions such as:
+- Persistent transaction creation, editing, deletion and listing.
+- PostgreSQL persistence through SQLAlchemy 2.
+- Alembic schema migrations and initial category seeding.
+- Persisted categories exposed through `GET /api/categories`.
+- Category/type validation for expense and income transactions.
+- Dashboard metrics derived from real transactions.
+- Six-month expense trend calculated from persisted history.
+- Five most recent transactions displayed on the dashboard.
+- Recurring transactions stored as an explicit user-provided flag.
+- Transparent rule-based review: expenses above 120 EUR are marked as `review`.
 
-- Am I spending more than usual this month?
-- Which categories are growing without me noticing?
-- Do I have duplicated subscriptions?
-- Are there suspicious or unexpected charges?
-- How much am I likely to spend by the end of the month?
-- What expenses could I reduce without changing my lifestyle too much?
+Not implemented yet:
 
-## Main Features
-
-### Expense Analysis
-
-- Automatic transaction categorization.
-- Monthly and weekly spending summaries.
-- Category-based expense breakdown.
-- Recurring expense detection.
-- Income vs expense comparison.
-
-### AI-Based Pattern Detection
-
-- Identification of spending habits.
-- Detection of unusual behavior compared with previous months.
-- Recognition of recurring purchases and subscriptions.
-- Analysis of spending peaks by day, week or category.
-
-### Predictive Expense Forecasting
-
-- Estimation of future monthly spending.
-- Projection of end-of-month balance.
-- Prediction of recurring charges.
-- Early warning when expected spending exceeds normal limits.
-
-### Anomaly Alerts
-
-- Duplicate subscription detection.
-- Suspicious charge alerts.
-- Unexpected price increases in recurring payments.
-- Unusual category spending.
-- Notifications for abnormal transaction amounts.
-
-## Differential Value
-
-The main differentiator of Smart Expense AI is that it does not stop at transaction categorization.
-
-It aims to provide:
-
-- Predictive analysis.
-- Automatic anomaly detection.
-- Personalized financial insights.
-- Proactive alerts.
-- Clear recommendations based on real spending behavior.
-
-Instead of only showing what has already happened, the application should help the user understand what is likely to happen next.
-
-## Business Model
-
-The intended business model is a **freemium SaaS model** with a monthly premium subscription.
-
-### Free Plan
-
-Possible features:
-
-- Manual expense entry.
-- Basic categorization.
-- Monthly summary.
-- Limited number of transactions.
-
-### Premium Plan
-
-Possible features:
-
-- AI-powered predictions.
+- AI confidence scores.
+- Automatic transaction classification.
 - Anomaly detection.
-- Subscription monitoring.
-- Advanced dashboards.
-- Automatic alerts.
-- Bank account integrations.
-- Exportable reports.
-- Personalized financial recommendations.
+- Duplicate-subscription detection.
+- Spending forecasts.
+- Automated financial alerts.
+- Authentication and per-user data ownership.
+- Bank integrations.
 
-## Possible Tech Stack
+## Product Direction
 
-This stack may evolve as the project grows.
+The long-term objective is to go beyond traditional expense tracking and help users understand how their financial behavior is changing over time.
+
+Planned intelligence features include:
+
+- Spending pattern analysis.
+- Recurring charge detection.
+- Duplicate subscription detection.
+- Anomaly detection over historical behavior.
+- End-of-month spending forecasts.
+- Explainable alerts and recommendations.
+
+These features will be added only when they can operate on real persisted data and validated logic.
+
+## Architecture
+
+```txt
+React + TypeScript
+        |
+        v
+FastAPI REST API
+        |
+        v
+Service layer
+        |
+        v
+SQLAlchemy 2
+        |
+        v
+PostgreSQL
+```
+
+Database schema changes are managed with Alembic.
+
+Repository structure:
+
+```txt
+smart-expense-ai/
+├── frontend/        # React + TypeScript web application
+├── backend/         # FastAPI API, services, SQLAlchemy models and migrations
+├── ai/              # Reserved for future intelligence services
+├── docs/            # Product and technical documentation
+├── scripts/         # Utility scripts
+├── ROADMAP.md
+└── README.md
+```
+
+## API
+
+Current endpoints:
+
+```txt
+GET    /health
+GET    /api/categories
+GET    /api/transactions
+POST   /api/transactions
+PUT    /api/transactions/{transaction_id}
+DELETE /api/transactions/{transaction_id}
+```
+
+FastAPI interactive documentation is available locally at:
+
+```txt
+http://localhost:8000/docs
+```
+
+## Local Development
+
+Create the environment file from the repository root:
+
+```bash
+cp .env.example .env
+```
+
+On Windows PowerShell:
+
+```powershell
+Copy-Item .env.example .env
+```
+
+Update `DATABASE_URL` with your PostgreSQL credentials.
+
+### Backend
+
+```bash
+cd backend
+python -m venv .venv
+```
+
+Windows:
+
+```powershell
+.venv\Scripts\activate
+pip install -r requirements.txt
+alembic upgrade head
+uvicorn app.main:app --reload
+```
+
+macOS/Linux:
+
+```bash
+source .venv/bin/activate
+pip install -r requirements.txt
+alembic upgrade head
+uvicorn app.main:app --reload
+```
 
 ### Frontend
 
-- React
+```bash
+cd frontend
+npm install
+npm run dev
+```
+
+Useful validation commands:
+
+```bash
+npm run build
+npm run lint
+```
+
+## Technology Stack
+
+### Frontend
+
+- React 19
 - TypeScript
+- Vite
 - Tailwind CSS
-- Charting library for financial dashboards
+- Recharts
 
 ### Backend
 
 - Python
 - FastAPI
+- Pydantic
+- SQLAlchemy 2
 - PostgreSQL
-- Redis for background tasks and scheduled analysis
-
-### AI and Data Analysis
-
-- Transaction classification model
-- Time-series forecasting
-- Anomaly detection algorithms
-- Pattern recognition over historical transactions
-
-### Infrastructure
-
-- Docker
-- GitHub Actions
-- Cloud deployment provider to be defined
-
-## Initial Architecture
-
-```txt
-smart-expense-ai/
-├── frontend/        # Web interface
-├── backend/         # API and business logic
-├── ai/              # Prediction and anomaly detection models
-├── docs/            # Product and technical documentation
-├── scripts/         # Utility scripts
-└── README.md
-```
+- Alembic
+- Psycopg 3
 
 ## Product Roadmap
 
-### Phase 1 - MVP
+The detailed roadmap is maintained in [`ROADMAP.md`](ROADMAP.md).
 
-- Define the transaction data model.
-- Create basic expense CRUD.
-- Add manual transaction categorization.
-- Build a basic dashboard.
-- Add monthly summary reports.
+Near-term priorities are:
 
-### Phase 2 - Intelligence Layer
+1. Automated tests and CI.
+2. Stronger transaction UX and responsive behavior.
+3. Authentication and per-user transaction ownership.
+4. User-managed categories when required.
+5. A real intelligence layer built over sufficient historical transaction data.
 
-- Add automatic categorization.
-- Detect recurring expenses.
-- Detect duplicated subscriptions.
-- Add basic anomaly detection.
+## Business Model
 
-### Phase 3 - Predictive Layer
+The long-term product direction supports a freemium SaaS model. Premium capabilities may eventually include advanced forecasting, anomaly detection, bank integrations, exportable reports and personalized financial recommendations.
 
-- Predict end-of-month spending.
-- Estimate future recurring charges.
-- Add warning thresholds.
-- Generate personalized insights.
-
-### Phase 4 - Premium SaaS
-
-- Add authentication.
-- Add subscription plans.
-- Add premium-only AI features.
-- Add exportable reports.
-- Prepare production deployment.
-
-## Example Use Cases
-
-### Duplicate Subscription
-
-The system detects that the user is paying for two similar services in the same category and generates an alert.
-
-### Suspicious Charge
-
-The system detects a payment that is much higher than the user's normal spending pattern and marks it as suspicious.
-
-### Predictive Warning
-
-The system estimates that the user will exceed their usual monthly spending by the end of the month and sends an early warning.
-
-### Category Overspending
-
-The system detects that restaurant spending has increased by 40% compared with the previous month and notifies the user.
-
-## Current Status
-
-Project initialized.
-
-The next step is to define the technical architecture, create the initial folder structure and start building the MVP.
+No payment or premium system is implemented yet.
 
 ## Author
 
