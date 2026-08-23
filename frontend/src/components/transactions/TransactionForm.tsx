@@ -1,4 +1,4 @@
-import { Check, Plus, X } from 'lucide-react';
+import { Check, LoaderCircle, Plus, X } from 'lucide-react';
 import type { FormEvent } from 'react';
 import type { TransactionCategory, TransactionFormValues } from '../../types/transactions';
 
@@ -6,6 +6,7 @@ interface TransactionFormProps {
   categories: TransactionCategory[];
   values: TransactionFormValues;
   isEditing?: boolean;
+  isSubmitting?: boolean;
   onChange: (values: TransactionFormValues) => void;
   onSubmit: () => void;
   onCancelEdit?: () => void;
@@ -15,13 +16,17 @@ export function TransactionForm({
   categories,
   values,
   isEditing = false,
+  isSubmitting = false,
   onChange,
   onSubmit,
   onCancelEdit,
 }: TransactionFormProps) {
   const handleSubmit = (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
-    onSubmit();
+
+    if (!isSubmitting) {
+      onSubmit();
+    }
   };
 
   return (
@@ -31,8 +36,8 @@ export function TransactionForm({
           <h2 className="text-lg font-bold">{isEditing ? 'Edit transaction' : 'Add transaction'}</h2>
           <p className="text-sm text-slate-500">
             {isEditing
-              ? 'Update the selected movement before backend persistence is connected.'
-              : 'Create a manual movement until backend persistence is connected.'}
+              ? 'Update the selected transaction in persistent storage.'
+              : 'Create a manual transaction and save it to persistent storage.'}
           </p>
         </div>
 
@@ -40,7 +45,8 @@ export function TransactionForm({
           <button
             type="button"
             onClick={onCancelEdit}
-            className="inline-flex h-10 w-10 items-center justify-center rounded-2xl border border-slate-200 text-slate-500 transition hover:bg-slate-50 hover:text-slate-900"
+            disabled={isSubmitting}
+            className="inline-flex h-10 w-10 items-center justify-center rounded-2xl border border-slate-200 text-slate-500 transition hover:bg-slate-50 hover:text-slate-900 disabled:cursor-not-allowed disabled:opacity-50"
             aria-label="Cancel edit"
           >
             <X size={18} />
@@ -66,7 +72,7 @@ export function TransactionForm({
             value={values.amount}
             onChange={(event) => onChange({ ...values, amount: event.target.value })}
             type="number"
-            min="0"
+            min="0.01"
             step="0.01"
             placeholder="0.00"
             className="w-full rounded-2xl border border-slate-200 px-4 py-3 text-sm outline-none transition focus:border-brand-500 focus:ring-4 focus:ring-brand-50"
@@ -151,10 +157,11 @@ export function TransactionForm({
 
       <button
         type="submit"
-        className="mt-6 inline-flex w-full items-center justify-center gap-2 rounded-2xl bg-slate-950 px-5 py-3 text-sm font-semibold text-white shadow-soft transition hover:-translate-y-0.5 hover:bg-slate-800"
+        disabled={isSubmitting}
+        className="mt-6 inline-flex w-full items-center justify-center gap-2 rounded-2xl bg-slate-950 px-5 py-3 text-sm font-semibold text-white shadow-soft transition hover:-translate-y-0.5 hover:bg-slate-800 disabled:cursor-not-allowed disabled:opacity-60 disabled:hover:translate-y-0"
       >
-        {isEditing ? <Check size={18} /> : <Plus size={18} />}
-        {isEditing ? 'Save changes' : 'Add transaction'}
+        {isSubmitting ? <LoaderCircle size={18} className="animate-spin" /> : isEditing ? <Check size={18} /> : <Plus size={18} />}
+        {isSubmitting ? 'Saving...' : isEditing ? 'Save changes' : 'Add transaction'}
       </button>
     </form>
   );
