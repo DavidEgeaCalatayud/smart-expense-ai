@@ -1,8 +1,12 @@
 import logging
 
+import pytest
 from fastapi.testclient import TestClient
 
 from app.main import app
+
+
+pytestmark = pytest.mark.integration
 
 
 def test_authentication_security_logs_exclude_credentials(caplog) -> None:
