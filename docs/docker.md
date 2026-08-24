@@ -21,7 +21,7 @@ Browser
   v
 frontend :5173 (Nginx + React build)
   |
-  | /api/* reverse proxy
+  | /api/v1/* reverse proxy
   v
 backend :8000 (FastAPI, internal only)
   |
@@ -76,7 +76,7 @@ This permanently deletes the Compose-managed PostgreSQL data.
 
 ## Networking and container controls
 
-The browser only needs the frontend origin. The production React build uses relative `/api` URLs, and Nginx proxies them to the internal `backend:8000` service. PostgreSQL is only addressed by the backend through the internal Compose network using hostname `db`.
+The browser only needs the frontend origin. The production React build uses relative `/api/v1` URLs, and Nginx proxies them to the internal `backend:8000` service. PostgreSQL is only addressed by the backend through the internal Compose network using hostname `db`.
 
 The backend runs as a non-root application user. Compose applies `no-new-privileges` to all three services.
 
@@ -89,8 +89,8 @@ The bundled Nginx configuration provides:
 - Content Security Policy;
 - MIME sniffing, framing, referrer, permissions, COOP and CORP headers;
 - reduced access logging without query strings or authentication material;
-- per-IP login rate limiting;
-- stricter registration rate limiting.
+- per-IP `/api/v1/auth/login` rate limiting;
+- stricter `/api/v1/auth/register` rate limiting.
 
 FastAPI independently applies API `Cache-Control: no-store`, request IDs, browser-origin checks for state-changing API calls, trusted-host validation, restricted CORS and other defense-in-depth headers.
 
@@ -105,7 +105,11 @@ GitHub Actions validates Docker Compose in addition to the unit, integration and
 3. starts PostgreSQL, FastAPI and Nginx;
 4. waits for container health checks;
 5. verifies CSP and response security headers;
-6. registers a test account and verifies protected API access;
-7. verifies unauthenticated access is rejected;
-8. proves the login limiter returns HTTP `429` after the configured burst;
-9. tears the stack down with its test volume.
+6. registers a test account through `/api/v1/auth/register`;
+7. verifies paginated `/api/v1/transactions` and `/api/v1/analytics/summary` responses;
+8. proves legacy unversioned application routes return a normalized 404;
+9. verifies unauthenticated API access is rejected with a request ID;
+10. proves the versioned login limiter returns HTTP `429` after the configured burst;
+11. tears the stack down with its test volume.
+
+See `docs/api.md` for the supported API contract.
