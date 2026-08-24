@@ -62,7 +62,7 @@ jobs:
       - name: Apply migrations to a clean PostgreSQL database
         run: alembic upgrade head
       - name: Verify FastAPI imports
-        run: python -c "from app.main import app; assert app.title == 'Smart Expense AI API'"
+        run: python -c "from app.main import app; assert app.title == 'Smart Expense AI API'; assert app.version == '1.0.0'"
       - name: Run backend tests
         run: pytest
 
@@ -179,7 +179,7 @@ jobs:
         run: docker compose build
       - name: Start full stack
         run: docker compose up -d --wait --wait-timeout 120
-      - name: Verify frontend authentication and proxied API
+      - name: Verify versioned API contract through Nginx
         run: |
           curl --fail --silent --show-error -D frontend-headers.txt http://localhost:5173/ -o /dev/null
           grep -i '^Content-Security-Policy:' frontend-headers.txt
@@ -189,23 +189,31 @@ jobs:
             -c cookies.txt \
             -H 'Content-Type: application/json' \
             -d '{"email":"docker-ci@example.com","password":"docker-test-password","displayName":"Docker CI"}' \
-            http://localhost:5173/api/auth/register | grep 'docker-ci@example.com'
-          curl --fail --silent --show-error -D api-headers.txt -b cookies.txt http://localhost:5173/api/categories -o categories.json
+            http://localhost:5173/api/v1/auth/register | grep 'docker-ci@example.com'
+          curl --fail --silent --show-error -D api-headers.txt -b cookies.txt http://localhost:5173/api/v1/categories -o categories.json
           grep 'Food' categories.json
           grep -i '^Cache-Control: no-store' api-headers.txt
-          test "$(curl --silent --output /dev/null --write-out '%{http_code}' http://localhost:5173/api/categories)" = "401"
+          curl --fail --silent --show-error -b cookies.txt 'http://localhost:5173/api/v1/transactions?page=1&pageSize=10' -o transactions.json
+          grep '"pageSize":10' transactions.json
+          grep '"items":\[\]' transactions.json
+          curl --fail --silent --show-error -b cookies.txt http://localhost:5173/api/v1/analytics/summary -o summary.json
+          grep '"transactionCount":0' summary.json
+          test "$(curl --silent --output legacy.json --write-out '%{http_code}' http://localhost:5173/api/transactions)" = "404"
+          grep '"code":"http_404"' legacy.json
+          test "$(curl --silent --output unauth.json --write-out '%{http_code}' http://localhost:5173/api/v1/categories)" = "401"
+          grep '"requestId"' unauth.json
       - name: Verify authentication rate limiting
         run: |
           for attempt in 1 2 3 4 5; do
             test "$(curl --silent --output /dev/null --write-out '%{http_code}' \
               -H 'Content-Type: application/json' \
               -d '{"email":"nobody@example.com","password":"definitely-wrong"}' \
-              http://localhost:5173/api/auth/login)" = "401"
+              http://localhost:5173/api/v1/auth/login)" = "401"
           done
           test "$(curl --silent --output /dev/null --write-out '%{http_code}' \
             -H 'Content-Type: application/json' \
             -d '{"email":"nobody@example.com","password":"definitely-wrong"}' \
-            http://localhost:5173/api/auth/login)" = "429"
+            http://localhost:5173/api/v1/auth/login)" = "429"
       - name: Show Compose status
         if: always()
         run: docker compose ps

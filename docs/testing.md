@@ -38,8 +38,14 @@ pytest
 
 The test bootstrap deliberately does not inherit a development `DATABASE_URL`. This reduces the risk of integration tests deleting real development transactions.
 
-Backend security regression coverage includes:
+Backend contract/security regression coverage includes:
 
+- `/api/v1` as the supported application namespace;
+- normalized `error.code`, `error.message`, `error.requestId` envelopes;
+- validation error details;
+- transaction page metadata and pagination boundaries;
+- server-side search/category/status/type/recurring/date/sort filters;
+- aggregate summary and continuous monthly-expense endpoints;
 - password hashing and hardened JWT claim validation;
 - production configuration invariants;
 - cross-account transaction ownership;
@@ -64,7 +70,7 @@ npm run build
 npm audit --audit-level=high
 ```
 
-Vitest and React Testing Library cover component behavior and API-driven page behavior.
+Vitest and React Testing Library cover component behavior and API-driven page behavior. Transaction-page tests verify that filters are sent to the API rather than applied to a partial page in memory, and that mutations refresh the authoritative page/summary before success feedback is shown.
 
 When intentionally changing frontend dependencies, update `package.json` and regenerate `package-lock.json` together with npm. CI uses `npm ci`, so dependency metadata drift causes the install step to fail instead of silently rewriting the lockfile.
 
@@ -91,22 +97,25 @@ Playwright starts Vite and FastAPI automatically. PostgreSQL must already be run
 
 The critical flow verifies:
 
-1. User A registers and creates a transaction.
-2. The dashboard reflects the persisted transaction.
+1. User A registers and creates a transaction through API v1.
+2. The dashboard aggregate/recent endpoints reflect the persisted transaction.
 3. User A logs out.
 4. User B registers and cannot see User A's transaction.
 5. User A logs back in and still owns the transaction.
 6. The transaction can be edited and the deterministic review rule is reflected.
-7. The transaction can be deleted.
+7. The transaction can be deleted after confirmation.
 
-## Docker security smoke test
+## Docker contract/security smoke test
 
 The Compose job builds the actual deployment-style images and checks more than simple availability. It verifies:
 
 - Nginx CSP and MIME-sniffing protection;
 - API `Cache-Control: no-store`;
-- registration and authenticated proxy access;
-- unauthenticated API rejection;
+- `/api/v1` registration and authenticated proxy access;
+- paginated transaction metadata through Nginx;
+- the aggregate summary endpoint;
+- normalized 404 behavior for unsupported unversioned application routes;
+- unauthenticated API rejection with a request ID;
 - login rate limiting reaching HTTP `429` after the configured burst;
 - successful health checks with the backend not published directly to the host.
 
@@ -116,13 +125,15 @@ The Compose job builds the actual deployment-style images and checks more than s
 
 The workflow contains five functional gates plus the consolidated gate:
 
-- **Backend tests**: dependency installation, `alembic upgrade head`, FastAPI import and pytest unit/integration tests against PostgreSQL 16.
+- **Backend tests**: dependency installation, `alembic upgrade head`, FastAPI/API version import and pytest unit/integration tests against PostgreSQL 16.
 - **Frontend quality**: locked `npm ci` install, Vitest, TypeScript, ESLint and production build.
 - **Dependency security audit**: `pip-audit` plus `npm audit --audit-level=high`.
 - **Critical E2E**: PostgreSQL 16, real migrations, locked `npm ci` install, FastAPI, Vite and Playwright Chromium.
-- **Docker Compose smoke test**: actual images, security headers, authenticated proxy behavior and rate limiting.
+- **Docker Compose smoke test**: actual images, API v1 contract checks, security headers, authenticated proxy behavior and rate limiting.
 - **Quality gate**: fails unless every preceding job succeeds.
 
 Third-party GitHub Actions are referenced by immutable commit SHA rather than mutable version tags. Dependabot monitors those SHAs together with pip and npm dependencies.
 
 For merge enforcement, configure the `Quality gate` check as a required status check in the repository branch protection/ruleset for `main`.
+
+See `docs/api.md` for the supported contract itself.

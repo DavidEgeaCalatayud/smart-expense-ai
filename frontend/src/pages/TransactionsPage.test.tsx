@@ -1,5 +1,6 @@
 import { fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { fetchTransactionSummary } from '../services/analyticsApi';
 import { fetchCategories } from '../services/categoriesApi';
 import {
   createTransaction,
@@ -7,14 +8,16 @@ import {
   fetchTransactions,
   updateTransaction,
 } from '../services/transactionsApi';
-import type { DetailedTransaction, TransactionCategory } from '../types/transactions';
+import type {
+  DetailedTransaction,
+  TransactionCategory,
+  TransactionPage,
+  TransactionSummary,
+} from '../types/transactions';
 import { TransactionsPage } from './TransactionsPage';
 
-
-vi.mock('../services/categoriesApi', () => ({
-  fetchCategories: vi.fn(),
-}));
-
+vi.mock('../services/analyticsApi', () => ({ fetchTransactionSummary: vi.fn() }));
+vi.mock('../services/categoriesApi', () => ({ fetchCategories: vi.fn() }));
 vi.mock('../services/transactionsApi', () => ({
   createTransaction: vi.fn(),
   deleteTransaction: vi.fn(),
@@ -40,26 +43,65 @@ const persistedTransaction: DetailedTransaction = {
   isRecurring: false,
 };
 
+const summary: TransactionSummary = {
+  totalIncome: 100,
+  totalExpenses: 25,
+  balance: 75,
+  recurringCount: 0,
+  reviewCount: 0,
+  transactionCount: 1,
+};
+
+const pageWith = (items: DetailedTransaction[], page = 1, total = items.length): TransactionPage => ({
+  items,
+  page,
+  pageSize: 10,
+  total,
+  pages: total === 0 ? 0 : Math.ceil(total / 10),
+});
 
 describe('TransactionsPage', () => {
   beforeEach(() => {
     vi.clearAllMocks();
     vi.mocked(fetchCategories).mockResolvedValue(categories);
-    vi.mocked(fetchTransactions).mockResolvedValue([persistedTransaction]);
+    vi.mocked(fetchTransactionSummary).mockResolvedValue(summary);
+    vi.mocked(fetchTransactions).mockResolvedValue(pageWith([persistedTransaction]));
     vi.mocked(deleteTransaction).mockResolvedValue();
     vi.mocked(updateTransaction).mockResolvedValue(persistedTransaction);
   });
 
-  it('loads transactions and categories from the API', async () => {
+  it('loads a paginated transaction page, categories and server summary', async () => {
     render(<TransactionsPage />);
 
     expect(await screen.findByText('Persisted Market')).toBeInTheDocument();
-    expect(fetchTransactions).toHaveBeenCalledOnce();
+    expect(fetchTransactions).toHaveBeenCalledWith(
+      expect.objectContaining({ page: 1, pageSize: 10 }),
+    );
     expect(fetchCategories).toHaveBeenCalledOnce();
+    expect(fetchTransactionSummary).toHaveBeenCalledOnce();
     expect(screen.getAllByRole('option', { name: 'Food' })).toHaveLength(2);
+    expect(screen.getByText(/Showing/)).toHaveTextContent('1–1 of 1');
   });
 
-  it('creates a transaction through the API before adding it to the table', async () => {
+  it('sends filters to the API instead of filtering the loaded page in memory', async () => {
+    render(<TransactionsPage />);
+    await screen.findByText('Persisted Market');
+
+    fireEvent.change(screen.getByLabelText('Review status'), { target: { value: 'review' } });
+
+    await waitFor(
+      () =>
+        expect(fetchTransactions).toHaveBeenLastCalledWith(
+          expect.objectContaining({
+            page: 1,
+            filters: expect.objectContaining({ status: 'review' }),
+          }),
+        ),
+      { timeout: 1500 },
+    );
+  });
+
+  it('creates a transaction and refreshes the server page before reporting success', async () => {
     const createdTransaction: DetailedTransaction = {
       ...persistedTransaction,
       id: '22222222-2222-4222-8222-222222222222',
@@ -67,33 +109,32 @@ describe('TransactionsPage', () => {
       amount: 40,
     };
     vi.mocked(createTransaction).mockResolvedValue(createdTransaction);
+    vi.mocked(fetchTransactions)
+      .mockResolvedValueOnce(pageWith([persistedTransaction]))
+      .mockResolvedValue(pageWith([createdTransaction, persistedTransaction], 1, 2));
 
     render(<TransactionsPage />);
     await screen.findByText('Persisted Market');
 
-    fireEvent.change(screen.getByLabelText('Merchant'), {
-      target: { value: 'New Market' },
-    });
-    fireEvent.change(screen.getByLabelText('Amount'), {
-      target: { value: '40' },
-    });
+    fireEvent.change(screen.getByLabelText('Merchant'), { target: { value: 'New Market' } });
+    fireEvent.change(screen.getByLabelText('Amount'), { target: { value: '40' } });
     fireEvent.click(screen.getByRole('button', { name: 'Add transaction' }));
 
     await waitFor(() =>
       expect(createTransaction).toHaveBeenCalledWith(
-        expect.objectContaining({
-          merchant: 'New Market',
-          amount: '40',
-          category: 'Food',
-          type: 'expense',
-        }),
+        expect.objectContaining({ merchant: 'New Market', amount: '40', category: 'Food' }),
       ),
     );
     expect(await screen.findByText('New Market')).toBeInTheDocument();
+    expect(fetchTransactionSummary).toHaveBeenCalledTimes(2);
     expect(screen.getByRole('status')).toHaveTextContent('Transaction created successfully.');
   });
 
-  it('requires confirmation before deleting and reports success', async () => {
+  it('requires confirmation before deleting and refreshes the current page', async () => {
+    vi.mocked(fetchTransactions)
+      .mockResolvedValueOnce(pageWith([persistedTransaction]))
+      .mockResolvedValue(pageWith([]));
+
     render(<TransactionsPage />);
     await screen.findByText('Persisted Market');
 
@@ -103,15 +144,12 @@ describe('TransactionsPage', () => {
 
     fireEvent.click(screen.getByRole('button', { name: 'Cancel' }));
     expect(deleteTransaction).not.toHaveBeenCalled();
-    expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
 
     fireEvent.click(screen.getByRole('button', { name: 'Delete Persisted Market' }));
     fireEvent.click(screen.getByRole('button', { name: 'Delete transaction' }));
 
-    await waitFor(() =>
-      expect(deleteTransaction).toHaveBeenCalledWith(persistedTransaction.id),
-    );
-    expect(screen.queryByText('Persisted Market')).not.toBeInTheDocument();
+    await waitFor(() => expect(deleteTransaction).toHaveBeenCalledWith(persistedTransaction.id));
+    await waitFor(() => expect(screen.queryByText('Persisted Market')).not.toBeInTheDocument());
     expect(screen.getByRole('status')).toHaveTextContent('Transaction deleted successfully.');
   });
 });

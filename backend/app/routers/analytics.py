@@ -1,0 +1,54 @@
+from datetime import date
+
+from fastapi import APIRouter, Depends, Query, status
+from sqlalchemy.orm import Session
+
+from app.auth.dependencies import get_current_user
+from app.core.api_errors import ApiError
+from app.db.session import get_db
+from app.models.user import User
+from app.schemas import MonthlyExpense, TransactionSummary
+from app.services.transaction_service import monthly_expenses, summarize_transactions
+
+
+router = APIRouter(prefix="/analytics", tags=["analytics"])
+
+
+def _validate_date_range(date_from: date | None, date_to: date | None) -> None:
+    if date_from is not None and date_to is not None and date_from > date_to:
+        raise ApiError(
+            status.HTTP_422_UNPROCESSABLE_ENTITY,
+            "invalid_date_range",
+            "dateFrom must be earlier than or equal to dateTo",
+        )
+
+
+@router.get("/summary", response_model=TransactionSummary)
+def get_summary(
+    date_from: date | None = Query(None, alias="dateFrom"),
+    date_to: date | None = Query(None, alias="dateTo"),
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+) -> TransactionSummary:
+    _validate_date_range(date_from, date_to)
+    return summarize_transactions(
+        db,
+        current_user.id,
+        date_from=date_from,
+        date_to=date_to,
+    )
+
+
+@router.get("/monthly-expenses", response_model=list[MonthlyExpense])
+def get_monthly_expenses(
+    months: int = Query(6, ge=1, le=24),
+    through: date | None = Query(None),
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+) -> list[MonthlyExpense]:
+    return monthly_expenses(
+        db,
+        current_user.id,
+        months=months,
+        through=through or date.today(),
+    )
