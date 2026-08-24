@@ -9,6 +9,10 @@ import {
 import type { IntelligenceFinding, IntelligenceSummary } from '../types/intelligence';
 import { AlertsPage } from './AlertsPage';
 
+vi.mock('../components/intelligence/HistoricalAnalysisPanel', () => ({
+  HistoricalAnalysisPanel: () => <div>Historical analysis panel</div>,
+}));
+
 vi.mock('../services/intelligenceApi', () => ({
   fetchIntelligenceFindings: vi.fn(),
   fetchIntelligenceSummary: vi.fn(),
@@ -68,6 +72,7 @@ describe('AlertsPage financial intelligence', () => {
     expect(await screen.findByText('Recurring pattern: StreamBox')).toBeInTheDocument();
     expect(screen.getByText(/monthly · 4 occurrences/i)).toBeInTheDocument();
     expect(screen.getByText(/median €9\.99/i)).toBeInTheDocument();
+    expect(screen.getByText('Historical analysis panel')).toBeInTheDocument();
 
     const openFindingsCard = screen.getByText('Open findings').closest('article');
     expect(openFindingsCard).not.toBeNull();
@@ -76,11 +81,11 @@ describe('AlertsPage financial intelligence', () => {
     expect(fetchIntelligenceFindings).toHaveBeenCalledWith({ status: 'open' });
   });
 
-  it('runs analysis and refreshes persisted results', async () => {
+  it('runs findings scan and refreshes persisted results', async () => {
     render(<AlertsPage />);
     await screen.findByText('Recurring pattern: StreamBox');
 
-    fireEvent.click(screen.getByRole('button', { name: 'Run analysis' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Run findings scan' }));
 
     await waitFor(() => expect(runIntelligenceScan).toHaveBeenCalledOnce());
     expect(await screen.findByText(/Analysis completed: 1 findings from 8 expense transactions/i)).toBeInTheDocument();

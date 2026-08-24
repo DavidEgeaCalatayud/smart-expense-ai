@@ -61,6 +61,8 @@ POST   /api/v2/intelligence/scan
 GET    /api/v2/intelligence/summary
 GET    /api/v2/intelligence/findings
 PATCH  /api/v2/intelligence/findings/{finding_id}
+POST   /api/v2/intelligence/historical-analysis?months=12
+GET    /api/v2/intelligence/historical-analysis/latest
 ```
 
 ## Monetary contract
@@ -206,11 +208,11 @@ Optional inclusive `dateFrom` and `dateTo` parameters allow month/range summarie
 
 `months` accepts values from 1 to 24. `through=YYYY-MM-DD` is available for deterministic consumers/tests; otherwise the server uses the current date.
 
-## Financial intelligence
+## Financial intelligence findings
 
-The Phase 3 intelligence contract is deterministic and explainable. The current ruleset is `rules-v1`; details and thresholds are documented in [`intelligence.md`](intelligence.md).
+The persisted finding contract is deterministic and explainable. The current ruleset is `rules-v1`; details and thresholds are documented in [`intelligence.md`](intelligence.md).
 
-### Run analysis
+### Run findings scan
 
 ```text
 POST /api/v2/intelligence/scan
@@ -308,6 +310,83 @@ Body:
 
 Accepted states are `open`, `dismissed` and `resolved`. A dismissed finding remains dismissed across rescans for the same fingerprint. A resolved finding can be automatically reopened if later evidence satisfies the same rule again. Cross-account finding IDs are treated as not found.
 
+## Historical analysis
+
+Historical analysis is a separate, persisted diagnostic layer. It does not create review-state findings and does not mutate source transactions. The current version is `historical-v1`; formulas and limitations are documented in [`historical-analysis.md`](historical-analysis.md).
+
+### Generate a snapshot
+
+```text
+POST /api/v2/intelligence/historical-analysis?months=12
+```
+
+`months` accepts values from 6 to 24. The period ends at the user's latest persisted expense date, making fixture and historical analysis reproducible.
+
+The response contains:
+
+- monthly expense totals;
+- least-squares trend (`monthlySlope`, `rSquared`, direction);
+- deterministic recurring-behavior profiles and their score components;
+- chronological robust outliers using only earlier data;
+- three-month versus three-month category shifts;
+- data-coverage evidence.
+
+Example shape:
+
+```json
+{
+  "snapshotId": "a12f...",
+  "analysisVersion": "historical-v1",
+  "windowMonths": 12,
+  "periodStart": "2025-07-01",
+  "periodEnd": "2026-06-30",
+  "analyzedTransactions": 42,
+  "generatedAt": "2026-08-24T13:30:00Z",
+  "trend": {
+    "direction": "increasing",
+    "monthlySlope": "18.50",
+    "averageMonthlySpend": "390.25",
+    "rSquared": "0.742",
+    "activeMonths": 10
+  },
+  "recurringProfiles": [
+    {
+      "merchant": "Stream Box",
+      "cadence": "monthly",
+      "patternScore": "98.0",
+      "medianAmount": "20.00"
+    }
+  ],
+  "outliers": [
+    {
+      "merchant": "Cloud Tools",
+      "amount": "80.00",
+      "baselineScope": "merchant",
+      "baselineMedian": "10.00",
+      "deviationScore": "70.00"
+    }
+  ]
+}
+```
+
+The recurring `patternScore` is a deterministic feature index, not a calibrated probability. `R²` is descriptive regression evidence, not a guarantee of predictive accuracy.
+
+Historical outlier baselines are strictly chronological. Future transactions never participate in the baseline of an earlier candidate.
+
+### Latest persisted snapshot
+
+```text
+GET /api/v2/intelligence/historical-analysis/latest
+```
+
+Returns the newest snapshot owned by the authenticated user. If none exists, the API returns:
+
+```text
+404 historical_analysis_not_found
+```
+
+Snapshots are account-scoped and cascade-delete with the user.
+
 ## Error contract
 
 Both versions use the same normalized error envelope and preserve messages that the backend has deliberately made safe for clients:
@@ -362,6 +441,7 @@ invalid_date_range
 invalid_transaction
 transaction_not_found
 intelligence_finding_not_found
+historical_analysis_not_found
 validation_error
 cross_site_request_rejected
 ```
