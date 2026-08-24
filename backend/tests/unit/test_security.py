@@ -1,5 +1,9 @@
+from datetime import datetime, timedelta, timezone
 from uuid import uuid4
 
+import jwt
+
+from app.core.config import settings
 from app.core.security import (
     create_access_token,
     decode_access_token,
@@ -27,3 +31,36 @@ def test_access_token_round_trip_preserves_user_id() -> None:
 
 def test_invalid_access_token_is_rejected() -> None:
     assert decode_access_token("not-a-valid-jwt") is None
+
+
+def test_token_missing_required_security_claims_is_rejected() -> None:
+    now = datetime.now(timezone.utc)
+    token = jwt.encode(
+        {
+            "sub": str(uuid4()),
+            "iat": now,
+            "exp": now + timedelta(minutes=5),
+        },
+        settings.jwt_secret,
+        algorithm=settings.jwt_algorithm,
+    )
+
+    assert decode_access_token(token) is None
+
+
+def test_token_with_wrong_audience_is_rejected() -> None:
+    now = datetime.now(timezone.utc)
+    token = jwt.encode(
+        {
+            "sub": str(uuid4()),
+            "iat": now,
+            "exp": now + timedelta(minutes=5),
+            "iss": settings.jwt_issuer,
+            "aud": "another-application",
+            "jti": str(uuid4()),
+        },
+        settings.jwt_secret,
+        algorithm=settings.jwt_algorithm,
+    )
+
+    assert decode_access_token(token) is None
