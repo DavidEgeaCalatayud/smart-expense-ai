@@ -24,13 +24,17 @@ from app.schemas import (
 )
 
 
+MONEY_ZERO = Decimal("0.00")
+REVIEW_THRESHOLD = Decimal("120.00")
+
+
 class TransactionInputError(ValueError):
     """Raised when a transaction references invalid persisted data."""
 
 
-def calculate_status(amount: float, transaction_type: TransactionType) -> TransactionStatus:
+def calculate_status(amount: Decimal, transaction_type: TransactionType) -> TransactionStatus:
     """Flag high-value expenses for deterministic user review."""
-    if transaction_type == TransactionType.expense and amount > 120:
+    if transaction_type == TransactionType.expense and amount > REVIEW_THRESHOLD:
         return TransactionStatus.review
     return TransactionStatus.normal
 
@@ -66,9 +70,15 @@ def _get_category(
     return category
 
 
+def _as_decimal(value: object) -> Decimal:
+    if isinstance(value, Decimal):
+        return value
+    return Decimal(str(value))
+
+
 def _to_schema(transaction: TransactionModel) -> Transaction:
     transaction_type = TransactionType(transaction.transaction_type)
-    amount = float(transaction.amount)
+    amount = transaction.amount
 
     return Transaction(
         id=str(transaction.id),
@@ -126,7 +136,7 @@ def _filter_conditions(
 
     review_condition = and_(
         TransactionModel.transaction_type == TransactionType.expense.value,
-        TransactionModel.amount > 120,
+        TransactionModel.amount > REVIEW_THRESHOLD,
     )
     if status == TransactionStatus.review:
         conditions.append(review_condition)
@@ -201,7 +211,7 @@ def summarize_transactions(
     conditions = _filter_conditions(user_id, date_from=date_from, date_to=date_to)
     review_condition = and_(
         TransactionModel.transaction_type == TransactionType.expense.value,
-        TransactionModel.amount > 120,
+        TransactionModel.amount > REVIEW_THRESHOLD,
     )
 
     row = db.execute(
@@ -220,8 +230,8 @@ def summarize_transactions(
         ).where(*conditions)
     ).one()
 
-    income = float(row[0])
-    expenses = float(row[1])
+    income = _as_decimal(row[0])
+    expenses = _as_decimal(row[1])
     return TransactionSummary(
         totalIncome=income,
         totalExpenses=expenses,
@@ -258,14 +268,14 @@ def monthly_expenses(
         .group_by(month_key)
         .order_by(month_key)
     ).all()
-    amounts = {str(row[0]): float(row[1]) for row in rows}
+    amounts = {str(row[0]): _as_decimal(row[1]) for row in rows}
 
     result: list[MonthlyExpense] = []
     cursor_year = start_month.year
     cursor_month = start_month.month
     for _ in range(months):
         key = f"{cursor_year:04d}-{cursor_month:02d}"
-        result.append(MonthlyExpense(month=key, amount=amounts.get(key, 0.0)))
+        result.append(MonthlyExpense(month=key, amount=amounts.get(key, MONEY_ZERO)))
         cursor_month += 1
         if cursor_month == 13:
             cursor_month = 1
@@ -280,7 +290,7 @@ def create_transaction(db: Session, user_id: UUID, payload: TransactionCreate) -
         category=category,
         merchant=payload.merchant,
         description=payload.description,
-        amount=Decimal(str(payload.amount)),
+        amount=payload.amount,
         currency="EUR",
         transaction_date=_parse_transaction_date(payload.date),
         transaction_type=payload.type.value,
@@ -319,7 +329,7 @@ def update_transaction(
     transaction.category = _get_category(db, payload.category, payload.type)
     transaction.merchant = payload.merchant
     transaction.description = payload.description
-    transaction.amount = Decimal(str(payload.amount))
+    transaction.amount = payload.amount
     transaction.transaction_date = _parse_transaction_date(payload.date)
     transaction.transaction_type = payload.type.value
     transaction.payment_method = payload.paymentMethod.value
