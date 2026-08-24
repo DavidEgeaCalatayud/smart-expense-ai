@@ -8,12 +8,18 @@ import {
   YAxis,
 } from 'recharts';
 import type { MonthlyExpense } from '../../types/dashboard';
-import { formatCurrency } from '../../utils/formatters';
 import { Badge } from '../ui/Badge';
 
 interface SpendingChartProps {
   data: MonthlyExpense[];
 }
+
+const formatChartCurrency = (value: number) =>
+  new Intl.NumberFormat('en-US', {
+    style: 'currency',
+    currency: 'EUR',
+    maximumFractionDigits: 0,
+  }).format(value);
 
 export function SpendingChart({ data }: SpendingChartProps) {
   return (
@@ -38,7 +44,7 @@ export function SpendingChart({ data }: SpendingChartProps) {
             <CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0" />
             <XAxis dataKey="month" stroke="#64748b" tickLine={false} axisLine={false} />
             <YAxis stroke="#64748b" tickLine={false} axisLine={false} />
-            <Tooltip formatter={(value) => formatCurrency(Number(value))} />
+            <Tooltip formatter={(value) => formatChartCurrency(Number(value))} />
             <Area
               type="monotone"
               dataKey="amount"
