@@ -16,17 +16,21 @@ Implemented today:
 - Trusted-host validation, restricted CORS and cross-site mutation defense.
 - Nginx login/registration rate limiting and browser security headers.
 - Security event logging without passwords, emails, request bodies, JWTs or cookies.
+- Versioned `/api/v1` application contract.
+- Paginated transaction listing with server-side search, category, status, type, recurring, date-range and sort filters.
+- Normalized API error envelopes with semantic codes and request IDs.
+- Server-side summary and monthly-expense analytics endpoints.
 - Persistent transaction creation, editing, deletion and listing.
 - PostgreSQL persistence through SQLAlchemy 2.
 - Alembic schema migrations and initial category seeding.
-- Persisted shared categories exposed through authenticated `GET /api/categories`.
+- Persisted shared categories exposed through authenticated `GET /api/v1/categories`.
 - Category/type validation for expense and income transactions.
-- Dashboard metrics derived only from the authenticated user's transactions.
-- Six-month expense trend calculated from persisted history.
-- Five most recent transactions displayed on the dashboard.
+- Dashboard metrics derived from server-side aggregates for the authenticated user.
+- Six-month expense trend served by the analytics API.
+- Five most recent transactions loaded through the paginated API.
 - Recurring transactions stored as an explicit user-provided flag.
 - Transparent rule-based review: expenses above 120 EUR are marked as `review`.
-- Delete confirmation and operation feedback in transaction management.
+- Delete confirmation, loading/refreshing states, retry feedback and operation toasts in transaction management.
 - Backend unit and PostgreSQL integration tests with pytest.
 - Frontend component/page tests with Vitest and React Testing Library.
 - Critical authenticated browser coverage with Playwright, including cross-account isolation.
@@ -70,7 +74,7 @@ Browser
   v
 frontend :5173 (Nginx + React build)
   |
-  | security headers + rate limiting + /api/*
+  | security headers + rate limiting + /api/v1/*
   v
 backend :8000 (FastAPI + Alembic, internal only)
   |
@@ -93,33 +97,18 @@ Existing transactions created before the authentication migration are preserved 
 
 See [`docs/docker.md`](docs/docker.md) for architecture, health checks, logs and reset instructions.
 
-## Product Direction
-
-The long-term objective is to go beyond traditional expense tracking and help users understand how their financial behavior is changing over time.
-
-Planned intelligence features include:
-
-- Spending pattern analysis.
-- Recurring charge detection.
-- Duplicate subscription detection.
-- Anomaly detection over historical behavior.
-- End-of-month spending forecasts.
-- Explainable alerts and recommendations.
-
-These features will be added only when they can operate on real persisted data and validated logic.
-
 ## Architecture
 
 ```text
 React + TypeScript
         |
-        | HttpOnly JWT session
+        | versioned API client + HttpOnly JWT session
         v
 Nginx reverse proxy
         | rate limits + CSP/security headers
         v
-FastAPI REST API
-        | trusted host + CORS/origin checks
+FastAPI /api/v1
+        | pagination + filters + normalized errors + analytics
         v
 Authentication + service layer
         |
@@ -140,7 +129,7 @@ smart-expense-ai/
 ├── frontend/        # React + TypeScript web application and Nginx image
 ├── backend/         # FastAPI API, auth, services, SQLAlchemy models and migrations
 ├── ai/              # Reserved for future intelligence services
-├── docs/            # Product, architecture, testing and security documentation
+├── docs/            # Product, API, architecture, testing and security documentation
 ├── scripts/         # Utility scripts
 ├── compose.yaml     # Full local stack
 ├── SECURITY.md      # Vulnerability reporting policy
@@ -150,27 +139,37 @@ smart-expense-ai/
 
 ## API
 
+The supported application contract is versioned under:
+
+```text
+/api/v1
+```
+
 Public endpoints:
 
 ```text
 GET    /health
-POST   /api/auth/register
-POST   /api/auth/login
-POST   /api/auth/logout
+POST   /api/v1/auth/register
+POST   /api/v1/auth/login
+POST   /api/v1/auth/logout
 ```
 
 Authenticated endpoints:
 
 ```text
-GET    /api/auth/me
-GET    /api/categories
-GET    /api/transactions
-POST   /api/transactions
-PUT    /api/transactions/{transaction_id}
-DELETE /api/transactions/{transaction_id}
+GET    /api/v1/auth/me
+GET    /api/v1/categories
+GET    /api/v1/transactions
+POST   /api/v1/transactions
+PUT    /api/v1/transactions/{transaction_id}
+DELETE /api/v1/transactions/{transaction_id}
+GET    /api/v1/analytics/summary
+GET    /api/v1/analytics/monthly-expenses
 ```
 
-The browser session is carried by an HttpOnly cookie. Cross-account transaction IDs are treated as not found rather than exposing ownership information. State-changing browser requests with an untrusted origin are rejected.
+Transaction listing is paginated and filtered server-side. Errors use a stable envelope with `code`, `message`, `requestId` and optional safe `details`. Breaking contract changes require a new URL version.
+
+See [`docs/api.md`](docs/api.md) for pagination, filters, analytics, error examples and versioning policy.
 
 ## Manual Local Development
 
@@ -237,13 +236,14 @@ The repository has automated quality layers for:
 
 1. Backend unit tests, including password hashing, JWT validation and secure configuration invariants.
 2. Backend API integration tests against migrated PostgreSQL.
-3. Explicit cross-account ownership tests proving one user cannot mutate another user's transaction.
-4. HTTP security regression tests covering headers, cookie flags, trusted hosts and cross-site mutation rejection.
-5. Frontend tests with Vitest and React Testing Library.
-6. Critical authenticated end-to-end browser coverage with Playwright.
-7. Python dependency auditing with `pip-audit`.
-8. npm dependency auditing that blocks high/critical findings.
-9. Full Docker Compose build/startup smoke testing, including security headers and authentication rate limiting.
+3. API v1 contract tests for pagination, filters, error envelopes and analytics.
+4. Explicit cross-account ownership tests proving one user cannot mutate another user's transaction.
+5. HTTP security regression tests covering headers, cookie flags, trusted hosts and cross-site mutation rejection.
+6. Frontend tests with Vitest and React Testing Library.
+7. Critical authenticated end-to-end browser coverage with Playwright.
+8. Python dependency auditing with `pip-audit`.
+9. npm dependency auditing that blocks high/critical findings.
+10. Full Docker Compose build/startup smoke testing, including the versioned API contract, security headers and authentication rate limiting.
 
 GitHub Actions runs these gates for pushes and pull requests targeting `main`. The consolidated `Quality gate` requires backend, frontend, dependency security, browser E2E and Docker jobs to succeed.
 
@@ -299,7 +299,7 @@ The detailed roadmap is maintained in [`ROADMAP.md`](ROADMAP.md).
 
 Near-term priorities are:
 
-1. Stronger transaction UX and responsive behavior.
+1. Stronger responsive transaction UX.
 2. Password reset/change plus account deletion/privacy controls.
 3. User-managed categories when required.
 4. A real intelligence layer built over sufficient historical transaction data.
