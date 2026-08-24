@@ -87,14 +87,14 @@ export function RegisterPage() {
             <input
               type="password"
               required
-              minLength={8}
+              minLength={12}
               maxLength={128}
               autoComplete="new-password"
               value={password}
               onChange={(event) => setPassword(event.target.value)}
               className="mt-2 w-full rounded-2xl border border-slate-200 px-4 py-3 font-normal outline-none transition focus:border-brand-400 focus:ring-4 focus:ring-brand-50"
             />
-            <span className="mt-2 block text-xs font-normal text-slate-400">Minimum 8 characters.</span>
+            <span className="mt-2 block text-xs font-normal text-slate-400">Minimum 12 characters.</span>
           </label>
 
           <button
