@@ -4,9 +4,9 @@ from sqlalchemy.orm import Session
 from app.auth.dependencies import get_current_user
 from app.core.api_errors import ApiError
 from app.db.session import get_db
+from app.historical_contract import HistoricalAnalysisResponseV21
 from app.models.user import User
-from app.schemas import HistoricalAnalysisResponse
-from app.services.historical_analysis_v2 import (
+from app.services.historical_analysis_v2_1 import (
     get_latest_historical_analysis,
     run_historical_analysis,
 )
@@ -15,20 +15,20 @@ from app.services.historical_analysis_v2 import (
 router = APIRouter(prefix="/intelligence/historical-analysis", tags=["historical-analysis-v2"])
 
 
-@router.post("", response_model=HistoricalAnalysisResponse)
+@router.post("", response_model=HistoricalAnalysisResponseV21)
 def analyze_history(
     months: int = Query(12, ge=6, le=24),
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
-) -> HistoricalAnalysisResponse:
+) -> HistoricalAnalysisResponseV21:
     return run_historical_analysis(db, current_user.id, window_months=months)
 
 
-@router.get("/latest", response_model=HistoricalAnalysisResponse)
+@router.get("/latest", response_model=HistoricalAnalysisResponseV21)
 def latest_analysis(
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
-) -> HistoricalAnalysisResponse:
+) -> HistoricalAnalysisResponseV21:
     result = get_latest_historical_analysis(db, current_user.id)
     if result is None:
         raise ApiError(

@@ -1,11 +1,43 @@
 {
-  "datasetVersion": "fixture-v1",
-  "description": "Synthetic regression fixture for the evaluation harness. It is not evidence of real-world model quality.",
+  "datasetVersion": "fixture-v2",
+  "description": "Synthetic regression fixture for fold-local identity and temporal recurring-stream evaluation. It is not evidence of real-world model quality.",
   "evaluation": {
     "minimumHistoryMonths": 6
   },
   "labels": {
-    "recurringMerchants": ["stream box", "cloud tools"],
+    "recurringStreams": [
+      {
+        "id": "stream-box-monthly",
+        "merchant": "stream box",
+        "cadence": "monthly",
+        "amountMin": "9.00",
+        "amountMax": "11.50",
+        "expectedOccurrences": [
+          "2026-07-31",
+          "2026-08-31",
+          "2026-09-30",
+          "2026-10-31"
+        ]
+      },
+      {
+        "id": "cloud-tools-initial",
+        "merchant": "cloud tools",
+        "cadence": "monthly",
+        "amountMin": "8.00",
+        "amountMax": "12.00",
+        "activeFrom": "2026-01",
+        "activeUntil": "2026-06"
+      },
+      {
+        "id": "cloud-tools-reactivated",
+        "merchant": "cloud tools",
+        "cadence": "monthly",
+        "amountMin": "8.00",
+        "amountMax": "12.00",
+        "activeFrom": "2026-08",
+        "activeUntil": "2026-10"
+      }
+    ],
     "anomalyTransactionIds": ["cloud-jul"]
   },
   "transactions": [

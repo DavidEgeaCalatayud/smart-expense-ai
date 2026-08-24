@@ -65,16 +65,18 @@ jobs:
         run: python -c "from app.main import app; assert app.title == 'Smart Expense AI API'; assert app.version == '1.2.0'"
       - name: Run backend tests
         run: pytest
-      - name: Run historical-v2 walk-forward evaluation fixture
+      - name: Run historical-v2.1 walk-forward evaluation fixture
         run: |
           python scripts/evaluate_historical.py evaluation/historical_v2_fixture.json --output /tmp/historical-v2-report.json > /dev/null
           python - <<'PY'
           import json
           from pathlib import Path
           report = json.loads(Path('/tmp/historical-v2-report.json').read_text())
-          assert report['analysisVersion'] == 'historical-v2'
-          assert report['validationStrategy'] == 'walk_forward_monthly'
+          assert report['analysisVersion'] == 'historical-v2.1'
+          assert report['validationStrategy'] == 'walk_forward_monthly_fold_local_identity'
+          assert report['labelStrategy'] == 'temporal_recurring_streams'
           assert len(report['folds']) == 4
+          assert 'identitySourceTransactions' in report['folds'][0]
           assert 'precision' in report['aggregate']['recurrence']
           assert 'falsePositivesPer100Transactions' in report['aggregate']['anomalies']
           PY
@@ -234,14 +236,15 @@ jobs:
           grep '"balance":"-0.30"' decimal-summary.json
           curl --fail --silent --show-error -X POST -b cookies.txt \
             'http://localhost:5173/api/v2/intelligence/historical-analysis?months=6' -o historical-analysis.json
-          grep '"analysisVersion":"historical-v2"' historical-analysis.json
+          grep '"analysisVersion":"historical-v2.1"' historical-analysis.json
           grep '"analyzedTransactions":2' historical-analysis.json
           grep '"direction":"insufficient_data"' historical-analysis.json
           grep '"strategy":"exclude_partial"' historical-analysis.json
           grep '"partialMonth":"2026-08"' historical-analysis.json
+          grep '"strategy":"canonical_merchant_then_descriptor_amount_streams"' historical-analysis.json
           curl --fail --silent --show-error -b cookies.txt \
             http://localhost:5173/api/v2/intelligence/historical-analysis/latest -o historical-latest.json
-          grep '"analysisVersion":"historical-v2"' historical-latest.json
+          grep '"analysisVersion":"historical-v2.1"' historical-latest.json
           test "$(curl --silent --output decimal-number.json --write-out '%{http_code}' \
             -b cookies.txt \
             -H 'Content-Type: application/json' \

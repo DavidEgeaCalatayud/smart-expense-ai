@@ -86,7 +86,7 @@ export function HistoricalAnalysisPanel() {
           <h2 className="mt-2 text-xl font-bold text-slate-950">Behavior over time</h2>
           <p className="mt-1 max-w-3xl text-sm leading-6 text-slate-500">
             Reproducible statistical analysis with complete-month trend handling, auditable merchant canonicalization,
-            calendar-aware recurrence scoring and past-only robust outliers. Scores are deterministic indices, not probabilities.
+            stream-aware calendar recurrence and past-only robust outliers. Scores are deterministic indices, not probabilities.
           </p>
         </div>
         <button
@@ -128,7 +128,7 @@ export function HistoricalAnalysisPanel() {
               <div>
                 <p className="font-semibold">Partial month excluded from trend calculations</p>
                 <p className="mt-1 text-xs leading-5 text-amber-700">
-                  {analysis.monthCompleteness.partialMonth} remains visible in the monthly series, but historical-v2 excludes it from regression and 3-month category comparisons. No end-of-month extrapolation is performed.
+                  {analysis.monthCompleteness.partialMonth} remains visible in the monthly series, but {analysis.analysisVersion} excludes it from regression and 3-month category comparisons. No end-of-month extrapolation is performed.
                 </p>
               </div>
             </div>
@@ -153,10 +153,10 @@ export function HistoricalAnalysisPanel() {
             </article>
             <article className="rounded-2xl bg-slate-50 p-4">
               <div className="flex items-center gap-2 text-sm font-semibold text-slate-600">
-                <Repeat2 size={17} /> Recurring profiles
+                <Repeat2 size={17} /> Recurring streams
               </div>
-              <p className="mt-2 text-xl font-bold text-slate-950">{analysis.recurringProfiles.length}</p>
-              <p className="mt-1 text-xs text-slate-500">calendar + cadence + amount stability</p>
+              <p className="mt-2 text-xl font-bold text-slate-950">{analysis.coverage.recurringStreams}</p>
+              <p className="mt-1 text-xs text-slate-500">merchant → descriptor/amount stream → cadence</p>
             </article>
             <article className="rounded-2xl bg-slate-50 p-4">
               <div className="flex items-center gap-2 text-sm font-semibold text-slate-600">
@@ -169,16 +169,19 @@ export function HistoricalAnalysisPanel() {
 
           <div className="mt-6 grid gap-6 xl:grid-cols-2">
             <div className="rounded-2xl border border-slate-200 p-5">
-              <h3 className="font-bold text-slate-950">Recurring behavior scores</h3>
-              <p className="mt-1 text-xs text-slate-500">Deterministic 0–100 pattern index; not a probability.</p>
+              <h3 className="font-bold text-slate-950">Recurring stream scores</h3>
+              <p className="mt-1 text-xs text-slate-500">Deterministic 0–100 pattern index per stream; not a probability.</p>
               <div className="mt-4 space-y-4">
                 {analysis.recurringProfiles.length === 0 ? (
-                  <p className="text-sm text-slate-500">No merchant has enough stable cadence evidence yet.</p>
+                  <p className="text-sm text-slate-500">No payment stream has enough stable cadence evidence yet.</p>
                 ) : analysis.recurringProfiles.slice(0, 6).map((profile) => (
-                  <div key={`${profile.canonicalMerchant ?? profile.merchant}-${profile.cadence}`}>
+                  <div key={profile.streamKey ?? `${profile.canonicalMerchant ?? profile.merchant}-${profile.cadence}-${profile.medianAmount}`}>
                     <div className="flex items-center justify-between gap-3 text-sm">
                       <div>
                         <span className="font-semibold text-slate-800">{profile.canonicalMerchant ?? profile.merchant}</span>
+                        {profile.streamDescriptor && (
+                          <span className="ml-2 rounded-full bg-slate-100 px-2 py-0.5 text-xs font-semibold text-slate-500">{profile.streamDescriptor}</span>
+                        )}
                         <span className="ml-2 text-xs text-slate-400">{profile.cadence} · {profile.occurrenceCount} charges</span>
                       </div>
                       <span className="font-bold text-slate-900">{profile.patternScore}</span>
@@ -257,7 +260,7 @@ export function HistoricalAnalysisPanel() {
           </div>
 
           <p className="mt-5 text-xs text-slate-400">
-            Snapshot {analysis.analysisVersion} · {analysis.periodStart} to {analysis.periodEnd} · {analysis.monthCompleteness.strategy} · generated {new Date(analysis.generatedAt).toLocaleString()}
+            Snapshot {analysis.analysisVersion} · {analysis.periodStart} to {analysis.periodEnd} · {analysis.monthCompleteness.strategy} · {analysis.recurrenceSegmentation.strategy} · generated {new Date(analysis.generatedAt).toLocaleString()}
           </p>
         </>
       )}
