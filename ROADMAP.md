@@ -64,13 +64,18 @@ Goal: isolate financial data by user before adding sensitive integrations.
 
 Goal: implement real analysis without simulated AI outputs.
 
-- [ ] Detect recurring transactions from historical data.
-- [ ] Detect duplicated subscriptions.
-- [ ] Detect abnormal transaction amounts.
-- [ ] Add persisted alert entities and review workflow.
-- [ ] Add alert severity levels.
-- [ ] Generate explainable financial insights.
-- [ ] Validate analysis rules against real datasets.
+- [x] Detect recurring transactions from historical data.
+- [x] Detect possible duplicated subscriptions from repeated near-duplicate billing patterns.
+- [x] Detect abnormal transaction amounts against merchant-specific historical baselines.
+- [x] Add persisted intelligence findings, scan history and review workflow.
+- [x] Add finding severity levels.
+- [x] Generate explainable evidence for every finding.
+- [x] Make rescans idempotent through stable per-user fingerprints.
+- [x] Keep intelligence findings isolated by authenticated user ownership.
+- [x] Add Financial Intelligence frontend workspace for scan/review/dismiss/resolve/reopen flows.
+- [ ] Validate analysis rules against labelled real-world datasets and measure precision/recall.
+- [ ] Add automatic/background analysis when deployment scheduling is available.
+- [ ] Add category-level anomaly baselines and richer merchant normalization if validation justifies them.
 
 ## Phase 4 - Prediction
 

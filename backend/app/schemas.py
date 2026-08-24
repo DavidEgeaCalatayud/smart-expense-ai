@@ -1,4 +1,7 @@
+from datetime import datetime
 from enum import Enum
+from typing import Any
+
 from pydantic import BaseModel, EmailStr, Field
 
 
@@ -24,6 +27,24 @@ class TransactionSort(str, Enum):
     oldest = "oldest"
     amount_high = "amount_high"
     amount_low = "amount_low"
+
+
+class FindingType(str, Enum):
+    recurring_pattern = "recurring_pattern"
+    duplicate_subscription = "duplicate_subscription"
+    spending_anomaly = "spending_anomaly"
+
+
+class FindingSeverity(str, Enum):
+    info = "info"
+    warning = "warning"
+    high = "high"
+
+
+class FindingStatus(str, Enum):
+    open = "open"
+    dismissed = "dismissed"
+    resolved = "resolved"
 
 
 class UserResponse(BaseModel):
@@ -97,3 +118,41 @@ class TransactionSummary(BaseModel):
 class MonthlyExpense(BaseModel):
     month: str
     amount: float
+
+
+class IntelligenceFindingResponse(BaseModel):
+    id: str
+    type: FindingType
+    severity: FindingSeverity
+    status: FindingStatus
+    title: str
+    explanation: str
+    evidence: dict[str, Any]
+    ruleVersion: str
+    firstDetectedAt: datetime
+    lastDetectedAt: datetime
+    resolvedAt: datetime | None = None
+
+
+class FindingStatusUpdate(BaseModel):
+    status: FindingStatus
+
+
+class IntelligenceScanResponse(BaseModel):
+    scanId: str
+    ruleVersion: str
+    analyzedTransactions: int
+    detectedFindings: int
+    scannedAt: datetime
+
+
+class IntelligenceSummary(BaseModel):
+    openCount: int
+    recurringCount: int
+    duplicateSubscriptionCount: int
+    anomalyCount: int
+    dismissedCount: int
+    resolvedCount: int
+    lastScanAt: datetime | None
+    analyzedTransactions: int
+    ruleVersion: str

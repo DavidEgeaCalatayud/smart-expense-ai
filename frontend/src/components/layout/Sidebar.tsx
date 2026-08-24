@@ -1,11 +1,11 @@
 import {
-  Bell,
   Brain,
   CreditCard,
   Database,
   LayoutDashboard,
   LineChart,
   LogOut,
+  ScanSearch,
   ShieldCheck,
   UserRound,
 } from 'lucide-react';
@@ -17,7 +17,7 @@ const navigationItems = [
   { icon: LayoutDashboard, label: 'Dashboard', to: ROUTES.dashboard },
   { icon: CreditCard, label: 'Transactions', to: ROUTES.transactions },
   { icon: LineChart, label: 'Predictions', to: ROUTES.predictions },
-  { icon: Bell, label: 'Alerts', to: ROUTES.alerts },
+  { icon: ScanSearch, label: 'Intelligence', to: ROUTES.alerts },
   { icon: ShieldCheck, label: 'Security', to: ROUTES.security },
 ];
 
@@ -88,7 +88,7 @@ export function Sidebar() {
         </div>
         <p className="mb-2 text-sm font-semibold">Account-isolated data</p>
         <p className="text-sm leading-6 text-slate-300">
-          Transaction queries are scoped to your authenticated user before financial data leaves the API.
+          Transaction and intelligence queries are scoped to your authenticated user before financial data leaves the API.
         </p>
       </div>
     </aside>

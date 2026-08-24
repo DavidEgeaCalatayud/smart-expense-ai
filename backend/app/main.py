@@ -15,6 +15,7 @@ from app.core.http_security import SecurityMiddleware
 from app.routers.analytics import router as analytics_router
 from app.routers.auth import router as auth_router
 from app.routers.categories import router as categories_router
+from app.routers.intelligence import router as intelligence_router
 from app.routers.transactions import router as transactions_router
 
 
@@ -23,8 +24,8 @@ API_V1_PREFIX = "/api/v1"
 
 app = FastAPI(
     title="Smart Expense AI API",
-    description="Versioned API for authenticated Smart Expense AI transaction management and analytics.",
-    version="1.0.0",
+    description="Versioned API for authenticated transaction management, analytics and explainable financial intelligence.",
+    version="1.1.0",
     debug=settings.app_debug,
     docs_url=None if production_docs_disabled else "/docs",
     redoc_url=None if production_docs_disabled else "/redoc",
@@ -58,3 +59,4 @@ app.include_router(auth_router, prefix=API_V1_PREFIX)
 app.include_router(categories_router, prefix=API_V1_PREFIX)
 app.include_router(transactions_router, prefix=API_V1_PREFIX)
 app.include_router(analytics_router, prefix=API_V1_PREFIX)
+app.include_router(intelligence_router, prefix=API_V1_PREFIX)
