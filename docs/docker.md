@@ -5,7 +5,7 @@ The full Smart Expense AI stack can be started from the repository root with Doc
 ## Requirements
 
 - Docker Desktop, or Docker Engine with Docker Compose v2.
-- Ports `5173` and `8000` available on the host.
+- Port `5173` available on the host.
 
 ## Start the application
 
@@ -23,10 +23,10 @@ frontend :5173 (Nginx + React build)
   |
   | /api/* reverse proxy
   v
-backend :8000 (FastAPI)
+backend :8000 (FastAPI, internal only)
   |
   v
-db :5432 (PostgreSQL 16)
+db :5432 (PostgreSQL 16, internal only)
 ```
 
 Open the application at:
@@ -35,11 +35,9 @@ Open the application at:
 http://localhost:5173
 ```
 
-FastAPI remains directly available for development at:
+The Compose backend is deliberately **not published to the host**. Nginx is the only public application entry point and provides the edge security policy/rate limiter before proxying to `backend:8000` on the internal network.
 
-```text
-http://localhost:8000/docs
-```
+For direct FastAPI development outside Compose, run Uvicorn locally from `backend/` as documented in the main README.
 
 The backend container waits for PostgreSQL to become healthy and runs `alembic upgrade head` before starting Uvicorn. The frontend waits for the backend health check before starting.
 
@@ -55,7 +53,10 @@ Inspect status and logs:
 docker compose ps
 docker compose logs -f
 docker compose logs -f backend
+docker compose logs -f frontend
 ```
+
+The backend container disables Uvicorn access logs in this topology. Nginx emits the edge access log using a reduced format containing timestamp, method, path without query string, status, and an Nginx request ID. Authentication credentials, cookies, request bodies, and financial payloads are not part of that format.
 
 ## Stop the stack
 
@@ -73,11 +74,27 @@ docker compose down -v
 
 This permanently deletes the Compose-managed PostgreSQL data.
 
-## Networking
+## Networking and container controls
 
 The browser only needs the frontend origin. The production React build uses relative `/api` URLs, and Nginx proxies them to the internal `backend:8000` service. PostgreSQL is only addressed by the backend through the internal Compose network using hostname `db`.
 
-The default credentials in `compose.yaml` are development-only credentials. They are not intended for a public or production deployment.
+The backend runs as a non-root application user. Compose applies `no-new-privileges` to all three services.
+
+The default credentials and JWT secret in `compose.yaml` are development-only values. They are not intended for a public or production deployment.
+
+## Edge security behavior
+
+The bundled Nginx configuration provides:
+
+- Content Security Policy;
+- MIME sniffing, framing, referrer, permissions, COOP and CORP headers;
+- reduced access logging without query strings or authentication material;
+- per-IP login rate limiting;
+- stricter registration rate limiting.
+
+FastAPI independently applies API `Cache-Control: no-store`, request IDs, browser-origin checks for state-changing API calls, trusted-host validation, restricted CORS and other defense-in-depth headers.
+
+HTTPS is not bundled into the local Compose development stack. A staging/production deployment must terminate TLS at a trusted edge and set `AUTH_COOKIE_SECURE=true`; the application rejects staging/production configuration that leaves that flag disabled.
 
 ## CI smoke test
 
@@ -87,5 +104,8 @@ GitHub Actions validates Docker Compose in addition to the unit, integration and
 2. builds the frontend and backend images;
 3. starts PostgreSQL, FastAPI and Nginx;
 4. waits for container health checks;
-5. verifies the frontend root, proxied `/health`, and proxied `/api/categories` endpoints;
-6. tears the stack down with its test volume.
+5. verifies CSP and response security headers;
+6. registers a test account and verifies protected API access;
+7. verifies unauthenticated access is rejected;
+8. proves the login limiter returns HTTP `429` after the configured burst;
+9. tears the stack down with its test volume.
