@@ -1,12 +1,15 @@
-import { Download, ReceiptText } from 'lucide-react';
-import { useEffect, useMemo, useState } from 'react';
+import { Download, ReceiptText, RefreshCw } from 'lucide-react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import { MetricCard } from '../components/dashboard/MetricCard';
 import { PageHeader } from '../components/layout/PageHeader';
+import { PaginationControls } from '../components/transactions/PaginationControls';
 import { TransactionFilters } from '../components/transactions/TransactionFilters';
 import { TransactionForm } from '../components/transactions/TransactionForm';
 import { TransactionsTable } from '../components/transactions/TransactionsTable';
 import { ConfirmDialog } from '../components/ui/ConfirmDialog';
 import { Toast } from '../components/ui/Toast';
+import { getApiErrorMessage } from '../services/apiClient';
+import { fetchTransactionSummary } from '../services/analyticsApi';
 import { fetchCategories } from '../services/categoriesApi';
 import {
   createTransaction,
@@ -19,8 +22,12 @@ import type {
   TransactionCategory,
   TransactionFilters as TransactionFiltersType,
   TransactionFormValues,
+  TransactionPage,
+  TransactionSummary,
 } from '../types/transactions';
 import { formatCurrency, formatCurrencyWithDecimals } from '../utils/formatters';
+
+const PAGE_SIZE = 10;
 
 const buildDefaultFormValues = (category = ''): TransactionFormValues => ({
   merchant: '',
@@ -38,6 +45,27 @@ const defaultFilters: TransactionFiltersType = {
   category: 'all',
   status: 'all',
   type: 'all',
+  recurring: 'all',
+  dateFrom: '',
+  dateTo: '',
+  sort: 'newest',
+};
+
+const emptyPage: TransactionPage = {
+  items: [],
+  page: 1,
+  pageSize: PAGE_SIZE,
+  total: 0,
+  pages: 0,
+};
+
+const emptySummary: TransactionSummary = {
+  totalIncome: 0,
+  totalExpenses: 0,
+  balance: 0,
+  recurringCount: 0,
+  reviewCount: 0,
+  transactionCount: 0,
 };
 
 const mapTransactionToFormValues = (transaction: DetailedTransaction): TransactionFormValues => ({
@@ -51,85 +79,93 @@ const mapTransactionToFormValues = (transaction: DetailedTransaction): Transacti
   isRecurring: transaction.isRecurring,
 });
 
-const getErrorMessage = (error: unknown, fallback: string) =>
-  error instanceof Error ? error.message : fallback;
-
 export function TransactionsPage() {
-  const [transactions, setTransactions] = useState<DetailedTransaction[]>([]);
+  const [pageData, setPageData] = useState<TransactionPage>(emptyPage);
+  const [summary, setSummary] = useState<TransactionSummary>(emptySummary);
   const [categories, setCategories] = useState<TransactionCategory[]>([]);
   const [formValues, setFormValues] = useState<TransactionFormValues>(() => buildDefaultFormValues());
   const [filters, setFilters] = useState<TransactionFiltersType>(defaultFilters);
+  const [queryFilters, setQueryFilters] = useState<TransactionFiltersType>(defaultFilters);
+  const [page, setPage] = useState(1);
   const [editingTransactionId, setEditingTransactionId] = useState<string | null>(null);
   const [transactionPendingDelete, setTransactionPendingDelete] = useState<DetailedTransaction | null>(null);
-  const [isLoading, setIsLoading] = useState(true);
+  const [hasLoadedPage, setHasLoadedPage] = useState(false);
+  const [isPageLoading, setIsPageLoading] = useState(true);
+  const [isSummaryLoading, setIsSummaryLoading] = useState(true);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [deletingTransactionId, setDeletingTransactionId] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [successMessage, setSuccessMessage] = useState<string | null>(null);
 
+  const loadPage = useCallback(async () => {
+    setIsPageLoading(true);
+    try {
+      const loadedPage = await fetchTransactions({ page, pageSize: PAGE_SIZE, filters: queryFilters });
+      setPageData(loadedPage);
+      setError(null);
+    } catch (loadError) {
+      setError(getApiErrorMessage(loadError, 'Unable to load transactions'));
+    } finally {
+      setHasLoadedPage(true);
+      setIsPageLoading(false);
+    }
+  }, [page, queryFilters]);
+
+  const loadSummary = useCallback(async () => {
+    setIsSummaryLoading(true);
+    try {
+      setSummary(await fetchTransactionSummary());
+    } catch (loadError) {
+      setError(getApiErrorMessage(loadError, 'Unable to load transaction summary'));
+    } finally {
+      setIsSummaryLoading(false);
+    }
+  }, []);
+
   useEffect(() => {
     let isActive = true;
 
-    const loadPageData = async () => {
+    const loadCategories = async () => {
       try {
-        const [loadedTransactions, loadedCategories] = await Promise.all([
-          fetchTransactions(),
-          fetchCategories(),
-        ]);
+        const loadedCategories = await fetchCategories();
+        if (!isActive) return;
 
-        if (isActive) {
-          setTransactions(loadedTransactions);
-          setCategories(loadedCategories);
-
-          const defaultExpenseCategory =
-            loadedCategories.find((category) => category.transactionType === 'expense')?.name ??
-            loadedCategories[0]?.name ??
-            '';
-          setFormValues(buildDefaultFormValues(defaultExpenseCategory));
-        }
+        setCategories(loadedCategories);
+        const defaultExpenseCategory =
+          loadedCategories.find((category) => category.transactionType === 'expense')?.name ??
+          loadedCategories[0]?.name ??
+          '';
+        setFormValues(buildDefaultFormValues(defaultExpenseCategory));
       } catch (loadError) {
-        if (isActive) {
-          setError(getErrorMessage(loadError, 'Unable to load transaction data'));
-        }
-      } finally {
-        if (isActive) {
-          setIsLoading(false);
-        }
+        if (isActive) setError(getApiErrorMessage(loadError, 'Unable to load categories'));
       }
     };
 
-    void loadPageData();
+    void loadCategories();
+    void loadSummary();
 
     return () => {
       isActive = false;
     };
-  }, []);
+  }, [loadSummary]);
 
   useEffect(() => {
-    if (!successMessage) {
-      return undefined;
-    }
+    const timeoutId = window.setTimeout(() => {
+      setPage(1);
+      setQueryFilters(filters);
+    }, 300);
+    return () => window.clearTimeout(timeoutId);
+  }, [filters]);
 
+  useEffect(() => {
+    void loadPage();
+  }, [loadPage]);
+
+  useEffect(() => {
+    if (!successMessage) return undefined;
     const timeoutId = window.setTimeout(() => setSuccessMessage(null), 3200);
     return () => window.clearTimeout(timeoutId);
   }, [successMessage]);
-
-  const filteredTransactions = useMemo(() => {
-    const normalizedSearch = filters.search.trim().toLowerCase();
-
-    return transactions.filter((transaction) => {
-      const matchesSearch =
-        normalizedSearch.length === 0 ||
-        transaction.merchant.toLowerCase().includes(normalizedSearch) ||
-        transaction.description.toLowerCase().includes(normalizedSearch);
-
-      const matchesCategory = filters.category === 'all' || transaction.category === filters.category;
-      const matchesStatus = filters.status === 'all' || transaction.status === filters.status;
-      const matchesType = filters.type === 'all' || transaction.type === filters.type;
-
-      return matchesSearch && matchesCategory && matchesStatus && matchesType;
-    });
-  }, [filters, transactions]);
 
   const compatibleFormCategories = useMemo(
     () => categories.filter((category) => category.transactionType === formValues.type),
@@ -141,44 +177,18 @@ export function TransactionsPage() {
     [categories],
   );
 
-  const totalExpenses = useMemo(
-    () =>
-      transactions
-        .filter((transaction) => transaction.type === 'expense')
-        .reduce((total, item) => total + item.amount, 0),
-    [transactions],
-  );
-
-  const totalIncome = useMemo(
-    () =>
-      transactions
-        .filter((transaction) => transaction.type === 'income')
-        .reduce((total, item) => total + item.amount, 0),
-    [transactions],
-  );
-
-  const needsReviewCount = useMemo(
-    () => transactions.filter((transaction) => transaction.status !== 'normal').length,
-    [transactions],
-  );
-
-  const recurringCount = useMemo(
-    () => transactions.filter((transaction) => transaction.isRecurring).length,
-    [transactions],
-  );
-
   const handleFormChange = (nextValues: TransactionFormValues) => {
-    const compatibleCategories = categories.filter(
-      (category) => category.transactionType === nextValues.type,
-    );
-    const categoryIsCompatible = compatibleCategories.some(
-      (category) => category.name === nextValues.category,
-    );
+    const compatibleCategories = categories.filter((category) => category.transactionType === nextValues.type);
+    const categoryIsCompatible = compatibleCategories.some((category) => category.name === nextValues.category);
 
     setFormValues({
       ...nextValues,
       category: categoryIsCompatible ? nextValues.category : compatibleCategories[0]?.name ?? '',
     });
+  };
+
+  const refreshPageAndSummary = async () => {
+    await Promise.all([loadPage(), loadSummary()]);
   };
 
   const handleSubmitTransaction = async () => {
@@ -189,22 +199,17 @@ export function TransactionsPage() {
 
     try {
       if (editingTransactionId) {
-        const updatedTransaction = await updateTransaction(editingTransactionId, formValues);
-        setTransactions((currentTransactions) =>
-          currentTransactions.map((transaction) =>
-            transaction.id === editingTransactionId ? updatedTransaction : transaction,
-          ),
-        );
+        await updateTransaction(editingTransactionId, formValues);
       } else {
-        const createdTransaction = await createTransaction(formValues);
-        setTransactions((currentTransactions) => [createdTransaction, ...currentTransactions]);
+        await createTransaction(formValues);
       }
 
       setEditingTransactionId(null);
       setFormValues(buildDefaultFormValues(defaultExpenseCategory));
+      await refreshPageAndSummary();
       setSuccessMessage(isEditing ? 'Transaction updated successfully.' : 'Transaction created successfully.');
     } catch (submitError) {
-      setError(getErrorMessage(submitError, 'Unable to save transaction'));
+      setError(getApiErrorMessage(submitError, 'Unable to save transaction'));
     } finally {
       setIsSubmitting(false);
     }
@@ -218,7 +223,7 @@ export function TransactionsPage() {
   };
 
   const handleDeleteRequest = (transactionId: string) => {
-    const transaction = transactions.find((item) => item.id === transactionId);
+    const transaction = pageData.items.find((item) => item.id === transactionId);
     if (transaction) {
       setError(null);
       setSuccessMessage(null);
@@ -227,9 +232,7 @@ export function TransactionsPage() {
   };
 
   const handleConfirmDelete = async () => {
-    if (!transactionPendingDelete) {
-      return;
-    }
+    if (!transactionPendingDelete) return;
 
     const transactionId = transactionPendingDelete.id;
     setError(null);
@@ -237,18 +240,21 @@ export function TransactionsPage() {
 
     try {
       await deleteTransaction(transactionId);
-      setTransactions((currentTransactions) =>
-        currentTransactions.filter((transaction) => transaction.id !== transactionId),
-      );
 
       if (editingTransactionId === transactionId) {
         setEditingTransactionId(null);
         setFormValues(buildDefaultFormValues(defaultExpenseCategory));
       }
 
+      if (pageData.items.length === 1 && page > 1) {
+        setPage((currentPage) => currentPage - 1);
+        await loadSummary();
+      } else {
+        await refreshPageAndSummary();
+      }
       setSuccessMessage('Transaction deleted successfully.');
     } catch (deleteError) {
-      setError(getErrorMessage(deleteError, 'Unable to delete transaction'));
+      setError(getApiErrorMessage(deleteError, 'Unable to delete transaction'));
     } finally {
       setDeletingTransactionId(null);
       setTransactionPendingDelete(null);
@@ -260,68 +266,60 @@ export function TransactionsPage() {
     setFormValues(buildDefaultFormValues(defaultExpenseCategory));
   };
 
+  const isRefreshing = hasLoadedPage && isPageLoading;
   const emptyMessage =
-    transactions.length === 0
+    summary.transactionCount === 0
       ? 'Create your first transaction with the form to start building your financial history.'
-      : 'No transactions match the current filters. Try changing or clearing them.';
+      : 'No transactions match the current server-side filters. Try changing or clearing them.';
 
   return (
     <>
       <PageHeader
         eyebrow="Transaction management"
         title="Transactions"
-        description="Create, edit, filter and review persistent financial movements."
+        description="Paginated, filtered and persisted financial movements served by API v1."
         action={
-          <button
-            type="button"
-            disabled
-            title="CSV import is not available yet"
-            className="inline-flex cursor-not-allowed items-center justify-center gap-2 rounded-2xl border border-slate-200 bg-white px-5 py-3 text-sm font-semibold text-slate-400 opacity-70 shadow-sm"
-          >
-            <Download size={18} />
-            Import CSV
-          </button>
+          <div className="flex flex-wrap gap-2">
+            <button
+              type="button"
+              onClick={() => void refreshPageAndSummary()}
+              disabled={isPageLoading || isSummaryLoading}
+              className="inline-flex items-center justify-center gap-2 rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm font-semibold text-slate-700 shadow-sm transition hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-50"
+            >
+              <RefreshCw size={17} className={isRefreshing ? 'animate-spin' : ''} />
+              {isRefreshing ? 'Refreshing...' : 'Refresh'}
+            </button>
+            <button
+              type="button"
+              disabled
+              title="CSV import is not available yet"
+              className="inline-flex cursor-not-allowed items-center justify-center gap-2 rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm font-semibold text-slate-400 opacity-70 shadow-sm"
+            >
+              <Download size={18} />
+              Import CSV
+            </button>
+          </div>
         }
       />
 
       {error && (
-        <div
-          role="alert"
-          className="mb-6 rounded-2xl border border-rose-200 bg-rose-50 px-4 py-3 text-sm font-medium text-rose-700"
-        >
-          {error}
+        <div role="alert" className="mb-6 flex flex-col gap-3 rounded-2xl border border-rose-200 bg-rose-50 px-4 py-3 text-sm font-medium text-rose-700 sm:flex-row sm:items-center sm:justify-between">
+          <span>{error}</span>
+          <button
+            type="button"
+            onClick={() => void refreshPageAndSummary()}
+            className="self-start rounded-xl border border-rose-200 bg-white px-3 py-2 text-xs font-semibold transition hover:bg-rose-100 sm:self-auto"
+          >
+            Retry
+          </button>
         </div>
       )}
 
       <section className="mb-6 grid gap-5 md:grid-cols-2 xl:grid-cols-4">
-        <MetricCard
-          title="Total expenses"
-          value={formatCurrency(totalExpenses)}
-          detail="Persisted expense transactions"
-          trend="up"
-          icon={<ReceiptText size={20} />}
-        />
-        <MetricCard
-          title="Total income"
-          value={formatCurrency(totalIncome)}
-          detail="Current registered income"
-          trend="down"
-          icon={<ReceiptText size={20} />}
-        />
-        <MetricCard
-          title="Recurring items"
-          value={String(recurringCount)}
-          detail="Subscriptions and repeated movements"
-          trend="neutral"
-          icon={<ReceiptText size={20} />}
-        />
-        <MetricCard
-          title="Needs review"
-          value={String(needsReviewCount)}
-          detail="Transactions currently flagged for review"
-          trend="warning"
-          icon={<ReceiptText size={20} />}
-        />
+        <MetricCard title="Total expenses" value={formatCurrency(summary.totalExpenses)} detail="All persisted expenses" trend="up" icon={<ReceiptText size={20} />} />
+        <MetricCard title="Total income" value={formatCurrency(summary.totalIncome)} detail="All persisted income" trend="down" icon={<ReceiptText size={20} />} />
+        <MetricCard title="Recurring items" value={String(summary.recurringCount)} detail="Recurring movements" trend="neutral" icon={<ReceiptText size={20} />} />
+        <MetricCard title="Needs review" value={String(summary.reviewCount)} detail="Rule-based review flags" trend="warning" icon={<ReceiptText size={20} />} />
       </section>
 
       <section className="grid gap-6 xl:grid-cols-[0.75fr_1.25fr]">
@@ -329,7 +327,7 @@ export function TransactionsPage() {
           categories={compatibleFormCategories}
           values={formValues}
           isEditing={editingTransactionId !== null}
-          isSubmitting={isSubmitting || isLoading || compatibleFormCategories.length === 0}
+          isSubmitting={isSubmitting || !hasLoadedPage || compatibleFormCategories.length === 0}
           onChange={handleFormChange}
           onSubmit={handleSubmitTransaction}
           onCancelEdit={handleCancelEdit}
@@ -338,17 +336,32 @@ export function TransactionsPage() {
         <div className="space-y-6">
           <TransactionFilters categories={categories} filters={filters} onChange={setFilters} />
 
-          {isLoading ? (
+          {!hasLoadedPage ? (
             <div className="rounded-3xl border border-slate-200 bg-white p-8 text-center text-sm text-slate-500 shadow-soft">
               Loading transactions and categories...
             </div>
           ) : (
-            <TransactionsTable
-              transactions={filteredTransactions}
-              emptyMessage={emptyMessage}
-              onEdit={handleEditTransaction}
-              onDelete={handleDeleteRequest}
-            />
+            <div className="space-y-3" aria-busy={isPageLoading}>
+              {isRefreshing && (
+                <div className="rounded-2xl border border-brand-100 bg-brand-50 px-4 py-2 text-xs font-semibold text-brand-700">
+                  Refreshing results from the API…
+                </div>
+              )}
+              <TransactionsTable
+                transactions={pageData.items}
+                emptyMessage={emptyMessage}
+                onEdit={handleEditTransaction}
+                onDelete={handleDeleteRequest}
+              />
+              <PaginationControls
+                page={pageData.page}
+                pages={pageData.pages}
+                total={pageData.total}
+                pageSize={pageData.pageSize}
+                disabled={isPageLoading}
+                onPageChange={setPage}
+              />
+            </div>
           )}
         </div>
       </section>
@@ -364,9 +377,7 @@ export function TransactionsPage() {
         confirmLabel="Delete transaction"
         isConfirming={deletingTransactionId !== null}
         onCancel={() => {
-          if (deletingTransactionId === null) {
-            setTransactionPendingDelete(null);
-          }
+          if (deletingTransactionId === null) setTransactionPendingDelete(null);
         }}
         onConfirm={() => void handleConfirmDelete()}
       />
