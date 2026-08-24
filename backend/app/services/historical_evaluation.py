@@ -6,7 +6,7 @@ from datetime import date
 from decimal import Decimal
 from typing import Any
 
-from app.services.historical_analysis_v2_1 import analyze_historical_transactions_v2_1
+from app.services.historical_analysis_v2_2 import analyze_historical_transactions_v2_2
 from app.services.intelligence_rules import TransactionSnapshot
 from app.services.merchant_canonicalization import (
     MerchantIdentity,
@@ -36,6 +36,7 @@ class RecurringStreamLabel:
     amount_min: Decimal | None
     amount_max: Decimal | None
     descriptor_contains: str | None
+    calendar_signature: str | None
 
     @property
     def first_known_month(self) -> str | None:
@@ -141,11 +142,14 @@ def _parse_recurring_labels(payload: dict[str, Any]) -> list[RecurringStreamLabe
                     if raw.get("descriptorContains")
                     else None
                 ),
+                calendar_signature=(
+                    str(raw["calendarSignature"])
+                    if raw.get("calendarSignature")
+                    else None
+                ),
             )
         )
 
-    # Backwards-compatible fixture support. Legacy labels are intentionally global and
-    # should not be used for new evaluation datasets because they cannot express lifecycle.
     for merchant in labels.get("recurringMerchants", []):
         parsed.append(
             RecurringStreamLabel(
@@ -158,6 +162,7 @@ def _parse_recurring_labels(payload: dict[str, Any]) -> list[RecurringStreamLabe
                 amount_min=None,
                 amount_max=None,
                 descriptor_contains=None,
+                calendar_signature=None,
             )
         )
     return parsed
@@ -174,6 +179,9 @@ def _profile_matches_label(profile: dict[str, object], label: RecurringStreamLab
     if label.descriptor_contains:
         descriptor = str(profile.get("streamDescriptor") or "").casefold()
         if label.descriptor_contains not in descriptor:
+            return False
+    if label.calendar_signature:
+        if str(profile.get("streamCalendar") or "") != label.calendar_signature:
             return False
     return True
 
@@ -202,11 +210,12 @@ def _majority_category(transactions: list[TransactionSnapshot]) -> str:
 
 
 def evaluate_historical_dataset(payload: dict[str, Any]) -> dict[str, Any]:
-    """Evaluate historical-v2.1 using strict chronological month-by-month folds.
+    """Evaluate historical-v2.2 using strict chronological month-by-month folds.
 
     Every fold builds merchant identity exclusively from transactions available by that
-    cutoff. Temporal recurrence labels are evaluated only once their lifecycle is knowable
-    at the evaluation month. There is no random split and no global merchant identity map.
+    cutoff. Recurring stream labels can distinguish descriptor/amount streams and, in v2.2,
+    concurrent calendar phases with identical merchant and amount. There is no random split
+    and no full-dataset merchant identity map.
     """
 
     transactions = _parse_transactions(payload)
@@ -241,7 +250,7 @@ def evaluate_historical_dataset(payload: dict[str, Any]) -> dict[str, Any]:
         ]
         total_eval_transactions += len(eval_transactions)
         window_months = max(6, min(12, len({_month_start(item.transaction_date) for item in available})))
-        _, _, _, result = analyze_historical_transactions_v2_1(
+        _, _, _, result = analyze_historical_transactions_v2_2(
             available,
             window_months,
             analysis_end=cutoff,
@@ -297,8 +306,6 @@ def evaluate_historical_dataset(payload: dict[str, Any]) -> dict[str, Any]:
             fold_recurrence.append(observation)
             recurrence_observations.append(observation)
 
-        # Any stream prediction not explained by a temporally relevant ground-truth stream
-        # is a false positive. This is what makes cancellation/reactivation measurable.
         for index in sorted(unused_prediction_indexes):
             profile = predicted_profiles[index]
             canonical = str(profile["canonicalMerchant"])
@@ -349,6 +356,9 @@ def evaluate_historical_dataset(payload: dict[str, Any]) -> dict[str, Any]:
                 "identityCanonicalMerchants": len(
                     {identity.canonical for identity in fold_identity_map.values() if identity.canonical}
                 ),
+                "temporalPhaseProfiles": int(
+                    result.get("recurrenceSegmentation", {}).get("temporalPhaseProfileCount", 0)
+                ),
                 "recurrence": _metrics(fold_recurrence, len(eval_transactions)),
                 "anomalies": _metrics(fold_anomalies, len(eval_transactions)),
             }
@@ -376,9 +386,9 @@ def evaluate_historical_dataset(payload: dict[str, Any]) -> dict[str, Any]:
 
     return {
         "datasetVersion": payload.get("datasetVersion", "unknown"),
-        "analysisVersion": "historical-v2.1",
+        "analysisVersion": "historical-v2.2",
         "validationStrategy": "walk_forward_monthly_fold_local_identity",
-        "labelStrategy": "temporal_recurring_streams",
+        "labelStrategy": "temporal_recurring_streams_with_calendar_signature",
         "folds": folds,
         "aggregate": {
             "recurrence": _metrics(recurrence_observations, total_eval_transactions),
