@@ -1,6 +1,6 @@
 # Authentication and data ownership
 
-Smart Expense AI uses server-managed authentication and per-user transaction ownership through the versioned `/api/v1` contract.
+Smart Expense AI uses server-managed authentication and per-user financial-data ownership through the versioned `/api/v1` contract.
 
 ## Session model
 
@@ -56,16 +56,18 @@ This complements `SameSite=Lax`; it should be revisited if the frontend/backend 
 
 ## Authorization boundary
 
-Transactions contain a non-null `user_id` foreign key. The service layer always includes the authenticated user ID in transaction queries:
+Transactions, intelligence findings and intelligence scan history are owned by a user through non-null `user_id` foreign keys. Services include the authenticated user ID in every financial-data query:
 
 ```text
 request cookie
     -> authenticated User
     -> service(db, user.id, ...)
-    -> WHERE transactions.user_id = user.id
+    -> WHERE resource.user_id = user.id
 ```
 
-Update and delete operations query by both transaction ID and user ID. A transaction owned by another account therefore returns the same `404 Transaction not found` response as an unknown UUID.
+Transaction update/delete operations query by both transaction ID and user ID. Intelligence finding review updates do the same. A transaction or finding owned by another account therefore returns the same not-found response as an unknown UUID instead of exposing that the resource exists.
+
+The intelligence scanner first loads only expense transactions owned by the authenticated user, then persists all generated findings and scan metadata under that same user ID. No cross-account transaction is available to a user's rule evaluation.
 
 Seeded categories remain global read-only reference data for now, but reading them requires an authenticated session. If custom user categories are introduced later, ownership will be added at that point.
 
@@ -91,6 +93,8 @@ Migration `0003_users_and_transaction_ownership` preserves transactions created 
 
 This migration behavior is intended for the existing single-user development/MVP database. It avoids silently deleting prior financial data while establishing a mandatory non-null ownership constraint.
 
+Financial-intelligence persistence is introduced later by migration `0004_financial_intelligence`; it does not create or migrate cross-user findings from legacy data. Findings are generated only when an authenticated owner runs analysis.
+
 ## Security logging
 
 Authentication/security events record an event name, outcome, generated request ID, and an internal user UUID only after authentication when useful.
@@ -102,7 +106,8 @@ The application deliberately does not log:
 - request bodies;
 - JWTs or session cookies;
 - database URLs/secrets;
-- financial transaction payloads.
+- financial transaction payloads;
+- financial-intelligence evidence payloads.
 
 The container disables Uvicorn access logging and uses the Nginx edge access log, configured with method + `$uri` + status + request ID. `$uri` excludes query strings.
 
@@ -128,15 +133,19 @@ PUT    /api/v1/transactions/{transaction_id}
 DELETE /api/v1/transactions/{transaction_id}
 GET    /api/v1/analytics/summary
 GET    /api/v1/analytics/monthly-expenses
+POST   /api/v1/intelligence/scan
+GET    /api/v1/intelligence/summary
+GET    /api/v1/intelligence/findings
+PATCH  /api/v1/intelligence/findings/{finding_id}
 ```
 
 Unversioned application routes such as `/api/auth/login` and `/api/transactions` are not supported contract aliases.
 
 ## Tests
 
-Backend integration tests create multiple accounts and prove cross-account list/update/delete isolation. They also cover API v1 versioning, normalized errors, security headers, cookie flags, trusted-host rejection, cross-site mutation rejection, and generic authentication failures.
+Backend integration tests create multiple accounts and prove cross-account transaction and intelligence-finding isolation. They also cover API v1 versioning, normalized errors, security headers, cookie flags, trusted-host rejection, cross-site mutation rejection, and generic authentication failures.
 
-The Playwright critical flow repeats ownership isolation in a real browser session. Docker CI verifies the reverse-proxy headers, versioned API contract and rate limiter.
+The Playwright critical flow repeats transaction ownership isolation in a real browser session. Intelligence ownership is additionally covered by PostgreSQL integration tests, while Docker CI verifies authenticated/unauthenticated intelligence access through the reverse proxy.
 
 ## Remaining production controls
 
@@ -149,4 +158,4 @@ The current MVP still needs:
 - token revocation/secret rotation if the production threat model requires it;
 - MFA if the application becomes Internet-facing with real financial data.
 
-See `docs/SECURITY_REVIEW.md` for the OWASP Top 10:2025 review and `SECURITY.md` for vulnerability reporting.
+See `docs/intelligence.md` for the rules-engine data flow, `docs/SECURITY_REVIEW.md` for the OWASP Top 10:2025 review and `SECURITY.md` for vulnerability reporting.
