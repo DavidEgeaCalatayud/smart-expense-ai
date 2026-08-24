@@ -1,0 +1,36 @@
+{
+  "datasetVersion": "fixture-v1",
+  "description": "Synthetic regression fixture for the evaluation harness. It is not evidence of real-world model quality.",
+  "evaluation": {
+    "minimumHistoryMonths": 6
+  },
+  "labels": {
+    "recurringMerchants": ["stream box", "cloud tools"],
+    "anomalyTransactionIds": ["cloud-jul"]
+  },
+  "transactions": [
+    {"id":"stream-jan","merchant":"STREAM BOX*1001","amount":"9.99","date":"2026-01-31","category":"Subscriptions"},
+    {"id":"cloud-jan","merchant":"Cloud Tools SL","amount":"10.00","date":"2026-01-15","category":"Subscriptions"},
+    {"id":"stream-feb","merchant":"Stream Box SL","amount":"9.99","date":"2026-02-28","category":"Subscriptions"},
+    {"id":"cloud-feb","merchant":"CLOUD TOOLS*2002","amount":"11.00","date":"2026-02-15","category":"Subscriptions"},
+    {"id":"stream-mar","merchant":"Stream Box","amount":"10.20","date":"2026-03-31","category":"Subscriptions"},
+    {"id":"cloud-mar","merchant":"Cloud Tools","amount":"9.00","date":"2026-03-15","category":"Subscriptions"},
+    {"id":"stream-apr","merchant":"STREAM BOX*1004","amount":"9.99","date":"2026-04-30","category":"Subscriptions"},
+    {"id":"cloud-apr","merchant":"Cloud Tools SL","amount":"10.00","date":"2026-04-15","category":"Subscriptions"},
+    {"id":"stream-may","merchant":"Stream Box SL","amount":"9.99","date":"2026-05-31","category":"Subscriptions"},
+    {"id":"market-may","merchant":"Local Market 88421","amount":"44.30","date":"2026-05-12","category":"Food"},
+    {"id":"stream-jun","merchant":"Stream Box","amount":"10.10","date":"2026-06-30","category":"Subscriptions"},
+    {"id":"market-jun","merchant":"Local Market 77119","amount":"18.20","date":"2026-06-06","category":"Food"},
+    {"id":"stream-jul","merchant":"STREAM BOX*1007","amount":"9.99","date":"2026-07-31","category":"Subscriptions"},
+    {"id":"cloud-jul","merchant":"CLOUD TOOLS*7777","amount":"80.00","date":"2026-07-15","category":"Subscriptions"},
+    {"id":"market-jul","merchant":"Local Market 44221","amount":"63.90","date":"2026-07-04","category":"Food"},
+    {"id":"stream-aug","merchant":"Stream Box SL","amount":"9.99","date":"2026-08-31","category":"Subscriptions"},
+    {"id":"cloud-aug","merchant":"Cloud Tools","amount":"10.00","date":"2026-08-15","category":"Subscriptions"},
+    {"id":"market-aug","merchant":"Local Market 93310","amount":"22.50","date":"2026-08-22","category":"Food"},
+    {"id":"stream-sep","merchant":"Stream Box","amount":"10.20","date":"2026-09-30","category":"Subscriptions"},
+    {"id":"cloud-sep","merchant":"Cloud Tools SL","amount":"11.00","date":"2026-09-15","category":"Subscriptions"},
+    {"id":"market-sep","merchant":"Local Market 11990","amount":"51.20","date":"2026-09-09","category":"Food"},
+    {"id":"stream-oct","merchant":"STREAM BOX*1010","amount":"9.99","date":"2026-10-31","category":"Subscriptions"},
+    {"id":"cloud-oct","merchant":"CLOUD TOOLS*2010","amount":"10.00","date":"2026-10-15","category":"Subscriptions"}
+  ]
+}
