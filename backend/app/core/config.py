@@ -15,6 +15,11 @@ class Settings(BaseSettings):
     backend_host: str = "127.0.0.1"
     backend_port: int = 8000
     database_url: str
+    jwt_secret: str
+    jwt_algorithm: str = "HS256"
+    access_token_minutes: int = 60
+    auth_cookie_name: str = "smart_expense_session"
+    auth_cookie_secure: bool = False
 
     model_config = SettingsConfigDict(
         env_file=REPOSITORY_ROOT / ".env",
