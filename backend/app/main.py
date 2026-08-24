@@ -13,14 +13,17 @@ from app.core.api_errors import (
 from app.core.config import settings
 from app.core.http_security import SecurityMiddleware
 from app.routers.analytics import router as analytics_router
+from app.routers.analytics_v2 import router as analytics_v2_router
 from app.routers.auth import router as auth_router
 from app.routers.categories import router as categories_router
 from app.routers.intelligence import router as intelligence_router
 from app.routers.transactions import router as transactions_router
+from app.routers.transactions_v2 import router as transactions_v2_router
 
 
 production_docs_disabled = settings.app_env == "production"
 API_V1_PREFIX = "/api/v1"
+API_V2_PREFIX = "/api/v2"
 
 app = FastAPI(
     title="Smart Expense AI API",
@@ -60,3 +63,7 @@ app.include_router(categories_router, prefix=API_V1_PREFIX)
 app.include_router(transactions_router, prefix=API_V1_PREFIX)
 app.include_router(analytics_router, prefix=API_V1_PREFIX)
 app.include_router(intelligence_router, prefix=API_V1_PREFIX)
+
+# API v2 starts with the breaking monetary contract change: JSON decimal strings for money.
+app.include_router(transactions_v2_router, prefix=API_V2_PREFIX)
+app.include_router(analytics_v2_router, prefix=API_V2_PREFIX)
