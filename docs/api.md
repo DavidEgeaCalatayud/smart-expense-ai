@@ -28,6 +28,10 @@ PUT    /api/v1/transactions/{transaction_id}
 DELETE /api/v1/transactions/{transaction_id}
 GET    /api/v1/analytics/summary
 GET    /api/v1/analytics/monthly-expenses
+POST   /api/v1/intelligence/scan
+GET    /api/v1/intelligence/summary
+GET    /api/v1/intelligence/findings
+PATCH  /api/v1/intelligence/findings/{finding_id}
 ```
 
 ## Transaction pagination
@@ -131,6 +135,114 @@ Optional inclusive `dateFrom` and `dateTo` parameters allow month/range summarie
 
 `months` accepts values from 1 to 24. `through=YYYY-MM-DD` is available for deterministic consumers/tests; otherwise the server uses the current date.
 
+## Financial intelligence
+
+The Phase 3 intelligence contract is deterministic and explainable. The current ruleset is `rules-v1`; details and thresholds are documented in [`intelligence.md`](intelligence.md).
+
+### Run analysis
+
+```text
+POST /api/v1/intelligence/scan
+```
+
+The endpoint analyses the authenticated user's persisted **expense** transactions and upserts findings by stable per-user fingerprint.
+
+Example response:
+
+```json
+{
+  "scanId": "97a7...",
+  "ruleVersion": "rules-v1",
+  "analyzedTransactions": 42,
+  "detectedFindings": 3,
+  "scannedAt": "2026-08-24T10:15:00Z"
+}
+```
+
+Repeated scans are idempotent for the same finding fingerprint. A scan also persists its transaction/finding counts for later summary display.
+
+### Intelligence summary
+
+```text
+GET /api/v1/intelligence/summary
+```
+
+Example:
+
+```json
+{
+  "openCount": 3,
+  "recurringCount": 1,
+  "duplicateSubscriptionCount": 1,
+  "anomalyCount": 1,
+  "dismissedCount": 0,
+  "resolvedCount": 2,
+  "lastScanAt": "2026-08-24T10:15:00Z",
+  "analyzedTransactions": 42,
+  "ruleVersion": "rules-v1"
+}
+```
+
+Counts by finding type refer to **open** findings. Dismissed/resolved totals are reported separately.
+
+### List findings
+
+```text
+GET /api/v1/intelligence/findings
+```
+
+Optional filters:
+
+```text
+status=open|dismissed|resolved
+type=recurring_pattern|duplicate_subscription|spending_anomaly
+```
+
+Example finding:
+
+```json
+{
+  "id": "f63a...",
+  "type": "spending_anomaly",
+  "severity": "high",
+  "status": "open",
+  "title": "Unusual amount: Cloud Tools",
+  "explanation": "The latest charge at Cloud Tools is 4.2× the median of 4 earlier charges at the same merchant.",
+  "evidence": {
+    "merchant": "Cloud Tools",
+    "transactionId": "a902...",
+    "transactionDate": "2026-05-01",
+    "amount": 85.0,
+    "baselineMedian": 20.0,
+    "baselineCount": 4,
+    "ratio": 4.25,
+    "threshold": 40.0
+  },
+  "ruleVersion": "rules-v1",
+  "firstDetectedAt": "2026-08-24T10:15:00Z",
+  "lastDetectedAt": "2026-08-24T10:15:00Z",
+  "resolvedAt": null
+}
+```
+
+### Review a finding
+
+```text
+PATCH /api/v1/intelligence/findings/{finding_id}
+```
+
+Body:
+
+```json
+{ "status": "dismissed" }
+```
+
+Accepted states are `open`, `dismissed` and `resolved`.
+
+A dismissed finding remains dismissed across rescans for the same fingerprint. A resolved finding can be automatically reopened if later evidence satisfies the same rule again. Findings can also be manually reopened with `{ "status": "open" }`.
+
+Cross-account finding IDs are treated as not found.
+
 ## Error contract
 
 Application and validation failures use one envelope:
@@ -172,6 +284,7 @@ Current semantic error codes include:
 invalid_date_range
 invalid_transaction
 transaction_not_found
+intelligence_finding_not_found
 validation_error
 cross_site_request_rejected
 ```
