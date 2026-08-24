@@ -23,6 +23,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       .then((currentUser) => {
         if (active) setUser(currentUser);
       })
+      .catch(() => {
+        if (active) setUser(null);
+      })
       .finally(() => {
         if (active) setIsLoading(false);
       });
