@@ -37,6 +37,11 @@ class HistoricalRecurringProfileV21(BaseModel):
     nextExpectedDate: str
 
 
+class HistoricalRecurringProfileV22(HistoricalRecurringProfileV21):
+    streamBasis: str = "legacy"
+    streamCalendar: str | None = None
+
+
 class HistoricalCoverageV21(BaseModel):
     transactionCount: int
     activeMonths: int
@@ -50,10 +55,19 @@ class HistoricalCoverageV21(BaseModel):
     outlierCount: int
 
 
+class HistoricalCoverageV22(HistoricalCoverageV21):
+    temporalPhaseStreams: int = 0
+
+
 class HistoricalRecurrenceSegmentation(BaseModel):
     strategy: str = "legacy_merchant_wide"
     analysisVersion: str = "historical-v2"
     profileCount: int = 0
+
+
+class HistoricalRecurrenceSegmentationV22(HistoricalRecurrenceSegmentation):
+    temporalPhaseProfileCount: int = 0
+    ambiguityPolicy: str = "legacy"
 
 
 class HistoricalAnalysisResponseV21(BaseModel):
@@ -74,3 +88,23 @@ class HistoricalAnalysisResponseV21(BaseModel):
     outliers: list[HistoricalOutlier]
     categoryShifts: list[HistoricalCategoryShift]
     coverage: HistoricalCoverageV21
+
+
+class HistoricalAnalysisResponseV22(BaseModel):
+    snapshotId: str
+    analysisVersion: str
+    windowMonths: int
+    periodStart: str
+    periodEnd: str
+    analyzedTransactions: int
+    generatedAt: datetime
+    monthlySpend: list[HistoricalMonthlySpend]
+    monthCompleteness: HistoricalMonthCompleteness = Field(default_factory=HistoricalMonthCompleteness)
+    trend: HistoricalTrend
+    recurringProfiles: list[HistoricalRecurringProfileV22]
+    recurrenceSegmentation: HistoricalRecurrenceSegmentationV22 = Field(
+        default_factory=HistoricalRecurrenceSegmentationV22
+    )
+    outliers: list[HistoricalOutlier]
+    categoryShifts: list[HistoricalCategoryShift]
+    coverage: HistoricalCoverageV22
