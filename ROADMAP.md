@@ -30,7 +30,7 @@ Goal: make the first usable version persist real financial data.
 - [x] Show recent persisted transactions.
 - [x] Add transparent rule-based review for high-value expenses.
 - [ ] Improve responsive transaction UX.
-- [ ] Add delete confirmation and operation feedback.
+- [x] Add delete confirmation and operation feedback.
 - [ ] Add user-managed category CRUD when needed.
 
 ## Phase 2 - Accounts and Data Ownership
