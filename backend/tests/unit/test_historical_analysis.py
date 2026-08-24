@@ -62,11 +62,11 @@ def test_historical_v2_detects_trend_recurrence_and_outlier_without_future_leaka
 
 def test_partial_latest_month_is_visible_but_excluded_from_trend_and_category_shift() -> None:
     transactions = [
-        tx("mar", "Market", "900.00", "2026-03-31"),
-        tx("apr", "Market", "950.00", "2026-04-30"),
+        tx("mar", "Market", "800.00", "2026-03-31"),
+        tx("apr", "Market", "900.00", "2026-04-30"),
         tx("may", "Market", "1000.00", "2026-05-31"),
-        tx("jun", "Market", "1050.00", "2026-06-30"),
-        tx("jul", "Market", "1100.00", "2026-07-31"),
+        tx("jun", "Market", "1100.00", "2026-06-30"),
+        tx("jul", "Market", "1200.00", "2026-07-31"),
         tx("aug", "Market", "350.00", "2026-08-10"),
     ]
 
