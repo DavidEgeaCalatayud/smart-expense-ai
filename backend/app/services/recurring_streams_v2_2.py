@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+from dataclasses import dataclass
+from datetime import date
 from decimal import Decimal
 
 from app.services.intelligence_rules import TransactionSnapshot
@@ -24,38 +26,14 @@ from app.services.temporal_stream_clustering import split_temporal_lanes
 ANALYSIS_VERSION = "historical-v2.2"
 
 
-class RecurringStreamV22(RecurringStream):
-    __slots__ = ("basis", "calendar_signature")
-
-    def __new__(
-        cls,
-        *,
-        stream_key: str,
-        canonical_merchant: str,
-        descriptor: str,
-        transactions: tuple[TransactionSnapshot, ...],
-        basis: str,
-        calendar_signature: str,
-    ):
-        instance = super().__new__(cls)
-        return instance
-
-    def __init__(
-        self,
-        *,
-        stream_key: str,
-        canonical_merchant: str,
-        descriptor: str,
-        transactions: tuple[TransactionSnapshot, ...],
-        basis: str,
-        calendar_signature: str,
-    ) -> None:
-        object.__setattr__(self, "stream_key", stream_key)
-        object.__setattr__(self, "canonical_merchant", canonical_merchant)
-        object.__setattr__(self, "descriptor", descriptor)
-        object.__setattr__(self, "transactions", transactions)
-        object.__setattr__(self, "basis", basis)
-        object.__setattr__(self, "calendar_signature", calendar_signature)
+@dataclass(frozen=True)
+class RecurringStreamV22:
+    stream_key: str
+    canonical_merchant: str
+    descriptor: str
+    transactions: tuple[TransactionSnapshot, ...]
+    basis: str
+    calendar_signature: str
 
 
 def _as_v22(stream: RecurringStream, *, basis: str, calendar_signature: str = "") -> RecurringStreamV22:
@@ -111,7 +89,7 @@ def build_recurring_streams_v2_2(
 
 def build_recurring_profiles_v2_2(
     transactions: list[TransactionSnapshot],
-    analysis_end,
+    analysis_end: date,
     identity_map: dict[str, MerchantIdentity],
 ) -> list[dict[str, object]]:
     profiles: list[dict[str, object]] = []
