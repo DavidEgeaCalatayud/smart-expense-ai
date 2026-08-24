@@ -24,6 +24,7 @@ from app.schemas import (
 )
 
 
+MONEY_CENT = Decimal("0.01")
 MONEY_ZERO = Decimal("0.00")
 REVIEW_THRESHOLD = Decimal("120.00")
 
@@ -71,14 +72,13 @@ def _get_category(
 
 
 def _as_decimal(value: object) -> Decimal:
-    if isinstance(value, Decimal):
-        return value
-    return Decimal(str(value))
+    decimal_value = value if isinstance(value, Decimal) else Decimal(str(value))
+    return decimal_value.quantize(MONEY_CENT)
 
 
 def _to_schema(transaction: TransactionModel) -> Transaction:
     transaction_type = TransactionType(transaction.transaction_type)
-    amount = transaction.amount
+    amount = _as_decimal(transaction.amount)
 
     return Transaction(
         id=str(transaction.id),
@@ -235,7 +235,7 @@ def summarize_transactions(
     return TransactionSummary(
         totalIncome=income,
         totalExpenses=expenses,
-        balance=income - expenses,
+        balance=_as_decimal(income - expenses),
         recurringCount=int(row[2] or 0),
         reviewCount=int(row[3] or 0),
         transactionCount=int(row[4] or 0),
