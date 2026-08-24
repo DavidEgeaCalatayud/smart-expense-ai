@@ -62,7 +62,7 @@ jobs:
       - name: Apply migrations to a clean PostgreSQL database
         run: alembic upgrade head
       - name: Verify FastAPI imports
-        run: python -c "from app.main import app; assert app.title == 'Smart Expense AI API'; assert app.version == '1.0.0'"
+        run: python -c "from app.main import app; assert app.title == 'Smart Expense AI API'; assert app.version == '1.1.0'"
       - name: Run backend tests
         run: pytest
 
@@ -198,9 +198,15 @@ jobs:
           grep '"items":\[\]' transactions.json
           curl --fail --silent --show-error -b cookies.txt http://localhost:5173/api/v1/analytics/summary -o summary.json
           grep '"transactionCount":0' summary.json
+          curl --fail --silent --show-error -X POST -b cookies.txt http://localhost:5173/api/v1/intelligence/scan -o intelligence-scan.json
+          grep '"analyzedTransactions":0' intelligence-scan.json
+          grep '"detectedFindings":0' intelligence-scan.json
+          curl --fail --silent --show-error -b cookies.txt http://localhost:5173/api/v1/intelligence/summary -o intelligence-summary.json
+          grep '"openCount":0' intelligence-summary.json
+          grep '"ruleVersion":"rules-v1"' intelligence-summary.json
           test "$(curl --silent --output legacy.json --write-out '%{http_code}' http://localhost:5173/api/transactions)" = "404"
           grep '"code":"http_404"' legacy.json
-          test "$(curl --silent --output unauth.json --write-out '%{http_code}' http://localhost:5173/api/v1/categories)" = "401"
+          test "$(curl --silent --output unauth.json --write-out '%{http_code}' http://localhost:5173/api/v1/intelligence/findings)" = "401"
           grep '"requestId"' unauth.json
       - name: Verify authentication rate limiting
         run: |
