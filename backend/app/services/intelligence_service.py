@@ -47,7 +47,7 @@ def _load_expense_snapshots(db: Session, user_id: UUID) -> list[TransactionSnaps
         TransactionSnapshot(
             id=str(transaction.id),
             merchant=transaction.merchant,
-            amount=float(transaction.amount),
+            amount=transaction.amount,
             transaction_date=transaction.transaction_date,
             category=transaction.category.name,
         )
