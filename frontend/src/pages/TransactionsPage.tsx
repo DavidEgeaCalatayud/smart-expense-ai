@@ -6,9 +6,10 @@ import { PaginationControls } from '../components/transactions/PaginationControl
 import { TransactionFilters } from '../components/transactions/TransactionFilters';
 import { TransactionForm } from '../components/transactions/TransactionForm';
 import { TransactionsTable } from '../components/transactions/TransactionsTable';
+import { ApiErrorAlert } from '../components/ui/ApiErrorAlert';
 import { ConfirmDialog } from '../components/ui/ConfirmDialog';
 import { Toast } from '../components/ui/Toast';
-import { getApiErrorMessage } from '../services/apiClient';
+import { getApiErrorPresentation, type ApiErrorPresentation } from '../services/apiClient';
 import { fetchTransactionSummary } from '../services/analyticsApi';
 import { fetchCategories } from '../services/categoriesApi';
 import {
@@ -94,7 +95,7 @@ export function TransactionsPage() {
   const [isSummaryLoading, setIsSummaryLoading] = useState(true);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [deletingTransactionId, setDeletingTransactionId] = useState<string | null>(null);
-  const [error, setError] = useState<string | null>(null);
+  const [error, setError] = useState<ApiErrorPresentation | null>(null);
   const [successMessage, setSuccessMessage] = useState<string | null>(null);
 
   const loadPage = useCallback(async () => {
@@ -104,7 +105,7 @@ export function TransactionsPage() {
       setPageData(loadedPage);
       setError(null);
     } catch (loadError) {
-      setError(getApiErrorMessage(loadError, 'Unable to load transactions'));
+      setError(getApiErrorPresentation(loadError, 'Unable to load transactions'));
     } finally {
       setHasLoadedPage(true);
       setIsPageLoading(false);
@@ -116,7 +117,7 @@ export function TransactionsPage() {
     try {
       setSummary(await fetchTransactionSummary());
     } catch (loadError) {
-      setError(getApiErrorMessage(loadError, 'Unable to load transaction summary'));
+      setError(getApiErrorPresentation(loadError, 'Unable to load transaction summary'));
     } finally {
       setIsSummaryLoading(false);
     }
@@ -137,7 +138,7 @@ export function TransactionsPage() {
           '';
         setFormValues(buildDefaultFormValues(defaultExpenseCategory));
       } catch (loadError) {
-        if (isActive) setError(getApiErrorMessage(loadError, 'Unable to load categories'));
+        if (isActive) setError(getApiErrorPresentation(loadError, 'Unable to load categories'));
       }
     };
 
@@ -209,7 +210,7 @@ export function TransactionsPage() {
       await refreshPageAndSummary();
       setSuccessMessage(isEditing ? 'Transaction updated successfully.' : 'Transaction created successfully.');
     } catch (submitError) {
-      setError(getApiErrorMessage(submitError, 'Unable to save transaction'));
+      setError(getApiErrorPresentation(submitError, 'Unable to save transaction'));
     } finally {
       setIsSubmitting(false);
     }
@@ -254,7 +255,7 @@ export function TransactionsPage() {
       }
       setSuccessMessage('Transaction deleted successfully.');
     } catch (deleteError) {
-      setError(getApiErrorMessage(deleteError, 'Unable to delete transaction'));
+      setError(getApiErrorPresentation(deleteError, 'Unable to delete transaction'));
     } finally {
       setDeletingTransactionId(null);
       setTransactionPendingDelete(null);
@@ -303,16 +304,11 @@ export function TransactionsPage() {
       />
 
       {error && (
-        <div role="alert" className="mb-6 flex flex-col gap-3 rounded-2xl border border-rose-200 bg-rose-50 px-4 py-3 text-sm font-medium text-rose-700 sm:flex-row sm:items-center sm:justify-between">
-          <span>{error}</span>
-          <button
-            type="button"
-            onClick={() => void refreshPageAndSummary()}
-            className="self-start rounded-xl border border-rose-200 bg-white px-3 py-2 text-xs font-semibold transition hover:bg-rose-100 sm:self-auto"
-          >
-            Retry
-          </button>
-        </div>
+        <ApiErrorAlert
+          error={error}
+          className="mb-6"
+          onRetry={() => void refreshPageAndSummary()}
+        />
       )}
 
       <section className="mb-6 grid gap-5 md:grid-cols-2 xl:grid-cols-4">
