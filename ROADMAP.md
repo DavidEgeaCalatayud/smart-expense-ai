@@ -99,6 +99,11 @@ Goal: implement real analysis without simulated AI outputs.
 - [x] Segment canonical merchants into multiple descriptor/amount recurring streams so subscriptions and ad-hoc charges are not collapsed together.
 - [x] Expose stream keys/descriptors and recurring-stream segmentation evidence through API/UI while keeping older snapshots readable.
 - [x] Add regressions for future-identity leakage, cancellation/reactivation labels and multi-stream merchants such as Apple.
+- [x] Add `historical-v2.2` temporal-phase clustering for equal-merchant/equal-amount streams with no descriptor evidence.
+- [x] Require repeated concurrent calendar evidence before splitting monthly/weekly phases, preventing billing-day drift from becoming a false second stream.
+- [x] Expose stream basis/calendar signatures and temporal-phase coverage in persisted snapshots and API responses.
+- [x] Extend temporal ground-truth labels with `calendarSignature` and evaluate v2.2 in the fold-local walk-forward harness.
+- [x] Add positive and negative regressions for equal-amount monthly/weekly streams and non-concurrent billing-day drift.
 - [ ] Validate rules and historical algorithms against labelled real-world datasets and measure real-world precision/recall/false-positive rates.
 - [ ] Tune recurring-score weights/cutoffs, stream-clustering tolerances and anomaly thresholds only from labelled evaluation evidence.
 - [ ] Add automatic/background analysis when deployment scheduling is available.
@@ -151,6 +156,7 @@ Goal: prepare the application for real deployment.
 - [x] Validate historical-analysis API through backend/Docker CI.
 - [x] Run the labelled historical evaluation command in CI.
 - [x] Gate historical-v2.1 fold-local identity and temporal stream-label evaluation in CI.
+- [x] Gate historical-v2.2 equal-amount temporal-phase clustering and calendar-signature evaluation in CI.
 - [ ] Configure `Quality gate` as a required check for `main`.
 - [ ] Add staging deployment.
 - [ ] Add production TLS/domain/secrets configuration.

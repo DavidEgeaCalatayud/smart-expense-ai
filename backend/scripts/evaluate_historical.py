@@ -15,7 +15,7 @@ from app.services.historical_evaluation import evaluate_historical_dataset  # no
 
 def main() -> None:
     parser = argparse.ArgumentParser(
-        description="Run chronological walk-forward evaluation for historical-v2."
+        description="Run chronological walk-forward evaluation for historical-v2.2."
     )
     parser.add_argument("dataset", type=Path, help="Path to a labelled historical evaluation JSON dataset")
     parser.add_argument("--output", type=Path, default=None, help="Optional path for the JSON report")

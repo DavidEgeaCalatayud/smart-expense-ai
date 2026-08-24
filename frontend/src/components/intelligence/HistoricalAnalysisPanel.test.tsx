@@ -14,7 +14,7 @@ vi.mock('../../services/historicalAnalysisApi', () => ({
 
 const analysis: HistoricalAnalysis = {
   snapshotId: 'snapshot-1',
-  analysisVersion: 'historical-v2.1',
+  analysisVersion: 'historical-v2.2',
   windowMonths: 12,
   periodStart: '2025-07-01',
   periodEnd: '2026-06-20',
@@ -41,35 +41,39 @@ const analysis: HistoricalAnalysis = {
   },
   recurringProfiles: [
     {
-      streamKey: 'stream box::default',
+      streamKey: 'generic service::monthly-day-05',
       streamDescriptor: null,
-      merchant: 'STREAM BOX*8844',
-      canonicalMerchant: 'stream box',
-      observedMerchants: ['Stream Box SL', 'STREAM BOX*8844'],
+      streamBasis: 'calendar_phase',
+      streamCalendar: 'monthly:day-05',
+      merchant: 'Generic Service',
+      canonicalMerchant: 'generic service',
+      observedMerchants: ['Generic Service'],
       cadence: 'monthly',
       occurrenceCount: 8,
-      medianAmount: '20.00',
+      medianAmount: '9.99',
       medianIntervalDays: '30.0',
       intervalRegularity: '0.967',
       dayOfMonthStability: '0.980',
       monthEndFit: '0.000',
       dayOfWeekStability: '0.375',
-      amountStability: '0.990',
-      amountMad: '0.20',
-      amountCv: '0.012',
+      amountStability: '1.000',
+      amountMad: '0.00',
+      amountCv: '0.000',
       cadenceFit: '1.000',
       historyDepth: '1.000',
       consecutivePeriods: 8,
       missedExpectedOccurrences: 1,
       isExpectedPaymentMissing: true,
-      patternScore: '97.4',
-      nextExpectedDate: '2026-06-05',
+      patternScore: '98.4',
+      nextExpectedDate: '2026-07-05',
     },
   ],
   recurrenceSegmentation: {
-    strategy: 'canonical_merchant_then_descriptor_amount_streams',
-    analysisVersion: 'historical-v2.1',
+    strategy: 'canonical_merchant_then_descriptor_amount_then_temporal_phase',
+    analysisVersion: 'historical-v2.2',
     profileCount: 1,
+    temporalPhaseProfileCount: 1,
+    ambiguityPolicy: 'split_only_with_repeated_concurrent_calendar_evidence',
   },
   outliers: [
     {
@@ -107,6 +111,7 @@ const analysis: HistoricalAnalysis = {
     categoriesWithBaseline: 3,
     recurringProfiles: 1,
     recurringStreams: 1,
+    temporalPhaseStreams: 1,
     outlierCount: 1,
   },
 };
@@ -118,16 +123,15 @@ describe('HistoricalAnalysisPanel', () => {
     vi.mocked(runHistoricalAnalysis).mockResolvedValue(analysis);
   });
 
-  it('renders completeness, canonicalization and stream-aware recurrence evidence', async () => {
+  it('renders temporal stream evidence', async () => {
     render(<HistoricalAnalysisPanel />);
 
     expect(await screen.findByText('Behavior over time')).toBeInTheDocument();
     expect(screen.getByText('Increasing')).toBeInTheDocument();
     expect(screen.getByText(/Partial month excluded from trend calculations/i)).toBeInTheDocument();
     expect(screen.getByText('Recurring streams')).toBeInTheDocument();
-    expect(screen.getByText('stream box')).toBeInTheDocument();
-    expect(screen.getByText('97.4')).toBeInTheDocument();
-    expect(screen.getByText(/Observed descriptors: Stream Box SL · STREAM BOX\*8844/i)).toBeInTheDocument();
+    expect(screen.getByText('generic service')).toBeInTheDocument();
+    expect(screen.getByText('98.4')).toBeInTheDocument();
     expect(screen.getByText(/Expected payment appears overdue/i)).toBeInTheDocument();
     expect(screen.getByText(/baseline €10\.00/i)).toBeInTheDocument();
     expect(screen.getByText(/Deterministic 0–100 pattern index per stream; not a probability/i)).toBeInTheDocument();
@@ -135,7 +139,7 @@ describe('HistoricalAnalysisPanel', () => {
 
   it('runs a new 12-month snapshot and replaces the displayed analysis', async () => {
     render(<HistoricalAnalysisPanel />);
-    await screen.findByText('stream box');
+    await screen.findByText('generic service');
 
     fireEvent.click(screen.getByRole('button', { name: 'Run 12-month analysis' }));
 
