@@ -18,10 +18,12 @@ Implemented today:
 - Five most recent transactions displayed on the dashboard.
 - Recurring transactions stored as an explicit user-provided flag.
 - Transparent rule-based review: expenses above 120 EUR are marked as `review`.
+- Delete confirmation and operation feedback in transaction management.
 - Backend unit and PostgreSQL integration tests with pytest.
 - Frontend component/page tests with Vitest and React Testing Library.
 - Critical browser CRUD coverage with Playwright.
-- GitHub Actions quality gates for migrations, tests, TypeScript, ESLint and production builds.
+- GitHub Actions quality gates for migrations, tests, TypeScript, ESLint, production builds and Docker Compose.
+- One-command Docker Compose environment for frontend, backend and PostgreSQL.
 
 Not implemented yet:
 
@@ -33,6 +35,48 @@ Not implemented yet:
 - Automated financial alerts.
 - Authentication and per-user data ownership.
 - Bank integrations.
+
+## Quick Start with Docker
+
+With Docker Desktop or Docker Engine + Compose v2 installed, start the complete application from the repository root:
+
+```bash
+docker compose up --build
+```
+
+Then open:
+
+```text
+http://localhost:5173
+```
+
+The stack is:
+
+```text
+Browser
+  |
+  v
+frontend :5173 (Nginx + React build)
+  |
+  | /api/*
+  v
+backend :8000 (FastAPI + Alembic)
+  |
+  v
+db (PostgreSQL 16)
+```
+
+FastAPI documentation is also available at `http://localhost:8000/docs`.
+
+Stop the stack with:
+
+```bash
+docker compose down
+```
+
+The PostgreSQL named volume is retained. Use `docker compose down -v` only when you intentionally want to delete the Compose-managed database.
+
+See [`docs/docker.md`](docs/docker.md) for architecture, health checks, logs and reset instructions.
 
 ## Product Direction
 
@@ -51,8 +95,11 @@ These features will be added only when they can operate on real persisted data a
 
 ## Architecture
 
-```txt
+```text
 React + TypeScript
+        |
+        v
+Nginx reverse proxy
         |
         v
 FastAPI REST API
@@ -67,17 +114,18 @@ SQLAlchemy 2
 PostgreSQL
 ```
 
-Database schema changes are managed with Alembic.
+Database schema changes are managed with Alembic. In Docker Compose, the backend automatically applies `alembic upgrade head` after PostgreSQL becomes healthy and before Uvicorn starts.
 
 Repository structure:
 
-```txt
+```text
 smart-expense-ai/
-├── frontend/        # React + TypeScript web application
+├── frontend/        # React + TypeScript web application and Nginx image
 ├── backend/         # FastAPI API, services, SQLAlchemy models and migrations
 ├── ai/              # Reserved for future intelligence services
 ├── docs/            # Product and technical documentation
 ├── scripts/         # Utility scripts
+├── compose.yaml     # Full local stack
 ├── ROADMAP.md
 └── README.md
 ```
@@ -86,7 +134,7 @@ smart-expense-ai/
 
 Current endpoints:
 
-```txt
+```text
 GET    /health
 GET    /api/categories
 GET    /api/transactions
@@ -95,15 +143,9 @@ PUT    /api/transactions/{transaction_id}
 DELETE /api/transactions/{transaction_id}
 ```
 
-FastAPI interactive documentation is available locally at:
+## Manual Local Development
 
-```txt
-http://localhost:8000/docs
-```
-
-## Local Development
-
-Create the environment file from the repository root:
+Docker Compose is the shortest path for running the full stack. For direct development without containers, create the environment file from the repository root:
 
 ```bash
 cp .env.example .env
@@ -146,7 +188,7 @@ uvicorn app.main:app --reload
 
 ```bash
 cd frontend
-npm install
+npm ci
 npm run dev
 ```
 
@@ -161,16 +203,17 @@ npm run build
 
 ## Testing and CI
 
-The repository now has four automated quality layers:
+The repository has automated quality layers for:
 
 1. Backend unit tests.
 2. Backend API integration tests against migrated PostgreSQL.
 3. Frontend tests with Vitest and React Testing Library.
 4. Critical end-to-end browser coverage with Playwright.
+5. Full Docker Compose build/startup smoke testing.
 
-GitHub Actions runs the same gates for pushes and pull requests targeting `main`, including `alembic upgrade head` against a clean PostgreSQL service database.
+GitHub Actions runs these gates for pushes and pull requests targeting `main`. The Docker job builds the actual frontend/backend images, starts PostgreSQL, waits for health checks, and verifies the frontend plus proxied API before the consolidated `Quality gate` can pass.
 
-See [`docs/testing.md`](docs/testing.md) for local commands, test-database safety and CI details.
+See [`docs/testing.md`](docs/testing.md) for test-database safety and CI details.
 
 ## Technology Stack
 
@@ -181,20 +224,27 @@ See [`docs/testing.md`](docs/testing.md) for local commands, test-database safet
 - Vite
 - Tailwind CSS
 - Recharts
+- Nginx
 - Vitest
 - React Testing Library
 - Playwright
 
 ### Backend
 
-- Python
+- Python 3.12
 - FastAPI
 - Pydantic
 - SQLAlchemy 2
-- PostgreSQL
+- PostgreSQL 16
 - Alembic
 - Psycopg 3
 - pytest
+
+### Infrastructure
+
+- Docker
+- Docker Compose
+- GitHub Actions
 
 ## Product Roadmap
 
@@ -206,7 +256,7 @@ Near-term priorities are:
 2. Authentication and per-user transaction ownership.
 3. User-managed categories when required.
 4. A real intelligence layer built over sufficient historical transaction data.
-5. Docker and deployment automation.
+5. Staging and deployment automation.
 
 ## Business Model
 
