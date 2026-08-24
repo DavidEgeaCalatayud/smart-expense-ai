@@ -221,6 +221,16 @@ class IntelligenceSummary(BaseModel):
 class HistoricalMonthlySpend(BaseModel):
     month: str
     amount: str
+    isComplete: bool = True
+    daysObserved: int | None = None
+    daysInMonth: int | None = None
+
+
+class HistoricalMonthCompleteness(BaseModel):
+    strategy: str = "legacy_unknown"
+    partialMonth: str | None = None
+    completeMonthsUsed: int = 0
+    reason: str = "Month completeness metadata is unavailable for this snapshot."
 
 
 class HistoricalTrend(BaseModel):
@@ -229,18 +239,30 @@ class HistoricalTrend(BaseModel):
     averageMonthlySpend: str
     rSquared: str
     activeMonths: int
+    completeMonthsUsed: int = 0
+    excludedPartialMonth: str | None = None
 
 
 class HistoricalRecurringProfile(BaseModel):
     merchant: str
+    canonicalMerchant: str | None = None
+    observedMerchants: list[str] = Field(default_factory=list)
     cadence: str
     occurrenceCount: int
     medianAmount: str
     medianIntervalDays: str
     intervalRegularity: str
+    dayOfMonthStability: str = "0.000"
+    monthEndFit: str = "0.000"
+    dayOfWeekStability: str = "0.000"
     amountStability: str
+    amountMad: str = "0.00"
+    amountCv: str = "0.000"
     cadenceFit: str
     historyDepth: str
+    consecutivePeriods: int = 0
+    missedExpectedOccurrences: int = 0
+    isExpectedPaymentMissing: bool = False
     patternScore: str
     nextExpectedDate: str
 
@@ -248,6 +270,7 @@ class HistoricalRecurringProfile(BaseModel):
 class HistoricalOutlier(BaseModel):
     transactionId: str
     merchant: str
+    canonicalMerchant: str | None = None
     category: str
     date: str
     amount: str
@@ -265,11 +288,15 @@ class HistoricalCategoryShift(BaseModel):
     currentThreeMonthAverage: str
     delta: str
     percentChange: str | None
+    comparisonMonths: list[str] = Field(default_factory=list)
 
 
 class HistoricalCoverage(BaseModel):
     transactionCount: int
     activeMonths: int
+    completeMonths: int = 0
+    partialMonthsExcluded: int = 0
+    canonicalMerchants: int = 0
     merchantsWithBaseline: int
     categoriesWithBaseline: int
     recurringProfiles: int
@@ -285,6 +312,7 @@ class HistoricalAnalysisResponse(BaseModel):
     analyzedTransactions: int
     generatedAt: datetime
     monthlySpend: list[HistoricalMonthlySpend]
+    monthCompleteness: HistoricalMonthCompleteness = Field(default_factory=HistoricalMonthCompleteness)
     trend: HistoricalTrend
     recurringProfiles: list[HistoricalRecurringProfile]
     outliers: list[HistoricalOutlier]
