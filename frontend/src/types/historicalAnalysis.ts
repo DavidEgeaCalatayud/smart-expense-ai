@@ -30,6 +30,8 @@ export interface HistoricalTrend {
 export interface HistoricalRecurringProfile {
   streamKey: string | null;
   streamDescriptor: string | null;
+  streamBasis: string;
+  streamCalendar: string | null;
   merchant: string;
   canonicalMerchant: string | null;
   observedMerchants: string[];
@@ -87,6 +89,7 @@ export interface HistoricalCoverage {
   categoriesWithBaseline: number;
   recurringProfiles: number;
   recurringStreams: number;
+  temporalPhaseStreams: number;
   outlierCount: number;
 }
 
@@ -94,6 +97,8 @@ export interface HistoricalRecurrenceSegmentation {
   strategy: string;
   analysisVersion: string;
   profileCount: number;
+  temporalPhaseProfileCount: number;
+  ambiguityPolicy: string;
 }
 
 export interface HistoricalAnalysis {
