@@ -10,7 +10,7 @@ Goal: prepare the repository and define the product direction.
 - [x] Create backend base project with FastAPI.
 - [x] Create frontend base project with React and TypeScript.
 - [x] Add environment configuration.
-- [ ] Add Docker configuration.
+- [x] Add Docker configuration.
 
 ## Phase 1 - Persistent MVP Core
 
@@ -90,8 +90,9 @@ Goal: prepare the application for real deployment.
 - [x] Run frontend tests, type checking, build and lint in CI.
 - [x] Validate Alembic migrations against PostgreSQL in CI.
 - [x] Add critical Playwright end-to-end coverage.
+- [x] Add Docker Compose.
+- [x] Validate the full Docker Compose stack in CI.
 - [ ] Configure `Quality gate` as a required check for `main`.
-- [ ] Add Docker Compose.
 - [ ] Add staging deployment.
 - [ ] Add production configuration.
 - [ ] Add security review.
