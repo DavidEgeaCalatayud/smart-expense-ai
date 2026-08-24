@@ -27,7 +27,7 @@ class UserResponse(BaseModel):
 
 class RegisterRequest(BaseModel):
     email: EmailStr
-    password: str = Field(..., min_length=8, max_length=128)
+    password: str = Field(..., min_length=12, max_length=128)
     displayName: str = Field(..., min_length=1, max_length=120)
 
 
