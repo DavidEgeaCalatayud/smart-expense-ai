@@ -4,4 +4,6 @@ export const ROUTES = {
   predictions: '/predictions',
   alerts: '/alerts',
   security: '/security',
+  login: '/login',
+  register: '/register',
 } as const;
