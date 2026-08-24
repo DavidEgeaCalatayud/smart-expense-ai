@@ -100,7 +100,7 @@ def test_historical_analysis_is_persisted_versioned_and_user_scoped(client: Test
     response = client.post(f"{MONEY_API}/intelligence/historical-analysis?months=6")
     assert response.status_code == 200
     analysis = response.json()
-    assert analysis["analysisVersion"] == "historical-v2"
+    assert analysis["analysisVersion"] == "historical-v2.1"
     assert analysis["windowMonths"] == 6
     assert analysis["analyzedTransactions"] == 11
     assert analysis["coverage"]["transactionCount"] == 11
@@ -111,17 +111,23 @@ def test_historical_analysis_is_persisted_versioned_and_user_scoped(client: Test
     assert analysis["monthCompleteness"]["partialMonth"] == "2026-06"
     assert analysis["trend"]["excludedPartialMonth"] == "2026-06"
     assert analysis["monthlySpend"][-1]["isComplete"] is False
+    assert analysis["recurrenceSegmentation"]["strategy"] == "canonical_merchant_then_descriptor_amount_streams"
+
     stream_profile = next(
         profile for profile in analysis["recurringProfiles"]
         if profile["canonicalMerchant"] == "stream box"
     )
+    assert stream_profile["streamKey"].startswith("stream box::")
     assert {"Stream Box SL", "STREAM BOX*2002"}.issubset(set(stream_profile["observedMerchants"]))
+    assert analysis["coverage"]["recurringStreams"] == len(analysis["recurringProfiles"])
+
     cloud_outlier = next(outlier for outlier in analysis["outliers"] if outlier["merchant"] == "Cloud Tools")
     assert cloud_outlier["canonicalMerchant"] == "cloud tools"
 
     latest = client.get(f"{MONEY_API}/intelligence/historical-analysis/latest")
     assert latest.status_code == 200
     assert latest.json()["snapshotId"] == analysis["snapshotId"]
+    assert latest.json()["analysisVersion"] == "historical-v2.1"
 
     client.post(f"{AUTH_API}/auth/logout")
     register(client, "history-other@example.com")
