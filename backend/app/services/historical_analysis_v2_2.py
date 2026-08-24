@@ -3,16 +3,15 @@ from __future__ import annotations
 from datetime import date, datetime, timezone
 from uuid import UUID
 
+from sqlalchemy import select
 from sqlalchemy.orm import Session
 
+from app.historical_contract import HistoricalAnalysisResponseV22
 from app.models.historical_analysis import HistoricalAnalysisSnapshot
-from app.schemas import HistoricalAnalysisResponse
 from app.services.historical_analysis_v2 import (
     _commit,
     _load_expense_transactions,
-    _snapshot_response,
     analyze_historical_transactions_v2,
-    get_latest_historical_analysis,
 )
 from app.services.intelligence_rules import TransactionSnapshot
 from app.services.merchant_canonicalization import MerchantIdentity, build_merchant_identity_map
@@ -40,23 +39,46 @@ def analyze_historical_transactions_v2_2(
     recurring_profiles = build_recurring_profiles_v2_2(window_transactions, period_end, fold_identity_map)
     result["recurringProfiles"] = recurring_profiles
     coverage = result.get("coverage")
+    temporal_phase_count = sum(
+        profile.get("streamBasis") == "calendar_phase" for profile in recurring_profiles
+    )
     if isinstance(coverage, dict):
         coverage["recurringProfiles"] = len(recurring_profiles)
         coverage["recurringStreams"] = len(recurring_profiles)
-        coverage["temporalPhaseStreams"] = sum(
-            profile.get("streamBasis") == "calendar_phase" for profile in recurring_profiles
-        )
+        coverage["temporalPhaseStreams"] = temporal_phase_count
 
     result["recurrenceSegmentation"] = {
         "strategy": "canonical_merchant_then_descriptor_amount_then_temporal_phase",
         "analysisVersion": ANALYSIS_VERSION,
         "profileCount": len(recurring_profiles),
-        "temporalPhaseProfileCount": sum(
-            profile.get("streamBasis") == "calendar_phase" for profile in recurring_profiles
-        ),
+        "temporalPhaseProfileCount": temporal_phase_count,
         "ambiguityPolicy": "split_only_with_repeated_concurrent_calendar_evidence",
     }
     return period_start, period_end, window_transactions, result
+
+
+def _snapshot_response(snapshot: HistoricalAnalysisSnapshot) -> HistoricalAnalysisResponseV22:
+    result = snapshot.result
+    coverage = dict(result.get("coverage", {}))
+    coverage.setdefault("recurringStreams", coverage.get("recurringProfiles", 0))
+    coverage.setdefault("temporalPhaseStreams", 0)
+    return HistoricalAnalysisResponseV22(
+        snapshotId=str(snapshot.id),
+        analysisVersion=snapshot.analysis_version,
+        windowMonths=snapshot.window_months,
+        periodStart=snapshot.period_start.isoformat(),
+        periodEnd=snapshot.period_end.isoformat(),
+        analyzedTransactions=snapshot.transaction_count,
+        generatedAt=snapshot.created_at,
+        monthlySpend=result.get("monthlySpend", []),
+        monthCompleteness=result.get("monthCompleteness", {}),
+        trend=result.get("trend", {}),
+        recurringProfiles=result.get("recurringProfiles", []),
+        recurrenceSegmentation=result.get("recurrenceSegmentation", {}),
+        outliers=result.get("outliers", []),
+        categoryShifts=result.get("categoryShifts", []),
+        coverage=coverage,
+    )
 
 
 def run_historical_analysis(
@@ -64,7 +86,7 @@ def run_historical_analysis(
     user_id: UUID,
     *,
     window_months: int = 12,
-) -> HistoricalAnalysisResponse:
+) -> HistoricalAnalysisResponseV22:
     all_transactions = _load_expense_transactions(db, user_id)
     period_start, period_end, window_transactions, result = analyze_historical_transactions_v2_2(
         all_transactions,
@@ -83,6 +105,19 @@ def run_historical_analysis(
     db.add(snapshot)
     _commit(db)
     return _snapshot_response(snapshot)
+
+
+def get_latest_historical_analysis(
+    db: Session,
+    user_id: UUID,
+) -> HistoricalAnalysisResponseV22 | None:
+    snapshot = db.scalar(
+        select(HistoricalAnalysisSnapshot)
+        .where(HistoricalAnalysisSnapshot.user_id == user_id)
+        .order_by(HistoricalAnalysisSnapshot.created_at.desc())
+        .limit(1)
+    )
+    return _snapshot_response(snapshot) if snapshot is not None else None
 
 
 __all__ = [
