@@ -10,7 +10,7 @@ import {
   UserRound,
 } from 'lucide-react';
 import { NavLink, useNavigate } from 'react-router-dom';
-import { useAuth } from '../../auth/AuthContext';
+import { useAuth } from '../../auth/useAuth';
 import { ROUTES } from '../../routes/paths';
 
 const navigationItems = [
