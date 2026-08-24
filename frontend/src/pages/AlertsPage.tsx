@@ -1,56 +1,321 @@
-import { AlertTriangle, BellRing, CheckCircle2 } from 'lucide-react';
+import {
+  Activity,
+  AlertTriangle,
+  CheckCircle2,
+  CopyCheck,
+  RefreshCw,
+  Repeat2,
+  RotateCcw,
+  ScanSearch,
+  XCircle,
+} from 'lucide-react';
+import { useCallback, useEffect, useState } from 'react';
 import { PageHeader } from '../components/layout/PageHeader';
 import { EmptyStateCard } from '../components/ui/EmptyStateCard';
+import { getApiErrorMessage } from '../services/apiClient';
+import {
+  fetchIntelligenceFindings,
+  fetchIntelligenceSummary,
+  runIntelligenceScan,
+  updateIntelligenceFindingStatus,
+} from '../services/intelligenceApi';
+import type {
+  FindingStatus,
+  IntelligenceFinding,
+  IntelligenceSummary,
+} from '../types/intelligence';
 
-const plannedFeatures = [
-  {
-    icon: BellRing,
-    title: 'Rule and anomaly alerts',
-    description: 'Surface suspicious or unusual movements only after a real detection service is implemented.',
-  },
-  {
-    icon: AlertTriangle,
-    title: 'Duplicate charge review',
-    description: 'Link possible duplicated payments to the persisted transactions that triggered the alert.',
-  },
-  {
-    icon: CheckCircle2,
-    title: 'Review workflow',
-    description: 'Let users resolve, dismiss and audit alerts instead of displaying static warning counts.',
-  },
+const emptySummary: IntelligenceSummary = {
+  openCount: 0,
+  recurringCount: 0,
+  duplicateSubscriptionCount: 0,
+  anomalyCount: 0,
+  dismissedCount: 0,
+  resolvedCount: 0,
+  lastScanAt: null,
+  analyzedTransactions: 0,
+  ruleVersion: 'rules-v1',
+};
+
+type StatusFilter = FindingStatus | 'all';
+
+const statusFilters: { value: StatusFilter; label: string }[] = [
+  { value: 'open', label: 'Open' },
+  { value: 'dismissed', label: 'Dismissed' },
+  { value: 'resolved', label: 'Resolved' },
+  { value: 'all', label: 'All' },
 ];
 
+const money = (value: unknown) =>
+  typeof value === 'number'
+    ? new Intl.NumberFormat('en-US', { style: 'currency', currency: 'EUR' }).format(value)
+    : '—';
+
+function evidenceText(finding: IntelligenceFinding): string {
+  const evidence = finding.evidence;
+  if (finding.type === 'recurring_pattern') {
+    return `${String(evidence.cadence ?? 'Recurring')} · ${String(evidence.occurrenceCount ?? '—')} occurrences · median ${money(evidence.medianAmount)} · next expected ${String(evidence.nextExpectedDate ?? '—')}`;
+  }
+  if (finding.type === 'duplicate_subscription') {
+    const months = Array.isArray(evidence.duplicateMonths) ? evidence.duplicateMonths.join(', ') : '—';
+    return `${String(evidence.pairCount ?? '—')} near-duplicate pairs · around ${money(evidence.approximateAmount)} · months ${months}`;
+  }
+  return `${money(evidence.amount)} vs baseline ${money(evidence.baselineMedian)} · ${String(evidence.ratio ?? '—')}× typical · ${String(evidence.baselineCount ?? '—')} baseline charges`;
+}
+
+function typeMeta(finding: IntelligenceFinding) {
+  if (finding.type === 'recurring_pattern') {
+    return { icon: Repeat2, label: 'Recurring pattern' };
+  }
+  if (finding.type === 'duplicate_subscription') {
+    return { icon: CopyCheck, label: 'Possible duplicate subscription' };
+  }
+  return { icon: Activity, label: 'Spending anomaly' };
+}
+
+function severityClasses(severity: IntelligenceFinding['severity']) {
+  if (severity === 'high') return 'bg-rose-100 text-rose-700';
+  if (severity === 'warning') return 'bg-amber-100 text-amber-700';
+  return 'bg-sky-100 text-sky-700';
+}
+
 export function AlertsPage() {
+  const [summary, setSummary] = useState<IntelligenceSummary>(emptySummary);
+  const [findings, setFindings] = useState<IntelligenceFinding[]>([]);
+  const [statusFilter, setStatusFilter] = useState<StatusFilter>('open');
+  const [isLoading, setIsLoading] = useState(true);
+  const [isRefreshing, setIsRefreshing] = useState(false);
+  const [isScanning, setIsScanning] = useState(false);
+  const [activeFindingId, setActiveFindingId] = useState<string | null>(null);
+  const [error, setError] = useState<string | null>(null);
+  const [notice, setNotice] = useState<string | null>(null);
+
+  const loadIntelligence = useCallback(async (refresh = false) => {
+    refresh ? setIsRefreshing(true) : setIsLoading(true);
+    setError(null);
+    try {
+      const [loadedSummary, loadedFindings] = await Promise.all([
+        fetchIntelligenceSummary(),
+        fetchIntelligenceFindings(statusFilter === 'all' ? {} : { status: statusFilter }),
+      ]);
+      setSummary(loadedSummary);
+      setFindings(loadedFindings);
+    } catch (loadError) {
+      setError(getApiErrorMessage(loadError, 'Unable to load financial intelligence'));
+    } finally {
+      setIsLoading(false);
+      setIsRefreshing(false);
+    }
+  }, [statusFilter]);
+
+  useEffect(() => {
+    void loadIntelligence();
+  }, [loadIntelligence]);
+
+  const handleScan = async () => {
+    setIsScanning(true);
+    setError(null);
+    setNotice(null);
+    try {
+      const result = await runIntelligenceScan();
+      setNotice(
+        `Analysis completed: ${result.detectedFindings} findings from ${result.analyzedTransactions} expense transactions.`,
+      );
+      await loadIntelligence(true);
+    } catch (scanError) {
+      setError(getApiErrorMessage(scanError, 'Unable to run financial analysis'));
+    } finally {
+      setIsScanning(false);
+    }
+  };
+
+  const handleStatus = async (findingId: string, status: FindingStatus) => {
+    setActiveFindingId(findingId);
+    setError(null);
+    setNotice(null);
+    try {
+      await updateIntelligenceFindingStatus(findingId, status);
+      setNotice(status === 'open' ? 'Finding reopened.' : `Finding marked as ${status}.`);
+      await loadIntelligence(true);
+    } catch (updateError) {
+      setError(getApiErrorMessage(updateError, 'Unable to update finding'));
+    } finally {
+      setActiveFindingId(null);
+    }
+  };
+
+  const lastScanLabel = summary.lastScanAt
+    ? new Date(summary.lastScanAt).toLocaleString()
+    : 'No analysis has been run yet';
+
   return (
     <>
       <PageHeader
-        eyebrow="Planned monitoring"
-        title="Alerts"
-        description="Automated alerts will be enabled when detection rules and review persistence are implemented."
+        eyebrow="Explainable rules engine"
+        title="Financial intelligence"
+        description="Persisted recurring-pattern, duplicate-subscription and amount-anomaly findings generated from your own transaction history."
+        action={
+          <button
+            type="button"
+            onClick={() => void handleScan()}
+            disabled={isScanning}
+            className="inline-flex items-center justify-center gap-2 rounded-2xl bg-slate-950 px-5 py-3 text-sm font-semibold text-white shadow-soft transition hover:-translate-y-0.5 hover:bg-slate-800 disabled:cursor-not-allowed disabled:opacity-60"
+          >
+            {isScanning ? <RefreshCw size={18} className="animate-spin" /> : <ScanSearch size={18} />}
+            {isScanning ? 'Analyzing…' : 'Run analysis'}
+          </button>
+        }
       />
 
-      <section className="grid gap-5 md:grid-cols-3">
-        {plannedFeatures.map((feature) => (
-          <article key={feature.title} className="rounded-3xl border border-slate-200 bg-white p-5 shadow-soft">
-            <div className="mb-4 flex items-center justify-between gap-3">
-              <div className="flex h-11 w-11 items-center justify-center rounded-2xl bg-brand-50 text-brand-700">
-                <feature.icon size={20} />
-              </div>
-              <span className="rounded-full bg-slate-100 px-3 py-1 text-xs font-semibold text-slate-600">Planned</span>
+      {error && (
+        <div role="alert" className="mb-5 flex flex-col gap-3 rounded-2xl border border-rose-200 bg-rose-50 px-4 py-3 text-sm font-medium text-rose-700 sm:flex-row sm:items-center sm:justify-between">
+          <span>{error}</span>
+          <button
+            type="button"
+            onClick={() => void loadIntelligence(true)}
+            disabled={isRefreshing}
+            className="rounded-xl border border-rose-200 bg-white px-3 py-2 text-xs font-semibold disabled:opacity-50"
+          >
+            {isRefreshing ? 'Refreshing…' : 'Retry'}
+          </button>
+        </div>
+      )}
+
+      {notice && (
+        <div role="status" className="mb-5 flex items-center gap-2 rounded-2xl border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm font-medium text-emerald-700">
+          <CheckCircle2 size={17} />
+          {notice}
+        </div>
+      )}
+
+      <section className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
+        {[
+          { label: 'Open findings', value: summary.openCount, icon: AlertTriangle },
+          { label: 'Recurring patterns', value: summary.recurringCount, icon: Repeat2 },
+          { label: 'Possible duplicates', value: summary.duplicateSubscriptionCount, icon: CopyCheck },
+          { label: 'Amount anomalies', value: summary.anomalyCount, icon: Activity },
+        ].map((metric) => (
+          <article key={metric.label} className="rounded-3xl border border-slate-200 bg-white p-5 shadow-soft">
+            <div className="mb-4 flex h-10 w-10 items-center justify-center rounded-2xl bg-brand-50 text-brand-700">
+              <metric.icon size={19} />
             </div>
-            <h2 className="font-bold text-slate-950">{feature.title}</h2>
-            <p className="mt-2 text-sm leading-6 text-slate-500">{feature.description}</p>
+            <p className="text-sm font-medium text-slate-500">{metric.label}</p>
+            <p className="mt-2 text-3xl font-bold tracking-tight text-slate-950">{metric.value}</p>
           </article>
         ))}
       </section>
 
-      <div className="mt-6">
-        <EmptyStateCard
-          icon={<AlertTriangle size={22} />}
-          title="No automated alert engine is active yet"
-          description="Transactions can currently be flagged for simple rule-based review, but anomaly and duplicate-charge detection are not presented as implemented features."
-        />
-      </div>
+      <section className="mt-6 rounded-3xl border border-slate-200 bg-white p-5 shadow-soft">
+        <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
+          <div>
+            <h2 className="font-bold text-slate-950">Analysis state</h2>
+            <p className="mt-1 text-sm text-slate-500">
+              Last scan: {lastScanLabel} · {summary.analyzedTransactions} expense transactions · {summary.ruleVersion}
+            </p>
+          </div>
+          <div className="flex flex-wrap gap-2" aria-label="Finding status filter">
+            {statusFilters.map((filter) => (
+              <button
+                key={filter.value}
+                type="button"
+                onClick={() => setStatusFilter(filter.value)}
+                className={`rounded-xl px-3 py-2 text-xs font-semibold transition ${
+                  statusFilter === filter.value
+                    ? 'bg-slate-950 text-white'
+                    : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
+                }`}
+              >
+                {filter.label}
+              </button>
+            ))}
+          </div>
+        </div>
+      </section>
+
+      <section className="mt-6 space-y-4">
+        {isLoading ? (
+          <div className="rounded-3xl border border-slate-200 bg-white p-10 text-center text-sm text-slate-500 shadow-soft">
+            Loading persisted intelligence findings...
+          </div>
+        ) : findings.length === 0 ? (
+          <EmptyStateCard
+            icon={<ScanSearch size={22} />}
+            title={summary.lastScanAt ? `No ${statusFilter === 'all' ? '' : `${statusFilter} `}findings` : 'Run your first financial analysis'}
+            description={
+              summary.lastScanAt
+                ? 'The current deterministic rules do not have findings in this review state.'
+                : 'The rules engine only creates findings after it has enough persisted transaction evidence; it never fabricates alerts.'
+            }
+          />
+        ) : (
+          findings.map((finding) => {
+            const meta = typeMeta(finding);
+            const busy = activeFindingId === finding.id;
+            return (
+              <article key={finding.id} className="rounded-3xl border border-slate-200 bg-white p-5 shadow-soft">
+                <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
+                  <div className="flex min-w-0 gap-4">
+                    <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl bg-slate-100 text-slate-700">
+                      <meta.icon size={20} />
+                    </div>
+                    <div className="min-w-0">
+                      <div className="flex flex-wrap items-center gap-2">
+                        <span className="text-xs font-semibold uppercase tracking-wide text-slate-500">{meta.label}</span>
+                        <span className={`rounded-full px-2.5 py-1 text-xs font-semibold ${severityClasses(finding.severity)}`}>
+                          {finding.severity}
+                        </span>
+                        <span className="rounded-full bg-slate-100 px-2.5 py-1 text-xs font-semibold text-slate-600">
+                          {finding.status}
+                        </span>
+                      </div>
+                      <h3 className="mt-2 text-lg font-bold text-slate-950">{finding.title}</h3>
+                      <p className="mt-2 max-w-3xl text-sm leading-6 text-slate-600">{finding.explanation}</p>
+                      <div className="mt-3 rounded-2xl bg-slate-50 px-4 py-3 text-sm text-slate-600">
+                        <span className="font-semibold text-slate-800">Evidence:</span> {evidenceText(finding)}
+                      </div>
+                      <p className="mt-3 text-xs text-slate-400">
+                        Rule {finding.ruleVersion} · last detected {new Date(finding.lastDetectedAt).toLocaleString()}
+                      </p>
+                    </div>
+                  </div>
+
+                  <div className="flex shrink-0 flex-wrap gap-2 lg:justify-end">
+                    {finding.status === 'open' ? (
+                      <>
+                        <button
+                          type="button"
+                          disabled={busy}
+                          onClick={() => void handleStatus(finding.id, 'resolved')}
+                          className="inline-flex items-center gap-2 rounded-xl border border-emerald-200 bg-emerald-50 px-3 py-2 text-xs font-semibold text-emerald-700 disabled:opacity-50"
+                        >
+                          <CheckCircle2 size={15} /> Resolve
+                        </button>
+                        <button
+                          type="button"
+                          disabled={busy}
+                          onClick={() => void handleStatus(finding.id, 'dismissed')}
+                          className="inline-flex items-center gap-2 rounded-xl border border-slate-200 bg-white px-3 py-2 text-xs font-semibold text-slate-600 disabled:opacity-50"
+                        >
+                          <XCircle size={15} /> Dismiss
+                        </button>
+                      </>
+                    ) : (
+                      <button
+                        type="button"
+                        disabled={busy}
+                        onClick={() => void handleStatus(finding.id, 'open')}
+                        className="inline-flex items-center gap-2 rounded-xl border border-slate-200 bg-white px-3 py-2 text-xs font-semibold text-slate-600 disabled:opacity-50"
+                      >
+                        <RotateCcw size={15} /> Reopen
+                      </button>
+                    )}
+                  </div>
+                </div>
+              </article>
+            );
+          })
+        )}
+      </section>
     </>
   );
 }
