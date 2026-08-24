@@ -11,10 +11,10 @@ def test_walk_forward_evaluation_reports_required_metrics_and_slices() -> None:
 
     report = evaluate_historical_dataset(payload)
 
-    assert report["datasetVersion"] == "fixture-v2"
-    assert report["analysisVersion"] == "historical-v2.1"
+    assert report["datasetVersion"] == "fixture-v3"
+    assert report["analysisVersion"] == "historical-v2.2"
     assert report["validationStrategy"] == "walk_forward_monthly_fold_local_identity"
-    assert report["labelStrategy"] == "temporal_recurring_streams"
+    assert report["labelStrategy"] == "temporal_recurring_streams_with_calendar_signature"
     assert [fold["evaluateMonth"] for fold in report["folds"]] == [
         "2026-07",
         "2026-08",
@@ -31,8 +31,10 @@ def test_walk_forward_evaluation_reports_required_metrics_and_slices() -> None:
 
     assert set(report["recurrenceByHistoryLength"]) == {"0-3", "4-7", "8+"}
     assert "stream box" in report["recurrenceByMerchant"]
+    assert "generic service" in report["recurrenceByMerchant"]
     assert "Subscriptions" in report["anomalyByCategory"]
     assert report["aggregate"]["anomalies"]["truePositives"] >= 1
+    assert all(fold["temporalPhaseProfiles"] >= 2 for fold in report["folds"])
 
 
 def test_identity_map_is_rebuilt_from_each_fold_without_future_merchants(monkeypatch) -> None:
@@ -108,8 +110,51 @@ def test_temporal_labels_measure_cancellation_and_reactivation_per_fold() -> Non
     report = evaluate_historical_dataset(payload)
     folds = {fold["evaluateMonth"]: fold for fold in report["folds"]}
 
-    # The first lifecycle is inactive in May. A lingering prediction is therefore measured
-    # as a false positive instead of being counted as globally recurring forever.
     assert folds["2026-05"]["recurrence"]["truePositives"] == 0
-    # The reactivated label only becomes relevant from June onward.
     assert folds["2026-06"]["recurrence"]["truePositives"] + folds["2026-06"]["recurrence"]["falseNegatives"] >= 1
+
+
+def test_calendar_signature_distinguishes_equal_amount_stream_labels() -> None:
+    payload = {
+        "datasetVersion": "calendar-signature-v1",
+        "evaluation": {"minimumHistoryMonths": 6},
+        "labels": {
+            "recurringStreams": [
+                {
+                    "id": "early",
+                    "merchant": "generic service",
+                    "cadence": "monthly",
+                    "amountMin": "9.99",
+                    "amountMax": "9.99",
+                    "activeFrom": "2026-01",
+                    "activeUntil": "2026-07",
+                    "calendarSignature": "monthly:day-05"
+                },
+                {
+                    "id": "late",
+                    "merchant": "generic service",
+                    "cadence": "monthly",
+                    "amountMin": "9.99",
+                    "amountMax": "9.99",
+                    "activeFrom": "2026-01",
+                    "activeUntil": "2026-07",
+                    "calendarSignature": "monthly:day-20"
+                }
+            ],
+            "anomalyTransactionIds": []
+        },
+        "transactions": [
+            item
+            for month in range(1, 8)
+            for item in (
+                {"id": f"early-{month}", "merchant": "Generic Service", "amount": "9.99", "date": f"2026-{month:02d}-05", "category": "Subscriptions"},
+                {"id": f"late-{month}", "merchant": "Generic Service", "amount": "9.99", "date": f"2026-{month:02d}-20", "category": "Subscriptions"},
+            )
+        ]
+    }
+
+    report = evaluate_historical_dataset(payload)
+    july = next(fold for fold in report["folds"] if fold["evaluateMonth"] == "2026-07")
+    assert july["temporalPhaseProfiles"] == 2
+    assert july["recurrence"]["truePositives"] == 2
+    assert july["recurrence"]["falseNegatives"] == 0
