@@ -66,8 +66,10 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: '22'
-      - name: Install frontend dependencies
-        run: npm install --no-audit --no-fund
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+      - name: Install locked frontend dependencies
+        run: npm ci --no-audit --no-fund
       - name: Run component tests
         run: npm run test
       - name: TypeScript check
@@ -105,15 +107,17 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: '22'
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
       - name: Install backend dependencies
         working-directory: backend
         run: pip install -r requirements.txt
       - name: Apply migrations for E2E
         working-directory: backend
         run: alembic upgrade head
-      - name: Install frontend dependencies
+      - name: Install locked frontend dependencies
         working-directory: frontend
-        run: npm install --no-audit --no-fund
+        run: npm ci --no-audit --no-fund
       - name: Install Chromium
         working-directory: frontend
         run: npx playwright install --with-deps chromium

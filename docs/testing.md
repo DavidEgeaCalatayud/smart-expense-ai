@@ -40,10 +40,12 @@ The test bootstrap deliberately does not inherit a development `DATABASE_URL`. T
 
 ## Frontend
 
+`frontend/package-lock.json` is versioned. Use `npm ci` for clean, reproducible installs from the exact dependency graph recorded in the lockfile.
+
 From `frontend`:
 
 ```bash
-npm install
+npm ci
 npm run test
 npm run typecheck
 npm run lint
@@ -51,6 +53,8 @@ npm run build
 ```
 
 Vitest and React Testing Library cover component behavior and API-driven page behavior.
+
+When intentionally changing frontend dependencies, update `package.json` and regenerate `package-lock.json` together with npm. CI uses `npm ci`, so dependency metadata drift causes the install step to fail instead of silently rewriting the lockfile.
 
 ## End-to-end
 
@@ -76,8 +80,8 @@ The critical flow verifies:
 The workflow contains four gates:
 
 - **Backend tests**: dependency installation, `alembic upgrade head`, FastAPI import and pytest unit/integration tests against PostgreSQL 16.
-- **Frontend quality**: Vitest, TypeScript, ESLint and production build.
-- **Critical E2E**: PostgreSQL 16, real migrations, FastAPI, Vite and Playwright Chromium.
+- **Frontend quality**: locked `npm ci` install, Vitest, TypeScript, ESLint and production build.
+- **Critical E2E**: PostgreSQL 16, real migrations, locked `npm ci` install, FastAPI, Vite and Playwright Chromium.
 - **Quality gate**: fails unless all previous jobs succeed.
 
 For merge enforcement, configure the `Quality gate` check as a required status check in the repository branch protection/ruleset for `main`.
