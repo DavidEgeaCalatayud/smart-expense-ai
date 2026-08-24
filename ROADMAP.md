@@ -47,8 +47,12 @@ Goal: isolate financial data by user before adding sensitive integrations.
 - [x] Keep seeded categories global and read-only until custom category CRUD is introduced.
 - [x] Add authenticated session visibility in the Security page.
 - [x] Cover cross-account transaction isolation in integration and E2E tests.
+- [x] Harden authentication errors, password policy and JWT claim validation.
+- [x] Add trusted-host, origin and CORS protections.
+- [x] Add authentication rate limiting at the trusted edge.
 - [ ] Password change and password reset flow.
 - [ ] Account deletion and privacy export controls.
+- [ ] MFA if required for Internet-facing production use.
 
 ## Phase 3 - Financial Intelligence
 
@@ -97,10 +101,17 @@ Goal: prepare the application for real deployment.
 - [x] Add critical Playwright end-to-end coverage.
 - [x] Add Docker Compose.
 - [x] Validate the full Docker Compose stack in CI.
+- [x] Add `SECURITY.md` vulnerability reporting policy.
+- [x] Add Dependabot for pip, npm and GitHub Actions.
+- [x] Add Python and npm dependency vulnerability audits to the Quality gate.
+- [x] Pin GitHub Actions to immutable commit SHAs.
+- [x] Add HTTP security headers and reduced sensitive logging.
+- [x] Complete a baseline OWASP Top 10:2025 review.
 - [ ] Configure `Quality gate` as a required check for `main`.
 - [ ] Add staging deployment.
-- [ ] Add production configuration.
-- [ ] Add security review.
+- [ ] Add production TLS/domain/secrets configuration.
+- [ ] Add centralized security monitoring and alerting.
+- [ ] Add container image scanning and SBOM generation.
 - [ ] Add privacy policy draft.
 
 ## Long-Term Ideas
