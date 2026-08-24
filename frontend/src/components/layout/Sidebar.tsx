@@ -5,9 +5,12 @@ import {
   Database,
   LayoutDashboard,
   LineChart,
+  LogOut,
   ShieldCheck,
+  UserRound,
 } from 'lucide-react';
-import { NavLink } from 'react-router-dom';
+import { NavLink, useNavigate } from 'react-router-dom';
+import { useAuth } from '../../auth/useAuth';
 import { ROUTES } from '../../routes/paths';
 
 const navigationItems = [
@@ -19,6 +22,14 @@ const navigationItems = [
 ];
 
 export function Sidebar() {
+  const { user, signOut } = useAuth();
+  const navigate = useNavigate();
+
+  const handleSignOut = async () => {
+    await signOut();
+    navigate(ROUTES.login, { replace: true });
+  };
+
   return (
     <aside className="border-r border-slate-200 bg-white px-6 py-6">
       <div className="mb-10 flex items-center gap-3">
@@ -51,13 +62,33 @@ export function Sidebar() {
         ))}
       </nav>
 
-      <div className="mt-10 rounded-3xl bg-slate-950 p-5 text-white shadow-soft">
+      <div className="mt-10 rounded-3xl border border-slate-200 bg-slate-50 p-4">
+        <div className="flex items-center gap-3">
+          <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl bg-white text-slate-600 shadow-sm">
+            <UserRound size={19} />
+          </div>
+          <div className="min-w-0 flex-1">
+            <p className="truncate text-sm font-semibold text-slate-900">{user?.displayName}</p>
+            <p className="truncate text-xs text-slate-500">{user?.email}</p>
+          </div>
+        </div>
+        <button
+          type="button"
+          onClick={() => void handleSignOut()}
+          className="mt-4 inline-flex w-full items-center justify-center gap-2 rounded-2xl border border-slate-200 bg-white px-4 py-2.5 text-sm font-semibold text-slate-600 transition hover:bg-slate-100 hover:text-slate-900"
+        >
+          <LogOut size={16} />
+          Sign out
+        </button>
+      </div>
+
+      <div className="mt-4 rounded-3xl bg-slate-950 p-5 text-white shadow-soft">
         <div className="mb-4 flex h-10 w-10 items-center justify-center rounded-2xl bg-white/10">
           <Database size={20} />
         </div>
-        <p className="mb-2 text-sm font-semibold">Live data</p>
+        <p className="mb-2 text-sm font-semibold">Account-isolated data</p>
         <p className="text-sm leading-6 text-slate-300">
-          Dashboard and transactions use persisted PostgreSQL data. Predictive features are marked as planned.
+          Transaction queries are scoped to your authenticated user before financial data leaves the API.
         </p>
       </div>
     </aside>

@@ -9,6 +9,13 @@ on:
 permissions:
   contents: read
 
+env:
+  JWT_SECRET: ci-only-smart-expense-secret-not-for-production
+  JWT_ALGORITHM: HS256
+  ACCESS_TOKEN_MINUTES: 60
+  AUTH_COOKIE_NAME: smart_expense_session
+  AUTH_COOKIE_SECURE: "false"
+
 concurrency:
   group: ci-${{ github.workflow }}-${{ github.ref }}
   cancel-in-progress: true
@@ -143,11 +150,17 @@ jobs:
         run: docker compose build
       - name: Start full stack
         run: docker compose up -d --wait --wait-timeout 120
-      - name: Verify frontend and proxied API
+      - name: Verify frontend authentication and proxied API
         run: |
           curl --fail --silent --show-error http://localhost:5173/ > /dev/null
           curl --fail --silent --show-error http://localhost:5173/health | grep '"status":"ok"'
-          curl --fail --silent --show-error http://localhost:5173/api/categories | grep 'Food'
+          curl --fail --silent --show-error \
+            -c cookies.txt \
+            -H 'Content-Type: application/json' \
+            -d '{"email":"docker-ci@example.com","password":"docker-test-password","displayName":"Docker CI"}' \
+            http://localhost:5173/api/auth/register | grep 'docker-ci@example.com'
+          curl --fail --silent --show-error -b cookies.txt http://localhost:5173/api/categories | grep 'Food'
+          test "$(curl --silent --output /dev/null --write-out '%{http_code}' http://localhost:5173/api/categories)" = "401"
       - name: Show Compose status
         if: always()
         run: docker compose ps

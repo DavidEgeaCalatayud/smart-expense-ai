@@ -88,19 +88,21 @@ def _commit(db: Session) -> None:
         raise
 
 
-def list_transactions(db: Session) -> list[Transaction]:
+def list_transactions(db: Session, user_id: UUID) -> list[Transaction]:
     statement = (
         select(TransactionModel)
         .options(joinedload(TransactionModel.category))
+        .where(TransactionModel.user_id == user_id)
         .order_by(TransactionModel.created_at.desc())
     )
     transactions = db.scalars(statement).all()
     return [_to_schema(transaction) for transaction in transactions]
 
 
-def create_transaction(db: Session, payload: TransactionCreate) -> Transaction:
+def create_transaction(db: Session, user_id: UUID, payload: TransactionCreate) -> Transaction:
     category = _get_category(db, payload.category, payload.type)
     transaction = TransactionModel(
+        user_id=user_id,
         category=category,
         merchant=payload.merchant,
         description=payload.description,
@@ -120,6 +122,7 @@ def create_transaction(db: Session, payload: TransactionCreate) -> Transaction:
 
 def update_transaction(
     db: Session,
+    user_id: UUID,
     transaction_id: str,
     payload: TransactionUpdate,
 ) -> Transaction | None:
@@ -130,7 +133,10 @@ def update_transaction(
     statement = (
         select(TransactionModel)
         .options(joinedload(TransactionModel.category))
-        .where(TransactionModel.id == parsed_id)
+        .where(
+            TransactionModel.id == parsed_id,
+            TransactionModel.user_id == user_id,
+        )
     )
     transaction = db.scalar(statement)
     if transaction is None:
@@ -149,12 +155,17 @@ def update_transaction(
     return _to_schema(transaction)
 
 
-def delete_transaction(db: Session, transaction_id: str) -> bool:
+def delete_transaction(db: Session, user_id: UUID, transaction_id: str) -> bool:
     parsed_id = _parse_transaction_id(transaction_id)
     if parsed_id is None:
         return False
 
-    transaction = db.get(TransactionModel, parsed_id)
+    transaction = db.scalar(
+        select(TransactionModel).where(
+            TransactionModel.id == parsed_id,
+            TransactionModel.user_id == user_id,
+        )
+    )
     if transaction is None:
         return False
 

@@ -1,5 +1,5 @@
 from enum import Enum
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, EmailStr, Field
 
 
 class TransactionType(str, Enum):
@@ -17,6 +17,27 @@ class PaymentMethod(str, Enum):
     cash = "cash"
     bank_transfer = "bank_transfer"
     direct_debit = "direct_debit"
+
+
+class UserResponse(BaseModel):
+    id: str
+    email: EmailStr
+    displayName: str
+
+
+class RegisterRequest(BaseModel):
+    email: EmailStr
+    password: str = Field(..., min_length=8, max_length=128)
+    displayName: str = Field(..., min_length=1, max_length=120)
+
+
+class LoginRequest(BaseModel):
+    email: EmailStr
+    password: str = Field(..., min_length=1, max_length=128)
+
+
+class AuthResponse(BaseModel):
+    user: UserResponse
 
 
 class CategoryResponse(BaseModel):
