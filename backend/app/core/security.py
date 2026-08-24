@@ -1,5 +1,5 @@
 from datetime import datetime, timedelta, timezone
-from uuid import UUID
+from uuid import UUID, uuid4
 
 import jwt
 from jwt import InvalidTokenError
@@ -23,7 +23,14 @@ def create_access_token(user_id: UUID) -> str:
     now = datetime.now(timezone.utc)
     expires_at = now + timedelta(minutes=settings.access_token_minutes)
     return jwt.encode(
-        {"sub": str(user_id), "exp": expires_at, "iat": now},
+        {
+            "sub": str(user_id),
+            "exp": expires_at,
+            "iat": now,
+            "iss": settings.jwt_issuer,
+            "aud": settings.jwt_audience,
+            "jti": str(uuid4()),
+        },
         settings.jwt_secret,
         algorithm=settings.jwt_algorithm,
     )
@@ -35,6 +42,9 @@ def decode_access_token(token: str) -> UUID | None:
             token,
             settings.jwt_secret,
             algorithms=[settings.jwt_algorithm],
+            issuer=settings.jwt_issuer,
+            audience=settings.jwt_audience,
+            options={"require": ["sub", "exp", "iat", "iss", "aud", "jti"]},
         )
         subject = payload.get("sub")
         return UUID(subject) if isinstance(subject, str) else None
