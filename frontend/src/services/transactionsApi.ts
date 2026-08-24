@@ -1,7 +1,16 @@
-import type { DetailedTransaction, TransactionFormValues } from '../types/transactions';
+import type {
+  DetailedTransaction,
+  TransactionFilters,
+  TransactionFormValues,
+  TransactionPage,
+} from '../types/transactions';
+import { apiFetch } from './apiClient';
 
-const API_BASE_URL = import.meta.env.VITE_API_BASE_URL ?? 'http://localhost:8000';
-const TRANSACTIONS_ENDPOINT = `${API_BASE_URL}/api/transactions`;
+export interface FetchTransactionsOptions {
+  page?: number;
+  pageSize?: number;
+  filters?: TransactionFilters;
+}
 
 const mapFormValuesToPayload = (values: TransactionFormValues) => ({
   merchant: values.merchant,
@@ -14,60 +23,46 @@ const mapFormValuesToPayload = (values: TransactionFormValues) => ({
   isRecurring: values.isRecurring,
 });
 
-export async function fetchTransactions(): Promise<DetailedTransaction[]> {
-  const response = await fetch(TRANSACTIONS_ENDPOINT, { credentials: 'include' });
+const buildQuery = ({ page = 1, pageSize = 20, filters }: FetchTransactionsOptions): string => {
+  const params = new URLSearchParams({ page: String(page), pageSize: String(pageSize) });
 
-  if (!response.ok) {
-    throw new Error('Unable to fetch transactions');
+  if (filters) {
+    if (filters.search.trim()) params.set('search', filters.search.trim());
+    if (filters.category !== 'all') params.set('category', filters.category);
+    if (filters.status !== 'all') params.set('status', filters.status);
+    if (filters.type !== 'all') params.set('type', filters.type);
+    if (filters.recurring !== 'all') params.set('recurring', filters.recurring);
+    if (filters.dateFrom) params.set('dateFrom', filters.dateFrom);
+    if (filters.dateTo) params.set('dateTo', filters.dateTo);
+    params.set('sort', filters.sort);
   }
 
-  return response.json();
+  return params.toString();
+};
+
+export function fetchTransactions(options: FetchTransactionsOptions = {}): Promise<TransactionPage> {
+  return apiFetch<TransactionPage>(`/transactions?${buildQuery(options)}`);
 }
 
-export async function createTransaction(values: TransactionFormValues): Promise<DetailedTransaction> {
-  const response = await fetch(TRANSACTIONS_ENDPOINT, {
+export function createTransaction(values: TransactionFormValues): Promise<DetailedTransaction> {
+  return apiFetch<DetailedTransaction>('/transactions', {
     method: 'POST',
-    credentials: 'include',
-    headers: {
-      'Content-Type': 'application/json',
-    },
+    headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(mapFormValuesToPayload(values)),
   });
-
-  if (!response.ok) {
-    throw new Error('Unable to create transaction');
-  }
-
-  return response.json();
 }
 
-export async function updateTransaction(
+export function updateTransaction(
   transactionId: string,
   values: TransactionFormValues,
 ): Promise<DetailedTransaction> {
-  const response = await fetch(`${TRANSACTIONS_ENDPOINT}/${transactionId}`, {
+  return apiFetch<DetailedTransaction>(`/transactions/${transactionId}`, {
     method: 'PUT',
-    credentials: 'include',
-    headers: {
-      'Content-Type': 'application/json',
-    },
+    headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(mapFormValuesToPayload(values)),
   });
-
-  if (!response.ok) {
-    throw new Error('Unable to update transaction');
-  }
-
-  return response.json();
 }
 
-export async function deleteTransaction(transactionId: string): Promise<void> {
-  const response = await fetch(`${TRANSACTIONS_ENDPOINT}/${transactionId}`, {
-    method: 'DELETE',
-    credentials: 'include',
-  });
-
-  if (!response.ok) {
-    throw new Error('Unable to delete transaction');
-  }
+export function deleteTransaction(transactionId: string): Promise<void> {
+  return apiFetch<void>(`/transactions/${transactionId}`, { method: 'DELETE' });
 }
