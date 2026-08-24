@@ -1,0 +1,38 @@
+{
+  "datasetVersion": "occurrence-fixture-v1",
+  "description": "Synthetic regression fixture for prospective next-occurrence evaluation. July is ground truth only; predictions are generated from January through June.",
+  "evaluation": {
+    "minimumHistoryMonths": 6,
+    "occurrenceEvaluationMonths": ["2026-07"],
+    "occurrenceDateToleranceDays": 7
+  },
+  "labels": {
+    "recurringStreams": [
+      {
+        "id": "service-monthly",
+        "merchant": "service",
+        "cadence": "monthly",
+        "amountMin": "1.00",
+        "amountMax": "100.00",
+        "activeFrom": "2026-01",
+        "activeUntil": "2026-07",
+        "expectedOccurrences": [
+          {
+            "date": "2026-07-08",
+            "amount": "12.00"
+          }
+        ]
+      }
+    ],
+    "anomalyTransactionIds": []
+  },
+  "transactions": [
+    {"id":"jan","merchant":"Service","amount":"10.00","date":"2026-01-05","category":"Subscriptions"},
+    {"id":"feb","merchant":"Service","amount":"10.00","date":"2026-02-05","category":"Subscriptions"},
+    {"id":"mar","merchant":"Service","amount":"10.00","date":"2026-03-05","category":"Subscriptions"},
+    {"id":"apr","merchant":"Service","amount":"10.00","date":"2026-04-05","category":"Subscriptions"},
+    {"id":"may","merchant":"Service","amount":"10.00","date":"2026-05-05","category":"Subscriptions"},
+    {"id":"jun","merchant":"Service","amount":"10.00","date":"2026-06-05","category":"Subscriptions"},
+    {"id":"jul","merchant":"Service","amount":"12.00","date":"2026-07-08","category":"Subscriptions"}
+  ]
+}
