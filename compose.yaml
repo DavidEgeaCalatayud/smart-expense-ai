@@ -12,6 +12,8 @@ services:
       interval: 5s
       timeout: 5s
       retries: 10
+    security_opt:
+      - no-new-privileges:true
     restart: unless-stopped
 
   backend:
@@ -19,16 +21,21 @@ services:
       context: ./backend
     environment:
       APP_ENV: docker
+      APP_DEBUG: "false"
       BACKEND_HOST: 0.0.0.0
       BACKEND_PORT: 8000
+      FRONTEND_ORIGIN: http://localhost:5173
+      ALLOWED_HOSTS: localhost,127.0.0.1,testserver
       DATABASE_URL: postgresql+psycopg://smart_expense_user:smart_expense_password@db:5432/smart_expense_ai
       JWT_SECRET: docker-development-only-change-me
       JWT_ALGORITHM: HS256
+      JWT_ISSUER: smart-expense-ai
+      JWT_AUDIENCE: smart-expense-ai-web
       ACCESS_TOKEN_MINUTES: 60
       AUTH_COOKIE_NAME: smart_expense_session
       AUTH_COOKIE_SECURE: "false"
-    ports:
-      - "8000:8000"
+    expose:
+      - "8000"
     depends_on:
       db:
         condition: service_healthy
@@ -42,6 +49,8 @@ services:
       timeout: 5s
       retries: 10
       start_period: 5s
+    security_opt:
+      - no-new-privileges:true
     restart: unless-stopped
 
   frontend:
@@ -54,6 +63,8 @@ services:
     depends_on:
       backend:
         condition: service_healthy
+    security_opt:
+      - no-new-privileges:true
     restart: unless-stopped
 
 volumes:
