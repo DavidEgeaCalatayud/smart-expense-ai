@@ -29,8 +29,14 @@ Goal: make the first usable version persist real financial data.
 - [x] Build six-month expense chart from persisted transactions.
 - [x] Show recent persisted transactions.
 - [x] Add transparent rule-based review for high-value expenses.
+- [x] Add server-side transaction pagination.
+- [x] Add server-side search, category, status, type, recurring, date and sort filters.
+- [x] Add aggregate summary and monthly-expense endpoints.
+- [x] Add normalized API errors with semantic codes and request IDs.
+- [x] Version the supported application API under `/api/v1`.
 - [ ] Improve responsive transaction UX.
 - [x] Add delete confirmation and operation feedback.
+- [x] Add distinct loading, refreshing, retry and mutation states in transaction UX.
 - [ ] Add user-managed category CRUD when needed.
 
 ## Phase 2 - Accounts and Data Ownership
@@ -107,6 +113,7 @@ Goal: prepare the application for real deployment.
 - [x] Pin GitHub Actions to immutable commit SHAs.
 - [x] Add HTTP security headers and reduced sensitive logging.
 - [x] Complete a baseline OWASP Top 10:2025 review.
+- [x] Add API v1 contract documentation and CI smoke coverage.
 - [ ] Configure `Quality gate` as a required check for `main`.
 - [ ] Add staging deployment.
 - [ ] Add production TLS/domain/secrets configuration.
