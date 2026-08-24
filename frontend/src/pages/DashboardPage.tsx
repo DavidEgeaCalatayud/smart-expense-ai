@@ -22,13 +22,14 @@ const emptySummary: TransactionSummary = {
   transactionCount: 0,
 };
 
-const toIsoDate = (date: Date) => date.toISOString().slice(0, 10);
+const toLocalIsoDate = (date: Date) =>
+  `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`;
 
 const currentMonthRange = () => {
   const now = new Date();
   return {
-    dateFrom: toIsoDate(new Date(now.getFullYear(), now.getMonth(), 1)),
-    dateTo: toIsoDate(new Date(now.getFullYear(), now.getMonth() + 1, 0)),
+    dateFrom: toLocalIsoDate(new Date(now.getFullYear(), now.getMonth(), 1)),
+    dateTo: toLocalIsoDate(new Date(now.getFullYear(), now.getMonth() + 1, 0)),
   };
 };
 
@@ -51,7 +52,11 @@ export function DashboardPage() {
   const [error, setError] = useState<string | null>(null);
 
   const loadDashboard = useCallback(async (refresh = false) => {
-    refresh ? setIsRefreshing(true) : setIsLoading(true);
+    if (refresh) {
+      setIsRefreshing(true);
+    } else {
+      setIsLoading(true);
+    }
     setError(null);
 
     try {
