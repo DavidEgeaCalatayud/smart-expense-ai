@@ -1,6 +1,6 @@
 """Add users and transaction ownership.
 
-Revision ID: 0003_users_and_transaction_ownership
+Revision ID: 0003_user_ownership
 Revises: 0002_seed_categories
 Create Date: 2026-08-24 10:35:00
 
@@ -13,7 +13,7 @@ import sqlalchemy as sa
 from sqlalchemy.dialects import postgresql
 
 
-revision: str = "0003_users_and_transaction_ownership"
+revision: str = "0003_user_ownership"
 down_revision: Union[str, Sequence[str], None] = "0002_seed_categories"
 branch_labels: Union[str, Sequence[str], None] = None
 depends_on: Union[str, Sequence[str], None] = None
@@ -67,9 +67,7 @@ def upgrade() -> None:
         "transactions",
         sa.Column("user_id", postgresql.UUID(as_uuid=True), nullable=True),
     )
-    op.execute(
-        transactions_table.update().values(user_id=LEGACY_USER_ID)
-    )
+    op.execute(transactions_table.update().values(user_id=LEGACY_USER_ID))
     op.alter_column("transactions", "user_id", nullable=False)
     op.create_foreign_key(
         "fk_transactions_user_id_users",
