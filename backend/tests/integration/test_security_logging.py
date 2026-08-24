@@ -17,7 +17,7 @@ def test_authentication_security_logs_exclude_credentials(caplog) -> None:
 
     with TestClient(app) as client:
         response = client.post(
-            "/api/auth/register",
+            "/api/v1/auth/register",
             json={
                 "email": email,
                 "password": password,
