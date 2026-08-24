@@ -22,7 +22,7 @@ test('authenticated users only see and mutate their own persisted transactions',
   await expect(page.getByLabel('Category').first()).toHaveValue('Food');
 
   await page.getByLabel('Merchant').fill(merchant);
-  await page.getByLabel('Amount').fill('42.50');
+  await page.getByRole('spinbutton', { name: 'Amount' }).fill('42.50');
   await page.getByLabel('Description').fill('Authenticated critical E2E transaction');
   await page.getByLabel('Date').fill(transactionDate);
   await page.getByRole('button', { name: 'Add transaction' }).click();
@@ -56,7 +56,7 @@ test('authenticated users only see and mutate their own persisted transactions',
   row = page.getByRole('row').filter({ hasText: merchant });
   await expect(row).toContainText('€42.50');
   await row.getByRole('button', { name: `Edit ${merchant}` }).click();
-  await page.getByLabel('Amount').fill('150.25');
+  await page.getByRole('spinbutton', { name: 'Amount' }).fill('150.25');
   await page.getByRole('button', { name: 'Save changes' }).click();
 
   row = page.getByRole('row').filter({ hasText: merchant });
