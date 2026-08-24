@@ -91,7 +91,11 @@ export function AlertsPage() {
   const [notice, setNotice] = useState<string | null>(null);
 
   const loadIntelligence = useCallback(async (refresh = false) => {
-    refresh ? setIsRefreshing(true) : setIsLoading(true);
+    if (refresh) {
+      setIsRefreshing(true);
+    } else {
+      setIsLoading(true);
+    }
     setError(null);
     try {
       const [loadedSummary, loadedFindings] = await Promise.all([
