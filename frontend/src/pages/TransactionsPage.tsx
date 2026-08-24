@@ -60,9 +60,9 @@ const emptyPage: TransactionPage = {
 };
 
 const emptySummary: TransactionSummary = {
-  totalIncome: 0,
-  totalExpenses: 0,
-  balance: 0,
+  totalIncome: '0.00',
+  totalExpenses: '0.00',
+  balance: '0.00',
   recurringCount: 0,
   reviewCount: 0,
   transactionCount: 0,
@@ -72,7 +72,7 @@ const mapTransactionToFormValues = (transaction: DetailedTransaction): Transacti
   merchant: transaction.merchant,
   description: transaction.description,
   category: transaction.category,
-  amount: String(transaction.amount),
+  amount: transaction.amount,
   date: transaction.date,
   type: transaction.type,
   paymentMethod: transaction.paymentMethod,
@@ -277,7 +277,7 @@ export function TransactionsPage() {
       <PageHeader
         eyebrow="Transaction management"
         title="Transactions"
-        description="Paginated, filtered and persisted financial movements served by API v1."
+        description="Paginated, filtered and persisted financial movements served by the decimal-safe API v2 money contract."
         action={
           <div className="flex flex-wrap gap-2">
             <button
