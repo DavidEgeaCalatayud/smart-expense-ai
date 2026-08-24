@@ -1,6 +1,6 @@
 # Testing and CI
 
-Smart Expense AI uses multiple test layers so persistence, authentication, security controls, versioned API contracts, monetary precision, deterministic intelligence rules and critical browser flows are verified automatically.
+Smart Expense AI uses multiple test layers so persistence, authentication, security controls, versioned API contracts, monetary precision, deterministic intelligence rules, historical algorithms and critical browser flows are verified automatically.
 
 ## Backend
 
@@ -18,7 +18,7 @@ pytest -m "not integration"
 
 Financial logic uses `Decimal`, including the 120 EUR review threshold and all amount-based intelligence rules. Unit coverage includes the exact `120.00` / `120.01` boundary and Decimal-based recurring, duplicate-subscription and anomaly calculations.
 
-The financial-intelligence rules are deliberately implemented as pure functions, so their thresholds can be tested without PostgreSQL. Coverage includes:
+The financial-intelligence finding rules are deliberately implemented as pure functions, so their thresholds can be tested without PostgreSQL. Coverage includes:
 
 - merchant normalization across case, accents and punctuation;
 - recurring-pattern positive and negative cases;
@@ -27,6 +27,15 @@ The financial-intelligence rules are deliberately implemented as pure functions,
 - merchant-specific anomaly baselines;
 - minimum-history requirements that prevent premature anomaly findings;
 - decimal-string monetary evidence generated without float conversion.
+
+The `historical-v1` engine also exposes a pure analysis function. Its unit tests verify algorithm properties rather than merely checking HTTP success:
+
+- an increasing six-month series produces a positive least-squares slope and meaningful R²;
+- a stable monthly merchant series receives a high recurrence pattern score;
+- cadence fit, interval regularity and amount stability remain separately observable;
+- an outlier baseline contains only transactions dated before the candidate, preventing future-data leakage;
+- category history is used as a fallback only when merchant history is insufficient;
+- three-month category-shift windows produce the expected absolute and percentage change.
 
 Integration tests intentionally use PostgreSQL rather than SQLite. Create a disposable test database, point `TEST_DATABASE_URL` at it, migrate it, then run the full suite.
 
@@ -68,6 +77,10 @@ Backend contract/security regression coverage includes:
 - idempotent rescans preserving finding IDs through stable fingerprints;
 - dismissed findings remaining dismissed after the same evidence is detected again;
 - intelligence findings and review updates scoped to the authenticated user;
+- migration `0005_historical_analysis`;
+- persisted `historical-v1` snapshot creation and latest-snapshot retrieval;
+- historical-analysis 6–24 month window validation;
+- historical snapshot isolation between authenticated accounts;
 - password hashing and hardened JWT claim validation;
 - production configuration invariants;
 - cross-account transaction ownership;
@@ -110,7 +123,7 @@ Safe backend `message`, `requestId` and `details` are retained. Only network and
 
 Vitest and React Testing Library additionally cover component behavior and API-driven page behavior. Transaction-page tests verify that filters are sent to the API rather than applied to a partial page in memory, and that mutations refresh the authoritative page/summary before success feedback is shown.
 
-The Financial Intelligence page tests verify that persisted findings and decimal evidence render from the API, that `Run analysis` invokes the scan endpoint and refreshes authoritative state, and that review actions are persisted through the API rather than changing only local React state.
+The Financial Intelligence page tests verify persisted findings and review actions. `HistoricalAnalysisPanel` has separate tests that render persisted trend/recurrence/outlier evidence and verify that a new 12-month snapshot is requested through the v2 API.
 
 When intentionally changing frontend dependencies, update `package.json` and regenerate `package-lock.json` together with npm. CI uses `npm ci`, so dependency metadata drift causes the install step to fail instead of silently rewriting the lockfile.
 
@@ -146,7 +159,7 @@ The critical flow verifies:
 7. The transaction is edited to `150.25` through v2 and the Decimal review rule is reflected.
 8. The transaction can be deleted after confirmation.
 
-Financial-intelligence behavior is covered by pure rule tests, PostgreSQL integration tests, frontend page tests and Docker contract smoke tests rather than making the single critical browser flow substantially larger.
+Financial-intelligence behavior is covered by pure algorithm tests, PostgreSQL integration tests, frontend component/page tests and Docker contract smoke tests rather than making the single critical browser flow substantially larger.
 
 ## Docker contract/security smoke test
 
@@ -156,10 +169,13 @@ The Compose job builds the actual deployment-style images and checks more than s
 - API `Cache-Control: no-store`;
 - v1 registration and authenticated proxy access;
 - legacy v1 transaction/analytics compatibility;
-- migration of the persisted intelligence tables through normal backend startup;
-- an authenticated empty-data intelligence scan;
+- migration of the persisted intelligence and historical-analysis tables through normal backend startup;
+- an authenticated empty-data findings scan;
 - two v2 transactions with amounts `"0.10"` and `"0.20"` through Nginx;
 - an exact v2 aggregate of `"0.30"` and balance `"-0.30"`;
+- generation of a persisted `historical-v1` snapshot through Nginx;
+- latest historical-snapshot retrieval;
+- sparse historical data reported as `insufficient_data` rather than a fabricated trend;
 - rejection of the JSON numeric v2 amount `0.1` with HTTP `422`;
 - normalized 404 behavior for unsupported unversioned application routes;
 - unauthenticated intelligence access rejected with a request ID;
@@ -172,15 +188,15 @@ The Compose job builds the actual deployment-style images and checks more than s
 
 The workflow contains five functional gates plus the consolidated gate:
 
-- **Backend tests**: dependency installation, `alembic upgrade head`, FastAPI import and pytest unit/integration tests against PostgreSQL 16.
+- **Backend tests**: dependency installation, `alembic upgrade head`, FastAPI 1.2 contract import and pytest unit/integration tests against PostgreSQL 16.
 - **Frontend quality**: locked `npm ci` install, Vitest, TypeScript, ESLint and production build.
 - **Dependency security audit**: `pip-audit` plus `npm audit --audit-level=high`.
 - **Critical E2E**: PostgreSQL 16, real migrations, FastAPI, Vite and Playwright Chromium using the frontend's v2 financial clients.
-- **Docker Compose smoke test**: actual images, v1 compatibility, v2 decimal contract, security headers, authenticated proxy behavior and rate limiting.
+- **Docker Compose smoke test**: actual images, v1 compatibility, v2 decimal contract, historical snapshot API, security headers, authenticated proxy behavior and rate limiting.
 - **Quality gate**: fails unless every preceding job succeeds.
 
 Third-party GitHub Actions are referenced by immutable commit SHA rather than mutable version tags. Dependabot monitors those SHAs together with pip and npm dependencies.
 
 For merge enforcement, configure the `Quality gate` check as a required status check in the repository branch protection/ruleset for `main`.
 
-See `docs/api.md` for the supported HTTP contracts and `docs/intelligence.md` for the current deterministic rule definitions and validation strategy.
+See `docs/api.md` for the supported HTTP contracts, `docs/intelligence.md` for actionable finding rules and `docs/historical-analysis.md` for the historical algorithm definitions and evaluation strategy.

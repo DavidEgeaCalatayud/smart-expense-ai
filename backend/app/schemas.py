@@ -216,3 +216,77 @@ class IntelligenceSummary(BaseModel):
     lastScanAt: datetime | None
     analyzedTransactions: int
     ruleVersion: str
+
+
+class HistoricalMonthlySpend(BaseModel):
+    month: str
+    amount: str
+
+
+class HistoricalTrend(BaseModel):
+    direction: str
+    monthlySlope: str
+    averageMonthlySpend: str
+    rSquared: str
+    activeMonths: int
+
+
+class HistoricalRecurringProfile(BaseModel):
+    merchant: str
+    cadence: str
+    occurrenceCount: int
+    medianAmount: str
+    medianIntervalDays: str
+    intervalRegularity: str
+    amountStability: str
+    cadenceFit: str
+    historyDepth: str
+    patternScore: str
+    nextExpectedDate: str
+
+
+class HistoricalOutlier(BaseModel):
+    transactionId: str
+    merchant: str
+    category: str
+    date: str
+    amount: str
+    baselineScope: str
+    baselineCount: int
+    baselineMedian: str
+    robustSpread: str
+    deviationScore: str
+
+
+class HistoricalCategoryShift(BaseModel):
+    category: str
+    direction: str
+    previousThreeMonthAverage: str
+    currentThreeMonthAverage: str
+    delta: str
+    percentChange: str | None
+
+
+class HistoricalCoverage(BaseModel):
+    transactionCount: int
+    activeMonths: int
+    merchantsWithBaseline: int
+    categoriesWithBaseline: int
+    recurringProfiles: int
+    outlierCount: int
+
+
+class HistoricalAnalysisResponse(BaseModel):
+    snapshotId: str
+    analysisVersion: str
+    windowMonths: int
+    periodStart: str
+    periodEnd: str
+    analyzedTransactions: int
+    generatedAt: datetime
+    monthlySpend: list[HistoricalMonthlySpend]
+    trend: HistoricalTrend
+    recurringProfiles: list[HistoricalRecurringProfile]
+    outliers: list[HistoricalOutlier]
+    categoryShifts: list[HistoricalCategoryShift]
+    coverage: HistoricalCoverage

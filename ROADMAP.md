@@ -79,9 +79,19 @@ Goal: implement real analysis without simulated AI outputs.
 - [x] Keep intelligence findings isolated by authenticated user ownership.
 - [x] Add Financial Intelligence frontend workspace for scan/review/dismiss/resolve/reopen flows.
 - [x] Remove floating-point money calculations from the intelligence rules and evidence pipeline.
-- [ ] Validate analysis rules against labelled real-world datasets and measure precision/recall.
+- [x] Add versioned persisted historical-analysis snapshots (`historical-v1`).
+- [x] Add least-squares monthly spending trend analysis with slope and R² evidence.
+- [x] Add deterministic recurring-behavior scoring from cadence fit, interval regularity, amount stability and history depth.
+- [x] Add chronological robust outlier analysis that avoids future-data leakage.
+- [x] Add category fallback baselines when merchant history is insufficient for historical outlier analysis.
+- [x] Add three-month vs three-month category-spend shift analysis.
+- [x] Add Historical Analysis UI with coverage, trend, recurrence scores, outliers and category shifts.
+- [x] Persist and isolate historical-analysis snapshots by authenticated user.
+- [ ] Validate rules and historical algorithms against labelled real-world datasets and measure precision/recall/false-positive rates.
+- [ ] Add an evaluation harness that compares future algorithm/model versions against `rules-v1` and `historical-v1` baselines.
 - [ ] Add automatic/background analysis when deployment scheduling is available.
-- [ ] Add category-level anomaly baselines and richer merchant normalization if validation justifies them.
+- [ ] Promote category fallback/richer merchant normalization into persisted findings only where validation shows value.
+- [ ] Evaluate ML anomaly models only after the deterministic baselines have measurable evaluation results.
 
 ## Phase 4 - Prediction
 
@@ -126,6 +136,7 @@ Goal: prepare the application for real deployment.
 - [x] Complete a baseline OWASP Top 10:2025 review.
 - [x] Add API v1 contract documentation and CI smoke coverage.
 - [x] Add API v2 decimal-money contract tests and Docker smoke coverage.
+- [x] Validate historical-analysis migration and API through backend/Docker CI.
 - [ ] Configure `Quality gate` as a required check for `main`.
 - [ ] Add staging deployment.
 - [ ] Add production TLS/domain/secrets configuration.

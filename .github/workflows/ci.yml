@@ -62,7 +62,7 @@ jobs:
       - name: Apply migrations to a clean PostgreSQL database
         run: alembic upgrade head
       - name: Verify FastAPI imports
-        run: python -c "from app.main import app; assert app.title == 'Smart Expense AI API'; assert app.version == '1.1.0'"
+        run: python -c "from app.main import app; assert app.title == 'Smart Expense AI API'; assert app.version == '1.2.0'"
       - name: Run backend tests
         run: pytest
 
@@ -219,6 +219,14 @@ jobs:
           curl --fail --silent --show-error -b cookies.txt http://localhost:5173/api/v2/analytics/summary -o decimal-summary.json
           grep '"totalExpenses":"0.30"' decimal-summary.json
           grep '"balance":"-0.30"' decimal-summary.json
+          curl --fail --silent --show-error -X POST -b cookies.txt \
+            'http://localhost:5173/api/v2/intelligence/historical-analysis?months=6' -o historical-analysis.json
+          grep '"analysisVersion":"historical-v1"' historical-analysis.json
+          grep '"analyzedTransactions":2' historical-analysis.json
+          grep '"direction":"insufficient_data"' historical-analysis.json
+          curl --fail --silent --show-error -b cookies.txt \
+            http://localhost:5173/api/v2/intelligence/historical-analysis/latest -o historical-latest.json
+          grep '"analysisVersion":"historical-v1"' historical-latest.json
           test "$(curl --silent --output decimal-number.json --write-out '%{http_code}' \
             -b cookies.txt \
             -H 'Content-Type: application/json' \
