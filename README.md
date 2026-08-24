@@ -1,8 +1,8 @@
 # Smart Expense AI
 
-Smart Expense AI is a personal finance application being built around reliable transaction data first, with predictive and anomaly-detection features planned for later stages.
+Smart Expense AI is a personal finance application built around reliable persisted transaction data, account isolation and explainable analysis before predictive or machine-learning features are introduced.
 
-The current MVP does **not** simulate AI results. Transactions, categories and dashboard metrics use persisted PostgreSQL data; forecasting and automated alerts remain explicitly marked as planned until a real analysis layer is implemented.
+The current product does **not** simulate AI results. Transactions, dashboard metrics and Phase 3 financial-intelligence findings come from persisted PostgreSQL data and deterministic rules. Forecasting, automatic classification and confidence metrics remain explicitly unimplemented until they can be validated.
 
 ## Current Capabilities
 
@@ -30,6 +30,13 @@ Implemented today:
 - Five most recent transactions loaded through the paginated API.
 - Recurring transactions stored as an explicit user-provided flag.
 - Transparent rule-based review: expenses above 120 EUR are marked as `review`.
+- Persisted Phase 3 financial-intelligence findings and scan history per authenticated user.
+- Explainable recurring-payment pattern detection from stable historical cadence and amounts.
+- Possible duplicate-subscription detection from repeated near-identical double-billing patterns.
+- Merchant-specific unusual-amount detection using median and median absolute deviation baselines.
+- Stable `rules-v1` fingerprints that make rescans idempotent instead of creating duplicate alerts.
+- Persisted `open`, `dismissed` and `resolved` intelligence review states.
+- Financial Intelligence workspace for running scans, reviewing evidence, dismissing/resolving and reopening findings.
 - Delete confirmation, loading/refreshing states, retry feedback and operation toasts in transaction management.
 - Backend unit and PostgreSQL integration tests with pytest.
 - Frontend component/page tests with Vitest and React Testing Library.
@@ -46,11 +53,10 @@ Not implemented yet:
 - User-managed custom categories.
 - AI confidence scores.
 - Automatic transaction classification.
-- Anomaly detection.
-- Duplicate-subscription detection.
 - Spending forecasts.
-- Automated financial alerts.
+- Automatic/background intelligence scans.
 - Bank integrations.
+- Probabilistic fraud detection.
 
 ## Quick Start with Docker
 
@@ -78,7 +84,7 @@ frontend :5173 (Nginx + React build)
   v
 backend :8000 (FastAPI + Alembic, internal only)
   |
-  | authenticated user_id scoped queries
+  | authenticated user_id scoped queries + rules-v1
   v
 db :5432 (PostgreSQL 16, internal only)
 ```
@@ -109,16 +115,24 @@ Nginx reverse proxy
         v
 FastAPI /api/v1
         | pagination + filters + normalized errors + analytics
+        | financial intelligence scan/review API
         v
 Authentication + service layer
         |
-        | every transaction query scoped by user_id
+        | user-scoped transaction/finding queries
+        v
+Deterministic rules-v1
+        | recurring pattern
+        | possible duplicate subscription
+        | robust amount anomaly
         v
 SQLAlchemy 2
         |
         v
 PostgreSQL
 ```
+
+The intelligence engine keeps inferred findings separate from source transactions. It does not silently overwrite the manually supplied `isRecurring` transaction field. Every finding stores its explanation, structured evidence, rule version and review state.
 
 Database schema changes are managed with Alembic. In Docker Compose, the backend automatically applies `alembic upgrade head` after PostgreSQL becomes healthy and before Uvicorn starts.
 
@@ -127,9 +141,9 @@ Repository structure:
 ```text
 smart-expense-ai/
 ├── frontend/        # React + TypeScript web application and Nginx image
-├── backend/         # FastAPI API, auth, services, SQLAlchemy models and migrations
-├── ai/              # Reserved for future intelligence services
-├── docs/            # Product, API, architecture, testing and security documentation
+├── backend/         # FastAPI API, auth, rules, services, SQLAlchemy models and migrations
+├── ai/              # Reserved for future probabilistic/ML experiments
+├── docs/            # Product, API, intelligence, testing and security documentation
 ├── scripts/         # Utility scripts
 ├── compose.yaml     # Full local stack
 ├── SECURITY.md      # Vulnerability reporting policy
@@ -165,11 +179,17 @@ PUT    /api/v1/transactions/{transaction_id}
 DELETE /api/v1/transactions/{transaction_id}
 GET    /api/v1/analytics/summary
 GET    /api/v1/analytics/monthly-expenses
+POST   /api/v1/intelligence/scan
+GET    /api/v1/intelligence/summary
+GET    /api/v1/intelligence/findings
+PATCH  /api/v1/intelligence/findings/{finding_id}
 ```
 
 Transaction listing is paginated and filtered server-side. Errors use a stable envelope with `code`, `message`, `requestId` and optional safe `details`. Breaking contract changes require a new URL version.
 
-See [`docs/api.md`](docs/api.md) for pagination, filters, analytics, error examples and versioning policy.
+The intelligence endpoints remain inside v1 because they are backwards-compatible additions. `POST /intelligence/scan` analyses persisted expenses and idempotently upserts explainable findings; review state is persisted through the finding endpoint.
+
+See [`docs/api.md`](docs/api.md) for the full HTTP contract and [`docs/intelligence.md`](docs/intelligence.md) for rule thresholds, evidence and known limitations.
 
 ## Manual Local Development
 
@@ -235,15 +255,17 @@ npm audit --audit-level=high
 The repository has automated quality layers for:
 
 1. Backend unit tests, including password hashing, JWT validation and secure configuration invariants.
-2. Backend API integration tests against migrated PostgreSQL.
-3. API v1 contract tests for pagination, filters, error envelopes and analytics.
-4. Explicit cross-account ownership tests proving one user cannot mutate another user's transaction.
-5. HTTP security regression tests covering headers, cookie flags, trusted hosts and cross-site mutation rejection.
-6. Frontend tests with Vitest and React Testing Library.
-7. Critical authenticated end-to-end browser coverage with Playwright.
-8. Python dependency auditing with `pip-audit`.
-9. npm dependency auditing that blocks high/critical findings.
-10. Full Docker Compose build/startup smoke testing, including the versioned API contract, security headers and authentication rate limiting.
+2. Pure deterministic intelligence-rule tests covering recurring, duplicate-subscription and anomaly thresholds.
+3. Backend API integration tests against migrated PostgreSQL.
+4. API v1 contract tests for pagination, filters, error envelopes, analytics and financial intelligence.
+5. Intelligence persistence tests for idempotent rescans, review-state persistence and cross-account isolation.
+6. Explicit cross-account ownership tests proving one user cannot mutate another user's transaction or finding.
+7. HTTP security regression tests covering headers, cookie flags, trusted hosts and cross-site mutation rejection.
+8. Frontend tests with Vitest and React Testing Library, including the Financial Intelligence workspace.
+9. Critical authenticated end-to-end browser coverage with Playwright.
+10. Python dependency auditing with `pip-audit`.
+11. npm dependency auditing that blocks high/critical findings.
+12. Full Docker Compose build/startup smoke testing, including the versioned API contract, intelligence migration/endpoints, security headers and authentication rate limiting.
 
 GitHub Actions runs these gates for pushes and pull requests targeting `main`. The consolidated `Quality gate` requires backend, frontend, dependency security, browser E2E and Docker jobs to succeed.
 
@@ -253,6 +275,7 @@ See [`docs/testing.md`](docs/testing.md) for test-database safety and CI details
 
 - Vulnerability reporting policy: [`SECURITY.md`](SECURITY.md)
 - Authentication/ownership model: [`docs/authentication.md`](docs/authentication.md)
+- Financial intelligence rules: [`docs/intelligence.md`](docs/intelligence.md)
 - OWASP Top 10:2025 review: [`docs/SECURITY_REVIEW.md`](docs/SECURITY_REVIEW.md)
 
 The OWASP review is a secure-engineering baseline, not a penetration-test result or certification. Internet-facing production use still requires HTTPS/TLS configuration, secret management, monitoring/alerting and review of the residual risks documented there.
@@ -299,15 +322,16 @@ The detailed roadmap is maintained in [`ROADMAP.md`](ROADMAP.md).
 
 Near-term priorities are:
 
-1. Stronger responsive transaction UX.
-2. Password reset/change plus account deletion/privacy controls.
-3. User-managed categories when required.
-4. A real intelligence layer built over sufficient historical transaction data.
-5. Staging/deployment automation, TLS and production monitoring.
+1. Validate `rules-v1` against labelled real-world transaction datasets and measure precision/recall.
+2. Improve merchant normalization/category baselines only where validation shows they add value.
+3. Stronger responsive transaction UX.
+4. Password reset/change plus account deletion/privacy controls.
+5. Phase 4 forecasting only after sufficient historical data and evaluation criteria exist.
+6. Staging/deployment automation, TLS and production monitoring.
 
 ## Business Model
 
-The long-term product direction supports a freemium SaaS model. Premium capabilities may eventually include advanced forecasting, anomaly detection, bank integrations, exportable reports and personalized financial recommendations.
+The long-term product direction supports a freemium SaaS model. Premium capabilities may eventually include advanced forecasting, bank integrations, exportable reports and personalized financial recommendations.
 
 No payment or premium system is implemented yet.
 
