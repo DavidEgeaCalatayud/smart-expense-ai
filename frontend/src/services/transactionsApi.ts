@@ -15,7 +15,7 @@ const mapFormValuesToPayload = (values: TransactionFormValues) => ({
 });
 
 export async function fetchTransactions(): Promise<DetailedTransaction[]> {
-  const response = await fetch(TRANSACTIONS_ENDPOINT);
+  const response = await fetch(TRANSACTIONS_ENDPOINT, { credentials: 'include' });
 
   if (!response.ok) {
     throw new Error('Unable to fetch transactions');
@@ -27,6 +27,7 @@ export async function fetchTransactions(): Promise<DetailedTransaction[]> {
 export async function createTransaction(values: TransactionFormValues): Promise<DetailedTransaction> {
   const response = await fetch(TRANSACTIONS_ENDPOINT, {
     method: 'POST',
+    credentials: 'include',
     headers: {
       'Content-Type': 'application/json',
     },
@@ -46,6 +47,7 @@ export async function updateTransaction(
 ): Promise<DetailedTransaction> {
   const response = await fetch(`${TRANSACTIONS_ENDPOINT}/${transactionId}`, {
     method: 'PUT',
+    credentials: 'include',
     headers: {
       'Content-Type': 'application/json',
     },
@@ -62,6 +64,7 @@ export async function updateTransaction(
 export async function deleteTransaction(transactionId: string): Promise<void> {
   const response = await fetch(`${TRANSACTIONS_ENDPOINT}/${transactionId}`, {
     method: 'DELETE',
+    credentials: 'include',
   });
 
   if (!response.ok) {
