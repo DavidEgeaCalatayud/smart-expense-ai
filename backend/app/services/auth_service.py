@@ -12,6 +12,7 @@ from app.schemas import RegisterRequest, UserResponse
 
 LEGACY_USER_ID = UUID("00000000-0000-4000-8000-000000000001")
 LEGACY_USER_EMAIL = "legacy-migration@local.invalid"
+DUMMY_PASSWORD_HASH = hash_password("dummy-password-used-only-for-timing-equalization")
 
 
 class UserAlreadyExistsError(ValueError):
@@ -32,9 +33,10 @@ def to_user_response(user: User) -> UserResponse:
 
 def register_user(db: Session, payload: RegisterRequest) -> User:
     email = normalize_email(str(payload.email))
+    password_hash = hash_password(payload.password)
     existing = db.scalar(select(User).where(func.lower(User.email) == email))
     if existing is not None:
-        raise UserAlreadyExistsError("An account with this email already exists")
+        raise UserAlreadyExistsError("Unable to create account")
 
     active_user_count = db.scalar(
         select(func.count()).select_from(User).where(User.is_active.is_(True))
@@ -43,7 +45,7 @@ def register_user(db: Session, payload: RegisterRequest) -> User:
     user = User(
         email=email,
         display_name=payload.displayName.strip(),
-        password_hash=hash_password(payload.password),
+        password_hash=password_hash,
         is_active=True,
     )
     db.add(user)
@@ -64,7 +66,7 @@ def register_user(db: Session, payload: RegisterRequest) -> User:
         db.commit()
     except IntegrityError as exc:
         db.rollback()
-        raise UserAlreadyExistsError("An account with this email already exists") from exc
+        raise UserAlreadyExistsError("Unable to create account") from exc
     except Exception:
         db.rollback()
         raise
@@ -76,6 +78,7 @@ def authenticate_user(db: Session, email: str, password: str) -> User | None:
     normalized_email = normalize_email(email)
     user = db.scalar(select(User).where(func.lower(User.email) == normalized_email))
     if user is None or not user.is_active:
+        verify_password(password, DUMMY_PASSWORD_HASH)
         return None
     if not verify_password(password, user.password_hash):
         return None
