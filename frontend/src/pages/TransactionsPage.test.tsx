@@ -90,5 +90,28 @@ describe('TransactionsPage', () => {
       ),
     );
     expect(await screen.findByText('New Market')).toBeInTheDocument();
+    expect(screen.getByRole('status')).toHaveTextContent('Transaction created successfully.');
+  });
+
+  it('requires confirmation before deleting and reports success', async () => {
+    render(<TransactionsPage />);
+    await screen.findByText('Persisted Market');
+
+    fireEvent.click(screen.getByRole('button', { name: 'Delete Persisted Market' }));
+    expect(deleteTransaction).not.toHaveBeenCalled();
+    expect(screen.getByRole('dialog', { name: 'Delete transaction?' })).toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole('button', { name: 'Cancel' }));
+    expect(deleteTransaction).not.toHaveBeenCalled();
+    expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole('button', { name: 'Delete Persisted Market' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Delete transaction' }));
+
+    await waitFor(() =>
+      expect(deleteTransaction).toHaveBeenCalledWith(persistedTransaction.id),
+    );
+    expect(screen.queryByText('Persisted Market')).not.toBeInTheDocument();
+    expect(screen.getByRole('status')).toHaveTextContent('Transaction deleted successfully.');
   });
 });
