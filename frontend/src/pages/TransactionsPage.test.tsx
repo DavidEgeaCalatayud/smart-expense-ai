@@ -35,7 +35,7 @@ const persistedTransaction: DetailedTransaction = {
   merchant: 'Persisted Market',
   description: 'Loaded from API',
   category: 'Food',
-  amount: 25,
+  amount: '25.00',
   date: '2026-08-24',
   type: 'expense',
   paymentMethod: 'card',
@@ -44,9 +44,9 @@ const persistedTransaction: DetailedTransaction = {
 };
 
 const summary: TransactionSummary = {
-  totalIncome: 100,
-  totalExpenses: 25,
-  balance: 75,
+  totalIncome: '100.00',
+  totalExpenses: '25.00',
+  balance: '75.00',
   recurringCount: 0,
   reviewCount: 0,
   transactionCount: 1,
@@ -106,7 +106,7 @@ describe('TransactionsPage', () => {
       ...persistedTransaction,
       id: '22222222-2222-4222-8222-222222222222',
       merchant: 'New Market',
-      amount: 40,
+      amount: '40.00',
     };
     vi.mocked(createTransaction).mockResolvedValue(createdTransaction);
     vi.mocked(fetchTransactions)

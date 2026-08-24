@@ -38,7 +38,7 @@ const finding: IntelligenceFinding = {
   evidence: {
     cadence: 'monthly',
     occurrenceCount: 4,
-    medianAmount: 9.99,
+    medianAmount: '9.99',
     nextExpectedDate: '2026-08-30',
   },
   ruleVersion: 'rules-v1',
@@ -67,6 +67,7 @@ describe('AlertsPage financial intelligence', () => {
 
     expect(await screen.findByText('Recurring pattern: StreamBox')).toBeInTheDocument();
     expect(screen.getByText(/monthly · 4 occurrences/i)).toBeInTheDocument();
+    expect(screen.getByText(/median €9\.99/i)).toBeInTheDocument();
 
     const openFindingsCard = screen.getByText('Open findings').closest('article');
     expect(openFindingsCard).not.toBeNull();

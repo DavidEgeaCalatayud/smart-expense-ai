@@ -2,7 +2,9 @@ import { Brain, UserPlus } from 'lucide-react';
 import { useState, type FormEvent } from 'react';
 import { Link, Navigate, useNavigate } from 'react-router-dom';
 import { useAuth } from '../auth/useAuth';
+import { ApiErrorAlert } from '../components/ui/ApiErrorAlert';
 import { ROUTES } from '../routes/paths';
+import { getApiErrorPresentation, type ApiErrorPresentation } from '../services/apiClient';
 
 export function RegisterPage() {
   const { user, isLoading, signUp } = useAuth();
@@ -10,7 +12,7 @@ export function RegisterPage() {
   const [displayName, setDisplayName] = useState('');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
-  const [error, setError] = useState<string | null>(null);
+  const [error, setError] = useState<ApiErrorPresentation | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   if (!isLoading && user) {
@@ -26,7 +28,7 @@ export function RegisterPage() {
       await signUp({ displayName, email, password });
       navigate(ROUTES.dashboard, { replace: true });
     } catch (submitError) {
-      setError(submitError instanceof Error ? submitError.message : 'Unable to create account');
+      setError(getApiErrorPresentation(submitError, 'Unable to create account'));
     } finally {
       setIsSubmitting(false);
     }
@@ -50,11 +52,7 @@ export function RegisterPage() {
           Your transactions are isolated from every other account at the API and database query layers.
         </p>
 
-        {error && (
-          <div role="alert" className="mt-5 rounded-2xl border border-rose-200 bg-rose-50 px-4 py-3 text-sm text-rose-700">
-            {error}
-          </div>
-        )}
+        {error && <ApiErrorAlert error={error} className="mt-5" />}
 
         <form className="mt-6 space-y-5" onSubmit={handleSubmit}>
           <label className="block text-sm font-semibold text-slate-700">

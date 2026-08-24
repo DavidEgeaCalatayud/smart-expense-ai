@@ -3,6 +3,7 @@ from __future__ import annotations
 from collections import defaultdict
 from dataclasses import dataclass
 from datetime import date, timedelta
+from decimal import Decimal
 from math import ceil
 from statistics import median
 import re
@@ -10,13 +11,14 @@ import unicodedata
 
 
 RULE_VERSION = "rules-v1"
+MONEY_CENT = Decimal("0.01")
 
 
 @dataclass(frozen=True)
 class TransactionSnapshot:
     id: str
     merchant: str
-    amount: float
+    amount: Decimal
     transaction_date: date
     category: str
 
@@ -29,6 +31,10 @@ class FindingCandidate:
     title: str
     explanation: str
     evidence: dict[str, object]
+
+
+def _money(value: Decimal) -> str:
+    return format(value.quantize(MONEY_CENT), "f")
 
 
 def normalize_merchant(value: str) -> str:
@@ -82,11 +88,11 @@ def detect_recurring_patterns(transactions: list[TransactionSnapshot]) -> list[F
             continue
 
         amounts = [item.amount for item in ordered]
-        typical_amount = float(median(amounts))
+        typical_amount = median(amounts)
         if typical_amount <= 0:
             continue
         max_relative_deviation = max(abs(amount - typical_amount) / typical_amount for amount in amounts)
-        if max_relative_deviation > 0.15:
+        if max_relative_deviation > Decimal("0.15"):
             continue
 
         display_merchant = ordered[-1].merchant
@@ -105,7 +111,7 @@ def detect_recurring_patterns(transactions: list[TransactionSnapshot]) -> list[F
                     "merchant": display_merchant,
                     "cadence": cadence_name,
                     "occurrenceCount": len(unique_dates),
-                    "medianAmount": round(typical_amount, 2),
+                    "medianAmount": _money(typical_amount),
                     "averageIntervalDays": round(sum(intervals) / len(intervals), 1),
                     "lastTransactionDate": unique_dates[-1].isoformat(),
                     "nextExpectedDate": next_expected.isoformat(),
@@ -117,8 +123,8 @@ def detect_recurring_patterns(transactions: list[TransactionSnapshot]) -> list[F
     return findings
 
 
-def _amounts_are_similar(first: float, second: float) -> bool:
-    return abs(first - second) <= max(1.0, max(first, second) * 0.05)
+def _amounts_are_similar(first: Decimal, second: Decimal) -> bool:
+    return abs(first - second) <= max(Decimal("1.00"), max(first, second) * Decimal("0.05"))
 
 
 def detect_duplicate_subscriptions(transactions: list[TransactionSnapshot]) -> list[FindingCandidate]:
@@ -154,7 +160,7 @@ def detect_duplicate_subscriptions(transactions: list[TransactionSnapshot]) -> l
             continue
 
         flattened = [transaction for pair in duplicate_pairs for transaction in pair]
-        typical_amount = float(median([transaction.amount for transaction in flattened]))
+        typical_amount = median([transaction.amount for transaction in flattened])
         display_merchant = flattened[-1].merchant
         findings.append(
             FindingCandidate(
@@ -170,7 +176,7 @@ def detect_duplicate_subscriptions(transactions: list[TransactionSnapshot]) -> l
                     "merchant": display_merchant,
                     "duplicateMonths": sorted(set(duplicate_months)),
                     "pairCount": len(duplicate_pairs),
-                    "approximateAmount": round(typical_amount, 2),
+                    "approximateAmount": _money(typical_amount),
                     "transactionIds": [transaction.id for transaction in flattened],
                 },
             )
@@ -195,22 +201,22 @@ def detect_spending_anomalies(transactions: list[TransactionSnapshot]) -> list[F
             continue
 
         historical_amounts = [item.amount for item in history]
-        baseline = float(median(historical_amounts))
+        baseline = median(historical_amounts)
         if baseline <= 0:
             continue
         absolute_deviations = [abs(amount - baseline) for amount in historical_amounts]
-        mad = float(median(absolute_deviations))
-        robust_spread = max(mad, baseline * 0.05, 1.0)
-        threshold = max(baseline * 2.0, baseline + 3 * robust_spread)
+        mad = median(absolute_deviations)
+        robust_spread = max(mad, baseline * Decimal("0.05"), Decimal("1.00"))
+        threshold = max(baseline * Decimal("2.00"), baseline + Decimal("3.00") * robust_spread)
 
-        if candidate.amount < threshold or candidate.amount - baseline < 20:
+        if candidate.amount < threshold or candidate.amount - baseline < Decimal("20.00"):
             continue
 
         ratio = candidate.amount / baseline
         findings.append(
             FindingCandidate(
                 finding_type="spending_anomaly",
-                severity="high" if ratio >= 3 else "warning",
+                severity="high" if ratio >= Decimal("3.00") else "warning",
                 fingerprint=f"spending-anomaly:{candidate.id}",
                 title=f"Unusual amount: {candidate.merchant}",
                 explanation=(
@@ -221,11 +227,11 @@ def detect_spending_anomalies(transactions: list[TransactionSnapshot]) -> list[F
                     "merchant": candidate.merchant,
                     "transactionId": candidate.id,
                     "transactionDate": candidate.transaction_date.isoformat(),
-                    "amount": round(candidate.amount, 2),
-                    "baselineMedian": round(baseline, 2),
+                    "amount": _money(candidate.amount),
+                    "baselineMedian": _money(baseline),
                     "baselineCount": len(history),
-                    "ratio": round(ratio, 2),
-                    "threshold": round(threshold, 2),
+                    "ratio": format(ratio.quantize(Decimal("0.01")), "f"),
+                    "threshold": _money(threshold),
                 },
             )
         )

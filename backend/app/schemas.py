@@ -1,8 +1,30 @@
 from datetime import datetime
+from decimal import Decimal
 from enum import Enum
-from typing import Any
+from typing import Annotated, Any
 
-from pydantic import BaseModel, EmailStr, Field
+from pydantic import BaseModel, EmailStr, Field, PlainSerializer, field_validator
+
+
+LegacyPositiveMoney = Annotated[
+    Decimal,
+    Field(gt=Decimal("0"), max_digits=12, decimal_places=2),
+    PlainSerializer(lambda value: float(value), return_type=float, when_used="json"),
+]
+PositiveMoney = Annotated[
+    Decimal,
+    Field(gt=Decimal("0"), max_digits=12, decimal_places=2),
+]
+LegacyMoney = Annotated[
+    Decimal,
+    PlainSerializer(lambda value: float(value), return_type=float, when_used="json"),
+]
+
+
+def _require_decimal_string(value: object) -> object:
+    if not isinstance(value, str):
+        raise ValueError("amount must be sent as a decimal string")
+    return value
 
 
 class TransactionType(str, Enum):
@@ -78,7 +100,7 @@ class TransactionBase(BaseModel):
     merchant: str = Field(..., min_length=1, max_length=120)
     description: str = Field(default="", max_length=255)
     category: str = Field(..., min_length=1, max_length=80)
-    amount: float = Field(..., gt=0)
+    amount: LegacyPositiveMoney
     date: str = Field(..., min_length=10, max_length=10)
     type: TransactionType
     paymentMethod: PaymentMethod
@@ -107,9 +129,9 @@ class TransactionPage(BaseModel):
 
 
 class TransactionSummary(BaseModel):
-    totalIncome: float
-    totalExpenses: float
-    balance: float
+    totalIncome: LegacyMoney
+    totalExpenses: LegacyMoney
+    balance: LegacyMoney
     recurringCount: int
     reviewCount: int
     transactionCount: int
@@ -117,7 +139,45 @@ class TransactionSummary(BaseModel):
 
 class MonthlyExpense(BaseModel):
     month: str
-    amount: float
+    amount: LegacyMoney
+
+
+class TransactionCreateV2(TransactionCreate):
+    amount: PositiveMoney
+
+    _decimal_string_amount = field_validator("amount", mode="before")(_require_decimal_string)
+
+
+class TransactionUpdateV2(TransactionUpdate):
+    amount: PositiveMoney
+
+    _decimal_string_amount = field_validator("amount", mode="before")(_require_decimal_string)
+
+
+class TransactionV2(Transaction):
+    amount: PositiveMoney
+
+
+class TransactionPageV2(BaseModel):
+    items: list[TransactionV2]
+    page: int
+    pageSize: int
+    total: int
+    pages: int
+
+
+class TransactionSummaryV2(BaseModel):
+    totalIncome: Decimal
+    totalExpenses: Decimal
+    balance: Decimal
+    recurringCount: int
+    reviewCount: int
+    transactionCount: int
+
+
+class MonthlyExpenseV2(BaseModel):
+    month: str
+    amount: Decimal
 
 
 class IntelligenceFindingResponse(BaseModel):

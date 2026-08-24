@@ -11,8 +11,9 @@ import {
 } from 'lucide-react';
 import { useCallback, useEffect, useState } from 'react';
 import { PageHeader } from '../components/layout/PageHeader';
+import { ApiErrorAlert } from '../components/ui/ApiErrorAlert';
 import { EmptyStateCard } from '../components/ui/EmptyStateCard';
-import { getApiErrorMessage } from '../services/apiClient';
+import { getApiErrorPresentation, type ApiErrorPresentation } from '../services/apiClient';
 import {
   fetchIntelligenceFindings,
   fetchIntelligenceSummary,
@@ -24,6 +25,7 @@ import type {
   IntelligenceFinding,
   IntelligenceSummary,
 } from '../types/intelligence';
+import { formatCurrencyWithDecimals } from '../utils/formatters';
 
 const emptySummary: IntelligenceSummary = {
   openCount: 0,
@@ -47,9 +49,7 @@ const statusFilters: { value: StatusFilter; label: string }[] = [
 ];
 
 const money = (value: unknown) =>
-  typeof value === 'number'
-    ? new Intl.NumberFormat('en-US', { style: 'currency', currency: 'EUR' }).format(value)
-    : '—';
+  typeof value === 'string' ? formatCurrencyWithDecimals(value) : '—';
 
 function evidenceText(finding: IntelligenceFinding): string {
   const evidence = finding.evidence;
@@ -87,7 +87,7 @@ export function AlertsPage() {
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [isScanning, setIsScanning] = useState(false);
   const [activeFindingId, setActiveFindingId] = useState<string | null>(null);
-  const [error, setError] = useState<string | null>(null);
+  const [error, setError] = useState<ApiErrorPresentation | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
 
   const loadIntelligence = useCallback(async (refresh = false) => {
@@ -105,7 +105,7 @@ export function AlertsPage() {
       setSummary(loadedSummary);
       setFindings(loadedFindings);
     } catch (loadError) {
-      setError(getApiErrorMessage(loadError, 'Unable to load financial intelligence'));
+      setError(getApiErrorPresentation(loadError, 'Unable to load financial intelligence'));
     } finally {
       setIsLoading(false);
       setIsRefreshing(false);
@@ -127,7 +127,7 @@ export function AlertsPage() {
       );
       await loadIntelligence(true);
     } catch (scanError) {
-      setError(getApiErrorMessage(scanError, 'Unable to run financial analysis'));
+      setError(getApiErrorPresentation(scanError, 'Unable to run financial analysis'));
     } finally {
       setIsScanning(false);
     }
@@ -142,7 +142,7 @@ export function AlertsPage() {
       setNotice(status === 'open' ? 'Finding reopened.' : `Finding marked as ${status}.`);
       await loadIntelligence(true);
     } catch (updateError) {
-      setError(getApiErrorMessage(updateError, 'Unable to update finding'));
+      setError(getApiErrorPresentation(updateError, 'Unable to update finding'));
     } finally {
       setActiveFindingId(null);
     }
@@ -172,17 +172,12 @@ export function AlertsPage() {
       />
 
       {error && (
-        <div role="alert" className="mb-5 flex flex-col gap-3 rounded-2xl border border-rose-200 bg-rose-50 px-4 py-3 text-sm font-medium text-rose-700 sm:flex-row sm:items-center sm:justify-between">
-          <span>{error}</span>
-          <button
-            type="button"
-            onClick={() => void loadIntelligence(true)}
-            disabled={isRefreshing}
-            className="rounded-xl border border-rose-200 bg-white px-3 py-2 text-xs font-semibold disabled:opacity-50"
-          >
-            {isRefreshing ? 'Refreshing…' : 'Retry'}
-          </button>
-        </div>
+        <ApiErrorAlert
+          error={error}
+          className="mb-5"
+          onRetry={() => void loadIntelligence(true)}
+          retryLabel={isRefreshing ? 'Refreshing…' : 'Retry'}
+        />
       )}
 
       {notice && (

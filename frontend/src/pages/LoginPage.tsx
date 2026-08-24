@@ -2,14 +2,16 @@ import { Brain, LogIn } from 'lucide-react';
 import { useState, type FormEvent } from 'react';
 import { Link, Navigate, useNavigate } from 'react-router-dom';
 import { useAuth } from '../auth/useAuth';
+import { ApiErrorAlert } from '../components/ui/ApiErrorAlert';
 import { ROUTES } from '../routes/paths';
+import { getApiErrorPresentation, type ApiErrorPresentation } from '../services/apiClient';
 
 export function LoginPage() {
   const { user, isLoading, signIn } = useAuth();
   const navigate = useNavigate();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
-  const [error, setError] = useState<string | null>(null);
+  const [error, setError] = useState<ApiErrorPresentation | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   if (!isLoading && user) {
@@ -25,7 +27,7 @@ export function LoginPage() {
       await signIn({ email, password });
       navigate(ROUTES.dashboard, { replace: true });
     } catch (submitError) {
-      setError(submitError instanceof Error ? submitError.message : 'Unable to sign in');
+      setError(getApiErrorPresentation(submitError, 'Unable to sign in'));
     } finally {
       setIsSubmitting(false);
     }
@@ -49,11 +51,7 @@ export function LoginPage() {
           Access only the financial data that belongs to your account.
         </p>
 
-        {error && (
-          <div role="alert" className="mt-5 rounded-2xl border border-rose-200 bg-rose-50 px-4 py-3 text-sm text-rose-700">
-            {error}
-          </div>
-        )}
+        {error && <ApiErrorAlert error={error} className="mt-5" />}
 
         <form className="mt-6 space-y-5" onSubmit={handleSubmit}>
           <label className="block text-sm font-semibold text-slate-700">

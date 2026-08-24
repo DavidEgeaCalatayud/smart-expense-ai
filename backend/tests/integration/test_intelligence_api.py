@@ -13,6 +13,7 @@ from app.models.user import User
 
 pytestmark = pytest.mark.integration
 API = "/api/v1"
+API_V2 = "/api/v2"
 
 
 @pytest.fixture(autouse=True)
@@ -90,6 +91,7 @@ def test_intelligence_endpoints_require_authentication(client: TestClient) -> No
     assert client.post(f"{API}/intelligence/scan").status_code == 401
     assert client.get(f"{API}/intelligence/findings").status_code == 401
     assert client.get(f"{API}/intelligence/summary").status_code == 401
+    assert client.get(f"{API_V2}/intelligence/findings").status_code == 401
 
 
 def test_scan_persists_explainable_findings_and_is_idempotent(client: TestClient) -> None:
@@ -128,6 +130,22 @@ def test_scan_persists_explainable_findings_and_is_idempotent(client: TestClient
     assert summary["anomalyCount"] == 1
     assert summary["lastScanAt"] is not None
     assert summary["analyzedTransactions"] == 13
+
+
+def test_intelligence_money_evidence_is_versioned_without_breaking_v1(client: TestClient) -> None:
+    register(client, "owner@example.com")
+    seed_rule_evidence(client)
+    client.post(f"{API}/intelligence/scan")
+
+    legacy = client.get(f"{API}/intelligence/findings?type=spending_anomaly").json()[0]
+    decimal_safe = client.get(f"{API_V2}/intelligence/findings?type=spending_anomaly").json()[0]
+
+    assert legacy["evidence"]["amount"] == 85.0
+    assert isinstance(legacy["evidence"]["amount"], float)
+    assert legacy["evidence"]["ratio"] == 4.25
+    assert decimal_safe["evidence"]["amount"] == "85.00"
+    assert decimal_safe["evidence"]["baselineMedian"] == "20.00"
+    assert decimal_safe["evidence"]["ratio"] == "4.25"
 
 
 def test_dismissed_finding_stays_dismissed_after_rescan(client: TestClient) -> None:

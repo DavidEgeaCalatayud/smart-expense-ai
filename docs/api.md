@@ -1,12 +1,26 @@
-# API v1 contract
+# API contracts
 
-Smart Expense AI exposes its supported application API under `/api/v1`.
+Smart Expense AI exposes versioned application contracts under `/api/v1` and `/api/v2`.
 
 `/health` is intentionally outside the versioned application contract because it is an infrastructure probe. Unversioned `/api/*` application routes are not supported.
 
+## Version overview
+
+`/api/v1` remains the backwards-compatible contract for existing clients. It includes authentication, categories, transactions, analytics and financial intelligence. Its transaction/analytics money fields remain JSON numbers because changing an existing field from number to string would violate the repository's versioning policy.
+
+`/api/v2` introduces the strict monetary representation used by the web application:
+
+- transaction amounts are decimal strings;
+- aggregate monetary values are decimal strings;
+- monetary values inside intelligence evidence are decimal strings;
+- transaction write requests must send `amount` as a JSON string;
+- JSON numeric amounts are rejected with HTTP `422`.
+
+Financial calculations do not use the v1 floating representation. PostgreSQL stores `NUMERIC(12,2)`, Python services operate on `Decimal`, and the v1 number conversion exists only at the legacy serialization boundary.
+
 ## Authentication
 
-The browser session is carried in the existing HttpOnly JWT cookie. API examples below assume an authenticated session unless the endpoint is explicitly public.
+The browser session is carried in the existing HttpOnly JWT cookie and is shared by both API versions. Authentication and global category reference data remain under v1 because their contracts did not require a breaking change.
 
 Public endpoints:
 
@@ -17,7 +31,7 @@ POST /api/v1/auth/logout
 GET  /health
 ```
 
-Authenticated endpoints:
+Authenticated v1 endpoints:
 
 ```text
 GET    /api/v1/auth/me
@@ -34,9 +48,64 @@ GET    /api/v1/intelligence/findings
 PATCH  /api/v1/intelligence/findings/{finding_id}
 ```
 
+Authenticated decimal-safe v2 endpoints:
+
+```text
+GET    /api/v2/transactions
+POST   /api/v2/transactions
+PUT    /api/v2/transactions/{transaction_id}
+DELETE /api/v2/transactions/{transaction_id}
+GET    /api/v2/analytics/summary
+GET    /api/v2/analytics/monthly-expenses
+POST   /api/v2/intelligence/scan
+GET    /api/v2/intelligence/summary
+GET    /api/v2/intelligence/findings
+PATCH  /api/v2/intelligence/findings/{finding_id}
+```
+
+## Monetary contract
+
+For new clients, v2 is the supported money contract.
+
+A transaction write uses a decimal string:
+
+```json
+{
+  "merchant": "Market",
+  "description": "Groceries",
+  "category": "Food",
+  "amount": "42.50",
+  "date": "2026-08-24",
+  "type": "expense",
+  "paymentMethod": "card",
+  "isRecurring": false
+}
+```
+
+The string must represent a positive value with at most two decimal places and must fit the database's `NUMERIC(12,2)` constraint. For example, `"0.10"`, `"42"` and `"42.50"` are valid inputs. The API returns canonical two-decimal values after persistence.
+
+This is intentionally invalid in v2:
+
+```json
+{ "amount": 0.1 }
+```
+
+It returns `422 validation_error`. Rejecting JSON numbers prevents an API consumer from accidentally passing an already-rounded IEEE-754 value into financial logic.
+
+The precision invariant is therefore:
+
+```text
+PostgreSQL NUMERIC(12,2)
+        <-> Python Decimal
+        <-> API v2 decimal string
+        <-> frontend integer cents for arithmetic
+```
+
+The chart library is the only browser boundary that receives a JavaScript number; conversion happens after fixed-point monetary processing and is used only for visualization.
+
 ## Transaction pagination
 
-`GET /api/v1/transactions` is always paginated.
+`GET /api/v2/transactions` and its v1 equivalent are always paginated.
 
 Default parameters:
 
@@ -52,7 +121,7 @@ Constraints:
 - `1 <= pageSize <= 100`;
 - an empty result has `total=0` and `pages=0`.
 
-Example response:
+Example v2 response:
 
 ```json
 {
@@ -62,7 +131,7 @@ Example response:
       "merchant": "Market",
       "description": "Groceries",
       "category": "Food",
-      "amount": 42.5,
+      "amount": "42.50",
       "date": "2026-08-24",
       "type": "expense",
       "paymentMethod": "card",
@@ -77,11 +146,11 @@ Example response:
 }
 ```
 
+The equivalent v1 response keeps `"amount": 42.5` for compatibility.
+
 ## Transaction filters
 
 Filters are applied in PostgreSQL before pagination.
-
-Supported query parameters:
 
 | Parameter | Values / format | Behavior |
 | --- | --- | --- |
@@ -97,7 +166,7 @@ Supported query parameters:
 Example:
 
 ```text
-GET /api/v1/transactions?page=2&pageSize=10&type=expense&status=review&dateFrom=2026-08-01&dateTo=2026-08-31&sort=amount_high
+GET /api/v2/transactions?page=2&pageSize=10&type=expense&status=review&dateFrom=2026-08-01&dateTo=2026-08-31&sort=amount_high
 ```
 
 A range where `dateFrom > dateTo` returns the semantic error code `invalid_date_range`.
@@ -106,30 +175,32 @@ A range where `dateFrom > dateTo` returns the semantic error code `invalid_date_
 
 ### Summary
 
-`GET /api/v1/analytics/summary` returns aggregates for the authenticated user's transactions:
+`GET /api/v2/analytics/summary` returns exact aggregates for the authenticated user's transactions:
 
 ```json
 {
-  "totalIncome": 2200.0,
-  "totalExpenses": 910.5,
-  "balance": 1289.5,
+  "totalIncome": "2200.00",
+  "totalExpenses": "910.50",
+  "balance": "1289.50",
   "recurringCount": 4,
   "reviewCount": 1,
   "transactionCount": 18
 }
 ```
 
-Optional inclusive `dateFrom` and `dateTo` parameters allow month/range summaries without transferring the underlying rows to the browser.
+A precision regression such as `0.10 + 0.20` is covered explicitly: the v2 summary must return `"0.30"`.
+
+Optional inclusive `dateFrom` and `dateTo` parameters allow month/range summaries without transferring underlying rows to the browser.
 
 ### Monthly expenses
 
-`GET /api/v1/analytics/monthly-expenses?months=6` returns a continuous monthly series, including zero-value months:
+`GET /api/v2/analytics/monthly-expenses?months=6` returns a continuous monthly series, including zero-value months:
 
 ```json
 [
-  { "month": "2026-03", "amount": 720.5 },
-  { "month": "2026-04", "amount": 0.0 },
-  { "month": "2026-05", "amount": 840.0 }
+  { "month": "2026-03", "amount": "720.50" },
+  { "month": "2026-04", "amount": "0.00" },
+  { "month": "2026-05", "amount": "840.00" }
 ]
 ```
 
@@ -142,12 +213,10 @@ The Phase 3 intelligence contract is deterministic and explainable. The current 
 ### Run analysis
 
 ```text
-POST /api/v1/intelligence/scan
+POST /api/v2/intelligence/scan
 ```
 
-The endpoint analyses the authenticated user's persisted **expense** transactions and upserts findings by stable per-user fingerprint.
-
-Example response:
+The endpoint analyses the authenticated user's persisted expense transactions and upserts findings by stable per-user fingerprint.
 
 ```json
 {
@@ -164,10 +233,8 @@ Repeated scans are idempotent for the same finding fingerprint. A scan also pers
 ### Intelligence summary
 
 ```text
-GET /api/v1/intelligence/summary
+GET /api/v2/intelligence/summary
 ```
-
-Example:
 
 ```json
 {
@@ -183,12 +250,12 @@ Example:
 }
 ```
 
-Counts by finding type refer to **open** findings. Dismissed/resolved totals are reported separately.
+Counts by finding type refer to open findings. Dismissed/resolved totals are reported separately.
 
 ### List findings
 
 ```text
-GET /api/v1/intelligence/findings
+GET /api/v2/intelligence/findings
 ```
 
 Optional filters:
@@ -198,7 +265,7 @@ status=open|dismissed|resolved
 type=recurring_pattern|duplicate_subscription|spending_anomaly
 ```
 
-Example finding:
+Example v2 finding:
 
 ```json
 {
@@ -212,11 +279,11 @@ Example finding:
     "merchant": "Cloud Tools",
     "transactionId": "a902...",
     "transactionDate": "2026-05-01",
-    "amount": 85.0,
-    "baselineMedian": 20.0,
+    "amount": "85.00",
+    "baselineMedian": "20.00",
     "baselineCount": 4,
-    "ratio": 4.25,
-    "threshold": 40.0
+    "ratio": "4.25",
+    "threshold": "40.00"
   },
   "ruleVersion": "rules-v1",
   "firstDetectedAt": "2026-08-24T10:15:00Z",
@@ -225,10 +292,12 @@ Example finding:
 }
 ```
 
+The v1 intelligence endpoint preserves the previously published numeric representation for these evidence values. v2 normalizes both existing numeric findings and newly generated findings to decimal strings at the response boundary.
+
 ### Review a finding
 
 ```text
-PATCH /api/v1/intelligence/findings/{finding_id}
+PATCH /api/v2/intelligence/findings/{finding_id}
 ```
 
 Body:
@@ -237,15 +306,11 @@ Body:
 { "status": "dismissed" }
 ```
 
-Accepted states are `open`, `dismissed` and `resolved`.
-
-A dismissed finding remains dismissed across rescans for the same fingerprint. A resolved finding can be automatically reopened if later evidence satisfies the same rule again. Findings can also be manually reopened with `{ "status": "open" }`.
-
-Cross-account finding IDs are treated as not found.
+Accepted states are `open`, `dismissed` and `resolved`. A dismissed finding remains dismissed across rescans for the same fingerprint. A resolved finding can be automatically reopened if later evidence satisfies the same rule again. Cross-account finding IDs are treated as not found.
 
 ## Error contract
 
-Application and validation failures use one envelope:
+Both versions use the same normalized error envelope and preserve messages that the backend has deliberately made safe for clients:
 
 ```json
 {
@@ -267,16 +332,28 @@ Validation failures additionally expose safe field-level details:
     "requestId": "0f32...",
     "details": [
       {
-        "field": "pageSize",
-        "message": "Input should be greater than or equal to 1",
-        "type": "greater_than_equal"
+        "field": "amount",
+        "message": "amount must be sent as a decimal string",
+        "type": "value_error"
       }
     ]
   }
 }
 ```
 
-The `requestId` matches the `X-Request-ID` response header and can be used to correlate a user-visible failure with application/security logs without exposing credentials or financial payloads.
+The frontend does not collapse these responses into one generic failure. Its API client maps transport/HTTP failures to typed categories while retaining `code`, safe `message`, `requestId` and `details`:
+
+| Condition | Client category | Typical UX |
+| --- | --- | --- |
+| validation / `422` | `validation` | explain submitted-data problem |
+| unauthenticated / `401` | `authentication` | authentication-specific feedback |
+| forbidden / `403` | `authorization` | action-not-allowed feedback |
+| conflict / `409` | `conflict` | conflict-specific feedback |
+| missing / `404` | `not_found` | resource-not-found feedback |
+| server / `5xx` | `server` | safe backend message + retry option |
+| fetch/network failure | `network` | connection feedback + retry option |
+
+The `requestId` matches the `X-Request-ID` response header and can be correlated with application/security logs without exposing credentials or financial payloads.
 
 Current semantic error codes include:
 
@@ -293,7 +370,9 @@ Generic HTTP failures use `http_<status>`, for example `http_401` and `http_404`
 
 ## Versioning policy
 
-Breaking contract changes require a new URL version. Backwards-compatible additions may remain inside v1.
+Breaking contract changes require a new URL version. Backwards-compatible additions may remain inside an existing version.
+
+The decimal migration is the concrete example: changing `amount` from a JSON number to a decimal string was treated as breaking, so the strict representation was introduced in v2 instead of silently changing v1.
 
 Examples of breaking changes:
 
@@ -301,6 +380,6 @@ Examples of breaking changes:
 - changing pagination shape;
 - changing the meaning/type of an existing field;
 - removing filters or accepted enum values;
-- changing authentication semantics in a way that breaks existing v1 clients.
+- changing authentication semantics in a way that breaks existing clients.
 
-New optional fields, new endpoints, and new optional filters can normally be added without creating v2.
+New optional fields, new endpoints, and new optional filters can normally be added without creating another version.
