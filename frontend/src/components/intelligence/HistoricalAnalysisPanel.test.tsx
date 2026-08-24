@@ -118,18 +118,19 @@ describe('HistoricalAnalysisPanel', () => {
     vi.mocked(runHistoricalAnalysis).mockResolvedValue(analysis);
   });
 
-  it('renders completeness, canonicalization and calendar-aware recurrence evidence', async () => {
+  it('renders completeness, canonicalization and stream-aware recurrence evidence', async () => {
     render(<HistoricalAnalysisPanel />);
 
     expect(await screen.findByText('Behavior over time')).toBeInTheDocument();
     expect(screen.getByText('Increasing')).toBeInTheDocument();
     expect(screen.getByText(/Partial month excluded from trend calculations/i)).toBeInTheDocument();
+    expect(screen.getByText('Recurring streams')).toBeInTheDocument();
     expect(screen.getByText('stream box')).toBeInTheDocument();
     expect(screen.getByText('97.4')).toBeInTheDocument();
     expect(screen.getByText(/Observed descriptors: Stream Box SL · STREAM BOX\*8844/i)).toBeInTheDocument();
     expect(screen.getByText(/Expected payment appears overdue/i)).toBeInTheDocument();
     expect(screen.getByText(/baseline €10\.00/i)).toBeInTheDocument();
-    expect(screen.getByText(/Deterministic 0–100 pattern index; not a probability/i)).toBeInTheDocument();
+    expect(screen.getByText(/Deterministic 0–100 pattern index per stream; not a probability/i)).toBeInTheDocument();
   });
 
   it('runs a new 12-month snapshot and replaces the displayed analysis', async () => {
