@@ -9,7 +9,7 @@ const transaction: DetailedTransaction = {
   merchant: 'Test Market',
   description: 'Weekly groceries',
   category: 'Food',
-  amount: 64.35,
+  amount: '64.35',
   date: '2026-08-24',
   type: 'expense',
   paymentMethod: 'card',
