@@ -1,4 +1,4 @@
-import { fireEvent, render, screen, waitFor } from '@testing-library/react';
+import { fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import {
   fetchIntelligenceFindings,
@@ -67,7 +67,11 @@ describe('AlertsPage financial intelligence', () => {
 
     expect(await screen.findByText('Recurring pattern: StreamBox')).toBeInTheDocument();
     expect(screen.getByText(/monthly · 4 occurrences/i)).toBeInTheDocument();
-    expect(screen.getByText('1', { selector: 'p.text-3xl' })).toBeInTheDocument();
+
+    const openFindingsCard = screen.getByText('Open findings').closest('article');
+    expect(openFindingsCard).not.toBeNull();
+    expect(within(openFindingsCard as HTMLElement).getByText('1')).toBeInTheDocument();
+
     expect(fetchIntelligenceFindings).toHaveBeenCalledWith({ status: 'open' });
   });
 
