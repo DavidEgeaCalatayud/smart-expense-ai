@@ -16,12 +16,12 @@ export function TransactionFilters({ categories, filters, onChange }: Transactio
         </div>
         <div>
           <h2 className="text-base font-bold">Filters</h2>
-          <p className="text-sm text-slate-500">Search and filter persisted movements.</p>
+          <p className="text-sm text-slate-500">Filters are applied by the API before pagination.</p>
         </div>
       </div>
 
       <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
-        <label className="space-y-2 xl:col-span-1">
+        <label className="space-y-2">
           <span className="text-sm font-semibold text-slate-700">Search</span>
           <input
             value={filters.search}
@@ -51,7 +51,7 @@ export function TransactionFilters({ categories, filters, onChange }: Transactio
           <span className="text-sm font-semibold text-slate-700">Review status</span>
           <select
             value={filters.status}
-            onChange={(event) => onChange({ ...filters, status: event.target.value })}
+            onChange={(event) => onChange({ ...filters, status: event.target.value as TransactionFilters['status'] })}
             className="w-full rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm outline-none transition focus:border-brand-500 focus:ring-4 focus:ring-brand-50"
           >
             <option value="all">All statuses</option>
@@ -64,12 +64,59 @@ export function TransactionFilters({ categories, filters, onChange }: Transactio
           <span className="text-sm font-semibold text-slate-700">Type</span>
           <select
             value={filters.type}
-            onChange={(event) => onChange({ ...filters, type: event.target.value })}
+            onChange={(event) => onChange({ ...filters, type: event.target.value as TransactionFilters['type'] })}
             className="w-full rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm outline-none transition focus:border-brand-500 focus:ring-4 focus:ring-brand-50"
           >
             <option value="all">All types</option>
             <option value="expense">Expense</option>
             <option value="income">Income</option>
+          </select>
+        </label>
+
+        <label className="space-y-2">
+          <span className="text-sm font-semibold text-slate-700">Recurring</span>
+          <select
+            value={filters.recurring}
+            onChange={(event) => onChange({ ...filters, recurring: event.target.value as TransactionFilters['recurring'] })}
+            className="w-full rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm outline-none transition focus:border-brand-500 focus:ring-4 focus:ring-brand-50"
+          >
+            <option value="all">All movements</option>
+            <option value="true">Recurring only</option>
+            <option value="false">Non-recurring only</option>
+          </select>
+        </label>
+
+        <label className="space-y-2">
+          <span className="text-sm font-semibold text-slate-700">From</span>
+          <input
+            type="date"
+            value={filters.dateFrom}
+            onChange={(event) => onChange({ ...filters, dateFrom: event.target.value })}
+            className="w-full rounded-2xl border border-slate-200 px-4 py-3 text-sm outline-none transition focus:border-brand-500 focus:ring-4 focus:ring-brand-50"
+          />
+        </label>
+
+        <label className="space-y-2">
+          <span className="text-sm font-semibold text-slate-700">To</span>
+          <input
+            type="date"
+            value={filters.dateTo}
+            onChange={(event) => onChange({ ...filters, dateTo: event.target.value })}
+            className="w-full rounded-2xl border border-slate-200 px-4 py-3 text-sm outline-none transition focus:border-brand-500 focus:ring-4 focus:ring-brand-50"
+          />
+        </label>
+
+        <label className="space-y-2">
+          <span className="text-sm font-semibold text-slate-700">Sort</span>
+          <select
+            value={filters.sort}
+            onChange={(event) => onChange({ ...filters, sort: event.target.value as TransactionFilters['sort'] })}
+            className="w-full rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm outline-none transition focus:border-brand-500 focus:ring-4 focus:ring-brand-50"
+          >
+            <option value="newest">Newest first</option>
+            <option value="oldest">Oldest first</option>
+            <option value="amount_high">Highest amount</option>
+            <option value="amount_low">Lowest amount</option>
           </select>
         </label>
       </div>
