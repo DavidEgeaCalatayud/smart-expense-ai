@@ -87,11 +87,18 @@ Goal: implement real analysis without simulated AI outputs.
 - [x] Add three-month vs three-month category-spend shift analysis.
 - [x] Add Historical Analysis UI with coverage, trend, recurrence scores, outliers and category shifts.
 - [x] Persist and isolate historical-analysis snapshots by authenticated user.
-- [ ] Validate rules and historical algorithms against labelled real-world datasets and measure precision/recall/false-positive rates.
-- [ ] Add an evaluation harness that compares future algorithm/model versions against `rules-v1` and `historical-v1` baselines.
+- [x] Add `historical-v2` month-completeness handling that excludes partial cutoff months from trend and category-shift calculations without forecasting them.
+- [x] Add auditable merchant canonicalization with raw descriptor preservation, reference/legal-token cleanup, explicit aliases and conservative fuzzy clustering.
+- [x] Make recurrence calendar-aware with day-of-month/month-end/day-of-week stability, amount MAD/CV, consecutive periods and missed expected occurrences.
+- [x] Detect overdue expected recurring payments from learned calendar schedules.
+- [x] Add a labelled evaluation dataset format and monthly walk-forward validation harness (no random time-series split).
+- [x] Report precision, recall, F1, false positives per 100 transactions, false negatives and performance slices by history length/merchant/category.
+- [x] Run the historical-v2 evaluation fixture in CI as a reproducibility gate.
+- [ ] Validate rules and historical algorithms against labelled real-world datasets and measure real-world precision/recall/false-positive rates.
+- [ ] Tune recurring-score weights/cutoffs and anomaly thresholds only from labelled evaluation evidence.
 - [ ] Add automatic/background analysis when deployment scheduling is available.
-- [ ] Promote category fallback/richer merchant normalization into persisted findings only where validation shows value.
-- [ ] Evaluate ML anomaly models only after the deterministic baselines have measurable evaluation results.
+- [ ] Promote category fallback/canonicalization into persisted findings only where real-world validation shows value.
+- [ ] Evaluate ML anomaly models (for example Isolation Forest) only after deterministic baselines have measurable real-world evaluation results.
 
 ## Phase 4 - Prediction
 
@@ -136,7 +143,8 @@ Goal: prepare the application for real deployment.
 - [x] Complete a baseline OWASP Top 10:2025 review.
 - [x] Add API v1 contract documentation and CI smoke coverage.
 - [x] Add API v2 decimal-money contract tests and Docker smoke coverage.
-- [x] Validate historical-analysis migration and API through backend/Docker CI.
+- [x] Validate historical-analysis API through backend/Docker CI.
+- [x] Run the labelled historical evaluation command in CI.
 - [ ] Configure `Quality gate` as a required check for `main`.
 - [ ] Add staging deployment.
 - [ ] Add production TLS/domain/secrets configuration.
