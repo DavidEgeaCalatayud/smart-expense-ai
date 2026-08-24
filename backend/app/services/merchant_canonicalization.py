@@ -34,6 +34,9 @@ NOISE_TOKENS = {
     "credit",
     "mktp",
     "marketplace",
+    "com",
+    "bill",
+    "billing",
 }
 
 KNOWN_ALIASES: tuple[tuple[set[str], str], ...] = (
@@ -66,14 +69,8 @@ def _tokens(value: str) -> list[str]:
     return [token for token in NON_ALNUM.sub(" ", _ascii_lower(value)).split() if token]
 
 
-def _base_label(value: str) -> tuple[str, str]:
+def _clean_tokens(value: str) -> list[str]:
     tokens = _tokens(value)
-    token_set = set(tokens)
-
-    for aliases, canonical in KNOWN_ALIASES:
-        if token_set & aliases:
-            return canonical, "known_alias"
-
     cleaned = [
         token
         for token in tokens
@@ -82,18 +79,49 @@ def _base_label(value: str) -> tuple[str, str]:
         and not REFERENCE_TOKEN.match(token)
         and not token.isdigit()
     ]
-
-    # Payment processors often prefix the underlying merchant, e.g. PAYPAL*NETFLIX.
     if cleaned and cleaned[0] in {"paypal", "sumup", "square", "sq"} and len(cleaned) > 1:
         cleaned = cleaned[1:]
-
     if not cleaned:
         cleaned = [token for token in tokens if not token.isdigit()]
+    return cleaned
 
+
+def _base_label(value: str) -> tuple[str, str]:
+    tokens = _tokens(value)
+    token_set = set(tokens)
+
+    for aliases, canonical in KNOWN_ALIASES:
+        if token_set & aliases:
+            return canonical, "known_alias"
+
+    cleaned = _clean_tokens(value)
     label = " ".join(cleaned).strip()
     if not label:
         label = NON_ALNUM.sub(" ", _ascii_lower(value)).strip()
     return label, "token_cleanup"
+
+
+def merchant_stream_hint(value: str, canonical: str) -> str:
+    """Return descriptor tokens that may distinguish streams inside one canonical merchant.
+
+    The canonical merchant identity is intentionally removed so descriptors such as
+    ``Apple iCloud`` and ``Apple Music`` retain ``icloud``/``music`` while banking
+    references, legal suffixes and generic payment noise are discarded. The raw merchant
+    value remains authoritative and is never replaced by this hint.
+    """
+
+    canonical_tokens = set(_tokens(canonical))
+    alias_tokens: set[str] = set()
+    for aliases, alias_canonical in KNOWN_ALIASES:
+        if alias_canonical == canonical:
+            alias_tokens.update(aliases)
+
+    descriptor = [
+        token
+        for token in _clean_tokens(value)
+        if token not in canonical_tokens and token not in alias_tokens
+    ]
+    return " ".join(descriptor[:4])
 
 
 def _token_similarity(first: str, second: str) -> float:

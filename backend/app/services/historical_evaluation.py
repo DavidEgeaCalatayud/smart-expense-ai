@@ -1,15 +1,18 @@
 from __future__ import annotations
 
 from calendar import monthrange
-from collections import defaultdict
 from dataclasses import dataclass
 from datetime import date
 from decimal import Decimal
 from typing import Any
 
-from app.services.historical_analysis_v2 import analyze_historical_transactions_v2
+from app.services.historical_analysis_v2_1 import analyze_historical_transactions_v2_1
 from app.services.intelligence_rules import TransactionSnapshot
-from app.services.merchant_canonicalization import build_merchant_identity_map
+from app.services.merchant_canonicalization import (
+    MerchantIdentity,
+    build_merchant_identity_map,
+    merchant_stream_hint,
+)
 
 
 @dataclass(frozen=True)
@@ -20,6 +23,48 @@ class BinaryObservation:
     history_length: int
     merchant: str
     category: str
+
+
+@dataclass(frozen=True)
+class RecurringStreamLabel:
+    label_id: str
+    merchant: str
+    active_from: str | None
+    active_until: str | None
+    expected_occurrences: tuple[date, ...]
+    cadence: str | None
+    amount_min: Decimal | None
+    amount_max: Decimal | None
+    descriptor_contains: str | None
+
+    @property
+    def first_known_month(self) -> str | None:
+        candidates: list[str] = []
+        if self.active_from:
+            candidates.append(self.active_from)
+        if self.expected_occurrences:
+            candidates.append(min(self.expected_occurrences).strftime("%Y-%m"))
+        return min(candidates) if candidates else None
+
+    def is_relevant_by(self, month_key: str) -> bool:
+        first_known = self.first_known_month
+        return first_known is None or first_known <= month_key
+
+    def is_active_in(self, month_key: str) -> bool:
+        if self.expected_occurrences:
+            return any(value.strftime("%Y-%m") == month_key for value in self.expected_occurrences)
+        if self.active_from and month_key < self.active_from:
+            return False
+        if self.active_until and month_key > self.active_until:
+            return False
+        return True
+
+    def amount_matches(self, amount: Decimal) -> bool:
+        if self.amount_min is not None and amount < self.amount_min:
+            return False
+        if self.amount_max is not None and amount > self.amount_max:
+            return False
+        return True
 
 
 def _metrics(observations: list[BinaryObservation], transaction_count: int) -> dict[str, float | int]:
@@ -74,12 +119,94 @@ def _parse_transactions(payload: dict[str, Any]) -> list[TransactionSnapshot]:
     return sorted(transactions, key=lambda item: (item.transaction_date, item.id))
 
 
-def evaluate_historical_dataset(payload: dict[str, Any]) -> dict[str, Any]:
-    """Evaluate historical-v2 using chronological month-by-month walk-forward folds.
+def _parse_recurring_labels(payload: dict[str, Any]) -> list[RecurringStreamLabel]:
+    labels = payload.get("labels", {})
+    parsed: list[RecurringStreamLabel] = []
+    for index, raw in enumerate(labels.get("recurringStreams", [])):
+        occurrences = tuple(
+            sorted(date.fromisoformat(str(value)) for value in raw.get("expectedOccurrences", []))
+        )
+        parsed.append(
+            RecurringStreamLabel(
+                label_id=str(raw.get("id", f"stream-{index + 1}")),
+                merchant=str(raw["merchant"]),
+                active_from=str(raw["activeFrom"]) if raw.get("activeFrom") else None,
+                active_until=str(raw["activeUntil"]) if raw.get("activeUntil") else None,
+                expected_occurrences=occurrences,
+                cadence=str(raw["cadence"]) if raw.get("cadence") else None,
+                amount_min=Decimal(str(raw["amountMin"])) if raw.get("amountMin") is not None else None,
+                amount_max=Decimal(str(raw["amountMax"])) if raw.get("amountMax") is not None else None,
+                descriptor_contains=(
+                    str(raw["descriptorContains"]).casefold()
+                    if raw.get("descriptorContains")
+                    else None
+                ),
+            )
+        )
 
-    The harness never random-splits time series. Each fold exposes all transactions up to
-    the end of the evaluation month, while the anomaly detector itself is still required
-    to build each candidate baseline from strictly earlier transactions.
+    # Backwards-compatible fixture support. Legacy labels are intentionally global and
+    # should not be used for new evaluation datasets because they cannot express lifecycle.
+    for merchant in labels.get("recurringMerchants", []):
+        parsed.append(
+            RecurringStreamLabel(
+                label_id=f"legacy:{merchant}",
+                merchant=str(merchant),
+                active_from=None,
+                active_until=None,
+                expected_occurrences=(),
+                cadence=None,
+                amount_min=None,
+                amount_max=None,
+                descriptor_contains=None,
+            )
+        )
+    return parsed
+
+
+def _profile_matches_label(profile: dict[str, object], label: RecurringStreamLabel) -> bool:
+    if str(profile.get("canonicalMerchant", "")) != label.merchant:
+        return False
+    if label.cadence and str(profile.get("cadence", "")) != label.cadence:
+        return False
+    amount = Decimal(str(profile.get("medianAmount", "0")))
+    if not label.amount_matches(amount):
+        return False
+    if label.descriptor_contains:
+        descriptor = str(profile.get("streamDescriptor") or "").casefold()
+        if label.descriptor_contains not in descriptor:
+            return False
+    return True
+
+
+def _transaction_matches_label(
+    transaction: TransactionSnapshot,
+    label: RecurringStreamLabel,
+    identity_map: dict[str, MerchantIdentity],
+) -> bool:
+    identity = identity_map[transaction.merchant]
+    if identity.canonical != label.merchant or not label.amount_matches(transaction.amount):
+        return False
+    if label.descriptor_contains:
+        hint = merchant_stream_hint(transaction.merchant, identity.canonical).casefold()
+        return label.descriptor_contains in hint
+    return True
+
+
+def _majority_category(transactions: list[TransactionSnapshot]) -> str:
+    if not transactions:
+        return "unknown"
+    counts: dict[str, int] = {}
+    for item in transactions:
+        counts[item.category] = counts.get(item.category, 0) + 1
+    return max(counts, key=lambda value: (counts[value], value))
+
+
+def evaluate_historical_dataset(payload: dict[str, Any]) -> dict[str, Any]:
+    """Evaluate historical-v2.1 using strict chronological month-by-month folds.
+
+    Every fold builds merchant identity exclusively from transactions available by that
+    cutoff. Temporal recurrence labels are evaluated only once their lifecycle is knowable
+    at the evaluation month. There is no random split and no global merchant identity map.
     """
 
     transactions = _parse_transactions(payload)
@@ -90,8 +217,7 @@ def evaluate_historical_dataset(payload: dict[str, Any]) -> dict[str, Any]:
             "aggregate": {},
         }
 
-    identity_map = build_merchant_identity_map([item.merchant for item in transactions])
-    recurring_labels = {str(value) for value in payload.get("labels", {}).get("recurringMerchants", [])}
+    recurring_labels = _parse_recurring_labels(payload)
     anomaly_labels = {str(value) for value in payload.get("labels", {}).get("anomalyTransactionIds", [])}
     min_history_months = int(payload.get("evaluation", {}).get("minimumHistoryMonths", 6))
 
@@ -104,7 +230,9 @@ def evaluate_historical_dataset(payload: dict[str, Any]) -> dict[str, Any]:
 
     for evaluation_month in evaluation_months:
         cutoff = _month_end(evaluation_month)
+        month_key = evaluation_month.strftime("%Y-%m")
         available = [item for item in transactions if item.transaction_date <= cutoff]
+        fold_identity_map = build_merchant_identity_map([item.merchant for item in available])
         eval_transactions = [
             item
             for item in available
@@ -113,17 +241,18 @@ def evaluate_historical_dataset(payload: dict[str, Any]) -> dict[str, Any]:
         ]
         total_eval_transactions += len(eval_transactions)
         window_months = max(6, min(12, len({_month_start(item.transaction_date) for item in available})))
-        _, _, _, result = analyze_historical_transactions_v2(
+        _, _, _, result = analyze_historical_transactions_v2_1(
             available,
             window_months,
             analysis_end=cutoff,
+            identity_map=fold_identity_map,
         )
 
-        predicted_recurring = {
-            str(profile["canonicalMerchant"])
+        predicted_profiles = [
+            profile
             for profile in result["recurringProfiles"]
             if profile.get("canonicalMerchant")
-        }
+        ]
         predicted_anomalies = {
             str(item["transactionId"])
             for item in result["outliers"]
@@ -131,37 +260,73 @@ def evaluate_historical_dataset(payload: dict[str, Any]) -> dict[str, Any]:
             and date.fromisoformat(str(item["date"])).month == evaluation_month.month
         }
 
-        merchants_in_scope = {
-            getattr(identity_map[item.merchant], "canonical")
-            for item in available
-            if getattr(identity_map[item.merchant], "canonical")
-        }
+        relevant_labels = [
+            label for label in recurring_labels if label.is_relevant_by(month_key)
+        ]
+        relevant_labels.sort(key=lambda label: (not label.is_active_in(month_key), label.label_id))
+        unused_prediction_indexes = set(range(len(predicted_profiles)))
         fold_recurrence: list[BinaryObservation] = []
-        for merchant in sorted(merchants_in_scope):
-            merchant_history = [
-                item for item in available
-                if getattr(identity_map[item.merchant], "canonical") == merchant
-                and item.transaction_date < evaluation_month
+
+        for label in relevant_labels:
+            matching_prediction_index = next(
+                (
+                    index
+                    for index in sorted(unused_prediction_indexes)
+                    if _profile_matches_label(predicted_profiles[index], label)
+                ),
+                None,
+            )
+            predicted = matching_prediction_index is not None
+            if matching_prediction_index is not None:
+                unused_prediction_indexes.remove(matching_prediction_index)
+
+            history = [
+                item
+                for item in available
+                if item.transaction_date < evaluation_month
+                and _transaction_matches_label(item, label, fold_identity_map)
             ]
-            categories = [item.category for item in merchant_history]
-            category = max(set(categories), key=categories.count) if categories else "unknown"
             observation = BinaryObservation(
-                key=f"{evaluation_month.isoformat()}:{merchant}",
-                actual=merchant in recurring_labels,
-                predicted=merchant in predicted_recurring,
-                history_length=len(merchant_history),
-                merchant=merchant,
-                category=category,
+                key=f"{month_key}:{label.label_id}",
+                actual=label.is_active_in(month_key),
+                predicted=predicted,
+                history_length=len(history),
+                merchant=label.merchant,
+                category=_majority_category(history),
+            )
+            fold_recurrence.append(observation)
+            recurrence_observations.append(observation)
+
+        # Any stream prediction not explained by a temporally relevant ground-truth stream
+        # is a false positive. This is what makes cancellation/reactivation measurable.
+        for index in sorted(unused_prediction_indexes):
+            profile = predicted_profiles[index]
+            canonical = str(profile["canonicalMerchant"])
+            stream_key = str(profile.get("streamKey") or f"unlabelled-{index}")
+            history_length = int(profile.get("occurrenceCount", 0))
+            matching_history = [
+                item
+                for item in available
+                if item.transaction_date < evaluation_month
+                and fold_identity_map[item.merchant].canonical == canonical
+            ]
+            observation = BinaryObservation(
+                key=f"{month_key}:{stream_key}:unlabelled",
+                actual=False,
+                predicted=True,
+                history_length=history_length,
+                merchant=canonical,
+                category=_majority_category(matching_history),
             )
             fold_recurrence.append(observation)
             recurrence_observations.append(observation)
 
         fold_anomalies: list[BinaryObservation] = []
         for item in eval_transactions:
-            canonical = getattr(identity_map[item.merchant], "canonical")
+            canonical = fold_identity_map[item.merchant].canonical
             history_length = sum(
                 previous.transaction_date < item.transaction_date
-                and getattr(identity_map[previous.merchant], "canonical") == canonical
+                and fold_identity_map[previous.merchant].canonical == canonical
                 for previous in available
             )
             observation = BinaryObservation(
@@ -178,8 +343,12 @@ def evaluate_historical_dataset(payload: dict[str, Any]) -> dict[str, Any]:
         folds.append(
             {
                 "baselineThrough": (evaluation_month.replace(day=1) - date.resolution).isoformat(),
-                "evaluateMonth": evaluation_month.strftime("%Y-%m"),
+                "evaluateMonth": month_key,
                 "evaluationTransactions": len(eval_transactions),
+                "identitySourceTransactions": len(available),
+                "identityCanonicalMerchants": len(
+                    {identity.canonical for identity in fold_identity_map.values() if identity.canonical}
+                ),
                 "recurrence": _metrics(fold_recurrence, len(eval_transactions)),
                 "anomalies": _metrics(fold_anomalies, len(eval_transactions)),
             }
@@ -207,8 +376,9 @@ def evaluate_historical_dataset(payload: dict[str, Any]) -> dict[str, Any]:
 
     return {
         "datasetVersion": payload.get("datasetVersion", "unknown"),
-        "analysisVersion": "historical-v2",
-        "validationStrategy": "walk_forward_monthly",
+        "analysisVersion": "historical-v2.1",
+        "validationStrategy": "walk_forward_monthly_fold_local_identity",
+        "labelStrategy": "temporal_recurring_streams",
         "folds": folds,
         "aggregate": {
             "recurrence": _metrics(recurrence_observations, total_eval_transactions),

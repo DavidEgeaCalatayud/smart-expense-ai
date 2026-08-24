@@ -1,4 +1,7 @@
-from app.services.merchant_canonicalization import build_merchant_identity_map
+from app.services.merchant_canonicalization import (
+    build_merchant_identity_map,
+    merchant_stream_hint,
+)
 
 
 def test_amazon_bank_descriptors_collapse_to_one_canonical_merchant() -> None:
@@ -35,3 +38,12 @@ def test_raw_merchant_is_preserved_even_when_fuzzy_clustered() -> None:
     assert len({identity.canonical for identity in identities.values()}) == 1
     assert identities["Coffee Corner"].raw == "Coffee Corner"
     assert identities["Coffee Corners"].raw == "Coffee Corners"
+
+
+def test_stream_hint_keeps_product_descriptor_after_canonical_identity_is_removed() -> None:
+    identities = build_merchant_identity_map(["Apple iCloud", "Apple Music", "APPLE.COM/BILL"])
+
+    assert {identity.canonical for identity in identities.values()} == {"apple"}
+    assert merchant_stream_hint("Apple iCloud", "apple") == "icloud"
+    assert merchant_stream_hint("Apple Music", "apple") == "music"
+    assert merchant_stream_hint("APPLE.COM/BILL", "apple") == ""
