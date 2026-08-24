@@ -8,7 +8,7 @@ import {
   TrendingDown,
   TrendingUp,
 } from 'lucide-react';
-import { useEffect, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import { ApiErrorAlert } from '../ui/ApiErrorAlert';
 import {
   fetchLatestHistoricalAnalysis,
@@ -42,7 +42,7 @@ export function HistoricalAnalysisPanel() {
   const [isRunning, setIsRunning] = useState(false);
   const [error, setError] = useState<ApiErrorPresentation | null>(null);
 
-  const loadLatest = async () => {
+  const loadLatest = useCallback(async () => {
     setIsLoading(true);
     setError(null);
     try {
@@ -56,11 +56,11 @@ export function HistoricalAnalysisPanel() {
     } finally {
       setIsLoading(false);
     }
-  };
+  }, []);
 
   useEffect(() => {
     void loadLatest();
-  }, []);
+  }, [loadLatest]);
 
   const handleRun = async () => {
     setIsRunning(true);
