@@ -5,8 +5,9 @@ import { MetricCard } from '../components/dashboard/MetricCard';
 import { RecentTransactionsTable } from '../components/dashboard/RecentTransactionsTable';
 import { SpendingChart } from '../components/dashboard/SpendingChart';
 import { PageHeader } from '../components/layout/PageHeader';
+import { ApiErrorAlert } from '../components/ui/ApiErrorAlert';
 import { ROUTES } from '../routes/paths';
-import { getApiErrorMessage } from '../services/apiClient';
+import { getApiErrorPresentation, type ApiErrorPresentation } from '../services/apiClient';
 import { fetchMonthlyExpenses, fetchTransactionSummary } from '../services/analyticsApi';
 import { fetchTransactions } from '../services/transactionsApi';
 import type { MonthlyExpense } from '../types/dashboard';
@@ -50,7 +51,7 @@ export function DashboardPage() {
   const [recentTransactions, setRecentTransactions] = useState<DetailedTransaction[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [isRefreshing, setIsRefreshing] = useState(false);
-  const [error, setError] = useState<string | null>(null);
+  const [error, setError] = useState<ApiErrorPresentation | null>(null);
 
   const loadDashboard = useCallback(async (refresh = false) => {
     if (refresh) {
@@ -70,7 +71,7 @@ export function DashboardPage() {
       setSpendingTrend(mapMonthlyExpenses(monthlyPoints));
       setRecentTransactions(recentPage.items);
     } catch (loadError) {
-      setError(getApiErrorMessage(loadError, 'Unable to load dashboard data'));
+      setError(getApiErrorPresentation(loadError, 'Unable to load dashboard data'));
     } finally {
       setIsLoading(false);
       setIsRefreshing(false);
@@ -105,17 +106,12 @@ export function DashboardPage() {
       />
 
       {error && (
-        <div role="alert" className="mb-6 flex flex-col gap-3 rounded-2xl border border-rose-200 bg-rose-50 px-4 py-3 text-sm font-medium text-rose-700 sm:flex-row sm:items-center sm:justify-between">
-          <span>{error}</span>
-          <button
-            type="button"
-            onClick={() => void loadDashboard(true)}
-            disabled={isRefreshing}
-            className="self-start rounded-xl border border-rose-200 bg-white px-3 py-2 text-xs font-semibold transition hover:bg-rose-100 disabled:opacity-50 sm:self-auto"
-          >
-            {isRefreshing ? 'Refreshing…' : 'Retry'}
-          </button>
-        </div>
+        <ApiErrorAlert
+          error={error}
+          className="mb-6"
+          onRetry={() => void loadDashboard(true)}
+          retryLabel={isRefreshing ? 'Refreshing…' : 'Retry'}
+        />
       )}
 
       {isLoading ? (
