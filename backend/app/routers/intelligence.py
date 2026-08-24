@@ -5,6 +5,7 @@ from app.auth.dependencies import get_current_user
 from app.core.api_errors import ApiError
 from app.db.session import get_db
 from app.models.user import User
+from app.routers.intelligence_contract import to_legacy_finding
 from app.schemas import (
     FindingStatus,
     FindingStatusUpdate,
@@ -46,12 +47,15 @@ def findings(
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ) -> list[IntelligenceFindingResponse]:
-    return list_findings(
-        db,
-        current_user.id,
-        status=finding_status,
-        finding_type=finding_type,
-    )
+    return [
+        to_legacy_finding(finding)
+        for finding in list_findings(
+            db,
+            current_user.id,
+            status=finding_status,
+            finding_type=finding_type,
+        )
+    ]
 
 
 @router.patch("/findings/{finding_id}", response_model=IntelligenceFindingResponse)
@@ -68,4 +72,4 @@ def update_finding(
             "intelligence_finding_not_found",
             "Intelligence finding not found",
         )
-    return finding
+    return to_legacy_finding(finding)
