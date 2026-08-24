@@ -71,7 +71,13 @@ class SecurityMiddleware(BaseHTTPMiddleware):
         )
         return JSONResponse(
             status_code=403,
-            content={"detail": "Cross-site request rejected"},
+            content={
+                "error": {
+                    "code": "cross_site_request_rejected",
+                    "message": "Cross-site request rejected",
+                    "requestId": getattr(request.state, "request_id", "unavailable"),
+                }
+            },
         )
 
     @staticmethod
