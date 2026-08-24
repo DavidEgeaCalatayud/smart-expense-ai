@@ -15,7 +15,7 @@ test('authenticated users only see and mutate their own persisted transactions',
   await page.getByLabel('Email').fill(firstEmail);
   await page.getByLabel('Password').fill(password);
   await page.getByRole('button', { name: 'Create account' }).click();
-  await expect(page.getByRole('heading', { name: 'Dashboard' })).toBeVisible();
+  await expect(page.getByRole('heading', { name: 'Your financial overview' })).toBeVisible();
 
   await page.getByRole('link', { name: 'Transactions' }).click();
   await expect(page.getByRole('heading', { name: 'Transactions' })).toBeVisible();
