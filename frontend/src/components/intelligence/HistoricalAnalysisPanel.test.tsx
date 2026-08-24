@@ -14,7 +14,7 @@ vi.mock('../../services/historicalAnalysisApi', () => ({
 
 const analysis: HistoricalAnalysis = {
   snapshotId: 'snapshot-1',
-  analysisVersion: 'historical-v2',
+  analysisVersion: 'historical-v2.1',
   windowMonths: 12,
   periodStart: '2025-07-01',
   periodEnd: '2026-06-20',
@@ -41,6 +41,8 @@ const analysis: HistoricalAnalysis = {
   },
   recurringProfiles: [
     {
+      streamKey: 'stream box::default',
+      streamDescriptor: null,
       merchant: 'STREAM BOX*8844',
       canonicalMerchant: 'stream box',
       observedMerchants: ['Stream Box SL', 'STREAM BOX*8844'],
@@ -64,6 +66,11 @@ const analysis: HistoricalAnalysis = {
       nextExpectedDate: '2026-06-05',
     },
   ],
+  recurrenceSegmentation: {
+    strategy: 'canonical_merchant_then_descriptor_amount_streams',
+    analysisVersion: 'historical-v2.1',
+    profileCount: 1,
+  },
   outliers: [
     {
       transactionId: 'tx-1',
@@ -99,6 +106,7 @@ const analysis: HistoricalAnalysis = {
     merchantsWithBaseline: 4,
     categoriesWithBaseline: 3,
     recurringProfiles: 1,
+    recurringStreams: 1,
     outlierCount: 1,
   },
 };
