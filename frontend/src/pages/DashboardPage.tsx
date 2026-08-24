@@ -10,13 +10,14 @@ import { getApiErrorMessage } from '../services/apiClient';
 import { fetchMonthlyExpenses, fetchTransactionSummary } from '../services/analyticsApi';
 import { fetchTransactions } from '../services/transactionsApi';
 import type { MonthlyExpense } from '../types/dashboard';
-import type { DetailedTransaction, TransactionSummary } from '../types/transactions';
+import type { DetailedTransaction, MonthlyExpensePoint, TransactionSummary } from '../types/transactions';
 import { formatCurrencyWithDecimals } from '../utils/formatters';
+import { isNegativeMoney, moneyToChartNumber } from '../utils/money';
 
 const emptySummary: TransactionSummary = {
-  totalIncome: 0,
-  totalExpenses: 0,
-  balance: 0,
+  totalIncome: '0.00',
+  totalExpenses: '0.00',
+  balance: '0.00',
   recurringCount: 0,
   reviewCount: 0,
   transactionCount: 0,
@@ -33,12 +34,12 @@ const currentMonthRange = () => {
   };
 };
 
-const mapMonthlyExpenses = (points: { month: string; amount: number }[]): MonthlyExpense[] =>
+const mapMonthlyExpenses = (points: MonthlyExpensePoint[]): MonthlyExpense[] =>
   points.map((point) => {
     const [year, month] = point.month.split('-').map(Number);
     return {
       month: new Date(year, month - 1, 1).toLocaleDateString('en-US', { month: 'short' }),
-      amount: point.amount,
+      amount: moneyToChartNumber(point.amount),
     };
   });
 
@@ -90,7 +91,7 @@ export function DashboardPage() {
       <PageHeader
         eyebrow="Financial dashboard"
         title="Your financial overview"
-        description="Server-side aggregates and recent activity from API v1."
+        description="Server-side aggregates and recent activity from API v2 monetary endpoints."
         action={
           <button
             type="button"
@@ -126,7 +127,7 @@ export function DashboardPage() {
           <section className="grid gap-5 md:grid-cols-2 xl:grid-cols-4">
             <MetricCard title="Expenses this month" value={formatCurrencyWithDecimals(summary.totalExpenses)} detail={currentMonthLabel} trend="up" icon={<ReceiptText size={20} />} />
             <MetricCard title="Income this month" value={formatCurrencyWithDecimals(summary.totalIncome)} detail={currentMonthLabel} trend="neutral" icon={<Wallet size={20} />} />
-            <MetricCard title="Balance" value={formatCurrencyWithDecimals(summary.balance)} detail="Income minus expenses this month" trend={summary.balance < 0 ? 'warning' : 'neutral'} icon={<PiggyBank size={20} />} />
+            <MetricCard title="Balance" value={formatCurrencyWithDecimals(summary.balance)} detail="Income minus expenses this month" trend={isNegativeMoney(summary.balance) ? 'warning' : 'neutral'} icon={<PiggyBank size={20} />} />
             <MetricCard title="Recurring this month" value={String(summary.recurringCount)} detail="Persisted recurring movements" trend="neutral" icon={<Repeat size={20} />} />
           </section>
 
