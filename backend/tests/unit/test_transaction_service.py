@@ -1,4 +1,5 @@
 from datetime import date
+from decimal import Decimal
 from types import SimpleNamespace
 from unittest.mock import MagicMock
 
@@ -16,18 +17,23 @@ from app.services.transaction_service import (
 @pytest.mark.parametrize(
     ("amount", "transaction_type", "expected"),
     [
-        (50, TransactionType.expense, TransactionStatus.normal),
-        (120, TransactionType.expense, TransactionStatus.normal),
-        (120.01, TransactionType.expense, TransactionStatus.review),
-        (500, TransactionType.income, TransactionStatus.normal),
+        (Decimal("50.00"), TransactionType.expense, TransactionStatus.normal),
+        (Decimal("120.00"), TransactionType.expense, TransactionStatus.normal),
+        (Decimal("120.01"), TransactionType.expense, TransactionStatus.review),
+        (Decimal("500.00"), TransactionType.income, TransactionStatus.normal),
     ],
 )
 def test_calculate_status_is_deterministic(
-    amount: float,
+    amount: Decimal,
     transaction_type: TransactionType,
     expected: TransactionStatus,
 ) -> None:
     assert calculate_status(amount, transaction_type) == expected
+
+
+def test_decimal_threshold_does_not_depend_on_binary_float_rounding() -> None:
+    assert calculate_status(Decimal("120.00"), TransactionType.expense) == TransactionStatus.normal
+    assert calculate_status(Decimal("120.01"), TransactionType.expense) == TransactionStatus.review
 
 
 def test_parse_transaction_date_accepts_iso_date() -> None:
