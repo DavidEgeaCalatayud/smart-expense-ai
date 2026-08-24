@@ -1,5 +1,5 @@
 import { Cookie, Database, KeyRound, LockKeyhole, ShieldCheck } from 'lucide-react';
-import { useAuth } from '../auth/AuthContext';
+import { useAuth } from '../auth/useAuth';
 import { MetricCard } from '../components/dashboard/MetricCard';
 import { PageHeader } from '../components/layout/PageHeader';
 
