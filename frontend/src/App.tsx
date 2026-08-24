@@ -1,5 +1,5 @@
 import { Navigate, Outlet, Route, Routes } from 'react-router-dom';
-import { useAuth } from './auth/AuthContext';
+import { useAuth } from './auth/useAuth';
 import { AppShell } from './components/layout/AppShell';
 import { AlertsPage } from './pages/AlertsPage';
 import { DashboardPage } from './pages/DashboardPage';
