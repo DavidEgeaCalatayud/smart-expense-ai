@@ -34,22 +34,22 @@ Implemented today:
 - Recurring transactions stored as an explicit user-provided flag.
 - Transparent rule-based review: expenses above 120 EUR are marked as `review`.
 - Persisted Phase 3 financial-intelligence findings and scan history per authenticated user.
-- Explainable recurring-payment pattern detection from stable historical cadence and amounts.
-- Possible duplicate-subscription detection from repeated near-identical double-billing patterns.
-- Merchant-specific unusual-amount detection using median and median absolute deviation baselines.
-- Stable `rules-v1` fingerprints that make rescans idempotent instead of creating duplicate alerts.
-- Persisted `open`, `dismissed` and `resolved` intelligence review states.
-- Versioned `historical-v1` analysis snapshots persisted per user.
-- Least-squares monthly spending trend analysis with slope and R² evidence.
-- Deterministic recurring-behavior scores from cadence fit, interval regularity, amount stability and history depth.
-- Chronological robust outlier analysis with no future-data leakage and category fallback when merchant history is sparse.
-- Three-month versus three-month category spending shift analysis.
-- Financial Intelligence workspace for findings plus historical behavior analysis.
+- Explainable recurring-payment, duplicate-subscription and robust amount-anomaly findings.
+- Stable `rules-v1` fingerprints and persisted `open`, `dismissed` and `resolved` review states.
+- Versioned historical-analysis snapshots persisted per user; `historical-v1` remains the previous baseline and new runs use `historical-v2`.
+- Complete-month least-squares spending trend analysis: partial cutoff months remain visible but are excluded from regression and category-shift windows.
+- Auditable merchant canonicalization that preserves raw bank descriptors while consolidating references, legal suffixes, aliases and only high-similarity variants.
+- Calendar-aware recurring-behavior scores using cadence, interval regularity, day-of-month/month-end/day-of-week stability, amount MAD/CV, history depth and consecutive periods.
+- Detection of missed expected recurring occurrences and overdue learned schedule dates.
+- Chronological robust outlier analysis with no future-data leakage and canonical-merchant/category fallback baselines.
+- Latest-three-complete-month versus previous-three-complete-month category spending shifts.
+- Labelled monthly walk-forward evaluation harness reporting precision, recall, F1, false positives per 100 transactions, false negatives and performance slices.
+- Financial Intelligence workspace for findings plus historical behavior analysis with completeness/canonicalization evidence.
 - Delete confirmation, loading/refreshing states, retry feedback and operation toasts in transaction management.
 - Backend unit and PostgreSQL integration tests with pytest.
 - Frontend component/page tests with Vitest and React Testing Library.
 - Critical authenticated browser coverage with Playwright, including cross-account isolation.
-- GitHub Actions quality gates for migrations, tests, TypeScript, ESLint, production builds, dependency auditing and Docker Compose.
+- GitHub Actions quality gates for migrations, tests, historical evaluation, TypeScript, ESLint, production builds, dependency auditing and Docker Compose.
 - Weekly Dependabot monitoring for Python, npm and GitHub Actions dependencies.
 - One-command Docker Compose environment for frontend, backend and PostgreSQL.
 
@@ -65,7 +65,8 @@ Not implemented yet:
 - Automatic/background intelligence scans.
 - Bank integrations.
 - Probabilistic fraud detection.
-- Trained ML anomaly/forecasting models validated against labelled data.
+- Trained ML anomaly/forecasting models validated against labelled real-world data.
+- Real-world calibration of `historical-v2` thresholds and recurrence weights.
 
 ## Quick Start with Docker
 
@@ -95,7 +96,7 @@ frontend :5173 (Nginx + React build)
 backend :8000 (FastAPI + Alembic, internal only)
   |
   | Decimal money + authenticated user_id scoping
-  | rules-v1 + historical-v1
+  | rules-v1 + historical-v2 + walk-forward evaluation
   v
 db :5432 (PostgreSQL 16 NUMERIC(12,2), internal only)
 ```
@@ -137,9 +138,11 @@ Authentication + service layer
         v
 Financial intelligence
         | rules-v1 persisted actionable findings
-        | historical-v1 persisted analytical snapshots
-        | linear trend + recurrence scoring
-        | chronological robust outliers + category shifts
+        | merchant canonicalization
+        | historical-v2 persisted analytical snapshots
+        | complete-month trend + calendar-aware recurrence
+        | chronological robust outliers + complete-month category shifts
+        | labelled walk-forward evaluation harness
         v
 SQLAlchemy 2
         |
@@ -151,7 +154,9 @@ Financial values do not move through `float`/JavaScript `Number` in business log
 
 The findings engine keeps inferred findings separate from source transactions. The historical engine also stores results separately as versioned snapshots; neither silently rewrites source financial data.
 
-Historical outlier baselines are chronological: a candidate transaction may only be compared with transactions that occurred before it. This prevents future-data leakage and makes the algorithm suitable for later offline evaluation.
+Historical outlier baselines are chronological: a candidate transaction may only be compared with transactions that occurred before it. This prevents future-data leakage and makes the algorithm suitable for offline evaluation. Historical-v2 also treats an incomplete cutoff month conservatively: it is displayed but never fed into trend/category-shift calculations.
+
+Merchant canonicalization is auditable. Raw descriptors remain in the response alongside canonical merchant identities and observed aliases.
 
 Database schema changes are managed with Alembic. In Docker Compose, the backend automatically applies `alembic upgrade head` after PostgreSQL becomes healthy and before Uvicorn starts.
 
@@ -160,12 +165,14 @@ Repository structure:
 ```text
 smart-expense-ai/
 ├── frontend/        # React + TypeScript web application and Nginx image
-├── backend/         # FastAPI API, auth, analysis, services, SQLAlchemy models and migrations
-├── ai/              # Reserved for future validated probabilistic/ML experiments
-├── docs/            # Product, API, intelligence, historical-analysis, testing and security docs
-├── scripts/         # Utility scripts
-├── compose.yaml     # Full local stack
-├── SECURITY.md      # Vulnerability reporting policy
+├── backend/         # FastAPI API, auth, analysis, evaluation, SQLAlchemy models and migrations
+│   ├── evaluation/  # labelled evaluation datasets/fixtures
+│   └── scripts/     # reproducible evaluation commands
+├── ai/              # reserved for future validated probabilistic/ML experiments
+├── docs/            # product, API, intelligence, historical-analysis, testing and security docs
+├── scripts/         # repository utility scripts
+├── compose.yaml
+├── SECURITY.md
 ├── ROADMAP.md
 └── README.md
 ```
@@ -216,7 +223,7 @@ not:
 
 Transaction listing is paginated and filtered server-side. Errors use a stable envelope with `code`, safe `message`, `requestId` and optional safe `details`. The frontend retains those semantics instead of collapsing every failure into a generic string.
 
-See [`docs/api.md`](docs/api.md) for the HTTP contract, [`docs/intelligence.md`](docs/intelligence.md) for actionable finding rules and [`docs/historical-analysis.md`](docs/historical-analysis.md) for the statistical algorithms and formulas.
+See [`docs/api.md`](docs/api.md) for the HTTP contract, [`docs/intelligence.md`](docs/intelligence.md) for actionable finding rules and [`docs/historical-analysis.md`](docs/historical-analysis.md) for historical-v2 formulas, completeness semantics, canonicalization and evaluation.
 
 ## Manual Local Development
 
@@ -259,6 +266,14 @@ alembic upgrade head
 uvicorn app.main:app --reload
 ```
 
+Run the labelled historical evaluation fixture from `backend/`:
+
+```bash
+python scripts/evaluate_historical.py evaluation/historical_v2_fixture.json
+```
+
+The included fixture validates the evaluation machinery; it is synthetic and is not evidence of real-world accuracy.
+
 ### Frontend
 
 ```bash
@@ -283,17 +298,18 @@ The repository has automated quality layers for:
 
 1. Backend unit tests, including password hashing, JWT validation, secure configuration and exact Decimal review thresholds.
 2. Pure deterministic intelligence-rule tests using Decimal monetary inputs.
-3. Pure historical-analysis tests for regression trend, recurrence scoring, no-leakage outliers, category fallback and category shifts.
-4. Backend API integration tests against migrated PostgreSQL.
-5. Explicit v1 compatibility plus v2 decimal-money contract tests, including exact `0.10 + 0.20 = 0.30` aggregation and rejection of JSON numeric amounts in v2.
-6. Intelligence persistence tests for idempotent rescans, review-state persistence, versioned evidence representation and cross-account isolation.
-7. Historical-analysis persistence tests for `historical-v1` snapshots, latest retrieval, window validation and account isolation.
-8. HTTP security regression tests covering headers, cookie flags, trusted hosts and cross-site mutation rejection.
-9. Frontend fixed-point money tests, typed API error tests and historical-analysis component tests.
-10. Critical authenticated end-to-end browser coverage with Playwright; the browser transaction/analytics clients use API v2.
-11. Python dependency auditing with `pip-audit`.
-12. npm dependency auditing that blocks high/critical findings.
-13. Full Docker Compose build/startup smoke testing, including v2 decimal strings and historical analysis through Nginx.
+3. Historical-v2 tests for complete-month regression, merchant canonicalization, calendar-aware recurrence, missed expected payments, no-leakage outliers, category fallback and complete-month category shifts.
+4. Labelled monthly walk-forward evaluation tests and a reproducible evaluation command.
+5. Backend API integration tests against migrated PostgreSQL.
+6. Explicit v1 compatibility plus v2 decimal-money contract tests, including exact `0.10 + 0.20 = 0.30` aggregation and rejection of JSON numeric amounts in v2.
+7. Intelligence persistence tests for idempotent rescans, review-state persistence, versioned evidence representation and cross-account isolation.
+8. Historical-analysis persistence tests for versioned snapshots, completeness metadata, latest retrieval, window validation and account isolation.
+9. HTTP security regression tests covering headers, cookie flags, trusted hosts and cross-site mutation rejection.
+10. Frontend fixed-point money tests, typed API error tests and historical-v2 component tests.
+11. Critical authenticated end-to-end browser coverage with Playwright.
+12. Python dependency auditing with `pip-audit`.
+13. npm dependency auditing that blocks high/critical findings.
+14. Full Docker Compose build/startup smoke testing, including decimal strings and historical-v2 partial-month semantics through Nginx.
 
 GitHub Actions runs these gates for pushes and pull requests targeting `main`. The consolidated `Quality gate` requires backend, frontend, dependency security, browser E2E and Docker jobs to succeed.
 
@@ -304,7 +320,7 @@ See [`docs/testing.md`](docs/testing.md) for test-database safety and CI details
 - Vulnerability reporting policy: [`SECURITY.md`](SECURITY.md)
 - Authentication/ownership model: [`docs/authentication.md`](docs/authentication.md)
 - Financial intelligence rules: [`docs/intelligence.md`](docs/intelligence.md)
-- Historical analysis algorithms: [`docs/historical-analysis.md`](docs/historical-analysis.md)
+- Historical analysis algorithms/evaluation: [`docs/historical-analysis.md`](docs/historical-analysis.md)
 - OWASP Top 10:2025 review: [`docs/SECURITY_REVIEW.md`](docs/SECURITY_REVIEW.md)
 
 The OWASP review is a secure-engineering baseline, not a penetration-test result or certification. Internet-facing production use still requires HTTPS/TLS configuration, secret management, monitoring/alerting and review of the residual risks documented there.
@@ -351,9 +367,9 @@ The detailed roadmap is maintained in [`ROADMAP.md`](ROADMAP.md).
 
 Near-term priorities are:
 
-1. Build a labelled evaluation harness for `rules-v1` and `historical-v1`, including false-positive measurement.
-2. Validate merchant normalization, category fallback and recurrence thresholds on realistic transaction fixtures/data.
-3. Only then evaluate ML anomaly models against the deterministic baseline.
+1. Feed labelled real-world/realistically curated transaction datasets through the walk-forward evaluation harness.
+2. Calibrate recurring-score weights/cutoffs and robust-anomaly thresholds from measured precision/recall/false-positive cost.
+3. Only then evaluate an ML anomaly candidate such as Isolation Forest against `historical-v2`.
 4. Stronger responsive transaction UX.
 5. Password reset/change plus account deletion/privacy controls.
 6. Phase 4 forecasting only after sufficient historical data and evaluation criteria exist.

@@ -73,15 +73,15 @@ def create_expense(client: TestClient, merchant: str, amount: str, value: str, c
 
 def seed_history(client: TestClient) -> None:
     for merchant, amount, value, category in [
-        ("Stream Box", "20.00", "2026-01-05", "Subscriptions"),
-        ("Stream Box", "20.00", "2026-02-04", "Subscriptions"),
+        ("Stream Box SL", "20.00", "2026-01-05", "Subscriptions"),
+        ("STREAM BOX*2002", "20.00", "2026-02-04", "Subscriptions"),
         ("Stream Box", "20.50", "2026-03-06", "Subscriptions"),
         ("Stream Box", "20.00", "2026-04-05", "Subscriptions"),
         ("Stream Box", "20.00", "2026-05-05", "Subscriptions"),
         ("Stream Box", "20.25", "2026-06-04", "Subscriptions"),
         ("Cloud Tools", "10.00", "2026-01-10", "Shopping"),
-        ("Cloud Tools", "11.00", "2026-02-10", "Shopping"),
-        ("Cloud Tools", "9.00", "2026-03-10", "Shopping"),
+        ("Cloud Tools SL", "11.00", "2026-02-10", "Shopping"),
+        ("CLOUD TOOLS*3003", "9.00", "2026-03-10", "Shopping"),
         ("Cloud Tools", "10.00", "2026-04-10", "Shopping"),
         ("Cloud Tools", "80.00", "2026-05-10", "Shopping"),
     ]:
@@ -100,14 +100,24 @@ def test_historical_analysis_is_persisted_versioned_and_user_scoped(client: Test
     response = client.post(f"{MONEY_API}/intelligence/historical-analysis?months=6")
     assert response.status_code == 200
     analysis = response.json()
-    assert analysis["analysisVersion"] == "historical-v1"
+    assert analysis["analysisVersion"] == "historical-v2"
     assert analysis["windowMonths"] == 6
     assert analysis["analyzedTransactions"] == 11
     assert analysis["coverage"]["transactionCount"] == 11
-    assert analysis["coverage"]["activeMonths"] == 6
+    assert analysis["coverage"]["activeMonths"] == 5
+    assert analysis["coverage"]["partialMonthsExcluded"] == 1
     assert analysis["monthlySpend"][0]["amount"] == "30.00"
-    assert any(profile["merchant"] == "Stream Box" for profile in analysis["recurringProfiles"])
-    assert any(outlier["merchant"] == "Cloud Tools" for outlier in analysis["outliers"])
+    assert analysis["monthCompleteness"]["strategy"] == "exclude_partial"
+    assert analysis["monthCompleteness"]["partialMonth"] == "2026-06"
+    assert analysis["trend"]["excludedPartialMonth"] == "2026-06"
+    assert analysis["monthlySpend"][-1]["isComplete"] is False
+    stream_profile = next(
+        profile for profile in analysis["recurringProfiles"]
+        if profile["canonicalMerchant"] == "stream box"
+    )
+    assert {"Stream Box SL", "STREAM BOX*2002"}.issubset(set(stream_profile["observedMerchants"]))
+    cloud_outlier = next(outlier for outlier in analysis["outliers"] if outlier["merchant"] == "Cloud Tools")
+    assert cloud_outlier["canonicalMerchant"] == "cloud tools"
 
     latest = client.get(f"{MONEY_API}/intelligence/historical-analysis/latest")
     assert latest.status_code == 200
