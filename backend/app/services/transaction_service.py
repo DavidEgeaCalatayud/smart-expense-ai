@@ -4,17 +4,21 @@ from datetime import date
 from decimal import Decimal
 from uuid import UUID
 
-from sqlalchemy import select
+from sqlalchemy import and_, case, func, not_, or_, select
 from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.orm import Session, joinedload
 
 from app.models.category import Category
 from app.models.transaction import Transaction as TransactionModel
 from app.schemas import (
+    MonthlyExpense,
     PaymentMethod,
     Transaction,
     TransactionCreate,
+    TransactionPage,
+    TransactionSort,
     TransactionStatus,
+    TransactionSummary,
     TransactionType,
     TransactionUpdate,
 )
@@ -88,15 +92,185 @@ def _commit(db: Session) -> None:
         raise
 
 
-def list_transactions(db: Session, user_id: UUID) -> list[Transaction]:
+def _filter_conditions(
+    user_id: UUID,
+    *,
+    search: str | None = None,
+    category: str | None = None,
+    status: TransactionStatus | None = None,
+    transaction_type: TransactionType | None = None,
+    recurring: bool | None = None,
+    date_from: date | None = None,
+    date_to: date | None = None,
+) -> list[object]:
+    conditions: list[object] = [TransactionModel.user_id == user_id]
+
+    if search:
+        term = f"%{search.strip().lower()}%"
+        conditions.append(
+            or_(
+                func.lower(TransactionModel.merchant).like(term),
+                func.lower(TransactionModel.description).like(term),
+            )
+        )
+    if category:
+        conditions.append(TransactionModel.category.has(Category.name == category))
+    if transaction_type is not None:
+        conditions.append(TransactionModel.transaction_type == transaction_type.value)
+    if recurring is not None:
+        conditions.append(TransactionModel.is_recurring.is_(recurring))
+    if date_from is not None:
+        conditions.append(TransactionModel.transaction_date >= date_from)
+    if date_to is not None:
+        conditions.append(TransactionModel.transaction_date <= date_to)
+
+    review_condition = and_(
+        TransactionModel.transaction_type == TransactionType.expense.value,
+        TransactionModel.amount > 120,
+    )
+    if status == TransactionStatus.review:
+        conditions.append(review_condition)
+    elif status == TransactionStatus.normal:
+        conditions.append(not_(review_condition))
+
+    return conditions
+
+
+def list_transactions(
+    db: Session,
+    user_id: UUID,
+    *,
+    page: int = 1,
+    page_size: int = 20,
+    search: str | None = None,
+    category: str | None = None,
+    status: TransactionStatus | None = None,
+    transaction_type: TransactionType | None = None,
+    recurring: bool | None = None,
+    date_from: date | None = None,
+    date_to: date | None = None,
+    sort: TransactionSort = TransactionSort.newest,
+) -> TransactionPage:
+    conditions = _filter_conditions(
+        user_id,
+        search=search,
+        category=category,
+        status=status,
+        transaction_type=transaction_type,
+        recurring=recurring,
+        date_from=date_from,
+        date_to=date_to,
+    )
+
+    sort_expression = {
+        TransactionSort.newest: TransactionModel.transaction_date.desc(),
+        TransactionSort.oldest: TransactionModel.transaction_date.asc(),
+        TransactionSort.amount_high: TransactionModel.amount.desc(),
+        TransactionSort.amount_low: TransactionModel.amount.asc(),
+    }[sort]
+
+    total = db.scalar(
+        select(func.count()).select_from(TransactionModel).where(*conditions)
+    ) or 0
     statement = (
         select(TransactionModel)
         .options(joinedload(TransactionModel.category))
-        .where(TransactionModel.user_id == user_id)
-        .order_by(TransactionModel.created_at.desc())
+        .where(*conditions)
+        .order_by(sort_expression, TransactionModel.created_at.desc())
+        .offset((page - 1) * page_size)
+        .limit(page_size)
     )
     transactions = db.scalars(statement).all()
-    return [_to_schema(transaction) for transaction in transactions]
+
+    return TransactionPage(
+        items=[_to_schema(transaction) for transaction in transactions],
+        page=page,
+        pageSize=page_size,
+        total=total,
+        pages=(total + page_size - 1) // page_size,
+    )
+
+
+def summarize_transactions(
+    db: Session,
+    user_id: UUID,
+    *,
+    date_from: date | None = None,
+    date_to: date | None = None,
+) -> TransactionSummary:
+    conditions = _filter_conditions(user_id, date_from=date_from, date_to=date_to)
+    review_condition = and_(
+        TransactionModel.transaction_type == TransactionType.expense.value,
+        TransactionModel.amount > 120,
+    )
+
+    row = db.execute(
+        select(
+            func.coalesce(
+                func.sum(case((TransactionModel.transaction_type == "income", TransactionModel.amount), else_=0)),
+                0,
+            ),
+            func.coalesce(
+                func.sum(case((TransactionModel.transaction_type == "expense", TransactionModel.amount), else_=0)),
+                0,
+            ),
+            func.sum(case((TransactionModel.is_recurring.is_(True), 1), else_=0)),
+            func.sum(case((review_condition, 1), else_=0)),
+            func.count(TransactionModel.id),
+        ).where(*conditions)
+    ).one()
+
+    income = float(row[0])
+    expenses = float(row[1])
+    return TransactionSummary(
+        totalIncome=income,
+        totalExpenses=expenses,
+        balance=income - expenses,
+        recurringCount=int(row[2] or 0),
+        reviewCount=int(row[3] or 0),
+        transactionCount=int(row[4] or 0),
+    )
+
+
+def monthly_expenses(
+    db: Session,
+    user_id: UUID,
+    *,
+    months: int,
+    through: date,
+) -> list[MonthlyExpense]:
+    end_month = through.replace(day=1)
+    year = end_month.year
+    month = end_month.month - (months - 1)
+    while month <= 0:
+        month += 12
+        year -= 1
+    start_month = date(year, month, 1)
+
+    month_key = func.to_char(func.date_trunc("month", TransactionModel.transaction_date), "YYYY-MM")
+    rows = db.execute(
+        select(month_key, func.sum(TransactionModel.amount))
+        .where(
+            TransactionModel.user_id == user_id,
+            TransactionModel.transaction_type == TransactionType.expense.value,
+            TransactionModel.transaction_date >= start_month,
+        )
+        .group_by(month_key)
+        .order_by(month_key)
+    ).all()
+    amounts = {str(row[0]): float(row[1]) for row in rows}
+
+    result: list[MonthlyExpense] = []
+    cursor_year = start_month.year
+    cursor_month = start_month.month
+    for _ in range(months):
+        key = f"{cursor_year:04d}-{cursor_month:02d}"
+        result.append(MonthlyExpense(month=key, amount=amounts.get(key, 0.0)))
+        cursor_month += 1
+        if cursor_month == 13:
+            cursor_month = 1
+            cursor_year += 1
+    return result
 
 
 def create_transaction(db: Session, user_id: UUID, payload: TransactionCreate) -> Transaction:

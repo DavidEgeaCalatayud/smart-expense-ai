@@ -1,6 +1,6 @@
 # Authentication and data ownership
 
-Smart Expense AI uses server-managed authentication and per-user transaction ownership.
+Smart Expense AI uses server-managed authentication and per-user transaction ownership through the versioned `/api/v1` contract.
 
 ## Session model
 
@@ -37,11 +37,11 @@ New passwords must contain at least 12 characters. Login failure messages do not
 
 ## Rate limiting
 
-The Docker/production-style path assumes FastAPI is behind Nginx. Nginx applies per-source-IP request limits to the authentication entry points:
+The Docker/production-style path assumes FastAPI is behind Nginx. Nginx applies per-source-IP request limits to the versioned authentication entry points:
 
 ```text
-POST /api/auth/login     5 requests/minute, burst 4
-POST /api/auth/register  3 requests/minute, burst 2
+POST /api/v1/auth/login     5 requests/minute, burst 4
+POST /api/v1/auth/register  3 requests/minute, burst 2
 ```
 
 The configured burst allows the initial requests immediately; excess requests receive HTTP `429`.
@@ -69,6 +69,22 @@ Update and delete operations query by both transaction ID and user ID. A transac
 
 Seeded categories remain global read-only reference data for now, but reading them requires an authenticated session. If custom user categories are introduced later, ownership will be added at that point.
 
+## Error semantics
+
+Authentication errors use the same API v1 envelope as the rest of the application:
+
+```json
+{
+  "error": {
+    "code": "http_401",
+    "message": "Invalid email or password",
+    "requestId": "..."
+  }
+}
+```
+
+The request ID can be correlated with safe security logs without exposing credentials. See `docs/api.md` for the complete error and versioning contract.
+
 ## Existing pre-authentication data
 
 Migration `0003_users_and_transaction_ownership` preserves transactions created before accounts existed. It assigns them temporarily to an inactive legacy migration owner. When the first active account is registered, that history is transferred to the new user and the temporary owner is removed.
@@ -95,28 +111,32 @@ The container disables Uvicorn access logging and uses the Nginx edge access log
 Public:
 
 ```text
-POST /api/auth/register
-POST /api/auth/login
-POST /api/auth/logout
+POST /api/v1/auth/register
+POST /api/v1/auth/login
+POST /api/v1/auth/logout
 GET  /health
 ```
 
 Authenticated:
 
 ```text
-GET    /api/auth/me
-GET    /api/categories
-GET    /api/transactions
-POST   /api/transactions
-PUT    /api/transactions/{transaction_id}
-DELETE /api/transactions/{transaction_id}
+GET    /api/v1/auth/me
+GET    /api/v1/categories
+GET    /api/v1/transactions
+POST   /api/v1/transactions
+PUT    /api/v1/transactions/{transaction_id}
+DELETE /api/v1/transactions/{transaction_id}
+GET    /api/v1/analytics/summary
+GET    /api/v1/analytics/monthly-expenses
 ```
+
+Unversioned application routes such as `/api/auth/login` and `/api/transactions` are not supported contract aliases.
 
 ## Tests
 
-Backend integration tests create multiple accounts and prove cross-account list/update/delete isolation. They also cover security headers, cookie flags, trusted-host rejection, cross-site mutation rejection, and generic authentication failures.
+Backend integration tests create multiple accounts and prove cross-account list/update/delete isolation. They also cover API v1 versioning, normalized errors, security headers, cookie flags, trusted-host rejection, cross-site mutation rejection, and generic authentication failures.
 
-The Playwright critical flow repeats ownership isolation in a real browser session. Docker CI verifies the reverse-proxy headers and rate limiter.
+The Playwright critical flow repeats ownership isolation in a real browser session. Docker CI verifies the reverse-proxy headers, versioned API contract and rate limiter.
 
 ## Remaining production controls
 
