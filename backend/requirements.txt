@@ -6,3 +6,5 @@ python-dotenv==1.0.1
 SQLAlchemy==2.0.52
 alembic==1.19.0
 psycopg[binary]==3.3.4
+PyJWT==2.13.0
+pwdlib[argon2]==0.3.1
