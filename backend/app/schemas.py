@@ -3,7 +3,7 @@ from decimal import Decimal
 from enum import Enum
 from typing import Annotated, Any
 
-from pydantic import BaseModel, EmailStr, Field, PlainSerializer
+from pydantic import BaseModel, EmailStr, Field, PlainSerializer, field_validator
 
 
 LegacyPositiveMoney = Annotated[
@@ -19,6 +19,12 @@ LegacyMoney = Annotated[
     Decimal,
     PlainSerializer(lambda value: float(value), return_type=float, when_used="json"),
 ]
+
+
+def _require_decimal_string(value: object) -> object:
+    if not isinstance(value, str):
+        raise ValueError("amount must be sent as a decimal string")
+    return value
 
 
 class TransactionType(str, Enum):
@@ -139,9 +145,13 @@ class MonthlyExpense(BaseModel):
 class TransactionCreateV2(TransactionCreate):
     amount: PositiveMoney
 
+    _decimal_string_amount = field_validator("amount", mode="before")(_require_decimal_string)
+
 
 class TransactionUpdateV2(TransactionUpdate):
     amount: PositiveMoney
+
+    _decimal_string_amount = field_validator("amount", mode="before")(_require_decimal_string)
 
 
 class TransactionV2(Transaction):
