@@ -23,6 +23,7 @@ from app.db.base import Base
 
 if TYPE_CHECKING:
     from app.models.category import Category
+    from app.models.user import User
 
 
 class Transaction(Base):
@@ -47,6 +48,12 @@ class Transaction(Base):
         PG_UUID(as_uuid=True),
         primary_key=True,
         default=uuid4,
+    )
+    user_id: Mapped[UUID] = mapped_column(
+        PG_UUID(as_uuid=True),
+        ForeignKey("users.id", ondelete="CASCADE"),
+        nullable=False,
+        index=True,
     )
     category_id: Mapped[UUID] = mapped_column(
         PG_UUID(as_uuid=True),
@@ -80,4 +87,5 @@ class Transaction(Base):
         onupdate=func.now(),
     )
 
+    user: Mapped["User"] = relationship(back_populates="transactions")
     category: Mapped["Category"] = relationship(back_populates="transactions")
