@@ -19,6 +19,13 @@ class PaymentMethod(str, Enum):
     direct_debit = "direct_debit"
 
 
+class TransactionSort(str, Enum):
+    newest = "newest"
+    oldest = "oldest"
+    amount_high = "amount_high"
+    amount_low = "amount_low"
+
+
 class UserResponse(BaseModel):
     id: str
     email: EmailStr
@@ -68,3 +75,25 @@ class TransactionUpdate(TransactionBase):
 class Transaction(TransactionBase):
     id: str
     status: TransactionStatus
+
+
+class TransactionPage(BaseModel):
+    items: list[Transaction]
+    page: int
+    pageSize: int
+    total: int
+    pages: int
+
+
+class TransactionSummary(BaseModel):
+    totalIncome: float
+    totalExpenses: float
+    balance: float
+    recurringCount: int
+    reviewCount: int
+    transactionCount: int
+
+
+class MonthlyExpense(BaseModel):
+    month: str
+    amount: float
