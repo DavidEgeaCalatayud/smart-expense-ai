@@ -7,6 +7,7 @@ from decimal import Decimal
 from typing import Any
 
 from app.services.historical_analysis_v2_2 import analyze_historical_transactions_v2_2
+from app.services.historical_matching import MATCHING_STRATEGY, optimal_recurring_matching
 from app.services.intelligence_rules import TransactionSnapshot
 from app.services.merchant_canonicalization import (
     MerchantIdentity,
@@ -168,24 +169,6 @@ def _parse_recurring_labels(payload: dict[str, Any]) -> list[RecurringStreamLabe
     return parsed
 
 
-def _profile_matches_label(profile: dict[str, object], label: RecurringStreamLabel) -> bool:
-    if str(profile.get("canonicalMerchant", "")) != label.merchant:
-        return False
-    if label.cadence and str(profile.get("cadence", "")) != label.cadence:
-        return False
-    amount = Decimal(str(profile.get("medianAmount", "0")))
-    if not label.amount_matches(amount):
-        return False
-    if label.descriptor_contains:
-        descriptor = str(profile.get("streamDescriptor") or "").casefold()
-        if label.descriptor_contains not in descriptor:
-            return False
-    if label.calendar_signature:
-        if str(profile.get("streamCalendar") or "") != label.calendar_signature:
-            return False
-    return True
-
-
 def _transaction_matches_label(
     transaction: TransactionSnapshot,
     label: RecurringStreamLabel,
@@ -213,9 +196,9 @@ def evaluate_historical_dataset(payload: dict[str, Any]) -> dict[str, Any]:
     """Evaluate historical-v2.2 using strict chronological month-by-month folds.
 
     Every fold builds merchant identity exclusively from transactions available by that
-    cutoff. Recurring stream labels can distinguish descriptor/amount streams and, in v2.2,
-    concurrent calendar phases with identical merchant and amount. There is no random split
-    and no full-dataset merchant identity map.
+    cutoff. Recurring labels and predicted profiles are paired through deterministic
+    maximum-weight bipartite assignment instead of order-dependent greedy matching.
+    There is no random split and no full-dataset merchant identity map.
     """
 
     transactions = _parse_transactions(payload)
@@ -272,22 +255,25 @@ def evaluate_historical_dataset(payload: dict[str, Any]) -> dict[str, Any]:
         relevant_labels = [
             label for label in recurring_labels if label.is_relevant_by(month_key)
         ]
-        relevant_labels.sort(key=lambda label: (not label.is_active_in(month_key), label.label_id))
-        unused_prediction_indexes = set(range(len(predicted_profiles)))
+        active_label_indexes = {
+            index
+            for index, label in enumerate(relevant_labels)
+            if label.is_active_in(month_key)
+        }
+        matching = optimal_recurring_matching(
+            relevant_labels,
+            predicted_profiles,
+            active_label_indexes=active_label_indexes,
+        )
+        prediction_by_label_index = {
+            pair.label_index: pair.profile_index for pair in matching.pairs
+        }
+        unused_prediction_indexes = set(matching.unmatched_profile_indexes)
         fold_recurrence: list[BinaryObservation] = []
 
-        for label in relevant_labels:
-            matching_prediction_index = next(
-                (
-                    index
-                    for index in sorted(unused_prediction_indexes)
-                    if _profile_matches_label(predicted_profiles[index], label)
-                ),
-                None,
-            )
+        for label_index, label in enumerate(relevant_labels):
+            matching_prediction_index = prediction_by_label_index.get(label_index)
             predicted = matching_prediction_index is not None
-            if matching_prediction_index is not None:
-                unused_prediction_indexes.remove(matching_prediction_index)
 
             history = [
                 item
@@ -359,6 +345,8 @@ def evaluate_historical_dataset(payload: dict[str, Any]) -> dict[str, Any]:
                 "temporalPhaseProfiles": int(
                     result.get("recurrenceSegmentation", {}).get("temporalPhaseProfileCount", 0)
                 ),
+                "recurrenceMatchingStrategy": matching.strategy,
+                "recurrenceMatchingUtility": matching.total_utility,
                 "recurrence": _metrics(fold_recurrence, len(eval_transactions)),
                 "anomalies": _metrics(fold_anomalies, len(eval_transactions)),
             }
@@ -389,6 +377,7 @@ def evaluate_historical_dataset(payload: dict[str, Any]) -> dict[str, Any]:
         "analysisVersion": "historical-v2.2",
         "validationStrategy": "walk_forward_monthly_fold_local_identity",
         "labelStrategy": "temporal_recurring_streams_with_calendar_signature",
+        "recurrenceMatchingStrategy": MATCHING_STRATEGY,
         "folds": folds,
         "aggregate": {
             "recurrence": _metrics(recurrence_observations, total_eval_transactions),
