@@ -104,6 +104,11 @@ Goal: implement real analysis without simulated AI outputs.
 - [x] Expose stream basis/calendar signatures and temporal-phase coverage in persisted snapshots and API responses.
 - [x] Extend temporal ground-truth labels with `calendarSignature` and evaluate v2.2 in the fold-local walk-forward harness.
 - [x] Add positive and negative regressions for equal-amount monthly/weekly streams and non-concurrent billing-day drift.
+- [x] Replace order-dependent recurring-label matching with deterministic optimal bipartite assignment and permutation-invariance regressions.
+- [x] Add prospective occurrence-level evaluation using only the prior-month baseline for each expected charge.
+- [x] Measure occurrence precision/recall/F1, missed charges, extra predictions, date MAE/bias and decimal amount MAE/MAPE.
+- [x] Support explicit `{date, amount}` expected-occurrence ground truth while keeping date-only labels backward-compatible.
+- [x] Keep unlabelled occurrence months out of occurrence false-positive metrics unless the dataset explicitly declares complete coverage.
 - [ ] Validate rules and historical algorithms against labelled real-world datasets and measure real-world precision/recall/false-positive rates.
 - [ ] Tune recurring-score weights/cutoffs, stream-clustering tolerances and anomaly thresholds only from labelled evaluation evidence.
 - [ ] Add automatic/background analysis when deployment scheduling is available.
@@ -157,6 +162,7 @@ Goal: prepare the application for real deployment.
 - [x] Run the labelled historical evaluation command in CI.
 - [x] Gate historical-v2.1 fold-local identity and temporal stream-label evaluation in CI.
 - [x] Gate historical-v2.2 equal-amount temporal-phase clustering and calendar-signature evaluation in CI.
+- [x] Gate optimal recurring matching and prospective occurrence-level evaluation in backend CI.
 - [ ] Configure `Quality gate` as a required check for `main`.
 - [ ] Add staging deployment.
 - [ ] Add production TLS/domain/secrets configuration.

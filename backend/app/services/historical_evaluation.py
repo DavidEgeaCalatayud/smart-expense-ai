@@ -8,6 +8,17 @@ from typing import Any
 
 from app.services.historical_analysis_v2_2 import analyze_historical_transactions_v2_2
 from app.services.historical_matching import MATCHING_STRATEGY, optimal_recurring_matching
+from app.services.historical_occurrence_evaluation import (
+    DEFAULT_DATE_TOLERANCE_DAYS,
+    OCCURRENCE_MATCHING_STRATEGY,
+    ExpectedOccurrence,
+    OccurrenceOutcome,
+    PredictedOccurrence,
+    build_occurrence_outcomes,
+    occurrence_metrics,
+    optimal_occurrence_matching,
+    serialize_occurrence_outcomes,
+)
 from app.services.intelligence_rules import TransactionSnapshot
 from app.services.merchant_canonicalization import (
     MerchantIdentity,
@@ -27,12 +38,18 @@ class BinaryObservation:
 
 
 @dataclass(frozen=True)
+class ExpectedOccurrenceSpec:
+    occurrence_date: date
+    expected_amount: Decimal | None
+
+
+@dataclass(frozen=True)
 class RecurringStreamLabel:
     label_id: str
     merchant: str
     active_from: str | None
     active_until: str | None
-    expected_occurrences: tuple[date, ...]
+    expected_occurrences: tuple[ExpectedOccurrenceSpec, ...]
     cadence: str | None
     amount_min: Decimal | None
     amount_max: Decimal | None
@@ -45,7 +62,9 @@ class RecurringStreamLabel:
         if self.active_from:
             candidates.append(self.active_from)
         if self.expected_occurrences:
-            candidates.append(min(self.expected_occurrences).strftime("%Y-%m"))
+            candidates.append(
+                min(item.occurrence_date for item in self.expected_occurrences).strftime("%Y-%m")
+            )
         return min(candidates) if candidates else None
 
     def is_relevant_by(self, month_key: str) -> bool:
@@ -54,7 +73,10 @@ class RecurringStreamLabel:
 
     def is_active_in(self, month_key: str) -> bool:
         if self.expected_occurrences:
-            return any(value.strftime("%Y-%m") == month_key for value in self.expected_occurrences)
+            return any(
+                item.occurrence_date.strftime("%Y-%m") == month_key
+                for item in self.expected_occurrences
+            )
         if self.active_from and month_key < self.active_from:
             return False
         if self.active_until and month_key > self.active_until:
@@ -121,12 +143,29 @@ def _parse_transactions(payload: dict[str, Any]) -> list[TransactionSnapshot]:
     return sorted(transactions, key=lambda item: (item.transaction_date, item.id))
 
 
+def _parse_expected_occurrence(raw: object) -> ExpectedOccurrenceSpec:
+    if isinstance(raw, str):
+        return ExpectedOccurrenceSpec(
+            occurrence_date=date.fromisoformat(raw),
+            expected_amount=None,
+        )
+    if not isinstance(raw, dict) or "date" not in raw:
+        raise ValueError("expectedOccurrences entries must be ISO dates or {date, amount?} objects")
+    return ExpectedOccurrenceSpec(
+        occurrence_date=date.fromisoformat(str(raw["date"])),
+        expected_amount=(Decimal(str(raw["amount"])) if raw.get("amount") is not None else None),
+    )
+
+
 def _parse_recurring_labels(payload: dict[str, Any]) -> list[RecurringStreamLabel]:
     labels = payload.get("labels", {})
     parsed: list[RecurringStreamLabel] = []
     for index, raw in enumerate(labels.get("recurringStreams", [])):
         occurrences = tuple(
-            sorted(date.fromisoformat(str(value)) for value in raw.get("expectedOccurrences", []))
+            sorted(
+                (_parse_expected_occurrence(value) for value in raw.get("expectedOccurrences", [])),
+                key=lambda item: item.occurrence_date,
+            )
         )
         parsed.append(
             RecurringStreamLabel(
@@ -192,13 +231,75 @@ def _majority_category(transactions: list[TransactionSnapshot]) -> str:
     return max(counts, key=lambda value: (counts[value], value))
 
 
-def evaluate_historical_dataset(payload: dict[str, Any]) -> dict[str, Any]:
-    """Evaluate historical-v2.2 using strict chronological month-by-month folds.
+def _occurrence_targets_for_month(
+    labels: list[RecurringStreamLabel],
+    month_key: str,
+) -> list[ExpectedOccurrence]:
+    targets: list[ExpectedOccurrence] = []
+    for label in labels:
+        for occurrence in label.expected_occurrences:
+            if occurrence.occurrence_date.strftime("%Y-%m") != month_key:
+                continue
+            targets.append(
+                ExpectedOccurrence(
+                    label_id=label.label_id,
+                    merchant=label.merchant,
+                    cadence=label.cadence,
+                    amount_min=label.amount_min,
+                    amount_max=label.amount_max,
+                    descriptor_contains=label.descriptor_contains,
+                    calendar_signature=label.calendar_signature,
+                    occurrence_date=occurrence.occurrence_date,
+                    expected_amount=occurrence.expected_amount,
+                )
+            )
+    return targets
 
-    Every fold builds merchant identity exclusively from transactions available by that
-    cutoff. Recurring labels and predicted profiles are paired through deterministic
-    maximum-weight bipartite assignment instead of order-dependent greedy matching.
-    There is no random split and no full-dataset merchant identity map.
+
+def _occurrence_months(
+    payload: dict[str, Any],
+    labels: list[RecurringStreamLabel],
+) -> set[str]:
+    configured = payload.get("evaluation", {}).get("occurrenceEvaluationMonths")
+    if configured is not None:
+        return {str(value) for value in configured}
+    return {
+        occurrence.occurrence_date.strftime("%Y-%m")
+        for label in labels
+        for occurrence in label.expected_occurrences
+    }
+
+
+def _predicted_occurrences_for_month(
+    profiles: list[dict[str, object]],
+    month_key: str,
+) -> list[PredictedOccurrence]:
+    predictions: list[PredictedOccurrence] = []
+    for index, profile in enumerate(profiles):
+        raw_date = profile.get("nextExpectedDate")
+        if not raw_date:
+            continue
+        predicted_date = date.fromisoformat(str(raw_date))
+        if predicted_date.strftime("%Y-%m") != month_key:
+            continue
+        predictions.append(
+            PredictedOccurrence(
+                profile_index=index,
+                profile=profile,
+                occurrence_date=predicted_date,
+                predicted_amount=Decimal(str(profile.get("medianAmount", "0"))),
+            )
+        )
+    return predictions
+
+
+def evaluate_historical_dataset(payload: dict[str, Any]) -> dict[str, Any]:
+    """Evaluate historical-v2.2 with stream-level and prospective occurrence-level folds.
+
+    Stream detection keeps the established month-end fold semantics. Occurrence evaluation is
+    stricter: a July occurrence is forecast only from transactions available through June 30.
+    The baseline merchant identity map and recurring profiles therefore cannot see the target
+    month's transactions. Explicit expectedOccurrences provide the occurrence ground truth.
     """
 
     transactions = _parse_transactions(payload)
@@ -212,12 +313,20 @@ def evaluate_historical_dataset(payload: dict[str, Any]) -> dict[str, Any]:
     recurring_labels = _parse_recurring_labels(payload)
     anomaly_labels = {str(value) for value in payload.get("labels", {}).get("anomalyTransactionIds", [])}
     min_history_months = int(payload.get("evaluation", {}).get("minimumHistoryMonths", 6))
+    occurrence_date_tolerance = int(
+        payload.get("evaluation", {}).get(
+            "occurrenceDateToleranceDays",
+            DEFAULT_DATE_TOLERANCE_DAYS,
+        )
+    )
+    labelled_occurrence_months = _occurrence_months(payload, recurring_labels)
 
     months = sorted({_month_start(item.transaction_date) for item in transactions})
     evaluation_months = months[min_history_months:]
     folds: list[dict[str, Any]] = []
     recurrence_observations: list[BinaryObservation] = []
     anomaly_observations: list[BinaryObservation] = []
+    occurrence_outcomes: list[OccurrenceOutcome] = []
     total_eval_transactions = 0
 
     for evaluation_month in evaluation_months:
@@ -333,6 +442,68 @@ def evaluate_historical_dataset(payload: dict[str, Any]) -> dict[str, Any]:
             fold_anomalies.append(observation)
             anomaly_observations.append(observation)
 
+        occurrence_payload: dict[str, object] = {
+            "evaluated": False,
+            "strategy": "prior_month_baseline_next_expected_date",
+            "matchingStrategy": OCCURRENCE_MATCHING_STRATEGY,
+            "dateToleranceDays": occurrence_date_tolerance,
+            "metrics": occurrence_metrics([]),
+            "outcomes": [],
+        }
+        if month_key in labelled_occurrence_months:
+            baseline_cutoff = evaluation_month - date.resolution
+            baseline_transactions = [
+                item for item in transactions if item.transaction_date <= baseline_cutoff
+            ]
+            baseline_identity_map = build_merchant_identity_map(
+                [item.merchant for item in baseline_transactions]
+            )
+            baseline_window_months = max(
+                6,
+                min(
+                    12,
+                    len({_month_start(item.transaction_date) for item in baseline_transactions}),
+                ),
+            )
+            baseline_profiles: list[dict[str, object]] = []
+            if baseline_transactions:
+                _, _, _, baseline_result = analyze_historical_transactions_v2_2(
+                    baseline_transactions,
+                    baseline_window_months,
+                    analysis_end=baseline_cutoff,
+                    identity_map=baseline_identity_map,
+                )
+                baseline_profiles = [
+                    profile
+                    for profile in baseline_result["recurringProfiles"]
+                    if profile.get("canonicalMerchant")
+                ]
+
+            targets = _occurrence_targets_for_month(recurring_labels, month_key)
+            predictions = _predicted_occurrences_for_month(baseline_profiles, month_key)
+            occurrence_matching = optimal_occurrence_matching(
+                targets,
+                predictions,
+                date_tolerance_days=occurrence_date_tolerance,
+            )
+            fold_occurrence_outcomes = build_occurrence_outcomes(
+                targets,
+                predictions,
+                occurrence_matching,
+            )
+            occurrence_outcomes.extend(fold_occurrence_outcomes)
+            occurrence_payload = {
+                "evaluated": True,
+                "strategy": "prior_month_baseline_next_expected_date",
+                "matchingStrategy": occurrence_matching.strategy,
+                "matchingUtility": occurrence_matching.total_utility,
+                "dateToleranceDays": occurrence_date_tolerance,
+                "baselineThrough": baseline_cutoff.isoformat(),
+                "baselineTransactions": len(baseline_transactions),
+                "metrics": occurrence_metrics(fold_occurrence_outcomes),
+                "outcomes": serialize_occurrence_outcomes(fold_occurrence_outcomes),
+            }
+
         folds.append(
             {
                 "baselineThrough": (evaluation_month.replace(day=1) - date.resolution).isoformat(),
@@ -348,6 +519,7 @@ def evaluate_historical_dataset(payload: dict[str, Any]) -> dict[str, Any]:
                 "recurrenceMatchingStrategy": matching.strategy,
                 "recurrenceMatchingUtility": matching.total_utility,
                 "recurrence": _metrics(fold_recurrence, len(eval_transactions)),
+                "occurrences": occurrence_payload,
                 "anomalies": _metrics(fold_anomalies, len(eval_transactions)),
             }
         )
@@ -378,9 +550,13 @@ def evaluate_historical_dataset(payload: dict[str, Any]) -> dict[str, Any]:
         "validationStrategy": "walk_forward_monthly_fold_local_identity",
         "labelStrategy": "temporal_recurring_streams_with_calendar_signature",
         "recurrenceMatchingStrategy": MATCHING_STRATEGY,
+        "occurrenceValidationStrategy": "walk_forward_prior_month_baseline_next_occurrence",
+        "occurrenceMatchingStrategy": OCCURRENCE_MATCHING_STRATEGY,
+        "occurrenceGroundTruthStrategy": "explicit_expected_occurrences_v1",
         "folds": folds,
         "aggregate": {
             "recurrence": _metrics(recurrence_observations, total_eval_transactions),
+            "occurrences": occurrence_metrics(occurrence_outcomes),
             "anomalies": _metrics(anomaly_observations, total_eval_transactions),
         },
         "recurrenceByHistoryLength": recurrence_by_history,
