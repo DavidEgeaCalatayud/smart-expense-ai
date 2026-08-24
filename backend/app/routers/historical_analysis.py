@@ -6,7 +6,7 @@ from app.core.api_errors import ApiError
 from app.db.session import get_db
 from app.models.user import User
 from app.schemas import HistoricalAnalysisResponse
-from app.services.historical_analysis_v2 import (
+from app.services.historical_analysis_v2_1 import (
     get_latest_historical_analysis,
     run_historical_analysis,
 )
