@@ -1,7 +1,7 @@
 import { Brain, UserPlus } from 'lucide-react';
 import { useState, type FormEvent } from 'react';
 import { Link, Navigate, useNavigate } from 'react-router-dom';
-import { useAuth } from '../auth/AuthContext';
+import { useAuth } from '../auth/useAuth';
 import { ROUTES } from '../routes/paths';
 
 export function RegisterPage() {
