@@ -8,7 +8,7 @@ import type {
 } from '../types/intelligence';
 
 export async function fetchIntelligenceSummary(): Promise<IntelligenceSummary> {
-  return apiFetch<IntelligenceSummary>('/intelligence/summary');
+  return apiFetch<IntelligenceSummary>('/intelligence/summary', {}, 'v2');
 }
 
 export async function fetchIntelligenceFindings(filters: {
@@ -19,11 +19,11 @@ export async function fetchIntelligenceFindings(filters: {
   if (filters.status) query.set('status', filters.status);
   if (filters.type) query.set('type', filters.type);
   const suffix = query.size > 0 ? `?${query.toString()}` : '';
-  return apiFetch<IntelligenceFinding[]>(`/intelligence/findings${suffix}`);
+  return apiFetch<IntelligenceFinding[]>(`/intelligence/findings${suffix}`, {}, 'v2');
 }
 
 export async function runIntelligenceScan(): Promise<IntelligenceScanResult> {
-  return apiFetch<IntelligenceScanResult>('/intelligence/scan', { method: 'POST' });
+  return apiFetch<IntelligenceScanResult>('/intelligence/scan', { method: 'POST' }, 'v2');
 }
 
 export async function updateIntelligenceFindingStatus(
@@ -34,5 +34,5 @@ export async function updateIntelligenceFindingStatus(
     method: 'PATCH',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ status }),
-  });
+  }, 'v2');
 }
