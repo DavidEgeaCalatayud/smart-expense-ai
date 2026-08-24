@@ -44,6 +44,7 @@ test('critical transaction flow persists through the API and updates the dashboa
 
   let row = page.getByRole('row').filter({ hasText: merchant });
   await expect(row).toContainText('€42.50');
+  await expect(page.getByRole('status')).toContainText('Transaction created successfully.');
 
   await page.getByRole('link', { name: 'Dashboard' }).click();
   await expect(page.getByText(merchant)).toBeVisible();
@@ -59,7 +60,14 @@ test('critical transaction flow persists through the API and updates the dashboa
   row = page.getByRole('row').filter({ hasText: merchant });
   await expect(row).toContainText('€150.25');
   await expect(row).toContainText('Needs review');
+  await expect(page.getByRole('status')).toContainText('Transaction updated successfully.');
 
   await row.getByRole('button', { name: `Delete ${merchant}` }).click();
+  const dialog = page.getByRole('dialog', { name: 'Delete transaction?' });
+  await expect(dialog).toBeVisible();
+  await expect(dialog).toContainText('€150.25');
+  await dialog.getByRole('button', { name: 'Delete transaction' }).click();
+
   await expect(page.getByRole('row').filter({ hasText: merchant })).toHaveCount(0);
+  await expect(page.getByRole('status')).toContainText('Transaction deleted successfully.');
 });

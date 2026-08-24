@@ -5,6 +5,7 @@ import { Badge } from '../ui/Badge';
 
 interface TransactionsTableProps {
   transactions: DetailedTransaction[];
+  emptyMessage?: string;
   onEdit: (transaction: DetailedTransaction) => void;
   onDelete: (transactionId: string) => void;
 }
@@ -31,7 +32,12 @@ const paymentMethodLabels = {
   direct_debit: 'Direct debit',
 };
 
-export function TransactionsTable({ transactions, onEdit, onDelete }: TransactionsTableProps) {
+export function TransactionsTable({
+  transactions,
+  emptyMessage = 'No transactions match the current filters.',
+  onEdit,
+  onDelete,
+}: TransactionsTableProps) {
   return (
     <section className="rounded-3xl border border-slate-200 bg-white p-6 shadow-soft">
       <div className="mb-6 flex flex-col justify-between gap-3 sm:flex-row sm:items-center">
@@ -60,8 +66,9 @@ export function TransactionsTable({ transactions, onEdit, onDelete }: Transactio
           <tbody>
             {transactions.length === 0 ? (
               <tr>
-                <td colSpan={9} className="py-10 text-center text-sm text-slate-500">
-                  No transactions match the current filters.
+                <td colSpan={9} className="py-12 text-center">
+                  <p className="font-semibold text-slate-700">Nothing to show yet</p>
+                  <p className="mx-auto mt-2 max-w-md text-sm leading-6 text-slate-500">{emptyMessage}</p>
                 </td>
               </tr>
             ) : (

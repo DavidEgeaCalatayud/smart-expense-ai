@@ -5,6 +5,8 @@ import { PageHeader } from '../components/layout/PageHeader';
 import { TransactionFilters } from '../components/transactions/TransactionFilters';
 import { TransactionForm } from '../components/transactions/TransactionForm';
 import { TransactionsTable } from '../components/transactions/TransactionsTable';
+import { ConfirmDialog } from '../components/ui/ConfirmDialog';
+import { Toast } from '../components/ui/Toast';
 import { fetchCategories } from '../services/categoriesApi';
 import {
   createTransaction,
@@ -18,7 +20,7 @@ import type {
   TransactionFilters as TransactionFiltersType,
   TransactionFormValues,
 } from '../types/transactions';
-import { formatCurrency } from '../utils/formatters';
+import { formatCurrency, formatCurrencyWithDecimals } from '../utils/formatters';
 
 const buildDefaultFormValues = (category = ''): TransactionFormValues => ({
   merchant: '',
@@ -58,10 +60,12 @@ export function TransactionsPage() {
   const [formValues, setFormValues] = useState<TransactionFormValues>(() => buildDefaultFormValues());
   const [filters, setFilters] = useState<TransactionFiltersType>(defaultFilters);
   const [editingTransactionId, setEditingTransactionId] = useState<string | null>(null);
+  const [transactionPendingDelete, setTransactionPendingDelete] = useState<DetailedTransaction | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [deletingTransactionId, setDeletingTransactionId] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [successMessage, setSuccessMessage] = useState<string | null>(null);
 
   useEffect(() => {
     let isActive = true;
@@ -100,6 +104,15 @@ export function TransactionsPage() {
       isActive = false;
     };
   }, []);
+
+  useEffect(() => {
+    if (!successMessage) {
+      return undefined;
+    }
+
+    const timeoutId = window.setTimeout(() => setSuccessMessage(null), 3200);
+    return () => window.clearTimeout(timeoutId);
+  }, [successMessage]);
 
   const filteredTransactions = useMemo(() => {
     const normalizedSearch = filters.search.trim().toLowerCase();
@@ -169,7 +182,9 @@ export function TransactionsPage() {
   };
 
   const handleSubmitTransaction = async () => {
+    const isEditing = editingTransactionId !== null;
     setError(null);
+    setSuccessMessage(null);
     setIsSubmitting(true);
 
     try {
@@ -187,6 +202,7 @@ export function TransactionsPage() {
 
       setEditingTransactionId(null);
       setFormValues(buildDefaultFormValues(defaultExpenseCategory));
+      setSuccessMessage(isEditing ? 'Transaction updated successfully.' : 'Transaction created successfully.');
     } catch (submitError) {
       setError(getErrorMessage(submitError, 'Unable to save transaction'));
     } finally {
@@ -196,11 +212,26 @@ export function TransactionsPage() {
 
   const handleEditTransaction = (transaction: DetailedTransaction) => {
     setError(null);
+    setSuccessMessage(null);
     setEditingTransactionId(transaction.id);
     setFormValues(mapTransactionToFormValues(transaction));
   };
 
-  const handleDeleteTransaction = async (transactionId: string) => {
+  const handleDeleteRequest = (transactionId: string) => {
+    const transaction = transactions.find((item) => item.id === transactionId);
+    if (transaction) {
+      setError(null);
+      setSuccessMessage(null);
+      setTransactionPendingDelete(transaction);
+    }
+  };
+
+  const handleConfirmDelete = async () => {
+    if (!transactionPendingDelete) {
+      return;
+    }
+
+    const transactionId = transactionPendingDelete.id;
     setError(null);
     setDeletingTransactionId(transactionId);
 
@@ -214,10 +245,13 @@ export function TransactionsPage() {
         setEditingTransactionId(null);
         setFormValues(buildDefaultFormValues(defaultExpenseCategory));
       }
+
+      setSuccessMessage('Transaction deleted successfully.');
     } catch (deleteError) {
       setError(getErrorMessage(deleteError, 'Unable to delete transaction'));
     } finally {
       setDeletingTransactionId(null);
+      setTransactionPendingDelete(null);
     }
   };
 
@@ -225,6 +259,11 @@ export function TransactionsPage() {
     setEditingTransactionId(null);
     setFormValues(buildDefaultFormValues(defaultExpenseCategory));
   };
+
+  const emptyMessage =
+    transactions.length === 0
+      ? 'Create your first transaction with the form to start building your financial history.'
+      : 'No transactions match the current filters. Try changing or clearing them.';
 
   return (
     <>
@@ -235,7 +274,9 @@ export function TransactionsPage() {
         action={
           <button
             type="button"
-            className="inline-flex items-center justify-center gap-2 rounded-2xl border border-slate-200 bg-white px-5 py-3 text-sm font-semibold text-slate-700 shadow-sm transition hover:bg-slate-50"
+            disabled
+            title="CSV import is not available yet"
+            className="inline-flex cursor-not-allowed items-center justify-center gap-2 rounded-2xl border border-slate-200 bg-white px-5 py-3 text-sm font-semibold text-slate-400 opacity-70 shadow-sm"
           >
             <Download size={18} />
             Import CSV
@@ -304,16 +345,33 @@ export function TransactionsPage() {
           ) : (
             <TransactionsTable
               transactions={filteredTransactions}
+              emptyMessage={emptyMessage}
               onEdit={handleEditTransaction}
-              onDelete={(transactionId) => {
-                if (deletingTransactionId === null) {
-                  void handleDeleteTransaction(transactionId);
-                }
-              }}
+              onDelete={handleDeleteRequest}
             />
           )}
         </div>
       </section>
+
+      <ConfirmDialog
+        isOpen={transactionPendingDelete !== null}
+        title="Delete transaction?"
+        description={
+          transactionPendingDelete
+            ? `${transactionPendingDelete.merchant} · ${formatCurrencyWithDecimals(transactionPendingDelete.amount)} will be permanently removed.`
+            : ''
+        }
+        confirmLabel="Delete transaction"
+        isConfirming={deletingTransactionId !== null}
+        onCancel={() => {
+          if (deletingTransactionId === null) {
+            setTransactionPendingDelete(null);
+          }
+        }}
+        onConfirm={() => void handleConfirmDelete()}
+      />
+
+      {successMessage && <Toast message={successMessage} onDismiss={() => setSuccessMessage(null)} />}
     </>
   );
 }
