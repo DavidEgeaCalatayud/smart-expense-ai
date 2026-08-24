@@ -1,70 +1,33 @@
 import type { AuthResponse, AuthUser, LoginValues, RegisterValues } from '../types/auth';
+import { ApiRequestError, apiFetch } from './apiClient';
 
-const API_BASE_URL = import.meta.env.VITE_API_BASE_URL ?? 'http://localhost:8000';
-const AUTH_ENDPOINT = `${API_BASE_URL}/api/auth`;
-
-async function parseError(response: Response, fallback: string): Promise<Error> {
-  try {
-    const body = (await response.json()) as { detail?: string };
-    return new Error(body.detail ?? fallback);
-  } catch {
-    return new Error(fallback);
-  }
-}
-
-export async function register(values: RegisterValues): Promise<AuthResponse> {
-  const response = await fetch(`${AUTH_ENDPOINT}/register`, {
+export function register(values: RegisterValues): Promise<AuthResponse> {
+  return apiFetch<AuthResponse>('/auth/register', {
     method: 'POST',
-    credentials: 'include',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(values),
   });
-
-  if (!response.ok) {
-    throw await parseError(response, 'Unable to create account');
-  }
-
-  return response.json();
 }
 
-export async function login(values: LoginValues): Promise<AuthResponse> {
-  const response = await fetch(`${AUTH_ENDPOINT}/login`, {
+export function login(values: LoginValues): Promise<AuthResponse> {
+  return apiFetch<AuthResponse>('/auth/login', {
     method: 'POST',
-    credentials: 'include',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(values),
   });
-
-  if (!response.ok) {
-    throw await parseError(response, 'Unable to sign in');
-  }
-
-  return response.json();
 }
 
-export async function logout(): Promise<void> {
-  const response = await fetch(`${AUTH_ENDPOINT}/logout`, {
-    method: 'POST',
-    credentials: 'include',
-  });
-
-  if (!response.ok) {
-    throw await parseError(response, 'Unable to sign out');
-  }
+export function logout(): Promise<void> {
+  return apiFetch<void>('/auth/logout', { method: 'POST' });
 }
 
 export async function fetchCurrentUser(): Promise<AuthUser | null> {
-  const response = await fetch(`${AUTH_ENDPOINT}/me`, {
-    credentials: 'include',
-  });
-
-  if (response.status === 401) {
-    return null;
+  try {
+    return await apiFetch<AuthUser>('/auth/me');
+  } catch (error) {
+    if (error instanceof ApiRequestError && error.status === 401) {
+      return null;
+    }
+    throw error;
   }
-
-  if (!response.ok) {
-    throw await parseError(response, 'Unable to restore session');
-  }
-
-  return response.json();
 }
