@@ -10,6 +10,7 @@ import {
   XCircle,
 } from 'lucide-react';
 import { useCallback, useEffect, useState } from 'react';
+import { HistoricalAnalysisPanel } from '../components/intelligence/HistoricalAnalysisPanel';
 import { PageHeader } from '../components/layout/PageHeader';
 import { ApiErrorAlert } from '../components/ui/ApiErrorAlert';
 import { EmptyStateCard } from '../components/ui/EmptyStateCard';
@@ -157,7 +158,7 @@ export function AlertsPage() {
       <PageHeader
         eyebrow="Explainable rules engine"
         title="Financial intelligence"
-        description="Persisted recurring-pattern, duplicate-subscription and amount-anomaly findings generated from your own transaction history."
+        description="Persisted findings plus reproducible historical algorithms over your own transaction history."
         action={
           <button
             type="button"
@@ -166,7 +167,7 @@ export function AlertsPage() {
             className="inline-flex items-center justify-center gap-2 rounded-2xl bg-slate-950 px-5 py-3 text-sm font-semibold text-white shadow-soft transition hover:-translate-y-0.5 hover:bg-slate-800 disabled:cursor-not-allowed disabled:opacity-60"
           >
             {isScanning ? <RefreshCw size={18} className="animate-spin" /> : <ScanSearch size={18} />}
-            {isScanning ? 'Analyzing…' : 'Run analysis'}
+            {isScanning ? 'Analyzing…' : 'Run findings scan'}
           </button>
         }
       />
@@ -207,7 +208,7 @@ export function AlertsPage() {
       <section className="mt-6 rounded-3xl border border-slate-200 bg-white p-5 shadow-soft">
         <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
           <div>
-            <h2 className="font-bold text-slate-950">Analysis state</h2>
+            <h2 className="font-bold text-slate-950">Findings scan state</h2>
             <p className="mt-1 text-sm text-slate-500">
               Last scan: {lastScanLabel} · {summary.analyzedTransactions} expense transactions · {summary.ruleVersion}
             </p>
@@ -231,7 +232,9 @@ export function AlertsPage() {
         </div>
       </section>
 
-      <section className="mt-6 space-y-4">
+      <HistoricalAnalysisPanel />
+
+      <section className="mt-8 space-y-4">
         {isLoading ? (
           <div className="rounded-3xl border border-slate-200 bg-white p-10 text-center text-sm text-slate-500 shadow-soft">
             Loading persisted intelligence findings...
