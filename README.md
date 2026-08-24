@@ -8,12 +8,16 @@ The current MVP does **not** simulate AI results. Transactions, categories and d
 
 Implemented today:
 
+- User registration, login and logout.
+- Argon2 password hashing.
+- Signed JWT sessions stored in HttpOnly, SameSite=Lax cookies.
+- Mandatory per-user transaction ownership and API-level data isolation.
 - Persistent transaction creation, editing, deletion and listing.
 - PostgreSQL persistence through SQLAlchemy 2.
 - Alembic schema migrations and initial category seeding.
-- Persisted categories exposed through `GET /api/categories`.
+- Persisted shared categories exposed through authenticated `GET /api/categories`.
 - Category/type validation for expense and income transactions.
-- Dashboard metrics derived from real transactions.
+- Dashboard metrics derived only from the authenticated user's transactions.
 - Six-month expense trend calculated from persisted history.
 - Five most recent transactions displayed on the dashboard.
 - Recurring transactions stored as an explicit user-provided flag.
@@ -21,19 +25,20 @@ Implemented today:
 - Delete confirmation and operation feedback in transaction management.
 - Backend unit and PostgreSQL integration tests with pytest.
 - Frontend component/page tests with Vitest and React Testing Library.
-- Critical browser CRUD coverage with Playwright.
+- Critical authenticated browser coverage with Playwright, including cross-account isolation.
 - GitHub Actions quality gates for migrations, tests, TypeScript, ESLint, production builds and Docker Compose.
 - One-command Docker Compose environment for frontend, backend and PostgreSQL.
 
 Not implemented yet:
 
+- Password reset/change and account deletion/privacy export controls.
+- User-managed custom categories.
 - AI confidence scores.
 - Automatic transaction classification.
 - Anomaly detection.
 - Duplicate-subscription detection.
 - Spending forecasts.
 - Automated financial alerts.
-- Authentication and per-user data ownership.
 - Bank integrations.
 
 ## Quick Start with Docker
@@ -50,7 +55,7 @@ Then open:
 http://localhost:5173
 ```
 
-The stack is:
+Create an account on first use. The full stack is:
 
 ```text
 Browser
@@ -58,10 +63,11 @@ Browser
   v
 frontend :5173 (Nginx + React build)
   |
-  | /api/*
+  | HttpOnly session cookie + /api/*
   v
 backend :8000 (FastAPI + Alembic)
   |
+  | authenticated user_id scoped queries
   v
 db (PostgreSQL 16)
 ```
@@ -75,6 +81,8 @@ docker compose down
 ```
 
 The PostgreSQL named volume is retained. Use `docker compose down -v` only when you intentionally want to delete the Compose-managed database.
+
+Existing transactions created before the authentication migration are preserved under a temporary inactive legacy owner. The first active account registered after migration automatically claims that pre-authentication history.
 
 See [`docs/docker.md`](docs/docker.md) for architecture, health checks, logs and reset instructions.
 
@@ -98,6 +106,7 @@ These features will be added only when they can operate on real persisted data a
 ```text
 React + TypeScript
         |
+        | HttpOnly JWT session
         v
 Nginx reverse proxy
         |
@@ -105,8 +114,9 @@ Nginx reverse proxy
 FastAPI REST API
         |
         v
-Service layer
+Authentication + service layer
         |
+        | every transaction query scoped by user_id
         v
 SQLAlchemy 2
         |
@@ -121,7 +131,7 @@ Repository structure:
 ```text
 smart-expense-ai/
 ├── frontend/        # React + TypeScript web application and Nginx image
-├── backend/         # FastAPI API, services, SQLAlchemy models and migrations
+├── backend/         # FastAPI API, auth, services, SQLAlchemy models and migrations
 ├── ai/              # Reserved for future intelligence services
 ├── docs/            # Product and technical documentation
 ├── scripts/         # Utility scripts
@@ -132,16 +142,27 @@ smart-expense-ai/
 
 ## API
 
-Current endpoints:
+Public endpoints:
 
 ```text
 GET    /health
+POST   /api/auth/register
+POST   /api/auth/login
+POST   /api/auth/logout
+```
+
+Authenticated endpoints:
+
+```text
+GET    /api/auth/me
 GET    /api/categories
 GET    /api/transactions
 POST   /api/transactions
 PUT    /api/transactions/{transaction_id}
 DELETE /api/transactions/{transaction_id}
 ```
+
+The browser session is carried by an HttpOnly cookie. Cross-account transaction IDs are treated as not found rather than exposing ownership information.
 
 ## Manual Local Development
 
@@ -157,7 +178,7 @@ On Windows PowerShell:
 Copy-Item .env.example .env
 ```
 
-Update `DATABASE_URL` with your PostgreSQL credentials.
+Update `DATABASE_URL` and replace `JWT_SECRET` with a long local secret.
 
 ### Backend
 
@@ -205,13 +226,14 @@ npm run build
 
 The repository has automated quality layers for:
 
-1. Backend unit tests.
+1. Backend unit tests, including password hashing and JWT validation.
 2. Backend API integration tests against migrated PostgreSQL.
-3. Frontend tests with Vitest and React Testing Library.
-4. Critical end-to-end browser coverage with Playwright.
-5. Full Docker Compose build/startup smoke testing.
+3. Explicit cross-account ownership tests proving one user cannot mutate another user's transaction.
+4. Frontend tests with Vitest and React Testing Library.
+5. Critical authenticated end-to-end browser coverage with Playwright.
+6. Full Docker Compose build/startup smoke testing, including registration and authenticated API access.
 
-GitHub Actions runs these gates for pushes and pull requests targeting `main`. The Docker job builds the actual frontend/backend images, starts PostgreSQL, waits for health checks, and verifies the frontend plus proxied API before the consolidated `Quality gate` can pass.
+GitHub Actions runs these gates for pushes and pull requests targeting `main`. The Docker job builds the actual frontend/backend images, starts PostgreSQL, registers a test account, verifies authenticated proxy access and then tears the stack down before the consolidated `Quality gate` can pass.
 
 See [`docs/testing.md`](docs/testing.md) for test-database safety and CI details.
 
@@ -238,6 +260,8 @@ See [`docs/testing.md`](docs/testing.md) for test-database safety and CI details
 - PostgreSQL 16
 - Alembic
 - Psycopg 3
+- PyJWT
+- pwdlib / Argon2
 - pytest
 
 ### Infrastructure
@@ -253,7 +277,7 @@ The detailed roadmap is maintained in [`ROADMAP.md`](ROADMAP.md).
 Near-term priorities are:
 
 1. Stronger transaction UX and responsive behavior.
-2. Authentication and per-user transaction ownership.
+2. Password reset/change plus account deletion/privacy controls.
 3. User-managed categories when required.
 4. A real intelligence layer built over sufficient historical transaction data.
 5. Staging and deployment automation.
