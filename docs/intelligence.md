@@ -16,19 +16,19 @@ Every analysis run and every persisted finding records that version so threshold
 Authenticated user
       |
       v
-POST /api/v1/intelligence/scan
+POST /api/v2/intelligence/scan
       |
       v
-Persisted expense transactions
+PostgreSQL NUMERIC(12,2) expense transactions
       |
       v
-rules-v1
+Python Decimal rules-v1
   | recurring-pattern rule
   | duplicate-subscription rule
   | amount-anomaly rule
       |
       v
-finding candidates
+finding candidates with decimal-string monetary evidence
       |
       v
 idempotent fingerprint upsert
@@ -41,6 +41,8 @@ open / dismissed / resolved review workflow
 ```
 
 The engine reads only transactions owned by the authenticated user. Findings and scan history are also scoped by `user_id` and cascade-delete with the owning account.
+
+No amount-based rule converts persisted money to Python `float`. Median amounts, tolerances, anomaly baselines and thresholds are evaluated with `Decimal`.
 
 ## Persisted entities
 
@@ -55,6 +57,8 @@ The engine reads only transactions owned by the authenticated user. Findings and
 - structured JSON evidence;
 - first/last detection timestamps;
 - resolution timestamp when applicable.
+
+Monetary values written into JSON evidence are canonical decimal strings such as `"9.99"` and `"85.00"`. This avoids introducing binary floating-point values into persisted intelligence evidence.
 
 `intelligence_scans` stores:
 
@@ -76,7 +80,7 @@ Requirements:
 - at least 3 distinct charge dates;
 - cadence median falls into one supported interval;
 - at least 75% of observed intervals match that cadence, with a minimum of 2 matching intervals;
-- every observed amount remains within 15% of the median amount.
+- every observed amount remains within 15% of the Decimal median amount.
 
 Supported cadence windows:
 
@@ -103,7 +107,7 @@ Requirements:
 - amounts differ by no more than the greater of 1 EUR or 5%;
 - this near-duplicate pattern appears in at least 2 different calendar months.
 
-Evidence includes merchant, affected months, number of duplicate pairs, approximate amount and supporting transaction IDs.
+The amount comparison uses Decimal arithmetic. Evidence includes merchant, affected months, number of duplicate pairs, approximate amount and supporting transaction IDs.
 
 The finding is deliberately named **possible duplicate subscription**. Two legitimate services billed by the same merchant can match the rule, so user review is required.
 
@@ -115,7 +119,7 @@ Requirements:
 
 - at least 4 earlier charges at the same normalized merchant;
 - baseline uses up to the previous 12 charges;
-- baseline centre is the median;
+- baseline centre is the Decimal median;
 - dispersion uses median absolute deviation (MAD), with a conservative floor;
 - candidate amount must exceed both a robust statistical threshold and 2× the historical median;
 - the absolute increase over the median must be at least 20 EUR.
@@ -133,7 +137,7 @@ where `robust spread` is the maximum of MAD, 5% of the median, and 1 EUR.
 
 A ratio of 3× or more is severity `high`; other qualifying anomalies are `warning`.
 
-Evidence includes merchant, triggering transaction ID/date/amount, historical median, baseline count, ratio and threshold.
+Evidence includes merchant, triggering transaction ID/date/amount, historical median, baseline count, ratio and threshold. In API v2 the monetary fields and ratio are serialized as decimal strings.
 
 ## Review states
 
@@ -153,14 +157,16 @@ The UI also allows dismissed/resolved findings to be reopened.
 
 ## API
 
-Authenticated endpoints:
+The web application uses the decimal-safe v2 endpoints:
 
 ```text
-POST  /api/v1/intelligence/scan
-GET   /api/v1/intelligence/summary
-GET   /api/v1/intelligence/findings
-PATCH /api/v1/intelligence/findings/{finding_id}
+POST  /api/v2/intelligence/scan
+GET   /api/v2/intelligence/summary
+GET   /api/v2/intelligence/findings
+PATCH /api/v2/intelligence/findings/{finding_id}
 ```
+
+The v1 equivalents remain available for backwards compatibility. Because v1 had already published numeric evidence examples, its response adapter keeps the known monetary evidence fields numeric. v2 normalizes those fields to decimal strings, including findings that may have been persisted before the decimal hardening.
 
 `GET /findings` accepts optional `status` and `type` filters.
 
@@ -179,6 +185,6 @@ Known limitations include:
 
 ## Validation strategy
 
-The rules have unit tests for positive and negative threshold cases. PostgreSQL integration tests verify persistence, idempotent rescans, review-state persistence and cross-account isolation.
+The rules have unit tests for positive and negative threshold cases using Decimal inputs. PostgreSQL integration tests verify persistence, idempotent rescans, review-state persistence, cross-account isolation and versioned evidence representation.
 
 The next Phase 3 validation step is to build labelled fixture datasets containing true positives and plausible false positives, then measure precision/recall per rule before loosening thresholds or adding probabilistic models.

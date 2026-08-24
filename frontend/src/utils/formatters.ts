@@ -1,14 +1,6 @@
-export const formatCurrency = (value: number) =>
-  new Intl.NumberFormat('en-US', {
-    style: 'currency',
-    currency: 'EUR',
-    maximumFractionDigits: 0,
-  }).format(value);
+import type { MoneyAmount } from '../types/transactions';
+import { formatMoneyRounded, formatMoneyWithDecimals } from './money';
 
-export const formatCurrencyWithDecimals = (value: number) =>
-  new Intl.NumberFormat('en-US', {
-    style: 'currency',
-    currency: 'EUR',
-    minimumFractionDigits: 2,
-    maximumFractionDigits: 2,
-  }).format(value);
+export const formatCurrency = (value: MoneyAmount) => formatMoneyRounded(value);
+
+export const formatCurrencyWithDecimals = (value: MoneyAmount) => formatMoneyWithDecimals(value);

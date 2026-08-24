@@ -16,7 +16,7 @@ const mapFormValuesToPayload = (values: TransactionFormValues) => ({
   merchant: values.merchant,
   description: values.description,
   category: values.category,
-  amount: Number(values.amount),
+  amount: values.amount.trim(),
   date: values.date,
   type: values.type,
   paymentMethod: values.paymentMethod,
@@ -41,7 +41,7 @@ const buildQuery = ({ page = 1, pageSize = 20, filters }: FetchTransactionsOptio
 };
 
 export function fetchTransactions(options: FetchTransactionsOptions = {}): Promise<TransactionPage> {
-  return apiFetch<TransactionPage>(`/transactions?${buildQuery(options)}`);
+  return apiFetch<TransactionPage>(`/transactions?${buildQuery(options)}`, {}, 'v2');
 }
 
 export function createTransaction(values: TransactionFormValues): Promise<DetailedTransaction> {
@@ -49,7 +49,7 @@ export function createTransaction(values: TransactionFormValues): Promise<Detail
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(mapFormValuesToPayload(values)),
-  });
+  }, 'v2');
 }
 
 export function updateTransaction(
@@ -60,9 +60,9 @@ export function updateTransaction(
     method: 'PUT',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(mapFormValuesToPayload(values)),
-  });
+  }, 'v2');
 }
 
 export function deleteTransaction(transactionId: string): Promise<void> {
-  return apiFetch<void>(`/transactions/${transactionId}`, { method: 'DELETE' });
+  return apiFetch<void>(`/transactions/${transactionId}`, { method: 'DELETE' }, 'v2');
 }

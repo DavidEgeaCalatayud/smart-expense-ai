@@ -33,7 +33,12 @@ Goal: make the first usable version persist real financial data.
 - [x] Add server-side search, category, status, type, recurring, date and sort filters.
 - [x] Add aggregate summary and monthly-expense endpoints.
 - [x] Add normalized API errors with semantic codes and request IDs.
+- [x] Add typed frontend API errors for validation, authentication, authorization, conflicts, server and network failures.
+- [x] Preserve safe backend error messages, request IDs and validation details in frontend UX.
 - [x] Version the supported application API under `/api/v1`.
+- [x] Add backward-compatible `/api/v2` financial endpoints with decimal-string monetary contracts.
+- [x] Keep money as PostgreSQL `NUMERIC` / Python `Decimal` through financial services and rules.
+- [x] Use decimal strings plus integer cents in the frontend instead of floating-point money arithmetic.
 - [ ] Improve responsive transaction UX.
 - [x] Add delete confirmation and operation feedback.
 - [x] Add distinct loading, refreshing, retry and mutation states in transaction UX.
@@ -73,6 +78,7 @@ Goal: implement real analysis without simulated AI outputs.
 - [x] Make rescans idempotent through stable per-user fingerprints.
 - [x] Keep intelligence findings isolated by authenticated user ownership.
 - [x] Add Financial Intelligence frontend workspace for scan/review/dismiss/resolve/reopen flows.
+- [x] Remove floating-point money calculations from the intelligence rules and evidence pipeline.
 - [ ] Validate analysis rules against labelled real-world datasets and measure precision/recall.
 - [ ] Add automatic/background analysis when deployment scheduling is available.
 - [ ] Add category-level anomaly baselines and richer merchant normalization if validation justifies them.
@@ -119,6 +125,7 @@ Goal: prepare the application for real deployment.
 - [x] Add HTTP security headers and reduced sensitive logging.
 - [x] Complete a baseline OWASP Top 10:2025 review.
 - [x] Add API v1 contract documentation and CI smoke coverage.
+- [x] Add API v2 decimal-money contract tests and Docker smoke coverage.
 - [ ] Configure `Quality gate` as a required check for `main`.
 - [ ] Add staging deployment.
 - [ ] Add production TLS/domain/secrets configuration.

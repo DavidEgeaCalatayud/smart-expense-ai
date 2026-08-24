@@ -5,7 +5,7 @@ from app.auth.dependencies import get_current_user
 from app.core.api_errors import ApiError
 from app.db.session import get_db
 from app.models.user import User
-from app.routers.intelligence_contract import to_legacy_finding
+from app.routers.intelligence_contract import to_decimal_finding
 from app.schemas import (
     FindingStatus,
     FindingStatusUpdate,
@@ -21,7 +21,7 @@ from app.services.intelligence_service import (
     update_finding_status,
 )
 
-router = APIRouter(prefix="/intelligence", tags=["intelligence"])
+router = APIRouter(prefix="/intelligence", tags=["intelligence-v2"])
 
 
 @router.post("/scan", response_model=IntelligenceScanResponse)
@@ -48,7 +48,7 @@ def findings(
     current_user: User = Depends(get_current_user),
 ) -> list[IntelligenceFindingResponse]:
     return [
-        to_legacy_finding(finding)
+        to_decimal_finding(finding)
         for finding in list_findings(
             db,
             current_user.id,
@@ -72,4 +72,4 @@ def update_finding(
             "intelligence_finding_not_found",
             "Intelligence finding not found",
         )
-    return to_legacy_finding(finding)
+    return to_decimal_finding(finding)

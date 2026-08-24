@@ -204,6 +204,27 @@ jobs:
           curl --fail --silent --show-error -b cookies.txt http://localhost:5173/api/v1/intelligence/summary -o intelligence-summary.json
           grep '"openCount":0' intelligence-summary.json
           grep '"ruleVersion":"rules-v1"' intelligence-summary.json
+          curl --fail --silent --show-error \
+            -b cookies.txt \
+            -H 'Content-Type: application/json' \
+            -d '{"merchant":"Decimal A","description":"fixed point smoke","category":"Food","amount":"0.10","date":"2026-08-24","type":"expense","paymentMethod":"card","isRecurring":false}' \
+            http://localhost:5173/api/v2/transactions -o decimal-a.json
+          grep '"amount":"0.10"' decimal-a.json
+          curl --fail --silent --show-error \
+            -b cookies.txt \
+            -H 'Content-Type: application/json' \
+            -d '{"merchant":"Decimal B","description":"fixed point smoke","category":"Food","amount":"0.20","date":"2026-08-24","type":"expense","paymentMethod":"card","isRecurring":false}' \
+            http://localhost:5173/api/v2/transactions -o decimal-b.json
+          grep '"amount":"0.20"' decimal-b.json
+          curl --fail --silent --show-error -b cookies.txt http://localhost:5173/api/v2/analytics/summary -o decimal-summary.json
+          grep '"totalExpenses":"0.30"' decimal-summary.json
+          grep '"balance":"-0.30"' decimal-summary.json
+          test "$(curl --silent --output decimal-number.json --write-out '%{http_code}' \
+            -b cookies.txt \
+            -H 'Content-Type: application/json' \
+            -d '{"merchant":"Binary Float","description":"must fail","category":"Food","amount":0.1,"date":"2026-08-24","type":"expense","paymentMethod":"card","isRecurring":false}' \
+            http://localhost:5173/api/v2/transactions)" = "422"
+          grep '"code":"validation_error"' decimal-number.json
           test "$(curl --silent --output legacy.json --write-out '%{http_code}' http://localhost:5173/api/transactions)" = "404"
           grep '"code":"http_404"' legacy.json
           test "$(curl --silent --output unauth.json --write-out '%{http_code}' http://localhost:5173/api/v1/intelligence/findings)" = "401"

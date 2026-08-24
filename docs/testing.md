@@ -1,6 +1,6 @@
 # Testing and CI
 
-Smart Expense AI uses multiple test layers so persistence, authentication, security controls, API contracts, deterministic intelligence rules and critical browser flows are verified automatically.
+Smart Expense AI uses multiple test layers so persistence, authentication, security controls, versioned API contracts, monetary precision, deterministic intelligence rules and critical browser flows are verified automatically.
 
 ## Backend
 
@@ -16,14 +16,17 @@ Unit tests do not need a running database:
 pytest -m "not integration"
 ```
 
-The financial-intelligence rules are deliberately implemented as pure functions, so their thresholds can be tested without PostgreSQL. Unit coverage includes:
+Financial logic uses `Decimal`, including the 120 EUR review threshold and all amount-based intelligence rules. Unit coverage includes the exact `120.00` / `120.01` boundary and Decimal-based recurring, duplicate-subscription and anomaly calculations.
+
+The financial-intelligence rules are deliberately implemented as pure functions, so their thresholds can be tested without PostgreSQL. Coverage includes:
 
 - merchant normalization across case, accents and punctuation;
 - recurring-pattern positive and negative cases;
 - stable-amount and cadence requirements;
 - repeated near-duplicate subscription billing across multiple months;
 - merchant-specific anomaly baselines;
-- minimum-history requirements that prevent premature anomaly findings.
+- minimum-history requirements that prevent premature anomaly findings;
+- decimal-string monetary evidence generated without float conversion.
 
 Integration tests intentionally use PostgreSQL rather than SQLite. Create a disposable test database, point `TEST_DATABASE_URL` at it, migrate it, then run the full suite.
 
@@ -49,7 +52,12 @@ The test bootstrap deliberately does not inherit a development `DATABASE_URL`. T
 
 Backend contract/security regression coverage includes:
 
-- `/api/v1` as the supported application namespace;
+- backwards-compatible `/api/v1` behavior;
+- decimal-safe `/api/v2` transaction, analytics and intelligence behavior;
+- exact persistence/aggregation for `"0.10" + "0.20" = "0.30"`;
+- v2 rejection of JSON numeric money and values with more than two fractional digits;
+- v1 legacy numeric money responses preserved at the serialization boundary;
+- v1 numeric versus v2 decimal-string intelligence evidence;
 - normalized `error.code`, `error.message`, `error.requestId` envelopes;
 - validation error details;
 - transaction page metadata and pagination boundaries;
@@ -84,9 +92,25 @@ npm run build
 npm audit --audit-level=high
 ```
 
-Vitest and React Testing Library cover component behavior and API-driven page behavior. Transaction-page tests verify that filters are sent to the API rather than applied to a partial page in memory, and that mutations refresh the authoritative page/summary before success feedback is shown.
+The browser monetary type is a decimal string. Financial formatting and sign/arithmetic helpers parse it into integer cents rather than `Number(decimalString)`. Unit tests explicitly prove that `0.10 + 0.20` becomes 30 cents exactly, check negative balances/formatting, and reject values with more than two decimal places.
 
-The Financial Intelligence page tests verify that persisted findings and their evidence render from the API, that `Run analysis` invokes the scan endpoint and refreshes authoritative state, and that review actions such as dismissing a finding are persisted through the API rather than changing only local React state.
+Recharts requires JavaScript numeric plot coordinates. The dashboard has a dedicated visualization adapter that converts integer cents to a number only when building chart data; that number is not reused for balances, thresholds, comparisons or persistence.
+
+The API client also has direct tests for typed error semantics. It distinguishes:
+
+- `401` authentication;
+- `403` authorization;
+- `404` not found;
+- `409` conflict;
+- `422` validation;
+- `5xx` server failures;
+- network/fetch failures.
+
+Safe backend `message`, `requestId` and `details` are retained. Only network and server failures are marked retryable by default, avoiding misleading retry actions for validation/auth/conflict failures.
+
+Vitest and React Testing Library additionally cover component behavior and API-driven page behavior. Transaction-page tests verify that filters are sent to the API rather than applied to a partial page in memory, and that mutations refresh the authoritative page/summary before success feedback is shown.
+
+The Financial Intelligence page tests verify that persisted findings and decimal evidence render from the API, that `Run analysis` invokes the scan endpoint and refreshes authoritative state, and that review actions are persisted through the API rather than changing only local React state.
 
 When intentionally changing frontend dependencies, update `package.json` and regenerate `package-lock.json` together with npm. CI uses `npm ci`, so dependency metadata drift causes the install step to fail instead of silently rewriting the lockfile.
 
@@ -113,15 +137,16 @@ Playwright starts Vite and FastAPI automatically. PostgreSQL must already be run
 
 The critical flow verifies:
 
-1. User A registers and creates a transaction through API v1.
-2. The dashboard aggregate/recent endpoints reflect the persisted transaction.
-3. User A logs out.
-4. User B registers and cannot see User A's transaction.
-5. User A logs back in and still owns the transaction.
-6. The transaction can be edited and the deterministic review rule is reflected.
-7. The transaction can be deleted after confirmation.
+1. User A registers through the v1 authentication contract.
+2. The React transaction client creates `42.50` through decimal-safe API v2.
+3. The dashboard v2 aggregate/recent endpoints reflect the persisted transaction exactly.
+4. User A logs out.
+5. User B registers and cannot see User A's transaction.
+6. User A logs back in and still owns the transaction.
+7. The transaction is edited to `150.25` through v2 and the Decimal review rule is reflected.
+8. The transaction can be deleted after confirmation.
 
-Financial-intelligence behavior is currently covered by pure rule tests, PostgreSQL integration tests, frontend page tests and Docker contract smoke tests rather than making the single critical browser flow substantially larger. A dedicated browser intelligence flow can be added when the review workspace gains more cross-page behavior.
+Financial-intelligence behavior is covered by pure rule tests, PostgreSQL integration tests, frontend page tests and Docker contract smoke tests rather than making the single critical browser flow substantially larger.
 
 ## Docker contract/security smoke test
 
@@ -129,12 +154,13 @@ The Compose job builds the actual deployment-style images and checks more than s
 
 - Nginx CSP and MIME-sniffing protection;
 - API `Cache-Control: no-store`;
-- `/api/v1` registration and authenticated proxy access;
-- paginated transaction metadata through Nginx;
-- the aggregate summary endpoint;
+- v1 registration and authenticated proxy access;
+- legacy v1 transaction/analytics compatibility;
 - migration of the persisted intelligence tables through normal backend startup;
-- an authenticated empty-data `POST /api/v1/intelligence/scan` returning zero analysed transactions/findings;
-- the intelligence summary reporting zero open findings and `rules-v1` through Nginx;
+- an authenticated empty-data intelligence scan;
+- two v2 transactions with amounts `"0.10"` and `"0.20"` through Nginx;
+- an exact v2 aggregate of `"0.30"` and balance `"-0.30"`;
+- rejection of the JSON numeric v2 amount `0.1` with HTTP `422`;
 - normalized 404 behavior for unsupported unversioned application routes;
 - unauthenticated intelligence access rejected with a request ID;
 - login rate limiting reaching HTTP `429` after the configured burst;
@@ -146,15 +172,15 @@ The Compose job builds the actual deployment-style images and checks more than s
 
 The workflow contains five functional gates plus the consolidated gate:
 
-- **Backend tests**: dependency installation, `alembic upgrade head`, FastAPI/API version import and pytest unit/integration tests against PostgreSQL 16.
+- **Backend tests**: dependency installation, `alembic upgrade head`, FastAPI import and pytest unit/integration tests against PostgreSQL 16.
 - **Frontend quality**: locked `npm ci` install, Vitest, TypeScript, ESLint and production build.
 - **Dependency security audit**: `pip-audit` plus `npm audit --audit-level=high`.
-- **Critical E2E**: PostgreSQL 16, real migrations, locked `npm ci` install, FastAPI, Vite and Playwright Chromium.
-- **Docker Compose smoke test**: actual images, API v1 transaction/analytics/intelligence contract checks, security headers, authenticated proxy behavior and rate limiting.
+- **Critical E2E**: PostgreSQL 16, real migrations, FastAPI, Vite and Playwright Chromium using the frontend's v2 financial clients.
+- **Docker Compose smoke test**: actual images, v1 compatibility, v2 decimal contract, security headers, authenticated proxy behavior and rate limiting.
 - **Quality gate**: fails unless every preceding job succeeds.
 
 Third-party GitHub Actions are referenced by immutable commit SHA rather than mutable version tags. Dependabot monitors those SHAs together with pip and npm dependencies.
 
 For merge enforcement, configure the `Quality gate` check as a required status check in the repository branch protection/ruleset for `main`.
 
-See `docs/api.md` for the supported HTTP contract and `docs/intelligence.md` for the current deterministic rule definitions and validation strategy.
+See `docs/api.md` for the supported HTTP contracts and `docs/intelligence.md` for the current deterministic rule definitions and validation strategy.

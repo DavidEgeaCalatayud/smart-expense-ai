@@ -2,6 +2,7 @@ export type TransactionType = 'expense' | 'income';
 export type TransactionStatus = 'normal' | 'review';
 export type PaymentMethod = 'card' | 'cash' | 'bank_transfer' | 'direct_debit';
 export type TransactionSort = 'newest' | 'oldest' | 'amount_high' | 'amount_low';
+export type MoneyAmount = string;
 
 export interface TransactionCategory {
   id: string;
@@ -14,7 +15,7 @@ export interface DetailedTransaction {
   merchant: string;
   description: string;
   category: string;
-  amount: number;
+  amount: MoneyAmount;
   date: string;
   type: TransactionType;
   paymentMethod: PaymentMethod;
@@ -53,9 +54,9 @@ export interface TransactionPage {
 }
 
 export interface TransactionSummary {
-  totalIncome: number;
-  totalExpenses: number;
-  balance: number;
+  totalIncome: MoneyAmount;
+  totalExpenses: MoneyAmount;
+  balance: MoneyAmount;
   recurringCount: number;
   reviewCount: number;
   transactionCount: number;
@@ -63,5 +64,5 @@ export interface TransactionSummary {
 
 export interface MonthlyExpensePoint {
   month: string;
-  amount: number;
+  amount: MoneyAmount;
 }
