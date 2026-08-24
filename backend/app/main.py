@@ -17,6 +17,7 @@ from app.routers.analytics_v2 import router as analytics_v2_router
 from app.routers.auth import router as auth_router
 from app.routers.categories import router as categories_router
 from app.routers.intelligence import router as intelligence_router
+from app.routers.intelligence_v2 import router as intelligence_v2_router
 from app.routers.transactions import router as transactions_router
 from app.routers.transactions_v2 import router as transactions_v2_router
 
@@ -64,6 +65,8 @@ app.include_router(transactions_router, prefix=API_V1_PREFIX)
 app.include_router(analytics_router, prefix=API_V1_PREFIX)
 app.include_router(intelligence_router, prefix=API_V1_PREFIX)
 
-# API v2 starts with the breaking monetary contract change: JSON decimal strings for money.
+# API v2 starts with breaking monetary representation changes. Money is serialized
+# as decimal strings so clients never need IEEE-754 for financial values.
 app.include_router(transactions_v2_router, prefix=API_V2_PREFIX)
 app.include_router(analytics_v2_router, prefix=API_V2_PREFIX)
+app.include_router(intelligence_v2_router, prefix=API_V2_PREFIX)
