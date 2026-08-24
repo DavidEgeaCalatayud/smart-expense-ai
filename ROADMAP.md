@@ -37,13 +37,18 @@ Goal: make the first usable version persist real financial data.
 
 Goal: isolate financial data by user before adding sensitive integrations.
 
-- [ ] User registration.
-- [ ] User login.
-- [ ] Authentication/session strategy.
-- [ ] Add user ownership to transactions.
-- [ ] Add user ownership to categories where applicable.
-- [ ] Enforce per-user authorization in every endpoint.
-- [ ] Add account and privacy controls.
+- [x] User registration.
+- [x] User login and logout.
+- [x] Signed JWT session stored in an HttpOnly cookie.
+- [x] Argon2 password hashing.
+- [x] Add mandatory user ownership to transactions.
+- [x] Scope transaction list/update/delete operations by authenticated user ID.
+- [x] Require authentication for financial/category API reads.
+- [x] Keep seeded categories global and read-only until custom category CRUD is introduced.
+- [x] Add authenticated session visibility in the Security page.
+- [x] Cover cross-account transaction isolation in integration and E2E tests.
+- [ ] Password change and password reset flow.
+- [ ] Account deletion and privacy export controls.
 
 ## Phase 3 - Financial Intelligence
 
