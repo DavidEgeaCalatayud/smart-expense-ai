@@ -16,7 +16,10 @@ Implemented today:
 - Trusted-host validation, restricted CORS and cross-site mutation defense.
 - Nginx login/registration rate limiting and browser security headers.
 - Security event logging without passwords, emails, request bodies, JWTs or cookies.
-- Versioned `/api/v1` application contract.
+- Backwards-compatible `/api/v1` plus decimal-safe monetary `/api/v2` contracts.
+- PostgreSQL `NUMERIC(12,2)` and Python `Decimal` throughout financial calculations.
+- Decimal-string money over API v2 and integer-cent arithmetic in the frontend instead of IEEE-754 financial arithmetic.
+- Typed frontend API failures for validation, authentication, authorization, conflict, not-found, server and network errors while preserving safe backend messages/request IDs.
 - Paginated transaction listing with server-side search, category, status, type, recurring, date-range and sort filters.
 - Normalized API error envelopes with semantic codes and request IDs.
 - Server-side summary and monthly-expense analytics endpoints.
@@ -77,16 +80,17 @@ Create an account on first use. The full stack is:
 ```text
 Browser
   |
+  | v1 auth/categories + v2 money/intelligence
   v
 frontend :5173 (Nginx + React build)
   |
-  | security headers + rate limiting + /api/v1/*
+  | security headers + rate limiting + /api/*
   v
 backend :8000 (FastAPI + Alembic, internal only)
   |
-  | authenticated user_id scoped queries + rules-v1
+  | Decimal money + authenticated user_id scoping + rules-v1
   v
-db :5432 (PostgreSQL 16, internal only)
+db :5432 (PostgreSQL 16 NUMERIC(12,2), internal only)
 ```
 
 The Compose backend is intentionally not published to the host. Nginx is the only browser-facing entry point. For direct backend development, run Uvicorn locally from `backend/`; development API docs are then available at `http://localhost:8000/docs`.
@@ -108,29 +112,32 @@ See [`docs/docker.md`](docs/docker.md) for architecture, health checks, logs and
 ```text
 React + TypeScript
         |
-        | versioned API client + HttpOnly JWT session
+        | MoneyAmount decimal strings
+        | integer cents for browser monetary arithmetic
+        | typed API error presentation
         v
 Nginx reverse proxy
         | rate limits + CSP/security headers
         v
-FastAPI /api/v1
-        | pagination + filters + normalized errors + analytics
-        | financial intelligence scan/review API
+FastAPI /api/v1 + /api/v2
+        | v1 legacy money serialization only
+        | v2 decimal-string monetary contract
+        | pagination + filters + normalized errors
         v
 Authentication + service layer
-        |
+        | Python Decimal for monetary decisions/aggregates
         | user-scoped transaction/finding queries
         v
 Deterministic rules-v1
-        | recurring pattern
-        | possible duplicate subscription
-        | robust amount anomaly
+        | Decimal recurring/duplicate/anomaly calculations
         v
 SQLAlchemy 2
         |
         v
-PostgreSQL
+PostgreSQL NUMERIC(12,2)
 ```
+
+Financial values do not move through `float`/JavaScript `Number` in business logic. API v1 keeps numeric money only as a compatibility serialization adapter; new frontend financial flows use v2 decimal strings. Recharts requires numeric plot coordinates, so fixed-point values are converted to JavaScript numbers only at that visualization boundary, after all financial arithmetic has completed.
 
 The intelligence engine keeps inferred findings separate from source transactions. It does not silently overwrite the manually supplied `isRecurring` transaction field. Every finding stores its explanation, structured evidence, rule version and review state.
 
@@ -153,43 +160,49 @@ smart-expense-ai/
 
 ## API
 
-The supported application contract is versioned under:
-
-```text
-/api/v1
-```
-
-Public endpoints:
+Authentication and shared category data remain under v1:
 
 ```text
 GET    /health
 POST   /api/v1/auth/register
 POST   /api/v1/auth/login
 POST   /api/v1/auth/logout
-```
-
-Authenticated endpoints:
-
-```text
 GET    /api/v1/auth/me
 GET    /api/v1/categories
-GET    /api/v1/transactions
-POST   /api/v1/transactions
-PUT    /api/v1/transactions/{transaction_id}
-DELETE /api/v1/transactions/{transaction_id}
-GET    /api/v1/analytics/summary
-GET    /api/v1/analytics/monthly-expenses
-POST   /api/v1/intelligence/scan
-GET    /api/v1/intelligence/summary
-GET    /api/v1/intelligence/findings
-PATCH  /api/v1/intelligence/findings/{finding_id}
 ```
 
-Transaction listing is paginated and filtered server-side. Errors use a stable envelope with `code`, `message`, `requestId` and optional safe `details`. Breaking contract changes require a new URL version.
+Existing v1 transaction, analytics and intelligence endpoints remain available for compatibility. Their published numeric monetary representation is preserved at the response boundary.
 
-The intelligence endpoints remain inside v1 because they are backwards-compatible additions. `POST /intelligence/scan` analyses persisted expenses and idempotently upserts explainable findings; review state is persisted through the finding endpoint.
+New frontend financial flows use the strict v2 endpoints:
 
-See [`docs/api.md`](docs/api.md) for the full HTTP contract and [`docs/intelligence.md`](docs/intelligence.md) for rule thresholds, evidence and known limitations.
+```text
+GET    /api/v2/transactions
+POST   /api/v2/transactions
+PUT    /api/v2/transactions/{transaction_id}
+DELETE /api/v2/transactions/{transaction_id}
+GET    /api/v2/analytics/summary
+GET    /api/v2/analytics/monthly-expenses
+POST   /api/v2/intelligence/scan
+GET    /api/v2/intelligence/summary
+GET    /api/v2/intelligence/findings
+PATCH  /api/v2/intelligence/findings/{finding_id}
+```
+
+A v2 amount is represented as JSON text:
+
+```json
+{ "amount": "42.50" }
+```
+
+not:
+
+```json
+{ "amount": 42.5 }
+```
+
+Transaction listing is paginated and filtered server-side. Errors use a stable envelope with `code`, safe `message`, `requestId` and optional safe `details`. The frontend retains those semantics instead of collapsing every failure into a generic string.
+
+See [`docs/api.md`](docs/api.md) for the full v1/v2 HTTP contract and [`docs/intelligence.md`](docs/intelligence.md) for rule thresholds, evidence and known limitations.
 
 ## Manual Local Development
 
@@ -254,18 +267,19 @@ npm audit --audit-level=high
 
 The repository has automated quality layers for:
 
-1. Backend unit tests, including password hashing, JWT validation and secure configuration invariants.
-2. Pure deterministic intelligence-rule tests covering recurring, duplicate-subscription and anomaly thresholds.
+1. Backend unit tests, including password hashing, JWT validation, secure configuration and exact Decimal review thresholds.
+2. Pure deterministic intelligence-rule tests using Decimal monetary inputs.
 3. Backend API integration tests against migrated PostgreSQL.
-4. API v1 contract tests for pagination, filters, error envelopes, analytics and financial intelligence.
-5. Intelligence persistence tests for idempotent rescans, review-state persistence and cross-account isolation.
+4. Explicit v1 compatibility plus v2 decimal-money contract tests, including exact `0.10 + 0.20 = 0.30` aggregation and rejection of JSON numeric amounts in v2.
+5. Intelligence persistence tests for idempotent rescans, review-state persistence, versioned evidence representation and cross-account isolation.
 6. Explicit cross-account ownership tests proving one user cannot mutate another user's transaction or finding.
 7. HTTP security regression tests covering headers, cookie flags, trusted hosts and cross-site mutation rejection.
-8. Frontend tests with Vitest and React Testing Library, including the Financial Intelligence workspace.
-9. Critical authenticated end-to-end browser coverage with Playwright.
-10. Python dependency auditing with `pip-audit`.
-11. npm dependency auditing that blocks high/critical findings.
-12. Full Docker Compose build/startup smoke testing, including the versioned API contract, intelligence migration/endpoints, security headers and authentication rate limiting.
+8. Frontend fixed-point money tests and typed API error-classification tests.
+9. Frontend page tests with Vitest and React Testing Library, including the Financial Intelligence workspace.
+10. Critical authenticated end-to-end browser coverage with Playwright; the browser transaction/analytics clients use API v2.
+11. Python dependency auditing with `pip-audit`.
+12. npm dependency auditing that blocks high/critical findings.
+13. Full Docker Compose build/startup smoke testing, including v2 decimal strings through Nginx, security headers and authentication rate limiting.
 
 GitHub Actions runs these gates for pushes and pull requests targeting `main`. The consolidated `Quality gate` requires backend, frontend, dependency security, browser E2E and Docker jobs to succeed.
 
