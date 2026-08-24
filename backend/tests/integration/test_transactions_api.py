@@ -60,16 +60,72 @@ def transaction_payload(**overrides: object) -> dict[str, object]:
     return payload
 
 
+def test_health_and_api_responses_include_security_headers(client: TestClient) -> None:
+    health_response = client.get("/health")
+
+    assert health_response.status_code == 200
+    assert health_response.headers["cache-control"] == "no-store"
+    assert health_response.headers["x-content-type-options"] == "nosniff"
+    assert health_response.headers["x-frame-options"] == "DENY"
+    assert health_response.headers["referrer-policy"] == "no-referrer"
+    assert health_response.headers["cross-origin-opener-policy"] == "same-origin"
+    assert health_response.headers["cross-origin-resource-policy"] == "same-origin"
+    assert len(health_response.headers["x-request-id"]) == 32
+
+    unauthenticated = client.get("/api/categories")
+    assert unauthenticated.status_code == 401
+    assert unauthenticated.headers["cache-control"] == "no-store"
+
+
+def test_untrusted_host_is_rejected(client: TestClient) -> None:
+    response = client.get("/health", headers={"Host": "evil.example"})
+
+    assert response.status_code == 400
+
+
+def test_cross_site_state_changing_request_is_rejected(client: TestClient) -> None:
+    response = client.post(
+        "/api/auth/register",
+        headers={"Origin": "https://evil.example"},
+        json={
+            "email": "csrf@example.com",
+            "password": "correct-horse-battery-staple",
+            "displayName": "Cross Site",
+        },
+    )
+
+    assert response.status_code == 403
+    assert response.json()["detail"] == "Cross-site request rejected"
+
+
 def test_protected_financial_endpoints_require_authentication(client: TestClient) -> None:
     assert client.get("/api/categories").status_code == 401
     assert client.get("/api/transactions").status_code == 401
 
 
-def test_registration_sets_session_and_exposes_current_user(client: TestClient) -> None:
-    registered = register(client)
+def test_registration_sets_hardened_session_cookie_and_exposes_current_user(
+    client: TestClient,
+) -> None:
+    response = client.post(
+        "/api/auth/register",
+        json={
+            "email": "owner@example.com",
+            "password": "correct-horse-battery-staple",
+            "displayName": "Integration Owner",
+        },
+    )
 
+    assert response.status_code == 201
+    registered = response.json()
     assert registered["user"]["email"] == "owner@example.com"
     assert "smart_expense_session" in client.cookies
+
+    set_cookie = response.headers["set-cookie"].lower()
+    assert "httponly" in set_cookie
+    assert "samesite=lax" in set_cookie
+    assert "path=/" in set_cookie
+    assert "max-age=3600" in set_cookie
+    assert "secure" not in set_cookie  # test environment uses local HTTP only
 
     me_response = client.get("/api/auth/me")
     assert me_response.status_code == 200
@@ -89,7 +145,7 @@ def test_login_restores_access_in_a_new_client(client: TestClient) -> None:
         assert second_client.get("/api/transactions").status_code == 200
 
 
-def test_duplicate_registration_and_invalid_login_are_rejected(client: TestClient) -> None:
+def test_duplicate_registration_and_invalid_login_are_generic(client: TestClient) -> None:
     register(client)
     client.post("/api/auth/logout")
 
@@ -97,17 +153,19 @@ def test_duplicate_registration_and_invalid_login_are_rejected(client: TestClien
         "/api/auth/register",
         json={
             "email": "OWNER@example.com",
-            "password": "another-password",
+            "password": "another-password-long-enough",
             "displayName": "Duplicate",
         },
     )
     assert duplicate.status_code == 409
+    assert duplicate.json()["detail"] == "Unable to create account"
 
     invalid_login = client.post(
         "/api/auth/login",
         json={"email": "owner@example.com", "password": "wrong-password"},
     )
     assert invalid_login.status_code == 401
+    assert invalid_login.json()["detail"] == "Invalid email or password"
 
 
 def test_categories_are_served_to_authenticated_user(client: TestClient) -> None:
