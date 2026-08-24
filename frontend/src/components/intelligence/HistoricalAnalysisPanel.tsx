@@ -1,5 +1,6 @@
 import {
   Activity,
+  AlertTriangle,
   BarChart3,
   CalendarRange,
   RefreshCw,
@@ -21,7 +22,6 @@ import {
 } from '../../services/apiClient';
 import type { HistoricalAnalysis } from '../../types/historicalAnalysis';
 import { formatCurrencyWithDecimals } from '../../utils/formatters';
-
 
 function trendLabel(direction: HistoricalAnalysis['trend']['direction']) {
   if (direction === 'increasing') return 'Increasing';
@@ -85,8 +85,8 @@ export function HistoricalAnalysisPanel() {
           </div>
           <h2 className="mt-2 text-xl font-bold text-slate-950">Behavior over time</h2>
           <p className="mt-1 max-w-3xl text-sm leading-6 text-slate-500">
-            Reproducible statistical analysis of your expense history: linear trend, recurrence scoring,
-            past-only robust outliers and category shifts. Scores are deterministic indices, not probabilities.
+            Reproducible statistical analysis with complete-month trend handling, auditable merchant canonicalization,
+            calendar-aware recurrence scoring and past-only robust outliers. Scores are deterministic indices, not probabilities.
           </p>
         </div>
         <button
@@ -122,6 +122,18 @@ export function HistoricalAnalysisPanel() {
         </div>
       ) : (
         <>
+          {analysis.monthCompleteness.partialMonth && (
+            <div className="mt-6 flex gap-3 rounded-2xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-800">
+              <AlertTriangle size={18} className="mt-0.5 shrink-0" />
+              <div>
+                <p className="font-semibold">Partial month excluded from trend calculations</p>
+                <p className="mt-1 text-xs leading-5 text-amber-700">
+                  {analysis.monthCompleteness.partialMonth} remains visible in the monthly series, but historical-v2 excludes it from regression and 3-month category comparisons. No end-of-month extrapolation is performed.
+                </p>
+              </div>
+            </div>
+          )}
+
           <div className="mt-6 grid gap-4 md:grid-cols-2 xl:grid-cols-4">
             <article className="rounded-2xl bg-slate-50 p-4">
               <div className="flex items-center gap-2 text-sm font-semibold text-slate-600">
@@ -129,22 +141,22 @@ export function HistoricalAnalysisPanel() {
               </div>
               <p className="mt-2 text-xl font-bold text-slate-950">{trendLabel(analysis.trend.direction)}</p>
               <p className="mt-1 text-xs text-slate-500">
-                slope {formatCurrencyWithDecimals(analysis.trend.monthlySlope)}/month · R² {analysis.trend.rSquared}
+                slope {formatCurrencyWithDecimals(analysis.trend.monthlySlope)}/month · R² {analysis.trend.rSquared} · {analysis.trend.completeMonthsUsed} complete months
               </p>
             </article>
             <article className="rounded-2xl bg-slate-50 p-4">
               <div className="flex items-center gap-2 text-sm font-semibold text-slate-600">
                 <CalendarRange size={17} /> Data coverage
               </div>
-              <p className="mt-2 text-xl font-bold text-slate-950">{analysis.coverage.activeMonths}/{analysis.windowMonths} months</p>
-              <p className="mt-1 text-xs text-slate-500">{analysis.analyzedTransactions} expense transactions</p>
+              <p className="mt-2 text-xl font-bold text-slate-950">{analysis.coverage.completeMonths}/{analysis.windowMonths} complete</p>
+              <p className="mt-1 text-xs text-slate-500">{analysis.analyzedTransactions} expenses · {analysis.coverage.canonicalMerchants} canonical merchants</p>
             </article>
             <article className="rounded-2xl bg-slate-50 p-4">
               <div className="flex items-center gap-2 text-sm font-semibold text-slate-600">
                 <Repeat2 size={17} /> Recurring profiles
               </div>
               <p className="mt-2 text-xl font-bold text-slate-950">{analysis.recurringProfiles.length}</p>
-              <p className="mt-1 text-xs text-slate-500">scored from cadence + amount stability</p>
+              <p className="mt-1 text-xs text-slate-500">calendar + cadence + amount stability</p>
             </article>
             <article className="rounded-2xl bg-slate-50 p-4">
               <div className="flex items-center gap-2 text-sm font-semibold text-slate-600">
@@ -162,11 +174,11 @@ export function HistoricalAnalysisPanel() {
               <div className="mt-4 space-y-4">
                 {analysis.recurringProfiles.length === 0 ? (
                   <p className="text-sm text-slate-500">No merchant has enough stable cadence evidence yet.</p>
-                ) : analysis.recurringProfiles.slice(0, 5).map((profile) => (
-                  <div key={`${profile.merchant}-${profile.cadence}`}>
+                ) : analysis.recurringProfiles.slice(0, 6).map((profile) => (
+                  <div key={`${profile.canonicalMerchant ?? profile.merchant}-${profile.cadence}`}>
                     <div className="flex items-center justify-between gap-3 text-sm">
                       <div>
-                        <span className="font-semibold text-slate-800">{profile.merchant}</span>
+                        <span className="font-semibold text-slate-800">{profile.canonicalMerchant ?? profile.merchant}</span>
                         <span className="ml-2 text-xs text-slate-400">{profile.cadence} · {profile.occurrenceCount} charges</span>
                       </div>
                       <span className="font-bold text-slate-900">{profile.patternScore}</span>
@@ -178,8 +190,17 @@ export function HistoricalAnalysisPanel() {
                       />
                     </div>
                     <p className="mt-1 text-xs text-slate-400">
-                      median {formatCurrencyWithDecimals(profile.medianAmount)} · cadence fit {profile.cadenceFit} · amount stability {profile.amountStability}
+                      median {formatCurrencyWithDecimals(profile.medianAmount)} · cadence {profile.cadenceFit} · interval {profile.intervalRegularity} · calendar {profile.cadence === 'weekly' || profile.cadence === 'biweekly' ? profile.dayOfWeekStability : profile.dayOfMonthStability} · amount CV {profile.amountCv}
                     </p>
+                    <p className="mt-1 text-xs text-slate-400">
+                      {profile.consecutivePeriods} consecutive observations · {profile.missedExpectedOccurrences} missed expected occurrence(s) · next {profile.nextExpectedDate}
+                    </p>
+                    {profile.observedMerchants.length > 1 && (
+                      <p className="mt-1 text-xs text-slate-400">Observed descriptors: {profile.observedMerchants.join(' · ')}</p>
+                    )}
+                    {profile.isExpectedPaymentMissing && (
+                      <p className="mt-2 text-xs font-semibold text-amber-700">Expected payment appears overdue relative to the learned calendar pattern.</p>
+                    )}
                   </div>
                 ))}
               </div>
@@ -196,7 +217,7 @@ export function HistoricalAnalysisPanel() {
                     <div className="flex items-center justify-between gap-3">
                       <div>
                         <p className="text-sm font-semibold text-slate-800">{outlier.merchant}</p>
-                        <p className="text-xs text-slate-400">{outlier.date} · {outlier.baselineScope} baseline ({outlier.baselineCount})</p>
+                        <p className="text-xs text-slate-400">{outlier.canonicalMerchant && outlier.canonicalMerchant !== outlier.merchant.toLowerCase() ? `${outlier.canonicalMerchant} · ` : ''}{outlier.date} · {outlier.baselineScope} baseline ({outlier.baselineCount})</p>
                       </div>
                       <p className="text-sm font-bold text-slate-950">{formatCurrencyWithDecimals(outlier.amount)}</p>
                     </div>
@@ -211,10 +232,10 @@ export function HistoricalAnalysisPanel() {
 
           <div className="mt-6 rounded-2xl border border-slate-200 p-5">
             <h3 className="font-bold text-slate-950">Category shifts</h3>
-            <p className="mt-1 text-xs text-slate-500">Average monthly spend in the latest 3 months versus the previous 3 months.</p>
+            <p className="mt-1 text-xs text-slate-500">Latest three complete months versus the previous three complete months; partial cutoff months never enter this comparison.</p>
             <div className="mt-4 grid gap-3 md:grid-cols-2 xl:grid-cols-3">
               {analysis.categoryShifts.length === 0 ? (
-                <p className="text-sm text-slate-500">No category changed by at least €10/month across the comparison windows.</p>
+                <p className="text-sm text-slate-500">No category changed by at least €10/month across six complete comparison months.</p>
               ) : analysis.categoryShifts.map((shift) => (
                 <article key={shift.category} className="rounded-xl bg-slate-50 p-4">
                   <div className="flex items-center justify-between gap-2">
@@ -227,13 +248,16 @@ export function HistoricalAnalysisPanel() {
                   <p className="mt-1 text-xs text-slate-400">
                     Δ {formatCurrencyWithDecimals(shift.delta)}{shift.percentChange !== null ? ` · ${shift.percentChange}%` : ''}
                   </p>
+                  {shift.comparisonMonths.length === 6 && (
+                    <p className="mt-1 text-xs text-slate-400">{shift.comparisonMonths[0]}–{shift.comparisonMonths[5]}</p>
+                  )}
                 </article>
               ))}
             </div>
           </div>
 
           <p className="mt-5 text-xs text-slate-400">
-            Snapshot {analysis.analysisVersion} · {analysis.periodStart} to {analysis.periodEnd} · generated {new Date(analysis.generatedAt).toLocaleString()}
+            Snapshot {analysis.analysisVersion} · {analysis.periodStart} to {analysis.periodEnd} · {analysis.monthCompleteness.strategy} · generated {new Date(analysis.generatedAt).toLocaleString()}
           </p>
         </>
       )}
