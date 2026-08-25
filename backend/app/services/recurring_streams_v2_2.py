@@ -91,6 +91,8 @@ def build_recurring_profiles_v2_2(
     transactions: list[TransactionSnapshot],
     analysis_end: date,
     identity_map: dict[str, MerchantIdentity],
+    *,
+    limit: int | None = 20,
 ) -> list[dict[str, object]]:
     profiles: list[dict[str, object]] = []
     for stream in build_recurring_streams_v2_2(transactions, identity_map):
@@ -178,7 +180,8 @@ def build_recurring_profiles_v2_2(
             }
         )
 
-    return sorted(
+    ordered_profiles = sorted(
         profiles,
         key=lambda item: (-Decimal(str(item["patternScore"])), str(item["streamKey"])),
-    )[:20]
+    )
+    return ordered_profiles if limit is None else ordered_profiles[:limit]
