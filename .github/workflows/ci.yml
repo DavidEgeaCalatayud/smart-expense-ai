@@ -74,7 +74,8 @@ jobs:
           report = json.loads(Path('/tmp/historical-v2-report.json').read_text())
           assert report['analysisVersion'] == 'historical-v2.2'
           assert report['validationStrategy'] == 'walk_forward_monthly_fold_local_identity'
-          assert report['labelStrategy'] == 'temporal_recurring_streams_with_calendar_signature'
+          assert report['labelStrategy'] == 'cadence_aware_recurring_stream_activity'
+          assert report['recurrenceGroundTruthStrategy'] == 'cadence_continuity_nominal_boundary_v2'
           assert len(report['folds']) == 4
           assert 'identitySourceTransactions' in report['folds'][0]
           assert all(fold['temporalPhaseProfiles'] >= 2 for fold in report['folds'])
@@ -95,6 +96,7 @@ jobs:
           report = json.loads(Path('/tmp/historical-development.json').read_text())
           assert report['mode'] == 'development'
           assert report['holdout']['status'] == 'sealed'
+          assert report['recurrenceGroundTruthStrategy'] == 'cadence_continuity_nominal_boundary_v2'
           assert [fold['evaluateMonth'] for fold in report['calibration']['folds']] == ['2026-07']
           assert [fold['evaluateMonth'] for fold in report['validation']['folds']] == ['2026-08', '2026-09']
           confidence = report['validation']['aggregate']['recurrence']['confidence']
@@ -117,6 +119,7 @@ jobs:
           development = json.loads(Path('/tmp/historical-development.json').read_text())
           holdout = json.loads(Path('/tmp/historical-holdout.json').read_text())
           assert holdout['mode'] == 'holdout'
+          assert holdout['recurrenceGroundTruthStrategy'] == development['recurrenceGroundTruthStrategy']
           assert [fold['evaluateMonth'] for fold in holdout['holdout']['folds']] == ['2026-10']
           assert holdout['frozenParameters']['fingerprint'] == development['frozenParameters']['fingerprint']
           assert holdout['holdout']['aggregate']['recurrence']['confidence']['blocks'] == 1
@@ -286,9 +289,10 @@ jobs:
           grep '"direction":"insufficient_data"' historical-analysis.json
           grep '"strategy":"exclude_partial"' historical-analysis.json
           grep '"partialMonth":"2026-08"' historical-analysis.json
-          grep '"strategy":"canonical_merchant_then_descriptor_amount_then_price_continuity_then_temporal_phase"' historical-analysis.json
-          grep '"strategyVersion":"price-continuity-v1"' historical-analysis.json
+          grep '"strategy":"canonical_merchant_then_lifecycle_then_price_continuity_then_descriptor_amount_then_temporal_phase"' historical-analysis.json
+          grep '"strategyVersion":"lifecycle-v1"' historical-analysis.json
           grep '"priceContinuityProfileCount":0' historical-analysis.json
+          grep '"lifecycleReactivationProfileCount":0' historical-analysis.json
           grep '"ambiguityPolicy":"split_only_with_repeated_concurrent_calendar_evidence"' historical-analysis.json
           curl --fail --silent --show-error -b cookies.txt \
             http://localhost:5173/api/v2/intelligence/historical-analysis/latest -o historical-latest.json

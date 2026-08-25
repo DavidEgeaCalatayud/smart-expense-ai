@@ -25,6 +25,10 @@ from app.services.merchant_canonicalization import (
     build_merchant_identity_map,
     merchant_stream_hint,
 )
+from app.services.recurrence_label_activity import (
+    RECURRENCE_LABEL_ACTIVITY_POLICY,
+    recurring_stream_active_in,
+)
 
 
 @dataclass(frozen=True)
@@ -73,9 +77,10 @@ class RecurringStreamLabel:
 
     def is_active_in(self, month_key: str) -> bool:
         if self.expected_occurrences:
-            return any(
-                item.occurrence_date.strftime("%Y-%m") == month_key
-                for item in self.expected_occurrences
+            return recurring_stream_active_in(
+                tuple(item.occurrence_date for item in self.expected_occurrences),
+                self.cadence,
+                month_key,
             )
         if self.active_from and month_key < self.active_from:
             return False
@@ -296,10 +301,10 @@ def _predicted_occurrences_for_month(
 def evaluate_historical_dataset(payload: dict[str, Any]) -> dict[str, Any]:
     """Evaluate historical-v2.2 with stream-level and prospective occurrence-level folds.
 
-    Stream detection keeps the established month-end fold semantics. Occurrence evaluation is
-    stricter: a July occurrence is forecast only from transactions available through June 30.
-    The baseline merchant identity map and recurring profiles therefore cannot see the target
-    month's transactions. Explicit expectedOccurrences provide the occurrence ground truth.
+    Stream detection uses cadence-aware stream activity, including nominal month-boundary
+    normalization for bank-posted charges that arrive a few days early. Occurrence evaluation
+    remains stricter and unchanged: a target month's charge is forecast only from the prior
+    month baseline, using the explicit bank-visible occurrence labels.
     """
 
     transactions = _parse_transactions(payload)
@@ -548,7 +553,8 @@ def evaluate_historical_dataset(payload: dict[str, Any]) -> dict[str, Any]:
         "datasetVersion": payload.get("datasetVersion", "unknown"),
         "analysisVersion": "historical-v2.2",
         "validationStrategy": "walk_forward_monthly_fold_local_identity",
-        "labelStrategy": "temporal_recurring_streams_with_calendar_signature",
+        "labelStrategy": "cadence_aware_recurring_stream_activity",
+        "recurrenceGroundTruthStrategy": RECURRENCE_LABEL_ACTIVITY_POLICY,
         "recurrenceMatchingStrategy": MATCHING_STRATEGY,
         "occurrenceValidationStrategy": "walk_forward_prior_month_baseline_next_occurrence",
         "occurrenceMatchingStrategy": OCCURRENCE_MATCHING_STRATEGY,

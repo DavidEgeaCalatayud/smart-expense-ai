@@ -43,6 +43,9 @@ class HistoricalRecurringProfileV22(HistoricalRecurringProfileV21):
     sourceStreamCount: int = 1
     canonicalVariantCount: int = 1
     priceRegimeCount: int = 1
+    lifecycleReactivated: bool = False
+    lifecycleEpisodeCount: int = 1
+    priorEpisodeOccurrenceCount: int = 0
 
 
 class HistoricalCoverageV21(BaseModel):
@@ -61,6 +64,7 @@ class HistoricalCoverageV21(BaseModel):
 class HistoricalCoverageV22(HistoricalCoverageV21):
     temporalPhaseStreams: int = 0
     priceContinuityStreams: int = 0
+    lifecycleReactivationStreams: int = 0
 
 
 class HistoricalRecurrenceSegmentation(BaseModel):
@@ -73,6 +77,7 @@ class HistoricalRecurrenceSegmentationV22(HistoricalRecurrenceSegmentation):
     strategyVersion: str = "legacy"
     temporalPhaseProfileCount: int = 0
     priceContinuityProfileCount: int = 0
+    lifecycleReactivationProfileCount: int = 0
     ambiguityPolicy: str = "legacy"
     cadencePolicy: str = "legacy"
     minimumParentShortCadenceFit: str = "0.00"
@@ -91,6 +96,10 @@ class HistoricalRecurrenceSegmentationV22(HistoricalRecurrenceSegmentation):
     maximumPriceContinuityChangeRatio: str = "0"
     maximumPriceContinuityPeriodGapMultiplier: int = 0
     priceContinuityRequiresCurrentSchedule: bool = False
+    lifecyclePolicy: str = "disabled"
+    minimumLifecyclePriorOccurrences: int = 0
+    minimumLifecycleReactivationOccurrences: int = 0
+    maximumLifecycleCalendarDeviationDays: int = 0
     recurringScoreThreshold: str = "55"
 
 

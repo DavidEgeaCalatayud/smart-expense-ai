@@ -16,6 +16,11 @@ from app.services.historical_analysis_v2 import (
 )
 from app.services.intelligence_rules import TransactionSnapshot
 from app.services.merchant_canonicalization import MerchantIdentity, build_merchant_identity_map
+from app.services.recurring_lifecycle import (
+    MAX_REACTIVATION_CALENDAR_DEVIATION_DAYS,
+    MIN_PRIOR_EPISODE_OCCURRENCES,
+    MIN_REACTIVATION_OCCURRENCES,
+)
 from app.services.recurring_price_continuity import (
     MAX_CONTINUITY_PERIOD_GAP_MULTIPLIER,
     MAX_CONTINUITY_PRICE_CHANGE_RATIO,
@@ -53,6 +58,38 @@ def _validated_recurring_threshold(value: Decimal) -> Decimal:
     return threshold
 
 
+def _profile_identity(profile: dict[str, object]) -> tuple[str, str]:
+    return (
+        str(profile.get("canonicalMerchant") or ""),
+        str(profile.get("streamDescriptor") or "").casefold(),
+    )
+
+
+def _merge_lifecycle_history_profiles(
+    window_profiles: list[dict[str, object]],
+    lifecycle_profiles: list[dict[str, object]],
+) -> list[dict[str, object]]:
+    """Let an active lifecycle episode dominate the same identity inside the rolling window.
+
+    Normal recurrence extraction remains restricted to ``window_months``. Only explicit
+    ``merchant_lifecycle_reactivation`` profiles may consult older eligible history, because
+    proving a reactivation inherently requires evidence from the prior lifecycle episode.
+    If the current episode has already accumulated enough observations to form a normal
+    window-local profile, the lifecycle profile replaces that same merchant/descriptor
+    identity instead of being emitted alongside it as a duplicate prediction.
+    """
+
+    if not lifecycle_profiles:
+        return window_profiles
+    lifecycle_identities = {_profile_identity(profile) for profile in lifecycle_profiles}
+    retained = [
+        profile
+        for profile in window_profiles
+        if _profile_identity(profile) not in lifecycle_identities
+    ]
+    return retained + lifecycle_profiles
+
+
 def analyze_historical_transactions_v2_2(
     all_transactions: list[TransactionSnapshot],
     window_months: int,
@@ -66,6 +103,11 @@ def analyze_historical_transactions_v2_2(
     Production keeps the established threshold of 55. Evaluation may explore stricter
     thresholds without changing feature extraction or scoring. Values below 55 are rejected
     because v2.2 currently discards lower-scoring candidates before this acceptance layer.
+
+    Ordinary recurrence features stay inside the configured rolling window. Lifecycle
+    reactivation is the deliberate exception: an active current episode may consult older
+    eligible history to prove the existence of its prior episode, while the emitted profile
+    still contains only the current episode and therefore never bridges the dormant gap.
     """
 
     threshold = _validated_recurring_threshold(recurring_score_threshold)
@@ -77,7 +119,28 @@ def analyze_historical_transactions_v2_2(
     eligible = [item for item in all_transactions if item.transaction_date <= period_end]
     fold_identity_map = identity_map or build_merchant_identity_map([item.merchant for item in eligible])
 
-    scored_profiles = build_recurring_profiles_v2_2(window_transactions, period_end, fold_identity_map)
+    window_profiles = build_recurring_profiles_v2_2(
+        window_transactions,
+        period_end,
+        fold_identity_map,
+        limit=None,
+    )
+    lifecycle_history_profiles: list[dict[str, object]] = []
+    if len(eligible) > len(window_transactions):
+        lifecycle_history_profiles = [
+            profile
+            for profile in build_recurring_profiles_v2_2(
+                eligible,
+                period_end,
+                fold_identity_map,
+                limit=None,
+            )
+            if profile.get("streamBasis") == "merchant_lifecycle_reactivation"
+        ]
+    scored_profiles = _merge_lifecycle_history_profiles(
+        window_profiles,
+        lifecycle_history_profiles,
+    )
     recurring_profiles = [
         profile
         for profile in scored_profiles
@@ -92,19 +155,25 @@ def analyze_historical_transactions_v2_2(
         profile.get("streamBasis") == "merchant_price_continuity"
         for profile in recurring_profiles
     )
+    lifecycle_reactivation_count = sum(
+        profile.get("streamBasis") == "merchant_lifecycle_reactivation"
+        for profile in recurring_profiles
+    )
     if isinstance(coverage, dict):
         coverage["recurringProfiles"] = len(recurring_profiles)
         coverage["recurringStreams"] = len(recurring_profiles)
         coverage["temporalPhaseStreams"] = temporal_phase_count
         coverage["priceContinuityStreams"] = price_continuity_count
+        coverage["lifecycleReactivationStreams"] = lifecycle_reactivation_count
 
     result["recurrenceSegmentation"] = {
-        "strategy": "canonical_merchant_then_descriptor_amount_then_price_continuity_then_temporal_phase",
-        "strategyVersion": "price-continuity-v1",
+        "strategy": "canonical_merchant_then_lifecycle_then_price_continuity_then_descriptor_amount_then_temporal_phase",
+        "strategyVersion": "lifecycle-v1",
         "analysisVersion": ANALYSIS_VERSION,
         "profileCount": len(recurring_profiles),
         "temporalPhaseProfileCount": temporal_phase_count,
         "priceContinuityProfileCount": price_continuity_count,
+        "lifecycleReactivationProfileCount": lifecycle_reactivation_count,
         "ambiguityPolicy": "split_only_with_repeated_concurrent_calendar_evidence",
         "cadencePolicy": "parent_short_cadence_requires_stable_weekday_and_blocks_monthly_phase_split",
         "minimumParentShortCadenceFit": format(MIN_PARENT_SHORT_CADENCE_FIT, ".2f"),
@@ -123,6 +192,10 @@ def analyze_historical_transactions_v2_2(
         "maximumPriceContinuityChangeRatio": format(MAX_CONTINUITY_PRICE_CHANGE_RATIO, "f"),
         "maximumPriceContinuityPeriodGapMultiplier": MAX_CONTINUITY_PERIOD_GAP_MULTIPLIER,
         "priceContinuityRequiresCurrentSchedule": REQUIRE_CONTINUITY_CURRENT_SCHEDULE,
+        "lifecyclePolicy": "established_prior_episode_plus_nominal_calendar_amount_and_cadence_match",
+        "minimumLifecyclePriorOccurrences": MIN_PRIOR_EPISODE_OCCURRENCES,
+        "minimumLifecycleReactivationOccurrences": MIN_REACTIVATION_OCCURRENCES,
+        "maximumLifecycleCalendarDeviationDays": MAX_REACTIVATION_CALENDAR_DEVIATION_DAYS,
         "recurringScoreThreshold": format(threshold, "f"),
     }
     return period_start, period_end, window_transactions, result
@@ -134,6 +207,7 @@ def _snapshot_response(snapshot: HistoricalAnalysisSnapshot) -> HistoricalAnalys
     coverage.setdefault("recurringStreams", coverage.get("recurringProfiles", 0))
     coverage.setdefault("temporalPhaseStreams", 0)
     coverage.setdefault("priceContinuityStreams", 0)
+    coverage.setdefault("lifecycleReactivationStreams", 0)
     return HistoricalAnalysisResponseV22(
         snapshotId=str(snapshot.id),
         analysisVersion=snapshot.analysis_version,
