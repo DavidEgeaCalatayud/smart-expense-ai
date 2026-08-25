@@ -61,8 +61,9 @@ Goal: isolate financial data by user before adding sensitive integrations.
 - [x] Harden authentication errors, password policy and JWT claim validation.
 - [x] Add trusted-host, origin and CORS protections.
 - [x] Add authentication rate limiting at the trusted edge.
-- [ ] Password change and password reset flow.
-- [ ] Account deletion and privacy export controls.
+- [x] Add password change with server-side session-version revocation.
+- [ ] Add verified password reset/recovery after an email delivery channel exists.
+- [x] Add account deletion and privacy export controls.
 - [ ] MFA if required for Internet-facing production use.
 
 ## Phase 3 - Financial Intelligence
@@ -181,7 +182,7 @@ Goal: prepare the application for real deployment.
 - [ ] Add production TLS/domain/secrets configuration.
 - [ ] Add centralized security monitoring and alerting.
 - [ ] Add container image scanning and SBOM generation.
-- [ ] Add privacy policy draft.
+- [x] Add privacy/data-handling policy draft with production placeholders.
 
 ## Long-Term Ideas
 
