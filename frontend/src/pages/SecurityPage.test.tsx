@@ -30,6 +30,7 @@ const privacyExport = {
 
 describe('SecurityPage', () => {
   beforeEach(() => {
+    vi.restoreAllMocks();
     vi.clearAllMocks();
     vi.mocked(useAuth).mockReturnValue({
       user: privacyExport.account,
@@ -57,7 +58,7 @@ describe('SecurityPage', () => {
   it('changes the password through the protected account endpoint', async () => {
     render(<SecurityPage />);
 
-    fireEvent.change(screen.getByLabelText('Current password', { selector: 'input' }), {
+    fireEvent.change(screen.getByLabelText('Current password'), {
       target: { value: 'correct-horse-battery-staple' },
     });
     fireEvent.change(screen.getByLabelText('New password'), {
@@ -88,8 +89,9 @@ describe('SecurityPage', () => {
   it('requires typed confirmation and a second dialog before deleting the account', async () => {
     render(<SecurityPage />);
 
-    const currentPasswordInputs = screen.getAllByLabelText('Current password', { selector: 'input' });
-    fireEvent.change(currentPasswordInputs[1], { target: { value: 'correct-horse-battery-staple' } });
+    fireEvent.change(screen.getByLabelText('Password to confirm deletion'), {
+      target: { value: 'correct-horse-battery-staple' },
+    });
     fireEvent.change(screen.getByLabelText('Type DELETE to confirm'), { target: { value: 'DELETE' } });
     fireEvent.click(screen.getByRole('button', { name: 'Review account deletion' }));
 
