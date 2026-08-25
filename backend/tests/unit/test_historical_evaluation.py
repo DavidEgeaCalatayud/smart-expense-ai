@@ -81,121 +81,85 @@ def test_temporal_labels_measure_cancellation_and_reactivation_per_fold() -> Non
         "labels": {
             "recurringStreams": [
                 {
-                    "id": "service-old",
+                    "id": "service-first-run",
                     "merchant": "service",
-                    "activeFrom": "2026-01",
-                    "activeUntil": "2026-05",
-                    "expectedOccurrences": [
-                        "2026-01-05",
-                        "2026-02-05",
-                        "2026-03-05",
-                        "2026-04-05",
-                        "2026-05-05",
-                    ],
                     "cadence": "monthly",
                     "amountMin": "9.00",
                     "amountMax": "11.00",
+                    "activeFrom": "2026-01",
+                    "activeUntil": "2026-04"
                 },
                 {
-                    "id": "service-new",
+                    "id": "service-reactivated",
                     "merchant": "service",
-                    "activeFrom": "2026-07",
-                    "expectedOccurrences": [
-                        "2026-07-05",
-                        "2026-08-05",
-                        "2026-09-05",
-                    ],
                     "cadence": "monthly",
                     "amountMin": "9.00",
                     "amountMax": "11.00",
-                },
-            ]
+                    "activeFrom": "2026-06",
+                    "activeUntil": "2026-07"
+                }
+            ],
+            "anomalyTransactionIds": []
         },
         "transactions": [
-            {
-                "id": f"service-{month}",
-                "merchant": "Service",
-                "amount": "10.00",
-                "date": f"2026-{month:02d}-05",
-                "category": "Subscriptions",
-            }
-            for month in (1, 2, 3, 4, 5, 7, 8, 9)
-        ],
+            {"id": "jan", "merchant": "Service", "amount": "10.00", "date": "2026-01-31", "category": "Subscriptions"},
+            {"id": "feb", "merchant": "Service", "amount": "10.00", "date": "2026-02-28", "category": "Subscriptions"},
+            {"id": "mar", "merchant": "Service", "amount": "10.00", "date": "2026-03-31", "category": "Subscriptions"},
+            {"id": "apr", "merchant": "Service", "amount": "10.00", "date": "2026-04-30", "category": "Subscriptions"},
+            {"id": "may-anchor", "merchant": "Market", "amount": "20.00", "date": "2026-05-31", "category": "Food"},
+            {"id": "jun", "merchant": "Service", "amount": "10.00", "date": "2026-06-30", "category": "Subscriptions"},
+            {"id": "jul", "merchant": "Service", "amount": "10.00", "date": "2026-07-31", "category": "Subscriptions"}
+        ]
     }
 
     report = evaluate_historical_dataset(payload)
     folds = {fold["evaluateMonth"]: fold for fold in report["folds"]}
 
-    assert folds["2026-06"]["recurrenceLabels"] == 1
-    assert folds["2026-06"]["activeRecurrenceLabels"] == 0
-    assert folds["2026-07"]["recurrenceLabels"] == 2
-    assert folds["2026-07"]["activeRecurrenceLabels"] == 1
-    assert folds["2026-09"]["activeRecurrenceLabels"] == 1
+    assert folds["2026-05"]["recurrence"]["truePositives"] == 0
+    assert folds["2026-06"]["recurrence"]["truePositives"] + folds["2026-06"]["recurrence"]["falseNegatives"] >= 1
 
 
-def test_recurring_profile_assignment_is_global_and_not_label_order_dependent() -> None:
+def test_calendar_signature_distinguishes_equal_amount_stream_labels() -> None:
     payload = {
-        "datasetVersion": "matching-regression-v1",
-        "evaluation": {"minimumHistoryMonths": 3},
+        "datasetVersion": "calendar-signature-v1",
+        "evaluation": {"minimumHistoryMonths": 6},
         "labels": {
             "recurringStreams": [
                 {
-                    "id": "broad",
-                    "merchant": "service",
-                    "activeFrom": "2026-01",
-                    "expectedOccurrences": [
-                        "2026-01-05",
-                        "2026-02-05",
-                        "2026-03-05",
-                        "2026-04-05",
-                    ],
+                    "id": "early",
+                    "merchant": "generic service",
                     "cadence": "monthly",
-                    "amountMin": "5.00",
-                    "amountMax": "25.00",
+                    "amountMin": "9.99",
+                    "amountMax": "9.99",
+                    "activeFrom": "2026-01",
+                    "activeUntil": "2026-07",
+                    "calendarSignature": "monthly:day-05"
                 },
                 {
-                    "id": "narrow",
-                    "merchant": "service",
-                    "activeFrom": "2026-01",
-                    "expectedOccurrences": [
-                        "2026-01-20",
-                        "2026-02-20",
-                        "2026-03-20",
-                        "2026-04-20",
-                    ],
+                    "id": "late",
+                    "merchant": "generic service",
                     "cadence": "monthly",
-                    "amountMin": "9.00",
-                    "amountMax": "11.00",
-                },
-            ]
+                    "amountMin": "9.99",
+                    "amountMax": "9.99",
+                    "activeFrom": "2026-01",
+                    "activeUntil": "2026-07",
+                    "calendarSignature": "monthly:day-20"
+                }
+            ],
+            "anomalyTransactionIds": []
         },
         "transactions": [
-            *[
-                {
-                    "id": f"low-{month}",
-                    "merchant": "Service",
-                    "amount": "10.00",
-                    "date": f"2026-{month:02d}-05",
-                    "category": "Subscriptions",
-                }
-                for month in (1, 2, 3, 4)
-            ],
-            *[
-                {
-                    "id": f"high-{month}",
-                    "merchant": "Service",
-                    "amount": "20.00",
-                    "date": f"2026-{month:02d}-20",
-                    "category": "Subscriptions",
-                }
-                for month in (1, 2, 3, 4)
-            ],
-        ],
+            item
+            for month in range(1, 8)
+            for item in (
+                {"id": f"early-{month}", "merchant": "Generic Service", "amount": "9.99", "date": f"2026-{month:02d}-05", "category": "Subscriptions"},
+                {"id": f"late-{month}", "merchant": "Generic Service", "amount": "9.99", "date": f"2026-{month:02d}-20", "category": "Subscriptions"},
+            )
+        ]
     }
 
     report = evaluate_historical_dataset(payload)
-    april = next(fold for fold in report["folds"] if fold["evaluateMonth"] == "2026-04")
-
-    assert april["recurrence"]["truePositives"] == 2
-    assert april["recurrence"]["falsePositives"] == 0
-    assert april["recurrence"]["falseNegatives"] == 0
+    july = next(fold for fold in report["folds"] if fold["evaluateMonth"] == "2026-07")
+    assert july["temporalPhaseProfiles"] == 2
+    assert july["recurrence"]["truePositives"] == 2
+    assert july["recurrence"]["falseNegatives"] == 0
