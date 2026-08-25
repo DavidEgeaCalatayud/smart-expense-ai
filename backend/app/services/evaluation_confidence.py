@@ -2,7 +2,6 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 from random import Random
-from typing import Callable, Iterable
 
 
 DEFAULT_CONFIDENCE_LEVEL = 0.95
@@ -76,13 +75,17 @@ def bootstrap_binary_fold_metrics(
         fold for fold in folds
         if isinstance(fold.get(metric_key), dict)
     ]
-    support = sum(
-        int(fold[metric_key].get("truePositives", 0))
-        + int(fold[metric_key].get("falsePositives", 0))
-        + int(fold[metric_key].get("falseNegatives", 0))
-        + int(fold[metric_key].get("trueNegatives", 0))
-        for fold in eligible
-    )
+    support = 0
+    for fold in eligible:
+        metrics = fold[metric_key]
+        assert isinstance(metrics, dict)
+        support += (
+            int(metrics.get("truePositives", 0))
+            + int(metrics.get("falsePositives", 0))
+            + int(metrics.get("falseNegatives", 0))
+            + int(metrics.get("trueNegatives", 0))
+        )
+
     if not eligible:
         return {
             "method": BOOTSTRAP_METHOD,
