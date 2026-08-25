@@ -111,6 +111,25 @@ def test_v22_does_not_merge_overlapping_same_merchant_subscriptions() -> None:
     assert all(profile["priceRegimeCount"] == 1 for profile in profiles)
 
 
+def test_v22_does_not_relink_currently_inactive_schedule() -> None:
+    variants = ("Fitness Pro", "FITNESS PRO*MEMBER")
+    transactions = [
+        tx("jan", variants[0], "29.90", "2026-01-01"),
+        tx("feb", variants[1], "29.90", "2026-02-01"),
+        tx("mar", variants[0], "29.90", "2026-03-01"),
+        tx("apr", variants[1], "29.90", "2026-04-01"),
+    ]
+    identities = build_merchant_identity_map([item.merchant for item in transactions])
+
+    streams = build_recurring_streams_v2_2(
+        transactions,
+        identities,
+        analysis_end=date(2026, 7, 31),
+    )
+
+    assert not any(stream.basis == "merchant_price_continuity" for stream in streams)
+
+
 def test_v22_does_not_relink_long_dormant_reactivation() -> None:
     variants = ("Fitness Pro", "FITNESS PRO*MEMBER")
     transactions = [
@@ -123,7 +142,11 @@ def test_v22_does_not_relink_long_dormant_reactivation() -> None:
     ]
     identities = build_merchant_identity_map([item.merchant for item in transactions])
 
-    streams = build_recurring_streams_v2_2(transactions, identities)
+    streams = build_recurring_streams_v2_2(
+        transactions,
+        identities,
+        analysis_end=date(2026, 12, 31),
+    )
 
     assert not any(stream.basis == "merchant_price_continuity" for stream in streams)
 
@@ -142,6 +165,10 @@ def test_v22_does_not_relink_price_regime_that_reappears() -> None:
     ]
     identities = build_merchant_identity_map([item.merchant for item in transactions])
 
-    streams = build_recurring_streams_v2_2(transactions, identities)
+    streams = build_recurring_streams_v2_2(
+        transactions,
+        identities,
+        analysis_end=date(2026, 9, 30),
+    )
 
     assert not any(stream.basis == "merchant_price_continuity" for stream in streams)
