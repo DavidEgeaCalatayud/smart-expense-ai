@@ -27,8 +27,8 @@ def get_current_user(
             detail="Authentication required",
         )
 
-    user_id = decode_access_token(session_token)
-    if user_id is None:
+    decoded_session = decode_access_token(session_token)
+    if decoded_session is None:
         log_security_event(
             request,
             "session_validation",
@@ -40,12 +40,26 @@ def get_current_user(
             detail="Invalid or expired session",
         )
 
+    user_id, token_session_version = decoded_session
     user = db.get(User, user_id)
     if user is None or not user.is_active:
         log_security_event(
             request,
             "session_validation",
             "inactive",
+            user_id=user_id,
+            level=logging.WARNING,
+        )
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Invalid or expired session",
+        )
+
+    if token_session_version != user.session_version:
+        log_security_event(
+            request,
+            "session_validation",
+            "revoked",
             user_id=user_id,
             level=logging.WARNING,
         )
