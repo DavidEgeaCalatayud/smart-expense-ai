@@ -154,7 +154,9 @@ def build_recurring_profiles_v2_2(
         consecutive_fit = min(ONE, Decimal(max(consecutive_periods - 1, 0)) / Decimal("5"))
         period_counts = Counter(_cadence_period_key(value, cadence_name) for value in unique_dates)
         same_period_extra_occurrences = sum(max(0, count - 1) for count in period_counts.values())
-        missing_schedule_is_unambiguous = same_period_extra_occurrences == 0
+        latest_period_key = _cadence_period_key(unique_dates[-1], cadence_name)
+        latest_period_extra_occurrences = max(0, period_counts[latest_period_key] - 1)
+        missing_schedule_is_unambiguous = latest_period_extra_occurrences == 0
 
         pattern_score = SCORE_HUNDRED * (
             Decimal("0.30") * cadence_fit
@@ -193,6 +195,7 @@ def build_recurring_profiles_v2_2(
                 "historyDepth": _ratio(history_depth),
                 "consecutivePeriods": consecutive_periods,
                 "samePeriodExtraOccurrences": same_period_extra_occurrences,
+                "latestPeriodExtraOccurrences": latest_period_extra_occurrences,
                 "missedExpectedOccurrences": missed_expected if missing_schedule_is_unambiguous else 0,
                 "isExpectedPaymentMissing": expected_payment_missing and missing_schedule_is_unambiguous,
                 "patternScore": _ratio(pattern_score, "0.1"),
