@@ -14,6 +14,7 @@ from app.services.merchant_canonicalization import MerchantIdentity, merchant_st
 MIN_AMOUNT_TOLERANCE = Decimal("1.00")
 AMOUNT_TOLERANCE_RATIO = Decimal("0.12")
 DESCRIPTOR_AMOUNT_TOLERANCE_RATIO = Decimal("0.25")
+MIN_CADENCE_FIT = Decimal("0.60")
 ONE = Decimal("1")
 ZERO = Decimal("0")
 SCORE_HUNDRED = Decimal("100")
@@ -188,7 +189,7 @@ def _calendar_cadence(unique_dates: list[date]) -> tuple[str, int, Decimal] | No
             ),
             key=lambda item: item[2],
         )
-        if best_fit >= Decimal("0.60"):
+        if best_fit >= MIN_CADENCE_FIT:
             return best_name, best_step, best_fit
 
     intervals = [(current - previous).days for previous, current in zip(unique_dates, unique_dates[1:])]
@@ -201,7 +202,8 @@ def _calendar_cadence(unique_dates: list[date]) -> tuple[str, int, Decimal] | No
     ):
         if Decimal(lower) <= typical <= Decimal(upper):
             fit = Decimal(sum(lower <= interval <= upper for interval in intervals)) / Decimal(len(intervals))
-            return name, expected_days, fit
+            if fit >= MIN_CADENCE_FIT:
+                return name, expected_days, fit
     return None
 
 

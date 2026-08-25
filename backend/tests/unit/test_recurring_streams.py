@@ -1,9 +1,10 @@
-from datetime import date
+from datetime import date, timedelta
 from decimal import Decimal
 
 from app.services.historical_analysis_v2_1 import analyze_historical_transactions_v2_1
 from app.services.historical_analysis_v2_2 import analyze_historical_transactions_v2_2
 from app.services.intelligence_rules import TransactionSnapshot
+from app.services.recurring_streams import _calendar_cadence
 
 
 def tx(identifier: str, merchant: str, amount: str, value: str) -> TransactionSnapshot:
@@ -73,6 +74,87 @@ def test_amount_bands_split_streams_even_without_descriptor_hints() -> None:
     ]
     assert len(profiles) == 2
     assert {profile["medianAmount"] for profile in profiles} == {"5.00", "25.00"}
+
+
+def test_v22_preserves_strong_amount_only_monthly_streams() -> None:
+    transactions: list[TransactionSnapshot] = []
+    for month in range(1, 7):
+        transactions.extend(
+            [
+                tx(f"low-{month}", "Generic Service", "5.00", f"2026-{month:02d}-05"),
+                tx(f"high-{month}", "Generic Service", "25.00", f"2026-{month:02d}-20"),
+            ]
+        )
+
+    _, _, _, result = analyze_historical_transactions_v2_2(
+        transactions,
+        6,
+        analysis_end=date(2026, 6, 30),
+    )
+
+    profiles = [
+        profile
+        for profile in result["recurringProfiles"]
+        if profile["canonicalMerchant"] == "generic service"
+    ]
+    assert len(profiles) == 2
+    assert {profile["streamBasis"] for profile in profiles} == {"amount"}
+    assert {profile["medianAmount"] for profile in profiles} == {"5.00", "25.00"}
+    assert all(profile["consecutivePeriods"] == 6 for profile in profiles)
+    assert all(profile["dayOfMonthStability"] == "1.000" for profile in profiles)
+
+
+def test_v22_preserves_precise_four_period_amount_stream_when_outlier_splits() -> None:
+    transactions = [
+        tx("jan", "Cloud Tools", "20.00", "2026-01-01"),
+        tx("feb", "Cloud Tools", "21.00", "2026-02-01"),
+        tx("mar", "Cloud Tools", "19.00", "2026-03-01"),
+        tx("apr", "Cloud Tools", "20.00", "2026-04-01"),
+        tx("may-outlier", "Cloud Tools", "85.00", "2026-05-01"),
+    ]
+
+    _, _, _, result = analyze_historical_transactions_v2_2(
+        transactions,
+        5,
+        analysis_end=date(2026, 5, 31),
+    )
+
+    profiles = [
+        profile
+        for profile in result["recurringProfiles"]
+        if profile["canonicalMerchant"] == "cloud tools"
+    ]
+    assert len(profiles) == 1
+    assert profiles[0]["streamBasis"] == "amount"
+    assert profiles[0]["occurrenceCount"] == 4
+    assert profiles[0]["consecutivePeriods"] == 4
+    assert profiles[0]["dayOfMonthStability"] == "1.000"
+
+
+def test_v22_rejects_short_unstable_amount_only_coincidences() -> None:
+    transactions = [
+        tx("low-jan", "Generic Service", "5.00", "2026-01-05"),
+        tx("low-feb", "Generic Service", "5.00", "2026-02-18"),
+        tx("low-mar", "Generic Service", "5.00", "2026-03-02"),
+        tx("low-apr", "Generic Service", "5.00", "2026-04-25"),
+        tx("high-jan", "Generic Service", "25.00", "2026-01-22"),
+        tx("high-feb", "Generic Service", "25.00", "2026-02-03"),
+        tx("high-mar", "Generic Service", "25.00", "2026-03-19"),
+        tx("high-apr", "Generic Service", "25.00", "2026-04-08"),
+    ]
+
+    _, _, _, result = analyze_historical_transactions_v2_2(
+        transactions,
+        4,
+        analysis_end=date(2026, 4, 30),
+    )
+
+    profiles = [
+        profile
+        for profile in result["recurringProfiles"]
+        if profile["canonicalMerchant"] == "generic service"
+    ]
+    assert profiles == []
 
 
 def test_v22_splits_same_merchant_same_amount_by_concurrent_monthly_phase() -> None:
@@ -170,3 +252,41 @@ def test_v22_splits_same_amount_weekly_streams_on_concurrent_weekdays() -> None:
     ]
     assert len(profiles) == 2
     assert {profile["streamCalendar"] for profile in profiles} == {"weekly:mon", "weekly:thu"}
+
+
+def test_v22_keeps_one_weekly_stream_intact_when_month_phases_repeat() -> None:
+    transactions: list[TransactionSnapshot] = []
+    start = date(2026, 1, 2)
+    for week in range(20):
+        if week == 8:
+            continue
+        when = start + timedelta(days=week * 7)
+        if week == 12:
+            when -= timedelta(days=1)
+        transactions.append(
+            tx(f"meal-{week}", "Meal Kit Weekly", "34.50", when.isoformat())
+        )
+
+    _, _, _, result = analyze_historical_transactions_v2_2(
+        transactions,
+        6,
+        analysis_end=date(2026, 5, 31),
+    )
+
+    profiles = [
+        profile
+        for profile in result["recurringProfiles"]
+        if profile["canonicalMerchant"] == "meal kit weekly"
+    ]
+    assert len(profiles) == 1
+    assert profiles[0]["cadence"] == "weekly"
+    assert profiles[0]["streamBasis"] != "calendar_phase"
+    assert profiles[0]["occurrenceCount"] == len(transactions)
+
+
+def test_short_cadence_requires_more_than_a_matching_median_interval() -> None:
+    values = [date(2026, 1, 1)]
+    for interval in (5, 7, 8, 9, 20, 21, 22):
+        values.append(values[-1] + timedelta(days=interval))
+
+    assert _calendar_cadence(values) is None
