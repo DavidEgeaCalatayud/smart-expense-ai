@@ -39,8 +39,11 @@ def main() -> None:
     parser.add_argument(
         "--mode",
         choices=("development", "holdout", "legacy"),
-        default="development",
-        help="development keeps holdout sealed; holdout requires frozen parameters",
+        default="legacy",
+        help=(
+            "legacy preserves the original all-fold report; development seals holdout; "
+            "holdout requires frozen parameters"
+        ),
     )
     parser.add_argument(
         "--parameters",
