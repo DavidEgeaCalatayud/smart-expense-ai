@@ -44,6 +44,26 @@ def _interval(values: list[float], level: float) -> dict[str, float]:
     }
 
 
+def _block_reliability(blocks: int) -> dict[str, str | int]:
+    if blocks < 5:
+        return {
+            "rating": "very_low",
+            "warning": "Fewer than 5 temporal blocks; interval width/stability is not reliable.",
+            "recommendedMinimumBlocks": 10,
+        }
+    if blocks < 10:
+        return {
+            "rating": "limited",
+            "warning": "Fewer than 10 temporal blocks; interpret intervals cautiously.",
+            "recommendedMinimumBlocks": 10,
+        }
+    return {
+        "rating": "standard",
+        "warning": "",
+        "recommendedMinimumBlocks": 10,
+    }
+
+
 def _binary_from_counts(
     tp: int,
     fp: int,
@@ -60,6 +80,19 @@ def _binary_from_counts(
         "recall": recall,
         "f1": f1,
         "falsePositivesPer100Transactions": fp100,
+    }
+
+
+def _empty_confidence(config: BootstrapConfig, support: int) -> dict[str, object]:
+    return {
+        "method": BOOTSTRAP_METHOD,
+        "level": config.level,
+        "iterations": config.iterations,
+        "seed": config.seed,
+        "blocks": 0,
+        "support": support,
+        "reliability": _block_reliability(0),
+        "intervals": {},
     }
 
 
@@ -87,15 +120,7 @@ def bootstrap_binary_fold_metrics(
         )
 
     if not eligible:
-        return {
-            "method": BOOTSTRAP_METHOD,
-            "level": config.level,
-            "iterations": config.iterations,
-            "seed": config.seed,
-            "blocks": 0,
-            "support": support,
-            "intervals": {},
-        }
+        return _empty_confidence(config, support)
 
     rng = Random(config.seed)
     samples: dict[str, list[float]] = {
@@ -119,13 +144,15 @@ def bootstrap_binary_fold_metrics(
         for name, value in values.items():
             samples[name].append(value)
 
+    blocks = len(eligible)
     return {
         "method": BOOTSTRAP_METHOD,
         "level": config.level,
         "iterations": config.iterations,
         "seed": config.seed,
-        "blocks": len(eligible),
+        "blocks": blocks,
         "support": support,
+        "reliability": _block_reliability(blocks),
         "intervals": {
             name: _interval(values, config.level)
             for name, values in samples.items()
@@ -160,15 +187,7 @@ def bootstrap_occurrence_fold_metrics(
         support += int(metrics.get("expectedOccurrences", 0))
 
     if not eligible:
-        return {
-            "method": BOOTSTRAP_METHOD,
-            "level": config.level,
-            "iterations": config.iterations,
-            "seed": config.seed,
-            "blocks": 0,
-            "support": support,
-            "intervals": {},
-        }
+        return _empty_confidence(config, support)
 
     rng = Random(config.seed + 17)
     samples: dict[str, list[float]] = {"precision": [], "recall": [], "f1": []}
@@ -187,13 +206,15 @@ def bootstrap_occurrence_fold_metrics(
         for name, value in values.items():
             samples[name].append(value)
 
+    blocks = len(eligible)
     return {
         "method": BOOTSTRAP_METHOD,
         "level": config.level,
         "iterations": config.iterations,
         "seed": config.seed,
-        "blocks": len(eligible),
+        "blocks": blocks,
         "support": support,
+        "reliability": _block_reliability(blocks),
         "intervals": {
             name: _interval(values, config.level)
             for name, values in samples.items()
