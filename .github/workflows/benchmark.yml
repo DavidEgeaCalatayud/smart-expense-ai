@@ -179,6 +179,23 @@ jobs:
                   f"FN={row['falseNegatives']:3} cost={row['weightedErrorCost']}"
               )
           PY
+      - name: Inspect amount anomaly baseline evidence
+        run: |
+          python scripts/diagnose_amount_anomaly_fp_features.py \
+            datasets/benchmark_v1 > /tmp/amount-anomaly-features.json
+          python - <<'PY'
+          import json
+          from pathlib import Path
+
+          report = json.loads(Path('/tmp/amount-anomaly-features.json').read_text())
+          assert report['scope'] == ['calibration', 'validation']
+          assert report['holdout'] == {
+              'status': 'sealed',
+              'startMonth': '2025-07',
+              'endMonth': '2025-12',
+          }
+          print(json.dumps(report, indent=2, sort_keys=True))
+          PY
       - name: Verify recurrence feature provenance
         run: |
           python scripts/diagnose_recurrence_fp_features.py \
