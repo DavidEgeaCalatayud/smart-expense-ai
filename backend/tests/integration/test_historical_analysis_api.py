@@ -112,21 +112,29 @@ def test_historical_analysis_is_persisted_versioned_and_user_scoped(client: Test
     assert analysis["trend"]["excludedPartialMonth"] == "2026-06"
     assert analysis["monthlySpend"][-1]["isComplete"] is False
     assert analysis["recurrenceSegmentation"]["strategy"] == (
-        "canonical_merchant_then_descriptor_amount_then_temporal_phase"
+        "canonical_merchant_then_descriptor_amount_then_price_continuity_then_temporal_phase"
     )
+    assert analysis["recurrenceSegmentation"]["strategyVersion"] == "price-continuity-v1"
     assert analysis["recurrenceSegmentation"]["ambiguityPolicy"] == (
         "split_only_with_repeated_concurrent_calendar_evidence"
     )
+    assert analysis["recurrenceSegmentation"]["priceContinuityRequiresCurrentSchedule"] is True
 
     stream_profile = next(
         profile for profile in analysis["recurringProfiles"]
         if profile["canonicalMerchant"] == "stream box"
     )
     assert stream_profile["streamKey"].startswith("stream box::")
-    assert stream_profile["streamBasis"] in {"merchant_default", "amount", "descriptor_amount"}
+    assert stream_profile["streamBasis"] in {
+        "merchant_default",
+        "amount",
+        "descriptor_amount",
+        "merchant_price_continuity",
+    }
     assert {"Stream Box SL", "STREAM BOX*2002"}.issubset(set(stream_profile["observedMerchants"]))
     assert analysis["coverage"]["recurringStreams"] == len(analysis["recurringProfiles"])
     assert analysis["coverage"]["temporalPhaseStreams"] >= 0
+    assert analysis["coverage"]["priceContinuityStreams"] >= 0
 
     cloud_outlier = next(outlier for outlier in analysis["outliers"] if outlier["merchant"] == "Cloud Tools")
     assert cloud_outlier["canonicalMerchant"] == "cloud tools"

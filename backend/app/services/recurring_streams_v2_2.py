@@ -7,6 +7,7 @@ from decimal import Decimal
 
 from app.services.intelligence_rules import TransactionSnapshot
 from app.services.merchant_canonicalization import MerchantIdentity
+from app.services.recurring_price_continuity import relink_price_continuity_streams
 from app.services.recurring_streams import (
     ONE,
     SCORE_HUNDRED,
@@ -39,9 +40,20 @@ class RecurringStreamV22:
     transactions: tuple[TransactionSnapshot, ...]
     basis: str
     calendar_signature: str
+    source_stream_count: int = 1
+    canonical_variant_count: int = 1
+    price_regime_count: int = 1
 
 
-def _as_v22(stream: RecurringStream, *, basis: str, calendar_signature: str = "") -> RecurringStreamV22:
+def _as_v22(
+    stream: RecurringStream,
+    *,
+    basis: str,
+    calendar_signature: str = "",
+    source_stream_count: int = 1,
+    canonical_variant_count: int = 1,
+    price_regime_count: int = 1,
+) -> RecurringStreamV22:
     return RecurringStreamV22(
         stream_key=stream.stream_key,
         canonical_merchant=stream.canonical_merchant,
@@ -49,6 +61,9 @@ def _as_v22(stream: RecurringStream, *, basis: str, calendar_signature: str = ""
         transactions=stream.transactions,
         basis=basis,
         calendar_signature=calendar_signature,
+        source_stream_count=source_stream_count,
+        canonical_variant_count=canonical_variant_count,
+        price_regime_count=price_regime_count,
     )
 
 
@@ -70,16 +85,37 @@ def _cadence_period_key(value: date, cadence: str) -> str:
 def build_recurring_streams_v2_2(
     transactions: list[TransactionSnapshot],
     identity_map: dict[str, MerchantIdentity],
+    *,
+    analysis_end: date | None = None,
 ) -> list[RecurringStreamV22]:
-    """Add temporal lanes only where descriptor/amount evidence is still ambiguous.
+    """Build v2.2 streams with conservative price-continuity and temporal relinking.
 
-    v2.1 remains untouched. v2.2 starts from its deterministic descriptor/amount streams
-    and asks whether a descriptor-less stream contains multiple concurrent calendar phases.
-    Stable monthly or weekly lanes are split; weak evidence is kept as one ambiguous stream.
+    v2.1 remains untouched. v2.2 starts from deterministic descriptor/amount streams.
+    Before temporal-lane splitting, fragmented streams may be re-linked only when merchant
+    family, cadence, calendar position and sequential amount regimes jointly explain one
+    currently active, non-concurrent subscription schedule. Remaining descriptor-less
+    ambiguity is then handled by the existing temporal-lane splitter.
     """
 
     result: list[RecurringStreamV22] = []
-    for stream in build_recurring_streams(transactions, identity_map):
+    base_streams = build_recurring_streams(transactions, identity_map)
+    for continuity in relink_price_continuity_streams(
+        base_streams,
+        analysis_end=analysis_end,
+    ):
+        stream = continuity.stream
+        if continuity.relinked:
+            result.append(
+                _as_v22(
+                    stream,
+                    basis="merchant_price_continuity",
+                    source_stream_count=continuity.source_stream_count,
+                    canonical_variant_count=continuity.canonical_variant_count,
+                    price_regime_count=continuity.price_regime_count,
+                )
+            )
+            continue
+
         if stream.descriptor:
             result.append(_as_v22(stream, basis="descriptor_amount"))
             continue
@@ -115,7 +151,11 @@ def build_recurring_profiles_v2_2(
     limit: int | None = 20,
 ) -> list[dict[str, object]]:
     profiles: list[dict[str, object]] = []
-    for stream in build_recurring_streams_v2_2(transactions, identity_map):
+    for stream in build_recurring_streams_v2_2(
+        transactions,
+        identity_map,
+        analysis_end=analysis_end,
+    ):
         ordered = sorted(stream.transactions, key=lambda item: (item.transaction_date, item.id))
         unique_dates = sorted({item.transaction_date for item in ordered})
         if len(unique_dates) < 3:
@@ -199,6 +239,9 @@ def build_recurring_profiles_v2_2(
                 "streamDescriptor": stream.descriptor or None,
                 "streamBasis": stream.basis,
                 "streamCalendar": stream.calendar_signature or None,
+                "sourceStreamCount": stream.source_stream_count,
+                "canonicalVariantCount": stream.canonical_variant_count,
+                "priceRegimeCount": stream.price_regime_count,
                 "merchant": observed_merchants[-1],
                 "canonicalMerchant": stream.canonical_merchant,
                 "observedMerchants": observed_merchants,

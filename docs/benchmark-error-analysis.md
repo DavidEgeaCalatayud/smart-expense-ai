@@ -73,6 +73,46 @@ The matching rules are:
 
 The strategy name is versioned because changing matching semantics changes evaluation methodology. It does not change `historical-v2.2` or `rules-v2` detection behavior.
 
+## Price-regime continuity contract
+
+After cadence-aware temporal splitting was frozen, `recurring_price_change` remained the highest-cost recurrence failure. The production fix is a deterministic re-linking layer, not a wider global amount tolerance.
+
+Conservative descriptor/amount streams may be joined into `streamBasis="merchant_price_continuity"` only when all of the following evidence is present:
+
+- canonical merchant identities belong to a compatible multi-token merchant family;
+- descriptor identity is compatible;
+- the combined observations explain exactly one monthly, quarterly or yearly schedule;
+- no cadence period contains concurrent observations that would indicate separate subscriptions;
+- calendar position is sufficiently stable;
+- price regimes are sequential and a previous regime does not reappear later;
+- the number and magnitude of price changes stay within the documented continuity limits;
+- long dormant gaps are rejected;
+- the schedule is still current at the evaluation cutoff, so cancellation gaps are not bridged as active continuity.
+
+The API exposes the evidence through `sourceStreamCount`, `canonicalVariantCount`, `priceRegimeCount`, `priceContinuityStreams` and the `recurrenceSegmentation` policy metadata.
+
+The calibration + validation benchmark contract after this change is:
+
+```text
+historical-v2.2 / recurring_price_change  18 TP / 0 FP / 0 FN
+rules-v2        / recurring_price_change  18 TP / 0 FP / 0 FN
+historical-v2.2 / cancel_reactivate        0 TP / 0 FP / 9 FN
+rules-v2        / cancel_reactivate        0 TP / 0 FP / 9 FN
+```
+
+The target improvement is also provenance-checked: all 18 historical true positives for `recurring_price_change` must be produced by `merchant_price_continuity` profiles rather than by evaluator matching changes.
+
+CI additionally protects the existing post-temporal-splitting regression scenarios:
+
+- `equal_amount_temporal_streams`: 36 TP / 0 FP / 0 FN;
+- `merchant_descriptor_drift`: 18 / 0 / 0;
+- `same_merchant_multi_stream`: 36 / 0 / 0;
+- `weekly_holiday_shift`: 18 / 0 / 0;
+- `ordinary_spend` recurrence: at most 1 historical FP and 0 `rules-v2` FP;
+- `quarterly_price_change`: 0 FN in both engines.
+
+These are development regression gates for this synthetic benchmark. They are not production accuracy targets.
+
 ## Run locally
 
 From `backend/` after materializing the benchmark:
@@ -123,7 +163,7 @@ Each scored task includes:
 - bounded concrete FP/FN examples;
 - explicit evaluation unit.
 
-CI runs this diagnostic report before the existing bootstrap development evaluation and prints the aggregate task metrics, the full scenario matrices and the highest-cost scenarios into the workflow log.
+CI runs this diagnostic report before the existing bootstrap development evaluation. It prints aggregate task metrics, full scenario matrices and highest-cost scenarios, asserts the protected recurrence scenarios, and verifies the feature provenance of the price-continuity result.
 
 ## Interpretation boundary
 
