@@ -1,6 +1,5 @@
 from __future__ import annotations
 
-from collections import Counter
 from dataclasses import dataclass
 from datetime import date, timedelta
 from decimal import Decimal, ROUND_HALF_UP
@@ -11,7 +10,6 @@ from app.services.recurring_price_continuity import (
     MAX_CONTINUITY_PERIOD_GAP_MULTIPLIER,
     MAX_CONTINUITY_PRICE_CHANGE_RATIO,
     MIN_CONTINUITY_CADENCE_FIT,
-    MIN_QUALIFIED_ROOT_TOKENS,
     _canonical_root,
     _month_index,
     _month_start_target_day,
@@ -110,7 +108,7 @@ def _lifecycle_cadence(
             candidates.append((matching, fit, cadence, step))
     if not candidates:
         return None
-    matching, fit, cadence, step = max(candidates, key=lambda item: (item[0], item[1], -item[3]))
+    _, fit, cadence, step = max(candidates, key=lambda item: (item[0], item[1], -item[3]))
     return cadence, step, fit
 
 
@@ -239,8 +237,10 @@ def detect_lifecycle_reactivations(
 
     A prior episode must contain at least four cadence-consistent observations. A new episode
     can reactivate immediately on its first charge only when merchant-family identity, amount,
-    calendar position and inherited cadence all agree with that established history. The
-    current episode is emitted on its own, so dormant periods never become missed occurrences.
+    calendar position and inherited cadence all agree with that established history. A charge
+    posted early into the preceding month becomes eligible only when its nominal billing date
+    has arrived. The current episode is emitted on its own, so dormant periods never become
+    missed occurrences.
     """
 
     if not streams:
@@ -292,6 +292,9 @@ def detect_lifecycle_reactivations(
             current,
             boundary_target_day=boundary_target_day,
         )
+        if not current_dates or current_dates[-1] > analysis_end:
+            continue
+
         prior_fit = _cadence_fit(prior_dates, step)
         if prior_fit < MIN_CONTINUITY_CADENCE_FIT:
             continue
