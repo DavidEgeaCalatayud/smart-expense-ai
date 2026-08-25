@@ -7,6 +7,7 @@ from hashlib import sha256
 from math import ceil
 from statistics import median
 
+from app.services.amount_anomaly_baseline import BASELINE_POLICY, evaluate_amount_anomaly
 from app.services.intelligence_rules import FindingCandidate, TransactionSnapshot
 from app.services.merchant_canonicalization import MerchantIdentity, build_merchant_identity_map
 from app.services.recurring_streams_v2_2 import build_recurring_profiles_v2_2
@@ -241,78 +242,58 @@ def detect_amount_anomalies_v2(
         return []
     identity_map = identities or _identity_map(transactions)
     merchant_history: dict[str, list[Decimal]] = defaultdict(list)
-    category_history: dict[str, list[Decimal]] = defaultdict(list)
     findings: list[FindingCandidate] = []
 
     ordered = sorted(transactions, key=lambda item: (item.transaction_date, item.id))
     for transaction in ordered:
         canonical = identity_map[transaction.merchant].canonical
-        merchant_amounts = merchant_history[canonical][-12:] if canonical else []
-        category_amounts = category_history[transaction.category][-20:]
+        merchant_amounts = merchant_history[canonical] if canonical else []
+        decision = evaluate_amount_anomaly(transaction.amount, merchant_amounts)
 
-        baseline_scope: str | None = None
-        baseline_values: list[Decimal] = []
-        if len(merchant_amounts) >= 4:
-            baseline_scope = "merchant"
-            baseline_values = merchant_amounts
-        elif len(category_amounts) >= 8:
-            baseline_scope = "category"
-            baseline_values = category_amounts
-
-        if baseline_scope is not None:
-            baseline = _median_decimal(baseline_values)
-            if baseline > ZERO:
-                mad = _median_decimal([abs(value - baseline) for value in baseline_values])
-                robust_spread = max(mad, baseline * Decimal("0.05"), Decimal("1.00"))
-                delta = transaction.amount - baseline
-                deviation_score = delta / robust_spread
-                ratio = transaction.amount / baseline
-                threshold = max(
-                    baseline * Decimal("1.50"),
-                    baseline + Decimal("3.00") * robust_spread,
+        if decision is not None and decision.is_anomaly:
+            findings.append(
+                FindingCandidate(
+                    finding_type="spending_anomaly",
+                    severity=(
+                        "high"
+                        if decision.ratio >= Decimal("3.00")
+                        or decision.deviation_score >= Decimal("6.00")
+                        else "warning"
+                    ),
+                    fingerprint=f"spending-anomaly-v2:{transaction.id}",
+                    title=f"Unusual amount: {transaction.merchant}",
+                    explanation=(
+                        f"This charge is {decision.ratio:.2f}× the merchant historical median and "
+                        f"{decision.deviation_score:.2f} robust spreads above it. The merchant-specific "
+                        "distribution fence also has to be exceeded, and only earlier charges build the baseline."
+                    ),
+                    evidence={
+                        "anomalyKind": "amount",
+                        "merchant": transaction.merchant,
+                        "canonicalMerchant": canonical,
+                        "category": transaction.category,
+                        "transactionId": transaction.id,
+                        "transactionDate": transaction.transaction_date.isoformat(),
+                        "amount": _money(transaction.amount),
+                        "baselineScope": "merchant",
+                        "baselinePolicy": BASELINE_POLICY,
+                        "baselineMedian": _money(decision.baseline_median),
+                        "baselineCount": decision.baseline_count,
+                        "baselineMad": _money(decision.mad),
+                        "robustSpread": _money(decision.robust_spread),
+                        "firstQuartile": _money(decision.first_quartile),
+                        "thirdQuartile": _money(decision.third_quartile),
+                        "interquartileRange": _money(decision.interquartile_range),
+                        "distributionUpperFence": _money(decision.distribution_upper_fence),
+                        "deviationScore": _ratio(decision.deviation_score),
+                        "ratio": _ratio(decision.ratio),
+                        "threshold": _money(decision.threshold),
+                    },
                 )
-                if (
-                    deviation_score >= Decimal("3.00")
-                    and delta >= Decimal("20.00")
-                    and transaction.amount >= threshold
-                ):
-                    findings.append(
-                        FindingCandidate(
-                            finding_type="spending_anomaly",
-                            severity=(
-                                "high"
-                                if ratio >= Decimal("3.00") or deviation_score >= Decimal("6.00")
-                                else "warning"
-                            ),
-                            fingerprint=f"spending-anomaly-v2:{transaction.id}",
-                            title=f"Unusual amount: {transaction.merchant}",
-                            explanation=(
-                                f"This charge is {ratio:.2f}× the {baseline_scope} historical median and "
-                                f"{deviation_score:.2f} robust spreads above it. Only transactions earlier than "
-                                "this charge are used to build the baseline."
-                            ),
-                            evidence={
-                                "anomalyKind": "amount",
-                                "merchant": transaction.merchant,
-                                "canonicalMerchant": canonical,
-                                "category": transaction.category,
-                                "transactionId": transaction.id,
-                                "transactionDate": transaction.transaction_date.isoformat(),
-                                "amount": _money(transaction.amount),
-                                "baselineScope": baseline_scope,
-                                "baselineMedian": _money(baseline),
-                                "baselineCount": len(baseline_values),
-                                "robustSpread": _money(robust_spread),
-                                "deviationScore": _ratio(deviation_score),
-                                "ratio": _ratio(ratio),
-                                "threshold": _money(threshold),
-                            },
-                        )
-                    )
+            )
 
         if canonical:
             merchant_history[canonical].append(transaction.amount)
-        category_history[transaction.category].append(transaction.amount)
 
     return findings
 

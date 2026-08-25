@@ -73,7 +73,7 @@ def test_recurring_rules_create_separate_missing_payment_finding_only_with_stron
     assert missing[0].evidence["nextExpectedDate"] == "2026-05-31"
 
 
-def test_amount_anomaly_uses_only_prior_values_and_can_fall_back_to_category() -> None:
+def test_amount_anomaly_does_not_fall_back_to_category_for_new_merchant() -> None:
     history = [
         tx(f"food-{index}", f"Market {index}", amount, f"2026-01-{index + 1:02d}", "Food")
         for index, amount in enumerate(
@@ -84,12 +84,7 @@ def test_amount_anomaly_uses_only_prior_values_and_can_fall_back_to_category() -
 
     findings = detect_amount_anomalies_v2([*history, candidate])
 
-    assert len(findings) == 1
-    finding = findings[0]
-    assert finding.evidence["transactionId"] == "new-merchant"
-    assert finding.evidence["baselineScope"] == "category"
-    assert finding.evidence["baselineCount"] == 8
-    assert finding.evidence["amount"] == "80.00"
+    assert findings == []
 
 
 def test_amount_anomaly_baseline_does_not_include_candidate_or_future_transactions() -> None:
