@@ -23,11 +23,11 @@ def test_scenario_error_analysis_keeps_holdout_sealed_and_reports_tasks(tmp_path
     )
 
     assert report["datasetVersion"] == "financial-benchmark-v1"
-    assert report["reportVersion"] == "benchmark-scenario-errors-v2"
+    assert report["reportVersion"] == "benchmark-scenario-errors-v3"
     assert report["mode"] == "development"
     assert report["scope"]["phases"] == ["calibration"]
     assert report["scope"]["recurrenceLabelActivity"] == (
-        "cadence_continuity_after_three_observations_v1"
+        "cadence_continuity_nominal_boundary_v2"
     )
     assert report["scope"]["minimumStreamEvidenceOccurrences"] == 3
     assert report["holdout"]["status"] == "sealed"
