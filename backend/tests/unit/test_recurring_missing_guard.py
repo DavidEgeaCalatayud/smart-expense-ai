@@ -15,7 +15,7 @@ def _tx(identifier: str, value: str) -> TransactionSnapshot:
     )
 
 
-def test_same_month_extra_charge_does_not_create_false_missing_payment() -> None:
+def test_latest_month_extra_charge_does_not_create_false_missing_payment() -> None:
     findings = detect_recurring_patterns_v2(
         [
             _tx("may", "2026-05-02"),
@@ -28,3 +28,19 @@ def test_same_month_extra_charge_does_not_create_false_missing_payment() -> None
 
     assert any(item.finding_type == "recurring_pattern" for item in findings)
     assert not any(item.finding_type == "recurring_payment_missing" for item in findings)
+
+
+def test_old_same_month_extra_does_not_suppress_later_clean_missing_payment() -> None:
+    findings = detect_recurring_patterns_v2(
+        [
+            _tx("jan-a", "2026-01-01"),
+            _tx("jan-b", "2026-01-28"),
+            _tx("feb", "2026-02-28"),
+            _tx("mar", "2026-03-31"),
+            _tx("apr", "2026-04-30"),
+        ],
+        analysis_date=date(2026, 6, 15),
+    )
+
+    assert any(item.finding_type == "recurring_pattern" for item in findings)
+    assert any(item.finding_type == "recurring_payment_missing" for item in findings)
