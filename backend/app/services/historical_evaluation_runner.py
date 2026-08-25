@@ -20,6 +20,11 @@ from app.services.historical_evaluation_protocol import (
 
 DEVELOPMENT_MODE = "development"
 HOLDOUT_MODE = "holdout"
+_EVALUATION_CONTRACT_KEYS = (
+    "labelStrategy",
+    "recurrenceGroundTruthStrategy",
+    "recurrenceMatchingStrategy",
+)
 
 
 def _month_key(raw_date: str) -> str:
@@ -107,6 +112,24 @@ def _run_split(
     return report
 
 
+def _shared_evaluation_contract(*reports: dict[str, Any]) -> dict[str, Any]:
+    """Promote invariant evaluator semantics to the protocol report root.
+
+    Split reports remain the source of truth. The wrapper exposes the same contract at the
+    root so CI and downstream consumers do not have to infer evaluation semantics from one
+    arbitrary split. Divergent split semantics are rejected rather than silently reported.
+    """
+
+    if not reports:
+        return {}
+    contract = {key: reports[0].get(key) for key in _EVALUATION_CONTRACT_KEYS}
+    for report in reports[1:]:
+        for key, value in contract.items():
+            if report.get(key) != value:
+                raise ValueError(f"evaluation contract mismatch across splits for {key}")
+    return contract
+
+
 def run_development_evaluation(
     payload: dict[str, Any],
     *,
@@ -126,11 +149,13 @@ def run_development_evaluation(
     )
     calibration = _run_split(payload, protocol.calibration, config)
     validation = _run_split(payload, protocol.validation, config)
+    evaluation_contract = _shared_evaluation_contract(calibration, validation)
 
     return {
         "mode": DEVELOPMENT_MODE,
         "datasetVersion": payload.get("datasetVersion", "unknown"),
         "analysisVersion": "historical-v2.2",
+        **evaluation_contract,
         "protocol": protocol.as_dict(),
         "parameterSelection": {
             "status": "frozen_default_until_labelled_calibration_is_large_enough",
@@ -175,10 +200,12 @@ def run_holdout_evaluation(
     config = bootstrap or BootstrapConfig()
     config.validate()
     holdout = _run_split(payload, protocol.holdout, config)
+    evaluation_contract = _shared_evaluation_contract(holdout)
     return {
         "mode": HOLDOUT_MODE,
         "datasetVersion": payload.get("datasetVersion", "unknown"),
         "analysisVersion": "historical-v2.2",
+        **evaluation_contract,
         "protocolVersion": protocol.as_dict()["version"],
         "frozenParameters": parameters.as_frozen_dict(),
         "holdout": holdout,
