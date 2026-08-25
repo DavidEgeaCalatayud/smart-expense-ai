@@ -1,107 +1,142 @@
 # Smart Expense AI
 
-Smart Expense AI is a personal finance application built around reliable persisted transaction data, account isolation and explainable analysis before predictive or machine-learning features are introduced.
+Smart Expense AI is a personal-finance application built around persisted transaction data, account isolation and explainable analysis before probabilistic or machine-learning features are introduced.
 
-The current product does **not** simulate AI results. Transactions, dashboard metrics, persisted findings and historical-analysis snapshots come from PostgreSQL data and reproducible algorithms. Forecasting, automatic classification and calibrated confidence metrics remain explicitly unimplemented until they can be validated.
+The product does **not** simulate AI results. Transactions, dashboard metrics, actionable findings and historical-analysis snapshots come from PostgreSQL data and reproducible algorithms. Forecasting, automatic classification and calibrated ML confidence remain explicitly unimplemented until they can be evaluated properly.
 
-## Current Capabilities
+## Current capabilities
 
-Implemented today:
+### Persistent finance core
 
-- User registration, login and logout.
-- Argon2 password hashing and a 12-character registration minimum.
-- Signed JWT sessions stored in HttpOnly, SameSite=Lax cookies with issuer/audience/expiry validation.
-- Mandatory secure auth cookies and disabled debug/API docs in production configuration.
-- Mandatory per-user transaction ownership and API-level data isolation.
-- Trusted-host validation, restricted CORS and cross-site mutation defense.
+- PostgreSQL persistence through SQLAlchemy 2 and Alembic.
+- Authenticated per-user transaction ownership.
+- Transaction CRUD with server-side pagination, search, filters and sorting.
+- Server-side summary/monthly analytics.
+- PostgreSQL `NUMERIC(12,2)` and Python `Decimal` for financial calculations.
+- Decimal-string monetary contracts in `/api/v2` and integer-cent arithmetic in the frontend.
+- Backwards-compatible `/api/v1` serialization for existing clients.
+- Typed frontend API errors preserving safe backend messages, validation details and request IDs.
+
+### Accounts and security baseline
+
+- User registration/login/logout.
+- Argon2 password hashing.
+- Signed JWT sessions in HttpOnly, SameSite=Lax cookies.
+- Issuer/audience/expiry validation.
+- Trusted-host validation, restricted CORS and cross-site mutation protection.
 - Nginx login/registration rate limiting and browser security headers.
-- Security event logging without passwords, emails, request bodies, JWTs or cookies.
-- Backwards-compatible `/api/v1` plus decimal-safe monetary `/api/v2` contracts.
-- PostgreSQL `NUMERIC(12,2)` and Python `Decimal` throughout financial calculations.
-- Decimal-string money over API v2 and integer-cent arithmetic in the frontend instead of IEEE-754 financial arithmetic.
-- Typed frontend API failures for validation, authentication, authorization, conflict, not-found, server and network errors while preserving safe backend messages/request IDs.
-- Paginated transaction listing with server-side search, category, status, type, recurring, date-range and sort filters.
-- Normalized API error envelopes with semantic codes and request IDs.
-- Server-side summary and monthly-expense analytics endpoints.
-- Persistent transaction creation, editing, deletion and listing.
-- PostgreSQL persistence through SQLAlchemy 2.
-- Alembic schema migrations and initial category seeding.
-- Persisted shared categories exposed through authenticated `GET /api/v1/categories`.
-- Category/type validation for expense and income transactions.
-- Dashboard metrics derived from server-side aggregates for the authenticated user.
-- Six-month expense trend served by the analytics API.
-- Five most recent transactions loaded through the paginated API.
-- Recurring transactions stored as an explicit user-provided flag.
-- Transparent rule-based review: expenses above 120 EUR are marked as `review`.
-- Persisted Phase 3 financial-intelligence findings and scan history per authenticated user.
-- Explainable recurring-payment, duplicate-subscription and robust amount-anomaly findings.
-- Stable `rules-v1` fingerprints and persisted `open`, `dismissed` and `resolved` review states.
-- Versioned historical-analysis snapshots persisted per user; `historical-v1` remains the previous baseline and new runs use `historical-v2`.
-- Complete-month least-squares spending trend analysis: partial cutoff months remain visible but are excluded from regression and category-shift windows.
-- Auditable merchant canonicalization that preserves raw bank descriptors while consolidating references, legal suffixes, aliases and only high-similarity variants.
-- Calendar-aware recurring-behavior scores using cadence, interval regularity, day-of-month/month-end/day-of-week stability, amount MAD/CV, history depth and consecutive periods.
-- Detection of missed expected recurring occurrences and overdue learned schedule dates.
-- Chronological robust outlier analysis with no future-data leakage and canonical-merchant/category fallback baselines.
-- Latest-three-complete-month versus previous-three-complete-month category spending shifts.
-- Labelled monthly walk-forward evaluation harness reporting precision, recall, F1, false positives per 100 transactions, false negatives and performance slices.
-- Financial Intelligence workspace for findings plus historical behavior analysis with completeness/canonicalization evidence.
-- Delete confirmation, loading/refreshing states, retry feedback and operation toasts in transaction management.
-- Backend unit and PostgreSQL integration tests with pytest.
-- Frontend component/page tests with Vitest and React Testing Library.
-- Critical authenticated browser coverage with Playwright, including cross-account isolation.
-- GitHub Actions quality gates for migrations, tests, historical evaluation, TypeScript, ESLint, production builds, dependency auditing and Docker Compose.
-- Weekly Dependabot monitoring for Python, npm and GitHub Actions dependencies.
-- One-command Docker Compose environment for frontend, backend and PostgreSQL.
+- Dependency audits through `pip-audit` and `npm audit`.
 
-Not implemented yet:
+### Actionable financial intelligence — `rules-v2`
+
+The persisted findings engine now uses canonical merchants, recurring streams and chronological baselines rather than simple merchant-string grouping.
+
+It produces five explainable finding types:
+
+```text
+recurring_pattern
+recurring_payment_missing
+duplicate_subscription
+spending_anomaly
+frequency_anomaly
+```
+
+Highlights:
+
+- Canonical merchant grouping while retaining the original bank descriptor.
+- Descriptor/amount/temporal recurring-stream segmentation, so one merchant can contain several independent recurring payments.
+- Calendar-aware recurrence with deterministic `patternScore`, not fake probability.
+- Separate expected-but-missing recurring-payment alerts with stronger history requirements.
+- Same-period collision suppression so an extra charge inside one billing period does not manufacture a missing-payment alert.
+- Possible duplicate-subscription detection across repeated near-duplicate months.
+- Chronological amount anomalies whose baseline contains only earlier amounts.
+- Merchant baseline first, then conservative category fallback when merchant history is insufficient.
+- Frequency anomalies based on prior active-month counts plus rolling seven-day burst evidence.
+- Stable fingerprints and persisted `open`, `dismissed`, `resolved` workflow states.
+- Separate summary counts for recurring, missing-recurring, duplicate, amount-anomaly and frequency-anomaly signals.
+
+### Historical analysis — `historical-v2.2`
+
+Historical analysis is a separate persisted diagnostic layer and does not create review-state findings automatically.
+
+It includes:
+
+- Complete-month least-squares spending trend analysis.
+- Partial cutoff-month exclusion from trend/category-shift calculations without extrapolation.
+- Auditable merchant canonicalization.
+- Multiple recurring streams per merchant.
+- Descriptor/amount plus conservative temporal-phase clustering.
+- Calendar-aware cadence, month-end behavior, amount MAD/CV and history-depth features.
+- Missed expected-occurrence evidence.
+- Chronological robust amount outliers with merchant/category baselines.
+- Three-complete-month vs previous-three-complete-month category shifts.
+- Versioned snapshots per authenticated user.
+
+### Evaluation methodology
+
+The repository includes a labelled chronological evaluation harness rather than random train/test splitting for time series.
+
+Implemented methodology includes:
+
+- fold-local merchant identity to avoid future-descriptor leakage;
+- temporal recurrence labels and explicit expected occurrences;
+- optimal bipartite matching for stream labels;
+- prospective next-occurrence evaluation using only the prior-month baseline;
+- precision, recall, F1, false-positive cost, date/amount error metrics and slices;
+- explicit calibration / validation / sealed holdout ranges;
+- SHA-256-fingerprinted frozen parameter manifests before holdout evaluation;
+- deterministic 95% month-block bootstrap confidence intervals with support and temporal-block reliability metadata.
+
+The included evaluation fixture is synthetic and proves reproducibility/regression behavior only. It is **not** evidence of real-world accuracy.
+
+## Not implemented yet
 
 - Password reset/change and account deletion/privacy export controls.
 - MFA.
-- Centralized security log monitoring/alerting.
 - User-managed custom categories.
-- Calibrated AI confidence probabilities.
-- Automatic transaction classification.
-- Spending forecasts.
 - Automatic/background intelligence scans.
 - Bank integrations.
+- Calibrated AI probabilities.
 - Probabilistic fraud detection.
 - Trained ML anomaly/forecasting models validated against labelled real-world data.
-- Real-world calibration of `historical-v2` thresholds and recurrence weights.
+- Real-world calibration of `rules-v2` and `historical-v2.2` parameters.
+- Spending forecasts / Phase 4 prediction.
+- Production staging/TLS/centralized monitoring.
 
-## Quick Start with Docker
+## Quick start with Docker
 
-With Docker Desktop or Docker Engine + Compose v2 installed, start the complete application from the repository root:
+With Docker Desktop or Docker Engine + Compose v2:
 
 ```bash
 docker compose up --build
 ```
 
-Then open:
+Open:
 
 ```text
 http://localhost:5173
 ```
 
-Create an account on first use. The full stack is:
+The stack is:
 
 ```text
 Browser
   |
-  | v1 auth/categories + v2 money/intelligence
   v
-frontend :5173 (Nginx + React build)
-  |
-  | security headers + rate limiting + /api/*
+Nginx + React :5173
+  |  security headers / rate limiting / /api/* proxy
   v
-backend :8000 (FastAPI + Alembic, internal only)
-  |
-  | Decimal money + authenticated user_id scoping
-  | rules-v1 + historical-v2 + walk-forward evaluation
+FastAPI :8000 (internal)
+  |  authenticated user scoping
+  |  Decimal financial domain
+  |  rules-v2 actionable findings
+  |  historical-v2.2 persisted analysis
+  |  chronological evaluation harness
   v
-db :5432 (PostgreSQL 16 NUMERIC(12,2), internal only)
+PostgreSQL 16 :5432 (internal)
 ```
 
-The Compose backend is intentionally not published to the host. Nginx is the only browser-facing entry point. For direct backend development, run Uvicorn locally from `backend/`; development API docs are then available at `http://localhost:8000/docs`.
+The backend and PostgreSQL are not published to the host in Compose. Nginx is the browser-facing entry point.
 
 Stop the stack with:
 
@@ -109,11 +144,9 @@ Stop the stack with:
 docker compose down
 ```
 
-The PostgreSQL named volume is retained. Use `docker compose down -v` only when you intentionally want to delete the Compose-managed database.
+Use `docker compose down -v` only when you intentionally want to remove the Compose database volume.
 
-Existing transactions created before the authentication migration are preserved under a temporary inactive legacy owner. The first active account registered after migration automatically claims that pre-authentication history.
-
-See [`docs/docker.md`](docs/docker.md) for architecture, health checks, logs and reset instructions.
+See [`docs/docker.md`](docs/docker.md).
 
 ## Architecture
 
@@ -121,56 +154,49 @@ See [`docs/docker.md`](docs/docker.md) for architecture, health checks, logs and
 React + TypeScript
         |
         | MoneyAmount decimal strings
-        | integer cents for browser monetary arithmetic
+        | integer cents for monetary arithmetic
         | typed API error presentation
         v
 Nginx reverse proxy
-        | rate limits + CSP/security headers
-        v
-FastAPI /api/v1 + /api/v2
-        | v1 legacy money serialization only
-        | v2 decimal-string monetary contract
-        | pagination + filters + normalized errors
-        v
-Authentication + service layer
-        | Python Decimal for monetary decisions/aggregates
-        | user-scoped transaction/finding/snapshot queries
-        v
-Financial intelligence
-        | rules-v1 persisted actionable findings
-        | merchant canonicalization
-        | historical-v2 persisted analytical snapshots
-        | complete-month trend + calendar-aware recurrence
-        | chronological robust outliers + complete-month category shifts
-        | labelled walk-forward evaluation harness
-        v
-SQLAlchemy 2
         |
         v
-PostgreSQL NUMERIC(12,2)
+FastAPI /api/v1 + /api/v2
+        |
+        v
+Authentication + user-scoped services
+        |
+        +---------------------------+
+        |                           |
+        v                           v
+rules-v2 findings             historical-v2.2
+        |                           |
+        | canonical merchants       | snapshots
+        | recurring streams         | trends/outliers
+        | missing recurrence        | recurrence diagnostics
+        | amount/frequency alerts   | evaluation evidence
+        +-------------+-------------+
+                      |
+                      v
+                 SQLAlchemy 2
+                      |
+                      v
+             PostgreSQL NUMERIC(12,2)
 ```
 
-Financial values do not move through `float`/JavaScript `Number` in business logic. API v1 keeps numeric money only as a compatibility serialization adapter; new frontend financial flows use v2 decimal strings. Recharts requires numeric plot coordinates, so fixed-point values are converted to JavaScript numbers only at that visualization boundary, after all financial arithmetic has completed.
+Inferred findings and historical snapshots are separate from source transactions. Neither engine silently rewrites a user's financial data.
 
-The findings engine keeps inferred findings separate from source transactions. The historical engine also stores results separately as versioned snapshots; neither silently rewrites source financial data.
+Financial values do not pass through `float`/JavaScript `Number` in business logic. API v1 retains numeric money only as a compatibility serialization boundary. Recharts receives numeric plot coordinates only after fixed-point monetary arithmetic has completed.
 
-Historical outlier baselines are chronological: a candidate transaction may only be compared with transactions that occurred before it. This prevents future-data leakage and makes the algorithm suitable for offline evaluation. Historical-v2 also treats an incomplete cutoff month conservatively: it is displayed but never fed into trend/category-shift calculations.
-
-Merchant canonicalization is auditable. Raw descriptors remain in the response alongside canonical merchant identities and observed aliases.
-
-Database schema changes are managed with Alembic. In Docker Compose, the backend automatically applies `alembic upgrade head` after PostgreSQL becomes healthy and before Uvicorn starts.
-
-Repository structure:
+## Repository structure
 
 ```text
 smart-expense-ai/
-├── frontend/        # React + TypeScript web application and Nginx image
-├── backend/         # FastAPI API, auth, analysis, evaluation, SQLAlchemy models and migrations
-│   ├── evaluation/  # labelled evaluation datasets/fixtures
+├── frontend/        # React + TypeScript, tests and Nginx image
+├── backend/         # FastAPI, SQLAlchemy, Alembic, intelligence and evaluation
+│   ├── evaluation/  # labelled deterministic evaluation fixtures
 │   └── scripts/     # reproducible evaluation commands
-├── ai/              # reserved for future validated probabilistic/ML experiments
-├── docs/            # product, API, intelligence, historical-analysis, testing and security docs
-├── scripts/         # repository utility scripts
+├── ai/              # reserved for future validated ML experiments
+├── docs/
 ├── compose.yaml
 ├── SECURITY.md
 ├── ROADMAP.md
@@ -179,20 +205,9 @@ smart-expense-ai/
 
 ## API
 
-Authentication and shared category data remain under v1:
+Authentication/shared categories remain under v1. Existing v1 transaction, analytics and intelligence endpoints remain available for compatibility.
 
-```text
-GET    /health
-POST   /api/v1/auth/register
-POST   /api/v1/auth/login
-POST   /api/v1/auth/logout
-GET    /api/v1/auth/me
-GET    /api/v1/categories
-```
-
-Existing v1 transaction, analytics and intelligence endpoints remain available for compatibility. Their published numeric monetary representation is preserved at the response boundary.
-
-New frontend financial flows use the strict v2 endpoints:
+New financial flows use v2:
 
 ```text
 GET    /api/v2/transactions
@@ -209,70 +224,63 @@ POST   /api/v2/intelligence/historical-analysis?months=12
 GET    /api/v2/intelligence/historical-analysis/latest
 ```
 
-A v2 amount is represented as JSON text:
+A v2 amount is JSON text:
 
 ```json
 { "amount": "42.50" }
 ```
 
-not:
+not a JSON number.
 
-```json
-{ "amount": 42.5 }
-```
+Errors use a stable envelope with semantic `code`, safe `message`, `requestId` and optional safe `details`.
 
-Transaction listing is paginated and filtered server-side. Errors use a stable envelope with `code`, safe `message`, `requestId` and optional safe `details`. The frontend retains those semantics instead of collapsing every failure into a generic string.
+See:
 
-See [`docs/api.md`](docs/api.md) for the HTTP contract, [`docs/intelligence.md`](docs/intelligence.md) for actionable finding rules and [`docs/historical-analysis.md`](docs/historical-analysis.md) for historical-v2 formulas, completeness semantics, canonicalization and evaluation.
+- [`docs/api.md`](docs/api.md) — HTTP contract.
+- [`docs/intelligence.md`](docs/intelligence.md) — `rules-v2` actionable findings.
+- [`docs/historical-analysis.md`](docs/historical-analysis.md) — historical algorithms.
+- [`docs/evaluation-protocol.md`](docs/evaluation-protocol.md) — calibration/validation/holdout protocol.
+- [`docs/occurrence-evaluation.md`](docs/occurrence-evaluation.md) — prospective recurring-occurrence evaluation.
 
-## Manual Local Development
+## Manual local development
 
-Docker Compose is the shortest path for running the full stack. For direct development without containers, create the environment file from the repository root:
+Create environment configuration:
 
 ```bash
 cp .env.example .env
 ```
-
-On Windows PowerShell:
-
-```powershell
-Copy-Item .env.example .env
-```
-
-Update `DATABASE_URL` and replace `JWT_SECRET` with at least 32 random bytes.
 
 ### Backend
 
 ```bash
 cd backend
 python -m venv .venv
+source .venv/bin/activate   # macOS/Linux
+pip install -r requirements.txt
+alembic upgrade head
+uvicorn app.main:app --reload
 ```
 
-Windows:
+Windows activation:
 
 ```powershell
 .venv\Scripts\activate
-pip install -r requirements.txt
-alembic upgrade head
-uvicorn app.main:app --reload
 ```
 
-macOS/Linux:
-
-```bash
-source .venv/bin/activate
-pip install -r requirements.txt
-alembic upgrade head
-uvicorn app.main:app --reload
-```
-
-Run the labelled historical evaluation fixture from `backend/`:
+Run the labelled historical fixture:
 
 ```bash
 python scripts/evaluate_historical.py evaluation/historical_v2_fixture.json
 ```
 
-The included fixture validates the evaluation machinery; it is synthetic and is not evidence of real-world accuracy.
+Development evaluation with sealed holdout:
+
+```bash
+python scripts/evaluate_historical.py evaluation/historical_v2_fixture.json \
+  --mode development \
+  --parameters-output frozen-parameters.json \
+  --output development-report.json
+```
 
 ### Frontend
 
@@ -282,7 +290,7 @@ npm ci
 npm run dev
 ```
 
-Useful validation commands:
+Quality commands:
 
 ```bash
 npm run test
@@ -294,92 +302,48 @@ npm audit --audit-level=high
 
 ## Testing and CI
 
-The repository has automated quality layers for:
+GitHub Actions validates:
 
-1. Backend unit tests, including password hashing, JWT validation, secure configuration and exact Decimal review thresholds.
-2. Pure deterministic intelligence-rule tests using Decimal monetary inputs.
-3. Historical-v2 tests for complete-month regression, merchant canonicalization, calendar-aware recurrence, missed expected payments, no-leakage outliers, category fallback and complete-month category shifts.
-4. Labelled monthly walk-forward evaluation tests and a reproducible evaluation command.
-5. Backend API integration tests against migrated PostgreSQL.
-6. Explicit v1 compatibility plus v2 decimal-money contract tests, including exact `0.10 + 0.20 = 0.30` aggregation and rejection of JSON numeric amounts in v2.
-7. Intelligence persistence tests for idempotent rescans, review-state persistence, versioned evidence representation and cross-account isolation.
-8. Historical-analysis persistence tests for versioned snapshots, completeness metadata, latest retrieval, window validation and account isolation.
-9. HTTP security regression tests covering headers, cookie flags, trusted hosts and cross-site mutation rejection.
-10. Frontend fixed-point money tests, typed API error tests and historical-v2 component tests.
-11. Critical authenticated end-to-end browser coverage with Playwright.
-12. Python dependency auditing with `pip-audit`.
-13. npm dependency auditing that blocks high/critical findings.
-14. Full Docker Compose build/startup smoke testing, including decimal strings and historical-v2 partial-month semantics through Nginx.
+- clean PostgreSQL Alembic migrations;
+- backend unit/integration tests;
+- `rules-v2` recurrence, missing-payment, duplicate, amount and frequency finding behavior;
+- `historical-v2.2` algorithms;
+- chronological evaluation and sealed holdout protocol;
+- TypeScript, ESLint, Vitest and production frontend build;
+- Python/npm dependency audits;
+- critical authenticated Playwright E2E;
+- complete Docker Compose startup and API smoke contract.
 
-GitHub Actions runs these gates for pushes and pull requests targeting `main`. The consolidated `Quality gate` requires backend, frontend, dependency security, browser E2E and Docker jobs to succeed.
+The consolidated `Quality gate` requires backend, frontend, dependency security, E2E and Docker jobs to pass. Repository-level branch protection is still a separate pending configuration task.
 
-See [`docs/testing.md`](docs/testing.md) for test-database safety and CI details.
+See [`docs/testing.md`](docs/testing.md).
 
 ## Security
 
-- Vulnerability reporting policy: [`SECURITY.md`](SECURITY.md)
-- Authentication/ownership model: [`docs/authentication.md`](docs/authentication.md)
-- Financial intelligence rules: [`docs/intelligence.md`](docs/intelligence.md)
-- Historical analysis algorithms/evaluation: [`docs/historical-analysis.md`](docs/historical-analysis.md)
-- OWASP Top 10:2025 review: [`docs/SECURITY_REVIEW.md`](docs/SECURITY_REVIEW.md)
+- [`SECURITY.md`](SECURITY.md)
+- [`docs/authentication.md`](docs/authentication.md)
+- [`docs/SECURITY_REVIEW.md`](docs/SECURITY_REVIEW.md)
 
-The OWASP review is a secure-engineering baseline, not a penetration-test result or certification. Internet-facing production use still requires HTTPS/TLS configuration, secret management, monitoring/alerting and review of the residual risks documented there.
+The security review is an engineering baseline, not a penetration-test certification. Internet-facing production still requires TLS, production secret management, monitoring/alerting and review of documented residual risks.
 
-## Technology Stack
+## Technology stack
 
-### Frontend
+Frontend: React 19, TypeScript, Vite, Tailwind CSS, Recharts, Vitest, React Testing Library, Playwright, Nginx.
 
-- React 19
-- TypeScript
-- Vite
-- Tailwind CSS
-- Recharts
-- Nginx
-- Vitest
-- React Testing Library
-- Playwright
+Backend: Python 3.12, FastAPI, Pydantic, SQLAlchemy 2, PostgreSQL 16, Alembic, Psycopg 3, PyJWT, pwdlib/Argon2, pytest.
 
-### Backend
+Infrastructure: Docker, Docker Compose, GitHub Actions, Dependabot, pip-audit, npm audit.
 
-- Python 3.12
-- FastAPI
-- Pydantic
-- SQLAlchemy 2
-- PostgreSQL 16
-- Alembic
-- Psycopg 3
-- PyJWT
-- pwdlib / Argon2
-- pytest
+## Near-term priorities
 
-### Infrastructure and security automation
-
-- Docker
-- Docker Compose
-- GitHub Actions
-- Dependabot
-- pip-audit
-- npm audit
-
-## Product Roadmap
+1. Run `rules-v2` and `historical-v2.2` over sufficiently large labelled real-world/realistically curated data.
+2. Calibrate thresholds only on calibration data, use validation for design decisions, then open final holdout once.
+3. Measure false-positive cost and bootstrap intervals before relaxing category/frequency thresholds.
+4. Only then compare an ML anomaly candidate such as Isolation Forest against the deterministic baseline.
+5. Add automatic/background analysis when deployment scheduling exists.
+6. Continue account/privacy and production-readiness work.
 
 The detailed roadmap is maintained in [`ROADMAP.md`](ROADMAP.md).
-
-Near-term priorities are:
-
-1. Feed labelled real-world/realistically curated transaction datasets through the walk-forward evaluation harness.
-2. Calibrate recurring-score weights/cutoffs and robust-anomaly thresholds from measured precision/recall/false-positive cost.
-3. Only then evaluate an ML anomaly candidate such as Isolation Forest against `historical-v2`.
-4. Stronger responsive transaction UX.
-5. Password reset/change plus account deletion/privacy controls.
-6. Phase 4 forecasting only after sufficient historical data and evaluation criteria exist.
-7. Staging/deployment automation, TLS and production monitoring.
-
-## Business Model
-
-The long-term product direction supports a freemium SaaS model. Premium capabilities may eventually include advanced forecasting, bank integrations, exportable reports and personalized financial recommendations.
-
-No payment or premium system is implemented yet.
 
 ## Author
 

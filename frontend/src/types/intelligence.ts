@@ -1,4 +1,9 @@
-export type FindingType = 'recurring_pattern' | 'duplicate_subscription' | 'spending_anomaly';
+export type FindingType =
+  | 'recurring_pattern'
+  | 'recurring_payment_missing'
+  | 'duplicate_subscription'
+  | 'spending_anomaly'
+  | 'frequency_anomaly';
 export type FindingSeverity = 'info' | 'warning' | 'high';
 export type FindingStatus = 'open' | 'dismissed' | 'resolved';
 
@@ -19,8 +24,11 @@ export interface IntelligenceFinding {
 export interface IntelligenceSummary {
   openCount: number;
   recurringCount: number;
+  missingRecurringCount: number;
   duplicateSubscriptionCount: number;
   anomalyCount: number;
+  amountAnomalyCount: number;
+  frequencyAnomalyCount: number;
   dismissedCount: number;
   resolvedCount: number;
   lastScanAt: string | null;

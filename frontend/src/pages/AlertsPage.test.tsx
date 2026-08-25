@@ -23,13 +23,16 @@ vi.mock('../services/intelligenceApi', () => ({
 const summary: IntelligenceSummary = {
   openCount: 1,
   recurringCount: 1,
+  missingRecurringCount: 0,
   duplicateSubscriptionCount: 0,
   anomalyCount: 0,
+  amountAnomalyCount: 0,
+  frequencyAnomalyCount: 0,
   dismissedCount: 0,
   resolvedCount: 0,
-  lastScanAt: '2026-08-24T10:00:00Z',
+  lastScanAt: '2026-08-25T07:00:00Z',
   analyzedTransactions: 8,
-  ruleVersion: 'rules-v1',
+  ruleVersion: 'rules-v2',
 };
 
 const finding: IntelligenceFinding = {
@@ -38,16 +41,18 @@ const finding: IntelligenceFinding = {
   severity: 'info',
   status: 'open',
   title: 'Recurring pattern: StreamBox',
-  explanation: 'Four charges follow a stable monthly cadence.',
+  explanation: 'Four charges follow a stable monthly stream.',
   evidence: {
     cadence: 'monthly',
     occurrenceCount: 4,
+    patternScore: '92.4',
     medianAmount: '9.99',
     nextExpectedDate: '2026-08-30',
+    streamCalendar: 'monthly:day-30',
   },
-  ruleVersion: 'rules-v1',
-  firstDetectedAt: '2026-08-24T10:00:00Z',
-  lastDetectedAt: '2026-08-24T10:00:00Z',
+  ruleVersion: 'rules-v2',
+  firstDetectedAt: '2026-08-25T07:00:00Z',
+  lastDetectedAt: '2026-08-25T07:00:00Z',
   resolvedAt: null,
 };
 
@@ -58,21 +63,22 @@ describe('AlertsPage financial intelligence', () => {
     vi.mocked(fetchIntelligenceFindings).mockResolvedValue([finding]);
     vi.mocked(runIntelligenceScan).mockResolvedValue({
       scanId: 'scan-1',
-      ruleVersion: 'rules-v1',
+      ruleVersion: 'rules-v2',
       analyzedTransactions: 8,
       detectedFindings: 1,
-      scannedAt: '2026-08-24T10:05:00Z',
+      scannedAt: '2026-08-25T07:05:00Z',
     });
     vi.mocked(updateIntelligenceFindingStatus).mockResolvedValue({ ...finding, status: 'dismissed' });
   });
 
-  it('renders persisted explainable findings and summary metrics', async () => {
+  it('renders rules-v2 stream evidence and summary metrics', async () => {
     render(<AlertsPage />);
 
     expect(await screen.findByText('Recurring pattern: StreamBox')).toBeInTheDocument();
-    expect(screen.getByText(/monthly · 4 occurrences/i)).toBeInTheDocument();
+    expect(screen.getByText(/monthly.*4 occurrences.*score 92\.4\/100/i)).toBeInTheDocument();
     expect(screen.getByText(/median €9\.99/i)).toBeInTheDocument();
     expect(screen.getByText('Historical analysis panel')).toBeInTheDocument();
+    expect(screen.getByText(/Anomalies: 0 amount · 0 frequency/i)).toBeInTheDocument();
 
     const openFindingsCard = screen.getByText('Open findings').closest('article');
     expect(openFindingsCard).not.toBeNull();

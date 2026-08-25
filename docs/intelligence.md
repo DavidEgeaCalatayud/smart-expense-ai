@@ -1,163 +1,212 @@
-# Financial intelligence rules
+# Financial intelligence findings
 
-Smart Expense AI Phase 3 starts with deterministic, explainable rules over persisted transaction history. The implementation deliberately does not label these results as machine-learning predictions and does not expose invented confidence scores.
+Smart Expense AI uses deterministic, explainable rules over the authenticated user's persisted expense history. The findings engine does not claim machine-learning probability, fraud certainty or financial advice.
 
-The current rule engine version is:
+The current actionable-finding engine is:
 
 ```text
-rules-v1
+rules-v2
 ```
 
-Every analysis run and every persisted finding records that version so thresholds can evolve without hiding which logic produced an alert.
+`historical-v2.2` remains a separate diagnostic/snapshot engine. `rules-v2` reuses its merchant and recurring-stream primitives where doing so improves actionable findings, but review-state findings and historical snapshots remain separate persisted concepts.
 
 ## Data flow
 
 ```text
-Authenticated user
-      |
-      v
-POST /api/v2/intelligence/scan
-      |
-      v
-PostgreSQL NUMERIC(12,2) expense transactions
-      |
-      v
-Python Decimal rules-v1
-  | recurring-pattern rule
-  | duplicate-subscription rule
-  | amount-anomaly rule
-      |
-      v
-finding candidates with decimal-string monetary evidence
-      |
-      v
-idempotent fingerprint upsert
-      |
-      v
-PostgreSQL intelligence_findings
-      |
-      v
-open / dismissed / resolved review workflow
+Authenticated user's expense transactions
+        |
+        v
+PostgreSQL NUMERIC(12,2) / Python Decimal
+        |
+        v
+merchant canonicalization
+        |
+        +----------------------+
+        |                      |
+        v                      v
+recurring stream          chronological
+segmentation              baselines
+        |                      |
+        v                      v
+calendar-aware            amount + frequency
+recurrence                anomaly rules
+        \                      /
+         \                    /
+          v                  v
+             rules-v2 candidates
+                    |
+                    v
+        stable fingerprint upsert
+                    |
+                    v
+        intelligence_findings
+        open / dismissed / resolved
 ```
 
-The engine reads only transactions owned by the authenticated user. Findings and scan history are also scoped by `user_id` and cascade-delete with the owning account.
+Raw merchant text is preserved. Canonical identities and stream descriptors are analytical evidence, not destructive rewrites of source transactions.
 
-No amount-based rule converts persisted money to Python `float`. Median amounts, tolerances, anomaly baselines and thresholds are evaluated with `Decimal`.
+## Persisted behavior
 
-## Persisted entities
+Every finding stores:
 
-`intelligence_findings` stores:
-
-- finding type;
-- severity;
-- review status;
+- finding type and severity;
 - stable per-user fingerprint;
-- rule version;
-- user-facing title and explanation;
-- structured JSON evidence;
+- `rules-v2` version;
+- human-readable explanation;
+- structured evidence;
 - first/last detection timestamps;
-- resolution timestamp when applicable.
+- persisted review status.
 
-Monetary values written into JSON evidence are canonical decimal strings such as `"9.99"` and `"85.00"`. This avoids introducing binary floating-point values into persisted intelligence evidence.
+Equivalent rescans update the same fingerprint. Open findings that disappear are resolved. A resolved finding reopens if its evidence returns. A dismissed finding stays dismissed while the same fingerprint continues to match.
 
-`intelligence_scans` stores:
+`intelligence_scans` records the user, rule version, analyzed transaction count, finding count and scan time.
 
-- user;
-- rule version;
-- number of expense transactions analysed;
-- number of findings produced;
-- scan timestamp.
+## Finding 1: recurring stream
 
-A repeated scan updates an existing finding with the same fingerprint instead of inserting duplicates. Open findings that no longer satisfy a rule are moved to `resolved`. A previously resolved finding is reopened if the evidence returns. A user-dismissed finding remains dismissed when the same fingerprint is detected again.
+`recurring_pattern` now operates on a payment **stream**, not every transaction sharing a merchant string.
 
-## Rule 1: recurring payment pattern
-
-Purpose: identify a stable payment cadence from historical transactions without changing the transaction's manually supplied `isRecurring` field.
-
-Requirements:
-
-- same normalized merchant;
-- at least 3 distinct charge dates;
-- cadence median falls into one supported interval;
-- at least 75% of observed intervals match that cadence, with a minimum of 2 matching intervals;
-- every observed amount remains within 15% of the Decimal median amount.
-
-Supported cadence windows:
-
-| Cadence | Interval |
-| --- | ---: |
-| weekly | 5–9 days |
-| biweekly | 12–16 days |
-| monthly | 25–35 days |
-| quarterly | 80–100 days |
-| yearly | 350–380 days |
-
-Evidence includes merchant, cadence, occurrence count, median amount, average interval, last charge date, expected next date and supporting transaction IDs.
-
-This rule detects a recurring **pattern**, not a contractual subscription. Repeated purchases at the same merchant can satisfy the rule if their timing and amounts are sufficiently stable.
-
-## Rule 2: possible duplicate subscription
-
-Purpose: find repeated double-billing patterns rather than flagging a single accidental duplicate as a subscription problem.
-
-Requirements:
-
-- same normalized merchant;
-- two charges occur within 7 days of each other;
-- amounts differ by no more than the greater of 1 EUR or 5%;
-- this near-duplicate pattern appears in at least 2 different calendar months.
-
-The amount comparison uses Decimal arithmetic. Evidence includes merchant, affected months, number of duplicate pairs, approximate amount and supporting transaction IDs.
-
-The finding is deliberately named **possible duplicate subscription**. Two legitimate services billed by the same merchant can match the rule, so user review is required.
-
-## Rule 3: unusual amount at a known merchant
-
-Purpose: flag a latest charge that is unusually high relative to the user's own history at that merchant.
-
-Requirements:
-
-- at least 4 earlier charges at the same normalized merchant;
-- baseline uses up to the previous 12 charges;
-- baseline centre is the Decimal median;
-- dispersion uses median absolute deviation (MAD), with a conservative floor;
-- candidate amount must exceed both a robust statistical threshold and 2× the historical median;
-- the absolute increase over the median must be at least 20 EUR.
-
-The robust threshold is:
+Pipeline:
 
 ```text
-max(
-  historical median * 2,
-  historical median + 3 * robust spread
-)
+raw merchant
+  -> canonical merchant
+  -> descriptor / amount segmentation
+  -> conservative temporal-phase segmentation
+  -> calendar-aware recurring profile
 ```
 
-where `robust spread` is the maximum of MAD, 5% of the median, and 1 EUR.
+This lets one canonical merchant contain independent streams, for example Apple iCloud and Apple Music, while excluding unrelated one-off purchases when the evidence allows them to be separated.
 
-A ratio of 3× or more is severity `high`; other qualifying anomalies are `warning`.
+A stream needs at least three distinct dates and a deterministic `patternScore >= 55`. The score combines:
 
-Evidence includes merchant, triggering transaction ID/date/amount, historical median, baseline count, ratio and threshold. In API v2 the monetary fields and ratio are serialized as decimal strings.
+- cadence fit;
+- interval regularity;
+- calendar-position stability;
+- amount stability;
+- amount coefficient-of-variation stability;
+- history depth;
+- consecutive-period evidence.
 
-## Review states
+Supported calendar patterns include monthly/quarterly/yearly schedules plus weekly/biweekly timing. Month-end schedules are handled as calendar positions rather than fixed 28/30/31-day intervals.
 
-Findings support three persisted states:
+Evidence includes canonical/raw merchant identity, stream key/descriptor/basis/calendar, cadence, occurrence count, median amount, interval evidence, pattern score and next expected date.
+
+`patternScore` is an explainable index from 0–100, not a calibrated probability.
+
+## Finding 2: expected recurring payment missing
+
+`recurring_payment_missing` is deliberately separate from the informational recurring-pattern finding.
+
+The alert is created only when a stream has stronger evidence:
+
+- learned schedule says an occurrence is overdue;
+- at least one missed expected occurrence;
+- `patternScore >= 70`;
+- at least three consecutive periods;
+- amount CV `<= 0.35`.
+
+Severity is `warning` for one missed occurrence and `high` for two or more.
+
+The explanation is intentionally non-causal. A missing expected charge may mean cancellation, a changed billing date, incomplete imported data or another legitimate change.
+
+### Same-period collision guard
+
+A recurring stream can contain an extra/duplicate charge inside the same cadence period. Using that extra charge as the last scheduled occurrence can move the learned next date and create a false missing-payment warning.
+
+`rules-v2` therefore suppresses the **missing-payment** signal when the profile contains multiple distinct charge dates in one learned cadence period. The recurring-pattern finding can remain, but the schedule is considered ambiguous until the stream is cleaner or separable.
+
+## Finding 3: possible duplicate subscription
+
+`duplicate_subscription` now groups by canonical merchant identity rather than simple punctuation/case normalization.
+
+Requirements:
+
+- two near-identical charges are within 7 days;
+- amount difference is no more than the greater of EUR 1 or 5%;
+- the pattern appears in at least two calendar months.
+
+Evidence includes canonical merchant, observed raw merchant variants, affected months, pair count, approximate Decimal amount and transaction IDs.
+
+The rule says **possible** duplicate subscription because multiple legitimate services from one merchant can produce similar billing.
+
+## Finding 4: chronological amount anomaly
+
+`spending_anomaly` evaluates every eligible charge chronologically instead of checking only the latest charge.
+
+For each candidate, the baseline contains only amounts from transactions earlier than that candidate.
+
+Baseline selection:
 
 ```text
-open
-  -> dismissed
-  -> resolved
+>= 4 earlier canonical-merchant charges
+    -> last up to 12 merchant amounts
+otherwise >= 8 earlier category charges
+    -> last up to 20 category amounts
+otherwise
+    -> insufficient evidence, no alert
 ```
 
-The UI also allows dismissed/resolved findings to be reopened.
+The centre is the median. Robust spread is:
 
-- `open`: requires user attention.
-- `dismissed`: user reviewed it and does not want the same fingerprint reopened automatically.
-- `resolved`: condition is no longer active or the user explicitly resolved it; a later scan may reopen it if the evidence returns.
+```text
+max(MAD, 5% of median, EUR 1)
+```
 
-## API
+A candidate must satisfy all of:
 
-The web application uses the decimal-safe v2 endpoints:
+```text
+deviationScore >= 3
+absolute increase >= EUR 20
+amount >= max(1.5 * median, median + 3 * robustSpread)
+```
+
+Severity becomes `high` when the amount is at least 3x the baseline median or the robust deviation score reaches 6.
+
+Evidence explicitly states `baselineScope` (`merchant` or `category`), baseline support, median, robust spread, ratio, threshold and deviation score.
+
+## Finding 5: frequency anomaly
+
+`frequency_anomaly` detects a sudden increase in how often the same canonical merchant charges within one calendar month.
+
+The rule requires at least three previous **active** months for that merchant, so a new merchant cannot immediately create a frequency alert.
+
+The baseline is the median count from up to the previous six active months. A current month qualifies when:
+
+```text
+currentCount >= max(3, ceil(2.5 * baselineMedianCount))
+and
+currentCount - baselineMedianCount >= 2
+```
+
+The rule also computes the largest number of charges occurring inside any rolling 7-day interval in that month.
+
+Severity is `high` when either:
+
+- the monthly count reaches at least `max(5, ceil(4 * baseline))`; or
+- four or more charges occur within seven days.
+
+Evidence includes current/baseline counts, number of baseline periods, frequency ratio, 7-day burst size and supporting transaction IDs.
+
+This is a behavioral-frequency signal, not a fraud classification.
+
+## Summary metrics
+
+`GET /api/v2/intelligence/summary` separates the major signal families:
+
+```text
+recurringCount
+missingRecurringCount
+duplicateSubscriptionCount
+amountAnomalyCount
+frequencyAnomalyCount
+anomalyCount = amount + frequency
+```
+
+This avoids treating a payment-frequency burst as if it were an amount outlier.
+
+## API and monetary representation
+
+The web app uses:
 
 ```text
 POST  /api/v2/intelligence/scan
@@ -166,25 +215,55 @@ GET   /api/v2/intelligence/findings
 PATCH /api/v2/intelligence/findings/{finding_id}
 ```
 
-The v1 equivalents remain available for backwards compatibility. Because v1 had already published numeric evidence examples, its response adapter keeps the known monetary evidence fields numeric. v2 normalizes those fields to decimal strings, including findings that may have been persisted before the decimal hardening.
+`GET /findings` supports `status` and `type` filters. Finding types are:
 
-`GET /findings` accepts optional `status` and `type` filters.
+```text
+recurring_pattern
+recurring_payment_missing
+duplicate_subscription
+spending_anomaly
+frequency_anomaly
+```
+
+Money is calculated with `Decimal` and stored in evidence as decimal strings. API v2 keeps decimal-string evidence. API v1 remains a compatibility adapter for the known monetary evidence fields that historically appeared as JSON numbers.
+
+## Review states
+
+```text
+open
+  -> dismissed
+  -> resolved
+```
+
+- `open`: current evidence matches the rule.
+- `dismissed`: user reviewed the finding; an equivalent rescan does not reopen it.
+- `resolved`: condition disappeared or user explicitly resolved it; evidence returning later can reopen it.
 
 ## Known limitations
 
-`rules-v1` is intentionally conservative and is not a fraud detector or financial-advice system.
+`rules-v2` is intentionally conservative and still has important limits:
 
-Known limitations include:
+- merchant canonicalization is deterministic and may not resolve every bank/processor descriptor correctly;
+- stream segmentation can remain ambiguous when merchant, amount, descriptor and temporal evidence cannot reliably separate series;
+- a missing expected payment does not prove cancellation;
+- frequency baselines use prior active months and therefore describe behavior conditional on months where that merchant charged;
+- category fallback can compare heterogeneous purchases and must be validated against labelled data before thresholds are relaxed;
+- no MCC, bank authorization metadata, geolocation, device signal or external merchant data is used;
+- findings run on explicit scans; automatic/background scanning is not implemented;
+- this engine is not a fraud detector and does not produce calibrated probabilities.
 
-- merchant normalization does not yet map different processor labels to one canonical merchant;
-- recurring-pattern detection can classify stable repeated purchases that are not subscriptions;
-- duplicate-subscription detection requires the pattern in two months, so it intentionally misses one-off duplicate charges;
-- amount anomalies need merchant-specific history and do not yet fall back to category-level baselines;
-- rules use transaction dates and amounts only; no bank metadata, MCC codes or external merchant data are available;
-- findings are refreshed when the user runs an analysis; automatic background scanning is not implemented yet.
+## Validation
 
-## Validation strategy
+Unit tests cover:
 
-The rules have unit tests for positive and negative threshold cases using Decimal inputs. PostgreSQL integration tests verify persistence, idempotent rescans, review-state persistence, cross-account isolation and versioned evidence representation.
+- multiple recurring streams under one canonical merchant;
+- missing-payment detection with strong history;
+- same-period collision suppression;
+- category-fallback amount anomalies;
+- chronological no-look-ahead amount baselines;
+- frequency spikes and minimum-history guards;
+- canonical merchant variants for duplicate billing.
 
-The next Phase 3 validation step is to build labelled fixture datasets containing true positives and plausible false positives, then measure precision/recall per rule before loosening thresholds or adding probabilistic models.
+PostgreSQL integration tests cover migration `0006`, persistence, v1/v2 evidence representation, summary counts, idempotent rescans, review states and cross-account isolation.
+
+The repository now also has a separate calibration/validation/holdout protocol and month-block bootstrap confidence intervals for labelled historical evaluation. Those methodological tools do **not** make the synthetic fixture evidence of real-world accuracy. `rules-v2` thresholds must still be evaluated and calibrated on a sufficiently large labelled financial dataset before publishing precision/recall claims or introducing ML replacements.

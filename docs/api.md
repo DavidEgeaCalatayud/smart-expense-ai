@@ -6,22 +6,28 @@ Smart Expense AI exposes versioned application contracts under `/api/v1` and `/a
 
 ## Version overview
 
-`/api/v1` remains the backwards-compatible contract for existing clients. It includes authentication, categories, transactions, analytics and financial intelligence. Its transaction/analytics money fields remain JSON numbers because changing an existing field from number to string would violate the repository's versioning policy.
+`/api/v1` remains the backwards-compatible contract for existing clients. Its transaction/analytics money fields remain JSON numbers at the serialization boundary.
 
 `/api/v2` is the strict money and analytical contract used by the web application:
 
 - transaction amounts are decimal strings;
 - aggregate monetary values are decimal strings;
 - monetary values inside intelligence evidence are decimal strings;
-- transaction write requests must send `amount` as a JSON string;
+- transaction writes must send `amount` as a JSON string;
 - JSON numeric amounts are rejected with HTTP `422`;
-- historical-analysis evidence includes explicit completeness/canonicalization metadata.
+- historical-analysis evidence includes completeness/canonicalization metadata.
 
-Financial calculations do not use the v1 floating representation. PostgreSQL stores `NUMERIC(12,2)`, Python services operate on `Decimal`, and the v1 number conversion exists only at the legacy serialization boundary.
+PostgreSQL stores `NUMERIC(12,2)` and Python financial services use `Decimal`. The v1 number conversion is compatibility serialization only.
+
+Current FastAPI application version:
+
+```text
+1.3.0
+```
 
 ## Authentication
 
-The browser session is carried in an HttpOnly JWT cookie and is shared by both API versions. Authentication and global category reference data remain under v1 because their contracts did not require a breaking change.
+The browser session is carried in an HttpOnly JWT cookie shared by both API versions.
 
 Public endpoints:
 
@@ -32,9 +38,7 @@ POST /api/v1/auth/logout
 GET  /health
 ```
 
-Authenticated v1 endpoints include auth/session, categories and the compatibility transaction/analytics/intelligence contracts.
-
-Authenticated v2 endpoints:
+Authenticated v2 endpoints include:
 
 ```text
 GET    /api/v2/transactions
@@ -53,7 +57,7 @@ GET    /api/v2/intelligence/historical-analysis/latest
 
 ## Monetary contract
 
-For new clients, v2 is the supported money contract. A transaction write uses a decimal string:
+A v2 transaction write uses a decimal string:
 
 ```json
 {
@@ -61,7 +65,7 @@ For new clients, v2 is the supported money contract. A transaction write uses a 
   "description": "Groceries",
   "category": "Food",
   "amount": "42.50",
-  "date": "2026-08-24",
+  "date": "2026-08-25",
   "type": "expense",
   "paymentMethod": "card",
   "isRecurring": false
@@ -85,7 +89,7 @@ PostgreSQL NUMERIC(12,2)
         <-> frontend integer cents for arithmetic
 ```
 
-Recharts is the only browser boundary that receives a JavaScript number; conversion happens after fixed-point financial arithmetic and is visualization-only.
+Recharts is the visualization-only boundary where fixed-point chart values may be converted to JavaScript numbers after financial arithmetic is complete.
 
 ## Transaction pagination and filters
 
@@ -103,20 +107,20 @@ Constraints:
 - `1 <= pageSize <= 100`;
 - an empty result has `total=0` and `pages=0`.
 
-Supported server-side filters:
+Supported filters:
 
 | Parameter | Values / format | Behavior |
 | --- | --- | --- |
-| `search` | text | case-insensitive merchant or description search |
+| `search` | text | case-insensitive merchant/description search |
 | `category` | category name | exact persisted category |
 | `status` | `normal`, `review` | deterministic review status |
 | `type` | `expense`, `income` | transaction type |
-| `recurring` | `true`, `false` | recurring flag |
-| `dateFrom` | `YYYY-MM-DD` | inclusive lower date bound |
-| `dateTo` | `YYYY-MM-DD` | inclusive upper date bound |
-| `sort` | `newest`, `oldest`, `amount_high`, `amount_low` | result ordering |
+| `recurring` | `true`, `false` | user-provided recurring flag |
+| `dateFrom` | `YYYY-MM-DD` | inclusive lower bound |
+| `dateTo` | `YYYY-MM-DD` | inclusive upper bound |
+| `sort` | `newest`, `oldest`, `amount_high`, `amount_low` | ordering |
 
-A range where `dateFrom > dateTo` returns `invalid_date_range`.
+`dateFrom > dateTo` returns `invalid_date_range`.
 
 ## Analytics
 
@@ -135,15 +139,21 @@ A range where `dateFrom > dateTo` returns `invalid_date_range`.
 }
 ```
 
-`0.10 + 0.20` is explicitly regression-tested as `"0.30"`.
+`0.10 + 0.20` is regression-tested as `"0.30"`.
 
 ### Monthly expenses
 
-`GET /api/v2/analytics/monthly-expenses?months=6` returns a continuous series, including zero-value months. `months` accepts 1–24. `through=YYYY-MM-DD` is available for deterministic tests/consumers.
+`GET /api/v2/analytics/monthly-expenses?months=6` returns a continuous monthly series including zero-value months. `months` accepts 1–24. `through=YYYY-MM-DD` is available for deterministic tests/consumers.
 
 ## Financial intelligence findings
 
-The persisted actionable finding engine is `rules-v1`; thresholds and evidence are documented in [`intelligence.md`](intelligence.md).
+The current persisted actionable engine is:
+
+```text
+rules-v2
+```
+
+Endpoints:
 
 ```text
 POST  /api/v2/intelligence/scan
@@ -152,19 +162,69 @@ GET   /api/v2/intelligence/findings
 PATCH /api/v2/intelligence/findings/{finding_id}
 ```
 
-Findings are per-user, idempotent by stable fingerprint and have `open`, `dismissed` and `resolved` workflow states. A dismissed finding stays dismissed across equivalent rescans; a resolved finding can reopen when evidence reappears.
+Findings are user-scoped and idempotent by stable fingerprint. Review states are `open`, `dismissed` and `resolved`.
+
+`GET /findings` accepts optional `status` and `type` filters. Current finding types:
+
+```text
+recurring_pattern
+recurring_payment_missing
+duplicate_subscription
+spending_anomaly
+frequency_anomaly
+```
+
+### rules-v2 recurrence
+
+Recurring findings use canonical merchant identity plus descriptor/amount/temporal stream segmentation and calendar-aware recurrence features. `recurring_pattern` is informational and exposes an explainable deterministic `patternScore`, not a probability.
+
+`recurring_payment_missing` is a separate warning/high signal requiring stronger history and a learned schedule. It can indicate cancellation, date changes or missing imported data; it does not assert a cause. Same-cadence-period extra charges suppress this missing-payment signal while the schedule is ambiguous.
+
+### rules-v2 basic anomalies
+
+`spending_anomaly` evaluates charges chronologically. Baselines use only earlier transaction amounts:
+
+- canonical merchant baseline after at least 4 earlier charges, up to 12;
+- otherwise category fallback after at least 8 earlier charges, up to 20.
+
+`frequency_anomaly` compares a merchant's current monthly charge count with up to six previous active months and requires at least three prior active periods. It also exposes the maximum number of charges in any rolling seven-day interval.
+
+Summary response separates signal families:
+
+```json
+{
+  "openCount": 4,
+  "recurringCount": 1,
+  "missingRecurringCount": 1,
+  "duplicateSubscriptionCount": 0,
+  "anomalyCount": 2,
+  "amountAnomalyCount": 1,
+  "frequencyAnomalyCount": 1,
+  "dismissedCount": 0,
+  "resolvedCount": 0,
+  "lastScanAt": "2026-08-25T07:30:00Z",
+  "analyzedTransactions": 120,
+  "ruleVersion": "rules-v2"
+}
+```
+
+The example counts are illustrative.
+
+Monetary evidence is persisted as decimal strings. API v2 returns those strings. API v1 keeps the legacy numeric representation for known monetary evidence keys at the response adapter only.
+
+Full thresholds and evidence semantics: [`intelligence.md`](intelligence.md).
 
 ## Historical analysis
 
 Historical analysis is a separate persisted diagnostic layer. It does not create review-state findings and does not mutate source transactions.
 
-Current engine:
+Current new-run engine:
 
 ```text
-historical-v2
+historical-v2.2
 ```
 
-Historical-v1 snapshots remain readable as previous baseline snapshots. New runs create historical-v2 results.
+Older versioned snapshots remain readable.
 
 ### Generate a snapshot
 
@@ -172,87 +232,37 @@ Historical-v1 snapshots remain readable as previous baseline snapshots. New runs
 POST /api/v2/intelligence/historical-analysis?months=12
 ```
 
-`months` accepts 6–24. The period ends at the latest persisted expense date, making historical fixture analysis reproducible.
+`months` accepts 6–24. The period ends at the latest persisted expense date so historical fixture analysis is reproducible.
 
-Historical-v2 returns:
+Historical-v2.2 includes:
 
-- monthly expense totals with `isComplete`, `daysObserved`, `daysInMonth`;
-- explicit `monthCompleteness` strategy and any excluded partial cutoff month;
-- complete-month least-squares trend (`monthlySlope`, `rSquared`, direction);
-- canonical-merchant recurring profiles;
-- calendar-aware recurrence features and deterministic pattern score;
-- missed expected occurrences / overdue schedule flag;
-- chronological robust outliers using only earlier observations;
-- raw + canonical merchant identity on merchant-level evidence;
-- latest-three-complete-month vs previous-three-complete-month category shifts;
-- data-coverage evidence.
+- monthly spend with explicit partial-month completeness;
+- complete-month least-squares trend;
+- auditable merchant canonicalization;
+- descriptor/amount/temporal-phase recurring streams;
+- calendar-aware recurrence features and pattern score;
+- missed expected occurrences;
+- chronological robust outliers with merchant/category baselines;
+- complete-month category shifts;
+- coverage and segmentation evidence.
 
-Illustrative response fragment:
+The incomplete cutoff month remains visible but is excluded from trend/category-shift calculations. The engine does not extrapolate the partial month.
 
-```json
-{
-  "analysisVersion": "historical-v2",
-  "periodEnd": "2026-08-10",
-  "monthCompleteness": {
-    "strategy": "exclude_partial",
-    "partialMonth": "2026-08",
-    "completeMonthsUsed": 11,
-    "reason": "The dataset cutoff falls before calendar month-end..."
-  },
-  "trend": {
-    "direction": "increasing",
-    "monthlySlope": "18.50",
-    "averageMonthlySpend": "390.25",
-    "rSquared": "0.742",
-    "activeMonths": 10,
-    "completeMonthsUsed": 11,
-    "excludedPartialMonth": "2026-08"
-  },
-  "recurringProfiles": [
-    {
-      "merchant": "AMZN Mktp ES*84HG2",
-      "canonicalMerchant": "amazon",
-      "observedMerchants": ["AMZN Mktp ES*84HG2", "Amazon EU SARL"],
-      "cadence": "monthly",
-      "dayOfMonthStability": "0.960",
-      "monthEndFit": "0.875",
-      "amountCv": "0.021",
-      "missedExpectedOccurrences": 1,
-      "isExpectedPaymentMissing": true,
-      "patternScore": "94.7",
-      "nextExpectedDate": "2026-07-31"
-    }
-  ]
-}
-```
+`patternScore` is deterministic, not calibrated confidence. Historical outlier baselines are chronological: future transactions never participate in an earlier candidate's amount baseline.
 
-The partial cutoff month remains in `monthlySpend` for transparency but is not included in trend or category-shift calculations. Historical-v2 deliberately does not extrapolate partial-month spend.
-
-`patternScore` is a deterministic feature index, not a calibrated probability. `R²` is descriptive regression evidence, not forecast accuracy.
-
-Merchant canonicalization preserves original descriptors. The canonical value is analytical grouping evidence, not a destructive rewrite of the source transaction.
-
-Historical outlier baselines are strictly chronological; future transactions never participate in an earlier candidate's baseline.
-
-### Latest persisted snapshot
+### Latest snapshot
 
 ```text
 GET /api/v2/intelligence/historical-analysis/latest
 ```
 
-Returns the newest snapshot owned by the authenticated user. If none exists:
+Returns the newest snapshot owned by the authenticated user. If none exists it returns `404 historical_analysis_not_found`.
 
-```text
-404 historical_analysis_not_found
-```
-
-Snapshots are account-scoped and cascade-delete with the user.
-
-For full algorithms, score features, completeness policy and walk-forward evaluation semantics, see [`historical-analysis.md`](historical-analysis.md).
+See [`historical-analysis.md`](historical-analysis.md), [`evaluation-protocol.md`](evaluation-protocol.md) and [`occurrence-evaluation.md`](occurrence-evaluation.md) for algorithm and evaluation details.
 
 ## Error contract
 
-Both versions use the same normalized safe error envelope:
+Both versions use the same safe envelope:
 
 ```json
 {
@@ -264,22 +274,22 @@ Both versions use the same normalized safe error envelope:
 }
 ```
 
-Validation failures can expose safe field-level `details`. The frontend maps errors into typed categories while retaining the safe backend `message`, `requestId` and details:
+Validation failures may expose safe field-level `details`. The frontend maps failures into typed categories while retaining safe backend messages and request IDs.
 
-| Condition | Client category | Typical UX |
-| --- | --- | --- |
-| `422` | `validation` | submitted-data feedback |
-| `401` | `authentication` | authentication feedback |
-| `403` | `authorization` | action-not-allowed feedback |
-| `409` | `conflict` | conflict-specific feedback |
-| `404` | `not_found` | missing-resource feedback |
-| `5xx` | `server` | safe message + retry |
-| network failure | `network` | connection feedback + retry |
+| Condition | Client category |
+| --- | --- |
+| `422` | `validation` |
+| `401` | `authentication` |
+| `403` | `authorization` |
+| `409` | `conflict` |
+| `404` | `not_found` |
+| `5xx` | `server` |
+| network failure | `network` |
 
-Current semantic codes include `invalid_date_range`, `invalid_transaction`, `transaction_not_found`, `intelligence_finding_not_found`, `historical_analysis_not_found`, `validation_error` and `cross_site_request_rejected`.
+Semantic codes include `invalid_date_range`, `invalid_transaction`, `transaction_not_found`, `intelligence_finding_not_found`, `historical_analysis_not_found`, `validation_error` and `cross_site_request_rejected`.
 
 ## Versioning policy
 
-Breaking contract changes require a new URL version. Backwards-compatible additions may remain within an existing version.
+Breaking HTTP representation changes require a new URL version. Backwards-compatible fields/types may be added within an existing version.
 
-Changing money from JSON number to decimal string was breaking, so the strict representation entered v2 rather than silently changing v1. Historical-v2 is an **algorithm/snapshot version**, not a URL contract version; the added response evidence is backwards-compatible within API v2.
+`rules-v2` and `historical-v2.2` are **algorithm versions**, not URL versions. API v2 remains the decimal-safe web contract while finding/snapshot versions identify which deterministic logic produced persisted analytical evidence.

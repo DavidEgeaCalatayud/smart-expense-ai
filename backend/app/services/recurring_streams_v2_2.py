@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from collections import Counter
 from dataclasses import dataclass
 from datetime import date
 from decimal import Decimal
@@ -47,6 +48,21 @@ def _as_v22(stream: RecurringStream, *, basis: str, calendar_signature: str = ""
     )
 
 
+def _cadence_period_key(value: date, cadence: str) -> str:
+    if cadence == "monthly":
+        return value.strftime("%Y-%m")
+    if cadence == "quarterly":
+        return f"{value.year}-Q{((value.month - 1) // 3) + 1}"
+    if cadence == "yearly":
+        return str(value.year)
+    iso_year, iso_week, _ = value.isocalendar()
+    if cadence == "weekly":
+        return f"{iso_year}-W{iso_week:02d}"
+    if cadence == "biweekly":
+        return f"{iso_year}-BW{(iso_week - 1) // 2:02d}"
+    return value.isoformat()
+
+
 def build_recurring_streams_v2_2(
     transactions: list[TransactionSnapshot],
     identity_map: dict[str, MerchantIdentity],
@@ -91,6 +107,8 @@ def build_recurring_profiles_v2_2(
     transactions: list[TransactionSnapshot],
     analysis_end: date,
     identity_map: dict[str, MerchantIdentity],
+    *,
+    limit: int | None = 20,
 ) -> list[dict[str, object]]:
     profiles: list[dict[str, object]] = []
     for stream in build_recurring_streams_v2_2(transactions, identity_map):
@@ -134,6 +152,11 @@ def build_recurring_profiles_v2_2(
         history_depth = min(ONE, Decimal(len(unique_dates) - 2) / Decimal("4"))
         consecutive_periods = _longest_consecutive_periods(unique_dates, cadence_name, cadence_step)
         consecutive_fit = min(ONE, Decimal(max(consecutive_periods - 1, 0)) / Decimal("5"))
+        period_counts = Counter(_cadence_period_key(value, cadence_name) for value in unique_dates)
+        same_period_extra_occurrences = sum(max(0, count - 1) for count in period_counts.values())
+        latest_period_key = _cadence_period_key(unique_dates[-1], cadence_name)
+        latest_period_extra_occurrences = max(0, period_counts[latest_period_key] - 1)
+        missing_schedule_is_unambiguous = latest_period_extra_occurrences == 0
 
         pattern_score = SCORE_HUNDRED * (
             Decimal("0.30") * cadence_fit
@@ -171,14 +194,17 @@ def build_recurring_profiles_v2_2(
                 "cadenceFit": _ratio(cadence_fit),
                 "historyDepth": _ratio(history_depth),
                 "consecutivePeriods": consecutive_periods,
-                "missedExpectedOccurrences": missed_expected,
-                "isExpectedPaymentMissing": expected_payment_missing,
+                "samePeriodExtraOccurrences": same_period_extra_occurrences,
+                "latestPeriodExtraOccurrences": latest_period_extra_occurrences,
+                "missedExpectedOccurrences": missed_expected if missing_schedule_is_unambiguous else 0,
+                "isExpectedPaymentMissing": expected_payment_missing and missing_schedule_is_unambiguous,
                 "patternScore": _ratio(pattern_score, "0.1"),
                 "nextExpectedDate": next_expected.isoformat(),
             }
         )
 
-    return sorted(
+    ordered_profiles = sorted(
         profiles,
         key=lambda item: (-Decimal(str(item["patternScore"])), str(item["streamKey"])),
-    )[:20]
+    )
+    return ordered_profiles if limit is None else ordered_profiles[:limit]
