@@ -17,6 +17,7 @@ from app.services.historical_analysis_v2 import (
 from app.services.intelligence_rules import TransactionSnapshot
 from app.services.merchant_canonicalization import MerchantIdentity, build_merchant_identity_map
 from app.services.recurring_price_continuity import (
+    MAX_CONTINUITY_PERIOD_GAP_MULTIPLIER,
     MAX_CONTINUITY_PRICE_CHANGE_RATIO,
     MAX_CONTINUITY_PRICE_REGIMES,
     MIN_CONTINUITY_CADENCE_FIT,
@@ -119,6 +120,7 @@ def analyze_historical_transactions_v2_2(
         "minimumPriceContinuityCalendarStability": format(MIN_CONTINUITY_CALENDAR_STABILITY, "f"),
         "maximumPriceContinuityRegimes": MAX_CONTINUITY_PRICE_REGIMES,
         "maximumPriceContinuityChangeRatio": format(MAX_CONTINUITY_PRICE_CHANGE_RATIO, "f"),
+        "maximumPriceContinuityPeriodGapMultiplier": MAX_CONTINUITY_PERIOD_GAP_MULTIPLIER,
         "recurringScoreThreshold": format(threshold, "f"),
     }
     return period_start, period_end, window_transactions, result
