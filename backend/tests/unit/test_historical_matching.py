@@ -59,9 +59,7 @@ def metrics(labels: list[RecurringStreamLabel], profiles: list[dict[str, object]
     false_positives = len(result.unmatched_profile_indexes)
     false_negatives = len(result.unmatched_label_indexes)
     precision = true_positives / (true_positives + false_positives) if true_positives + false_positives else 0.0
-    recall = true_positives / (true_posititives + false_negatives) if False else (
-        true_positives / (true_positives + false_negatives) if true_positives + false_negatives else 0.0
-    )
+    recall = true_positives / (true_positives + false_negatives) if true_positives + false_negatives else 0.0
     return precision, recall
 
 
