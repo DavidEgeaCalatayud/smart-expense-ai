@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
+from datetime import date
 from decimal import Decimal
 
 from app.services.recurring_streams import (
@@ -18,6 +19,7 @@ MIN_CONTINUITY_CADENCE_FIT = Decimal("0.80")
 MIN_CONTINUITY_CALENDAR_STABILITY = Decimal("0.70")
 MAX_CONTINUITY_PRICE_REGIMES = 3
 MAX_CONTINUITY_PRICE_CHANGE_RATIO = Decimal("0.50")
+MAX_CONTINUITY_PERIOD_GAP_MULTIPLIER = 2
 CONTINUITY_CADENCES = {"monthly", "quarterly", "yearly"}
 
 
@@ -83,7 +85,7 @@ def _regimes_are_sequential(
     if len(centres) > MAX_CONTINUITY_PRICE_REGIMES:
         return False
 
-    ordered: list[tuple[object, str, int]] = []
+    ordered: list[tuple[date, str, int]] = []
     for stream in streams:
         regime = regime_by_stream[stream.stream_key]
         for transaction in stream.transactions:
@@ -108,7 +110,7 @@ def _regimes_are_sequential(
     return True
 
 
-def _period_key(value, cadence: str) -> str:
+def _period_key(value: date, cadence: str) -> str:
     if cadence == "monthly":
         return value.strftime("%Y-%m")
     if cadence == "quarterly":
@@ -116,6 +118,20 @@ def _period_key(value, cadence: str) -> str:
     if cadence == "yearly":
         return str(value.year)
     return value.isoformat()
+
+
+def _month_index(value: date) -> int:
+    return value.year * 12 + value.month - 1
+
+
+def _has_acceptable_schedule_gaps(unique_dates: list[date], cadence: str, step: int) -> bool:
+    if cadence not in CONTINUITY_CADENCES:
+        return False
+    maximum_gap = step * MAX_CONTINUITY_PERIOD_GAP_MULTIPLIER
+    return all(
+        _month_index(current) - _month_index(previous) <= maximum_gap
+        for previous, current in zip(unique_dates, unique_dates[1:])
+    )
 
 
 def _single_schedule(streams: list[RecurringStream]) -> bool:
@@ -132,6 +148,8 @@ def _single_schedule(streams: list[RecurringStream]) -> bool:
         return False
     cadence, step, cadence_fit = cadence_info
     if cadence not in CONTINUITY_CADENCES or cadence_fit < MIN_CONTINUITY_CADENCE_FIT:
+        return False
+    if not _has_acceptable_schedule_gaps(unique_dates, cadence, step):
         return False
 
     period_keys = [_period_key(value, cadence) for value in unique_dates]
@@ -155,7 +173,7 @@ def relink_price_continuity_streams(streams: list[RecurringStream]) -> list[Cont
     The input streams remain the conservative descriptor/amount clusters from v2.1. This
     layer may join them when a multi-token merchant family, cadence, calendar position and
     sequential price regimes jointly support one subscription identity. Concurrent streams
-    remain separate because the merged dates cannot occupy one cadence period uniquely.
+    and long dormant/reactivated histories remain separate.
     """
 
     if not streams:
