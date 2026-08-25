@@ -35,10 +35,24 @@ def upgrade() -> None:
         "intelligence_findings",
         sa.text(f"finding_type IN ({RULES_V2_TYPES})"),
     )
+    op.alter_column(
+        "intelligence_findings",
+        "rule_version",
+        existing_type=sa.String(length=32),
+        server_default="rules-v2",
+        existing_nullable=False,
+    )
+    op.alter_column(
+        "intelligence_scans",
+        "rule_version",
+        existing_type=sa.String(length=32),
+        server_default="rules-v2",
+        existing_nullable=False,
+    )
 
 
 def downgrade() -> None:
-    # A downgrade is safe only when no rules-v2-only findings remain.
+    # A downgrade is safe only after removing finding types unknown to rules-v1.
     op.execute(
         "DELETE FROM intelligence_findings "
         "WHERE finding_type IN ('recurring_payment_missing', 'frequency_anomaly')"
@@ -52,4 +66,18 @@ def downgrade() -> None:
         "ck_intelligence_findings_type",
         "intelligence_findings",
         sa.text(f"finding_type IN ({RULES_V1_TYPES})"),
+    )
+    op.alter_column(
+        "intelligence_findings",
+        "rule_version",
+        existing_type=sa.String(length=32),
+        server_default="rules-v1",
+        existing_nullable=False,
+    )
+    op.alter_column(
+        "intelligence_scans",
+        "rule_version",
+        existing_type=sa.String(length=32),
+        server_default="rules-v1",
+        existing_nullable=False,
     )
