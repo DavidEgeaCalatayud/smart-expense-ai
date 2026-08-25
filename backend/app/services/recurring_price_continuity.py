@@ -20,6 +20,7 @@ MIN_CONTINUITY_CALENDAR_STABILITY = Decimal("0.70")
 MAX_CONTINUITY_PRICE_REGIMES = 3
 MAX_CONTINUITY_PRICE_CHANGE_RATIO = Decimal("0.50")
 MAX_CONTINUITY_PERIOD_GAP_MULTIPLIER = 2
+REQUIRE_CONTINUITY_CURRENT_SCHEDULE = True
 CONTINUITY_CADENCES = {"monthly", "quarterly", "yearly"}
 
 
@@ -134,7 +135,11 @@ def _has_acceptable_schedule_gaps(unique_dates: list[date], cadence: str, step: 
     )
 
 
-def _single_schedule(streams: list[RecurringStream]) -> bool:
+def _single_schedule(
+    streams: list[RecurringStream],
+    *,
+    analysis_end: date | None,
+) -> bool:
     transactions = sorted(
         (transaction for stream in streams for transaction in stream.transactions),
         key=lambda item: (item.transaction_date, item.id),
@@ -156,24 +161,33 @@ def _single_schedule(streams: list[RecurringStream]) -> bool:
     if len(period_keys) != len(set(period_keys)):
         return False
 
+    cutoff = analysis_end or unique_dates[-1]
     (
         _,
-        _,
-        _,
+        missed_expected,
+        expected_payment_missing,
         day_of_month_stability,
         _,
         _,
-    ) = _calendar_schedule_features(unique_dates, cadence, step, unique_dates[-1])
+    ) = _calendar_schedule_features(unique_dates, cadence, step, cutoff)
+    if REQUIRE_CONTINUITY_CURRENT_SCHEDULE and (
+        expected_payment_missing or missed_expected > 0
+    ):
+        return False
     return day_of_month_stability >= MIN_CONTINUITY_CALENDAR_STABILITY
 
 
-def relink_price_continuity_streams(streams: list[RecurringStream]) -> list[ContinuityStream]:
-    """Re-link fragmented streams only when they explain one non-concurrent schedule.
+def relink_price_continuity_streams(
+    streams: list[RecurringStream],
+    *,
+    analysis_end: date | None = None,
+) -> list[ContinuityStream]:
+    """Re-link fragments only when they explain one currently active schedule.
 
     The input streams remain the conservative descriptor/amount clusters from v2.1. This
     layer may join them when a multi-token merchant family, cadence, calendar position and
-    sequential price regimes jointly support one subscription identity. Concurrent streams
-    and long dormant/reactivated histories remain separate.
+    sequential price regimes jointly support one subscription identity. Concurrent streams,
+    dormant/cancelled schedules and long reactivation gaps remain separate.
     """
 
     if not streams:
@@ -203,7 +217,7 @@ def relink_price_continuity_streams(streams: list[RecurringStream]) -> list[Cont
 
         centres, regime_by_stream = _regime_centres(candidates)
         canonical_variants = {item.canonical_merchant for item in candidates}
-        if not _single_schedule(candidates) or not _regimes_are_sequential(
+        if not _single_schedule(candidates, analysis_end=analysis_end) or not _regimes_are_sequential(
             candidates,
             centres,
             regime_by_stream,
