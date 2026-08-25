@@ -286,7 +286,9 @@ jobs:
           grep '"direction":"insufficient_data"' historical-analysis.json
           grep '"strategy":"exclude_partial"' historical-analysis.json
           grep '"partialMonth":"2026-08"' historical-analysis.json
-          grep '"strategy":"canonical_merchant_then_descriptor_amount_then_temporal_phase"' historical-analysis.json
+          grep '"strategy":"canonical_merchant_then_descriptor_amount_then_price_continuity_then_temporal_phase"' historical-analysis.json
+          grep '"strategyVersion":"price-continuity-v1"' historical-analysis.json
+          grep '"priceContinuityProfileCount":0' historical-analysis.json
           grep '"ambiguityPolicy":"split_only_with_repeated_concurrent_calendar_evidence"' historical-analysis.json
           curl --fail --silent --show-error -b cookies.txt \
             http://localhost:5173/api/v2/intelligence/historical-analysis/latest -o historical-latest.json

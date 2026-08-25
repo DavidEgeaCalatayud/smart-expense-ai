@@ -40,6 +40,9 @@ class HistoricalRecurringProfileV21(BaseModel):
 class HistoricalRecurringProfileV22(HistoricalRecurringProfileV21):
     streamBasis: str = "legacy"
     streamCalendar: str | None = None
+    sourceStreamCount: int = 1
+    canonicalVariantCount: int = 1
+    priceRegimeCount: int = 1
 
 
 class HistoricalCoverageV21(BaseModel):
@@ -57,6 +60,7 @@ class HistoricalCoverageV21(BaseModel):
 
 class HistoricalCoverageV22(HistoricalCoverageV21):
     temporalPhaseStreams: int = 0
+    priceContinuityStreams: int = 0
 
 
 class HistoricalRecurrenceSegmentation(BaseModel):
@@ -66,8 +70,28 @@ class HistoricalRecurrenceSegmentation(BaseModel):
 
 
 class HistoricalRecurrenceSegmentationV22(HistoricalRecurrenceSegmentation):
+    strategyVersion: str = "legacy"
     temporalPhaseProfileCount: int = 0
+    priceContinuityProfileCount: int = 0
     ambiguityPolicy: str = "legacy"
+    cadencePolicy: str = "legacy"
+    minimumParentShortCadenceFit: str = "0.00"
+    minimumParentWeekdayStability: str = "0.00"
+    amountOnlyPolicy: str = "legacy"
+    minimumAmountOnlyConsecutivePeriods: int = 0
+    minimumAmountOnlyCalendarStability: str = "0"
+    minimumAmountOnlyEarlyConsecutivePeriods: int = 0
+    minimumAmountOnlyEarlyCalendarStability: str = "0"
+    priceContinuityPolicy: str = "disabled"
+    minimumQualifiedMerchantRootTokens: int = 0
+    minimumPriceContinuityOccurrences: int = 0
+    minimumPriceContinuityCadenceFit: str = "0"
+    minimumPriceContinuityCalendarStability: str = "0"
+    maximumPriceContinuityRegimes: int = 0
+    maximumPriceContinuityChangeRatio: str = "0"
+    maximumPriceContinuityPeriodGapMultiplier: int = 0
+    priceContinuityRequiresCurrentSchedule: bool = False
+    recurringScoreThreshold: str = "55"
 
 
 class HistoricalAnalysisResponseV21(BaseModel):
