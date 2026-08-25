@@ -95,20 +95,29 @@ def test_dormant_lifecycle_does_not_emit_current_recurring_profile() -> None:
     assert profiles == []
 
 
-def test_established_lifecycle_reactivates_on_first_calendar_compatible_charge() -> None:
+def test_early_posted_reactivation_waits_until_nominal_billing_month() -> None:
     transactions = _prior_fitness_episode()
     # 2025-03-01 is Saturday, so the bank-visible charge lands on 2025-02-28.
     transactions.append(tx("reactivated-1", "FITNESS PRO*MEMBER", "2025-02-28"))
 
-    _, _, _, result = analyze_historical_transactions_v2_2(
+    _, _, _, february = analyze_historical_transactions_v2_2(
         transactions,
         12,
         analysis_end=date(2025, 2, 28),
     )
+    assert not any(
+        profile["streamBasis"] == "merchant_lifecycle_reactivation"
+        for profile in february["recurringProfiles"]
+    )
 
+    _, _, _, march = analyze_historical_transactions_v2_2(
+        transactions,
+        12,
+        analysis_end=date(2025, 3, 31),
+    )
     profiles = [
         profile
-        for profile in result["recurringProfiles"]
+        for profile in march["recurringProfiles"]
         if profile["canonicalMerchant"] == "fitness pro"
     ]
     assert len(profiles) == 1
@@ -154,12 +163,12 @@ def test_reactivated_episode_grows_without_inheriting_dormant_misses() -> None:
 
 def test_one_off_return_on_wrong_calendar_position_does_not_reactivate() -> None:
     transactions = _prior_fitness_episode()
-    transactions.append(tx("one-off", "FITNESS PRO*MEMBER", "2025-02-14"))
+    transactions.append(tx("one-off", "FITNESS PRO*MEMBER", "2025-03-14"))
 
     _, _, _, result = analyze_historical_transactions_v2_2(
         transactions,
         12,
-        analysis_end=date(2025, 2, 28),
+        analysis_end=date(2025, 3, 31),
     )
 
     assert not any(
@@ -175,7 +184,7 @@ def test_one_off_return_with_large_price_change_does_not_reactivate() -> None:
     _, _, _, result = analyze_historical_transactions_v2_2(
         transactions,
         12,
-        analysis_end=date(2025, 2, 28),
+        analysis_end=date(2025, 3, 31),
     )
 
     assert not any(
