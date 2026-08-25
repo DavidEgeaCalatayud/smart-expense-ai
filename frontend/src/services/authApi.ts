@@ -1,4 +1,12 @@
-import type { AuthResponse, AuthUser, LoginValues, RegisterValues } from '../types/auth';
+import type {
+  AuthResponse,
+  AuthUser,
+  ChangePasswordValues,
+  DeleteAccountValues,
+  LoginValues,
+  PrivacyExport,
+  RegisterValues,
+} from '../types/auth';
 import { ApiRequestError, apiFetch } from './apiClient';
 
 export function register(values: RegisterValues): Promise<AuthResponse> {
@@ -19,6 +27,26 @@ export function login(values: LoginValues): Promise<AuthResponse> {
 
 export function logout(): Promise<void> {
   return apiFetch<void>('/auth/logout', { method: 'POST' });
+}
+
+export function changePassword(values: ChangePasswordValues): Promise<void> {
+  return apiFetch<void>('/auth/password', {
+    method: 'PUT',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(values),
+  });
+}
+
+export function fetchPrivacyExport(): Promise<PrivacyExport> {
+  return apiFetch<PrivacyExport>('/auth/privacy-export');
+}
+
+export function deleteAccount(values: DeleteAccountValues): Promise<void> {
+  return apiFetch<void>('/auth/account', {
+    method: 'DELETE',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(values),
+  });
 }
 
 export async function fetchCurrentUser(): Promise<AuthUser | null> {
