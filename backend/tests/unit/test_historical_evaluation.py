@@ -11,7 +11,7 @@ def test_walk_forward_evaluation_reports_required_metrics_and_slices() -> None:
 
     report = evaluate_historical_dataset(payload)
 
-    assert report["datasetVersion"] == "fixture-v3"
+    assert report["datasetVersion"] == "fixture-v4"
     assert report["analysisVersion"] == "historical-v2.2"
     assert report["validationStrategy"] == "walk_forward_monthly_fold_local_identity"
     assert report["labelStrategy"] == "temporal_recurring_streams_with_calendar_signature"
