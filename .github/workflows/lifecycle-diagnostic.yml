@@ -85,3 +85,31 @@ jobs:
               for row in reactivated
           )
           PY
+      - name: Show global recurrence matching for lifecycle scenario
+        run: |
+          python scripts/analyze_benchmark_errors.py \
+            datasets/benchmark_v1 \
+            --max-errors 500 \
+            --output /tmp/benchmark-errors.json > /dev/null
+          python - <<'PY'
+          import json
+          from pathlib import Path
+
+          report = json.loads(Path('/tmp/benchmark-errors.json').read_text())
+          for engine_name, engine in report['engines'].items():
+              recurrence = engine['tasks'].get('recurrence')
+              if recurrence is None:
+                  continue
+              row = next(
+                  item for item in recurrence['byScenario']
+                  if item['scenario'] == 'cancel_reactivate'
+              )
+              print(engine_name, row)
+              print(
+                  'errors',
+                  [
+                      item for item in recurrence['errors']
+                      if item['scenario'] == 'cancel_reactivate'
+                  ],
+              )
+          PY
