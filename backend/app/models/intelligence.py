@@ -14,7 +14,7 @@ class IntelligenceFinding(Base):
     __tablename__ = "intelligence_findings"
     __table_args__ = (
         CheckConstraint(
-            "finding_type IN ('recurring_pattern', 'duplicate_subscription', 'spending_anomaly')",
+            "finding_type IN ('recurring_pattern', 'recurring_payment_missing', 'duplicate_subscription', 'spending_anomaly', 'frequency_anomaly')",
             name="ck_intelligence_findings_type",
         ),
         CheckConstraint(
