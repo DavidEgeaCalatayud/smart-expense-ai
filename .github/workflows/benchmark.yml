@@ -50,7 +50,7 @@ jobs:
           python scripts/evaluate_historical.py \
             datasets/benchmark_v1/historical_evaluation_payload.json \
             --mode development \
-            --bootstrap-iterations 100 \
+            --bootstrap-iterations 200 \
             --parameters-output /tmp/benchmark-parameters.json \
             --output /tmp/benchmark-development.json > /dev/null
           python - <<'PY'
