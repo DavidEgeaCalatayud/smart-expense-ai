@@ -245,7 +245,7 @@ export function SecurityPage() {
           </p>
           <form className="mt-5 space-y-4" onSubmit={openDeleteDialog}>
             <label className="block text-sm font-semibold text-slate-700">
-              Current password
+              Password to confirm deletion
               <input
                 type="password"
                 autoComplete="current-password"
