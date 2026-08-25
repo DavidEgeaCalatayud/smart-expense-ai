@@ -58,6 +58,38 @@ def _validated_recurring_threshold(value: Decimal) -> Decimal:
     return threshold
 
 
+def _profile_identity(profile: dict[str, object]) -> tuple[str, str]:
+    return (
+        str(profile.get("canonicalMerchant") or ""),
+        str(profile.get("streamDescriptor") or "").casefold(),
+    )
+
+
+def _merge_lifecycle_history_profiles(
+    window_profiles: list[dict[str, object]],
+    lifecycle_profiles: list[dict[str, object]],
+) -> list[dict[str, object]]:
+    """Let an active lifecycle episode dominate the same identity inside the rolling window.
+
+    Normal recurrence extraction remains restricted to ``window_months``. Only explicit
+    ``merchant_lifecycle_reactivation`` profiles may consult older eligible history, because
+    proving a reactivation inherently requires evidence from the prior lifecycle episode.
+    If the current episode has already accumulated enough observations to form a normal
+    window-local profile, the lifecycle profile replaces that same merchant/descriptor
+    identity instead of being emitted alongside it as a duplicate prediction.
+    """
+
+    if not lifecycle_profiles:
+        return window_profiles
+    lifecycle_identities = {_profile_identity(profile) for profile in lifecycle_profiles}
+    retained = [
+        profile
+        for profile in window_profiles
+        if _profile_identity(profile) not in lifecycle_identities
+    ]
+    return retained + lifecycle_profiles
+
+
 def analyze_historical_transactions_v2_2(
     all_transactions: list[TransactionSnapshot],
     window_months: int,
@@ -71,6 +103,11 @@ def analyze_historical_transactions_v2_2(
     Production keeps the established threshold of 55. Evaluation may explore stricter
     thresholds without changing feature extraction or scoring. Values below 55 are rejected
     because v2.2 currently discards lower-scoring candidates before this acceptance layer.
+
+    Ordinary recurrence features stay inside the configured rolling window. Lifecycle
+    reactivation is the deliberate exception: an active current episode may consult older
+    eligible history to prove the existence of its prior episode, while the emitted profile
+    still contains only the current episode and therefore never bridges the dormant gap.
     """
 
     threshold = _validated_recurring_threshold(recurring_score_threshold)
@@ -82,7 +119,28 @@ def analyze_historical_transactions_v2_2(
     eligible = [item for item in all_transactions if item.transaction_date <= period_end]
     fold_identity_map = identity_map or build_merchant_identity_map([item.merchant for item in eligible])
 
-    scored_profiles = build_recurring_profiles_v2_2(window_transactions, period_end, fold_identity_map)
+    window_profiles = build_recurring_profiles_v2_2(
+        window_transactions,
+        period_end,
+        fold_identity_map,
+        limit=None,
+    )
+    lifecycle_history_profiles: list[dict[str, object]] = []
+    if len(eligible) > len(window_transactions):
+        lifecycle_history_profiles = [
+            profile
+            for profile in build_recurring_profiles_v2_2(
+                eligible,
+                period_end,
+                fold_identity_map,
+                limit=None,
+            )
+            if profile.get("streamBasis") == "merchant_lifecycle_reactivation"
+        ]
+    scored_profiles = _merge_lifecycle_history_profiles(
+        window_profiles,
+        lifecycle_history_profiles,
+    )
     recurring_profiles = [
         profile
         for profile in scored_profiles
