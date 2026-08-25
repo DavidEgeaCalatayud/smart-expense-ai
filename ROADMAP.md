@@ -114,10 +114,16 @@ Goal: implement real analysis without simulated AI outputs.
 - [x] Require a SHA-256-fingerprinted frozen parameter manifest before final holdout evaluation.
 - [x] Add 95% month-block bootstrap confidence intervals with support/block counts for recurrence, anomaly and occurrence metrics.
 - [x] Add regressions for split overlap, holdout sealing, parameter tampering and deterministic bootstrap output.
-- [ ] Validate rules and historical algorithms against labelled real-world datasets and measure real-world precision/recall/false-positive rates.
+- [x] Upgrade actionable findings to `rules-v2` using canonical merchants and descriptor/amount/temporal recurring streams.
+- [x] Persist a separate `recurring_payment_missing` finding with stronger schedule/history requirements and same-period collision suppression.
+- [x] Upgrade actionable amount anomalies to chronological prior-only merchant baselines with category fallback when merchant history is insufficient.
+- [x] Add `frequency_anomaly` findings from merchant monthly-count baselines and rolling seven-day burst evidence.
+- [x] Split intelligence summary metrics into recurring, missing-recurring, duplicate, amount-anomaly and frequency-anomaly counts.
+- [x] Add migration/API/UI/test coverage for the new `rules-v2` finding types and rule-version defaults.
+- [ ] Validate `rules-v2` and historical algorithms against labelled real-world datasets and measure real-world precision/recall/false-positive rates.
 - [ ] Tune recurring-score weights/cutoffs, stream-clustering tolerances and anomaly thresholds only on labelled calibration data, use validation for design checks, then open holdout once for final reporting.
+- [ ] Reassess category fallback and frequency-anomaly thresholds from real-world false-positive cost before loosening them.
 - [ ] Add automatic/background analysis when deployment scheduling is available.
-- [ ] Promote category fallback/canonicalization into persisted findings only where real-world validation shows value.
 - [ ] Evaluate ML anomaly models (for example Isolation Forest) only after deterministic baselines have measurable real-world evaluation results.
 
 ## Phase 4 - Prediction
@@ -169,6 +175,7 @@ Goal: prepare the application for real deployment.
 - [x] Gate historical-v2.2 equal-amount temporal-phase clustering and calendar-signature evaluation in CI.
 - [x] Gate optimal recurring matching and prospective occurrence-level evaluation in backend CI.
 - [x] Gate sealed split/fingerprint/bootstrap evaluation behavior in backend tests.
+- [x] Gate `rules-v2` migration, empty-summary contract and finding behavior in PostgreSQL/Docker CI.
 - [ ] Configure `Quality gate` as a required check for `main`.
 - [ ] Add staging deployment.
 - [ ] Add production TLS/domain/secrets configuration.

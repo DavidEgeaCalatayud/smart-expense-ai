@@ -14,7 +14,7 @@ class IntelligenceFinding(Base):
     __tablename__ = "intelligence_findings"
     __table_args__ = (
         CheckConstraint(
-            "finding_type IN ('recurring_pattern', 'duplicate_subscription', 'spending_anomaly')",
+            "finding_type IN ('recurring_pattern', 'recurring_payment_missing', 'duplicate_subscription', 'spending_anomaly', 'frequency_anomaly')",
             name="ck_intelligence_findings_type",
         ),
         CheckConstraint(
@@ -40,7 +40,7 @@ class IntelligenceFinding(Base):
     severity: Mapped[str] = mapped_column(String(16), nullable=False)
     status: Mapped[str] = mapped_column(String(16), nullable=False, default="open", server_default="open")
     fingerprint: Mapped[str] = mapped_column(String(255), nullable=False)
-    rule_version: Mapped[str] = mapped_column(String(32), nullable=False, default="rules-v1", server_default="rules-v1")
+    rule_version: Mapped[str] = mapped_column(String(32), nullable=False, default="rules-v2", server_default="rules-v2")
     title: Mapped[str] = mapped_column(String(180), nullable=False)
     explanation: Mapped[str] = mapped_column(String(1200), nullable=False)
     evidence: Mapped[dict[str, object]] = mapped_column(JSONB, nullable=False, default=dict)
@@ -63,7 +63,7 @@ class IntelligenceScan(Base):
         ForeignKey("users.id", ondelete="CASCADE"),
         nullable=False,
     )
-    rule_version: Mapped[str] = mapped_column(String(32), nullable=False, default="rules-v1", server_default="rules-v1")
+    rule_version: Mapped[str] = mapped_column(String(32), nullable=False, default="rules-v2", server_default="rules-v2")
     transaction_count: Mapped[int] = mapped_column(Integer, nullable=False)
     finding_count: Mapped[int] = mapped_column(Integer, nullable=False)
     created_at: Mapped[datetime] = mapped_column(

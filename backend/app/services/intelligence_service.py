@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from datetime import datetime, timezone
+from datetime import date, datetime, timezone
 from uuid import UUID
 
 from sqlalchemy import case, func, select
@@ -16,12 +16,8 @@ from app.schemas import (
     IntelligenceScanResponse,
     IntelligenceSummary,
 )
-from app.services.intelligence_rules import (
-    RULE_VERSION,
-    FindingCandidate,
-    TransactionSnapshot,
-    run_financial_intelligence_rules,
-)
+from app.services.intelligence_rules import FindingCandidate, TransactionSnapshot
+from app.services.intelligence_rules_v2 import RULE_VERSION, run_financial_intelligence_rules_v2
 
 
 def _commit(db: Session) -> None:
@@ -90,7 +86,7 @@ def _apply_candidate(
 
 def scan_financial_intelligence(db: Session, user_id: UUID) -> IntelligenceScanResponse:
     snapshots = _load_expense_snapshots(db, user_id)
-    candidates = run_financial_intelligence_rules(snapshots)
+    candidates = run_financial_intelligence_rules_v2(snapshots, analysis_date=date.today())
     detected_at = datetime.now(timezone.utc)
 
     existing_findings = db.scalars(
@@ -193,6 +189,16 @@ def get_intelligence_summary(db: Session, user_id: UUID) -> IntelligenceSummary:
                 case(
                     (
                         open_condition
+                        & (IntelligenceFinding.finding_type == FindingType.recurring_payment_missing.value),
+                        1,
+                    ),
+                    else_=0,
+                )
+            ),
+            func.sum(
+                case(
+                    (
+                        open_condition
                         & (IntelligenceFinding.finding_type == FindingType.duplicate_subscription.value),
                         1,
                     ),
@@ -204,6 +210,16 @@ def get_intelligence_summary(db: Session, user_id: UUID) -> IntelligenceSummary:
                     (
                         open_condition
                         & (IntelligenceFinding.finding_type == FindingType.spending_anomaly.value),
+                        1,
+                    ),
+                    else_=0,
+                )
+            ),
+            func.sum(
+                case(
+                    (
+                        open_condition
+                        & (IntelligenceFinding.finding_type == FindingType.frequency_anomaly.value),
                         1,
                     ),
                     else_=0,
@@ -221,13 +237,18 @@ def get_intelligence_summary(db: Session, user_id: UUID) -> IntelligenceSummary:
         .limit(1)
     )
 
+    amount_anomalies = int(counts[4] or 0)
+    frequency_anomalies = int(counts[5] or 0)
     return IntelligenceSummary(
         openCount=int(counts[0] or 0),
         recurringCount=int(counts[1] or 0),
-        duplicateSubscriptionCount=int(counts[2] or 0),
-        anomalyCount=int(counts[3] or 0),
-        dismissedCount=int(counts[4] or 0),
-        resolvedCount=int(counts[5] or 0),
+        missingRecurringCount=int(counts[2] or 0),
+        duplicateSubscriptionCount=int(counts[3] or 0),
+        anomalyCount=amount_anomalies + frequency_anomalies,
+        amountAnomalyCount=amount_anomalies,
+        frequencyAnomalyCount=frequency_anomalies,
+        dismissedCount=int(counts[6] or 0),
+        resolvedCount=int(counts[7] or 0),
         lastScanAt=latest_scan.created_at if latest_scan else None,
         analyzedTransactions=latest_scan.transaction_count if latest_scan else 0,
         ruleVersion=latest_scan.rule_version if latest_scan else RULE_VERSION,

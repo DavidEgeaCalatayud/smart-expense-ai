@@ -1,8 +1,10 @@
 import {
   Activity,
   AlertTriangle,
+  CalendarClock,
   CheckCircle2,
   CopyCheck,
+  Gauge,
   RefreshCw,
   Repeat2,
   RotateCcw,
@@ -31,13 +33,16 @@ import { formatCurrencyWithDecimals } from '../utils/formatters';
 const emptySummary: IntelligenceSummary = {
   openCount: 0,
   recurringCount: 0,
+  missingRecurringCount: 0,
   duplicateSubscriptionCount: 0,
   anomalyCount: 0,
+  amountAnomalyCount: 0,
+  frequencyAnomalyCount: 0,
   dismissedCount: 0,
   resolvedCount: 0,
   lastScanAt: null,
   analyzedTransactions: 0,
-  ruleVersion: 'rules-v1',
+  ruleVersion: 'rules-v2',
 };
 
 type StatusFilter = FindingStatus | 'all';
@@ -55,23 +60,36 @@ const money = (value: unknown) =>
 function evidenceText(finding: IntelligenceFinding): string {
   const evidence = finding.evidence;
   if (finding.type === 'recurring_pattern') {
-    return `${String(evidence.cadence ?? 'Recurring')} · ${String(evidence.occurrenceCount ?? '—')} occurrences · median ${money(evidence.medianAmount)} · next expected ${String(evidence.nextExpectedDate ?? '—')}`;
+    const calendar = evidence.streamCalendar ? ` · ${String(evidence.streamCalendar)}` : '';
+    return `${String(evidence.cadence ?? 'Recurring')}${calendar} · ${String(evidence.occurrenceCount ?? '—')} occurrences · score ${String(evidence.patternScore ?? '—')}/100 · median ${money(evidence.medianAmount)} · next ${String(evidence.nextExpectedDate ?? '—')}`;
+  }
+  if (finding.type === 'recurring_payment_missing') {
+    return `Expected ${String(evidence.nextExpectedDate ?? '—')} · ${String(evidence.overdueDays ?? '—')} days late · ${String(evidence.missedExpectedOccurrences ?? '—')} missed occurrence(s) · typical ${money(evidence.medianAmount)}`;
   }
   if (finding.type === 'duplicate_subscription') {
     const months = Array.isArray(evidence.duplicateMonths) ? evidence.duplicateMonths.join(', ') : '—';
     return `${String(evidence.pairCount ?? '—')} near-duplicate pairs · around ${money(evidence.approximateAmount)} · months ${months}`;
   }
-  return `${money(evidence.amount)} vs baseline ${money(evidence.baselineMedian)} · ${String(evidence.ratio ?? '—')}× typical · ${String(evidence.baselineCount ?? '—')} baseline charges`;
+  if (finding.type === 'frequency_anomaly') {
+    return `${String(evidence.currentCount ?? '—')} charges in ${String(evidence.period ?? '—')} vs ${String(evidence.baselineMedianCount ?? '—')} typical · ${String(evidence.frequencyRatio ?? '—')}× frequency · max ${String(evidence.maxChargesIn7Days ?? '—')} in 7 days`;
+  }
+  return `${money(evidence.amount)} vs ${String(evidence.baselineScope ?? 'historical')} baseline ${money(evidence.baselineMedian)} · ${String(evidence.ratio ?? '—')}× typical · deviation ${String(evidence.deviationScore ?? '—')} · n=${String(evidence.baselineCount ?? '—')}`;
 }
 
 function typeMeta(finding: IntelligenceFinding) {
   if (finding.type === 'recurring_pattern') {
-    return { icon: Repeat2, label: 'Recurring pattern' };
+    return { icon: Repeat2, label: 'Recurring stream' };
+  }
+  if (finding.type === 'recurring_payment_missing') {
+    return { icon: CalendarClock, label: 'Missing recurring payment' };
   }
   if (finding.type === 'duplicate_subscription') {
     return { icon: CopyCheck, label: 'Possible duplicate subscription' };
   }
-  return { icon: Activity, label: 'Spending anomaly' };
+  if (finding.type === 'frequency_anomaly') {
+    return { icon: Gauge, label: 'Frequency anomaly' };
+  }
+  return { icon: Activity, label: 'Amount anomaly' };
 }
 
 function severityClasses(severity: IntelligenceFinding['severity']) {
@@ -158,7 +176,7 @@ export function AlertsPage() {
       <PageHeader
         eyebrow="Explainable rules engine"
         title="Financial intelligence"
-        description="Persisted findings plus reproducible historical algorithms over your own transaction history."
+        description="Rules-v2 turns canonical merchants, recurring streams and chronological baselines into persisted findings without simulated AI confidence."
         action={
           <button
             type="button"
@@ -188,12 +206,13 @@ export function AlertsPage() {
         </div>
       )}
 
-      <section className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
+      <section className="grid gap-4 md:grid-cols-2 xl:grid-cols-5">
         {[
           { label: 'Open findings', value: summary.openCount, icon: AlertTriangle },
-          { label: 'Recurring patterns', value: summary.recurringCount, icon: Repeat2 },
+          { label: 'Recurring streams', value: summary.recurringCount, icon: Repeat2 },
+          { label: 'Missing recurring', value: summary.missingRecurringCount, icon: CalendarClock },
           { label: 'Possible duplicates', value: summary.duplicateSubscriptionCount, icon: CopyCheck },
-          { label: 'Amount anomalies', value: summary.anomalyCount, icon: Activity },
+          { label: 'Basic anomalies', value: summary.anomalyCount, icon: Activity },
         ].map((metric) => (
           <article key={metric.label} className="rounded-3xl border border-slate-200 bg-white p-5 shadow-soft">
             <div className="mb-4 flex h-10 w-10 items-center justify-center rounded-2xl bg-brand-50 text-brand-700">
@@ -211,6 +230,9 @@ export function AlertsPage() {
             <h2 className="font-bold text-slate-950">Findings scan state</h2>
             <p className="mt-1 text-sm text-slate-500">
               Last scan: {lastScanLabel} · {summary.analyzedTransactions} expense transactions · {summary.ruleVersion}
+            </p>
+            <p className="mt-1 text-xs text-slate-400">
+              Anomalies: {summary.amountAnomalyCount} amount · {summary.frequencyAnomalyCount} frequency
             </p>
           </div>
           <div className="flex flex-wrap gap-2" aria-label="Finding status filter">

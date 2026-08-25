@@ -8,6 +8,7 @@ MONEY_EVIDENCE_KEYS = {
     "approximateAmount",
     "amount",
     "baselineMedian",
+    "robustSpread",
     "threshold",
 }
 DECIMAL_EVIDENCE_KEYS = MONEY_EVIDENCE_KEYS | {"ratio"}

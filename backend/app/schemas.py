@@ -53,8 +53,10 @@ class TransactionSort(str, Enum):
 
 class FindingType(str, Enum):
     recurring_pattern = "recurring_pattern"
+    recurring_payment_missing = "recurring_payment_missing"
     duplicate_subscription = "duplicate_subscription"
     spending_anomaly = "spending_anomaly"
+    frequency_anomaly = "frequency_anomaly"
 
 
 class FindingSeverity(str, Enum):
@@ -209,8 +211,11 @@ class IntelligenceScanResponse(BaseModel):
 class IntelligenceSummary(BaseModel):
     openCount: int
     recurringCount: int
+    missingRecurringCount: int = 0
     duplicateSubscriptionCount: int
     anomalyCount: int
+    amountAnomalyCount: int = 0
+    frequencyAnomalyCount: int = 0
     dismissedCount: int
     resolvedCount: int
     lastScanAt: datetime | None

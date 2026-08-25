@@ -1,3 +1,4 @@
+from collections import Counter
 from collections.abc import Generator
 
 import pytest
@@ -94,40 +95,48 @@ def test_intelligence_endpoints_require_authentication(client: TestClient) -> No
     assert client.get(f"{API_V2}/intelligence/findings").status_code == 401
 
 
-def test_scan_persists_explainable_findings_and_is_idempotent(client: TestClient) -> None:
+def test_scan_persists_rules_v2_findings_and_is_idempotent(client: TestClient) -> None:
     register(client, "owner@example.com")
     seed_rule_evidence(client)
 
     scan_response = client.post(f"{API}/intelligence/scan")
     assert scan_response.status_code == 200
     scan = scan_response.json()
-    assert scan["ruleVersion"] == "rules-v1"
+    assert scan["ruleVersion"] == "rules-v2"
     assert scan["analyzedTransactions"] == 13
-    assert scan["detectedFindings"] == 3
+    assert scan["detectedFindings"] == 5
 
     findings_response = client.get(f"{API}/intelligence/findings?status=open")
     assert findings_response.status_code == 200
     findings = findings_response.json()
-    assert {finding["type"] for finding in findings} == {
-        "recurring_pattern",
-        "duplicate_subscription",
-        "spending_anomaly",
-    }
+    counts = Counter(finding["type"] for finding in findings)
+    assert counts == Counter(
+        {
+            "recurring_pattern": 2,
+            "recurring_payment_missing": 1,
+            "duplicate_subscription": 1,
+            "spending_anomaly": 1,
+        }
+    )
     assert all(finding["explanation"] for finding in findings)
     assert all(finding["evidence"] for finding in findings)
-    first_ids = {finding["type"]: finding["id"] for finding in findings}
+    assert all(finding["ruleVersion"] == "rules-v2" for finding in findings)
+    first_ids = sorted(finding["id"] for finding in findings)
 
     second_scan = client.post(f"{API}/intelligence/scan")
     assert second_scan.status_code == 200
     second_findings = client.get(f"{API}/intelligence/findings?status=open").json()
-    assert len(second_findings) == 3
-    assert {finding["type"]: finding["id"] for finding in second_findings} == first_ids
+    assert sorted(finding["id"] for finding in second_findings) == first_ids
 
     summary = client.get(f"{API}/intelligence/summary").json()
-    assert summary["openCount"] == 3
-    assert summary["recurringCount"] == 1
+    assert summary["openCount"] == 5
+    assert summary["recurringCount"] == 2
+    assert summary["missingRecurringCount"] == 1
     assert summary["duplicateSubscriptionCount"] == 1
     assert summary["anomalyCount"] == 1
+    assert summary["amountAnomalyCount"] == 1
+    assert summary["frequencyAnomalyCount"] == 0
+    assert summary["ruleVersion"] == "rules-v2"
     assert summary["lastScanAt"] is not None
     assert summary["analyzedTransactions"] == 13
 
@@ -145,7 +154,37 @@ def test_intelligence_money_evidence_is_versioned_without_breaking_v1(client: Te
     assert legacy["evidence"]["ratio"] == 4.25
     assert decimal_safe["evidence"]["amount"] == "85.00"
     assert decimal_safe["evidence"]["baselineMedian"] == "20.00"
+    assert decimal_safe["evidence"]["robustSpread"] == "1.00"
     assert decimal_safe["evidence"]["ratio"] == "4.25"
+
+
+def test_frequency_anomaly_is_persisted_and_counted_separately(client: TestClient) -> None:
+    register(client, "frequency@example.com")
+    for amount, value in [
+        (5.00, "2026-01-10"),
+        (5.00, "2026-02-10"),
+        (5.00, "2026-03-10"),
+        (5.00, "2026-04-01"),
+        (5.00, "2026-04-02"),
+        (5.00, "2026-04-03"),
+        (5.00, "2026-04-04"),
+    ]:
+        create_expense(client, "API Tools", amount, value)
+
+    scan = client.post(f"{API}/intelligence/scan")
+    assert scan.status_code == 200
+    finding_response = client.get(f"{API_V2}/intelligence/findings?type=frequency_anomaly")
+    assert finding_response.status_code == 200
+    findings = finding_response.json()
+    assert len(findings) == 1
+    assert findings[0]["evidence"]["currentCount"] == 4
+    assert findings[0]["evidence"]["baselineMedianCount"] == "1.0"
+    assert findings[0]["evidence"]["maxChargesIn7Days"] == 4
+
+    summary = client.get(f"{API}/intelligence/summary").json()
+    assert summary["frequencyAnomalyCount"] == 1
+    assert summary["amountAnomalyCount"] == 0
+    assert summary["anomalyCount"] == 1
 
 
 def test_dismissed_finding_stays_dismissed_after_rescan(client: TestClient) -> None:
