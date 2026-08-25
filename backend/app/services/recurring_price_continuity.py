@@ -1,8 +1,9 @@
 from __future__ import annotations
 
+from calendar import monthrange
 from dataclasses import dataclass
 from datetime import date
-from decimal import Decimal
+from decimal import Decimal, ROUND_HALF_UP
 
 from app.services.recurring_streams import (
     RecurringStream,
@@ -10,6 +11,7 @@ from app.services.recurring_streams import (
     _calendar_cadence,
     _calendar_schedule_features,
     _median_amount,
+    _median_int,
 )
 
 
@@ -20,6 +22,8 @@ MIN_CONTINUITY_CALENDAR_STABILITY = Decimal("0.70")
 MAX_CONTINUITY_PRICE_REGIMES = 3
 MAX_CONTINUITY_PRICE_CHANGE_RATIO = Decimal("0.50")
 MAX_CONTINUITY_PERIOD_GAP_MULTIPLIER = 2
+MAX_MONTH_BOUNDARY_SHIFT_DAYS = 4
+MAX_MONTH_START_TARGET_DAY = 4
 REQUIRE_CONTINUITY_CURRENT_SCHEDULE = True
 CONTINUITY_CADENCES = {"monthly", "quarterly", "yearly"}
 
@@ -125,6 +129,48 @@ def _month_index(value: date) -> int:
     return value.year * 12 + value.month - 1
 
 
+def _next_month_target(value: date, target_day: int) -> date:
+    if value.month == 12:
+        year, month = value.year + 1, 1
+    else:
+        year, month = value.year, value.month + 1
+    return date(year, month, min(target_day, monthrange(year, month)[1]))
+
+
+def _normalize_month_boundary_shifts(unique_dates: list[date]) -> list[date]:
+    """Map early-month weekend shifts back to their nominal billing month.
+
+    Bank/card feeds may record a nominal first-of-month charge on the preceding Friday.
+    For example, Saturday 2023-04-01 becomes Friday 2023-03-31. Treating the observed
+    calendar month as the billing period creates a false duplicate March occurrence and
+    a false missing April period. Only schedules whose robust target is within the first
+    four days of the month are eligible, and only month-end observations within four days
+    of the next target are moved. Genuine month-end schedules are therefore untouched.
+    """
+
+    if len(unique_dates) < MIN_CONTINUITY_OCCURRENCES:
+        return unique_dates
+
+    target_day = int(
+        _median_int([value.day for value in unique_dates]).quantize(
+            Decimal("1"),
+            rounding=ROUND_HALF_UP,
+        )
+    )
+    if target_day > MAX_MONTH_START_TARGET_DAY:
+        return unique_dates
+
+    normalized: list[date] = []
+    for value in unique_dates:
+        if value.day >= 27:
+            nominal = _next_month_target(value, target_day)
+            if 0 < (nominal - value).days <= MAX_MONTH_BOUNDARY_SHIFT_DAYS:
+                normalized.append(nominal)
+                continue
+        normalized.append(value)
+    return sorted(set(normalized))
+
+
 def _has_acceptable_schedule_gaps(unique_dates: list[date], cadence: str, step: int) -> bool:
     if cadence not in CONTINUITY_CADENCES:
         return False
@@ -148,20 +194,21 @@ def _single_schedule(
     if len(unique_dates) < MIN_CONTINUITY_OCCURRENCES:
         return False
 
-    cadence_info = _calendar_cadence(unique_dates)
+    schedule_dates = _normalize_month_boundary_shifts(unique_dates)
+    cadence_info = _calendar_cadence(schedule_dates)
     if cadence_info is None:
         return False
     cadence, step, cadence_fit = cadence_info
     if cadence not in CONTINUITY_CADENCES or cadence_fit < MIN_CONTINUITY_CADENCE_FIT:
         return False
-    if not _has_acceptable_schedule_gaps(unique_dates, cadence, step):
+    if not _has_acceptable_schedule_gaps(schedule_dates, cadence, step):
         return False
 
-    period_keys = [_period_key(value, cadence) for value in unique_dates]
+    period_keys = [_period_key(value, cadence) for value in schedule_dates]
     if len(period_keys) != len(set(period_keys)):
         return False
 
-    cutoff = analysis_end or unique_dates[-1]
+    cutoff = analysis_end or schedule_dates[-1]
     (
         _,
         missed_expected,
@@ -169,7 +216,7 @@ def _single_schedule(
         day_of_month_stability,
         _,
         _,
-    ) = _calendar_schedule_features(unique_dates, cadence, step, cutoff)
+    ) = _calendar_schedule_features(schedule_dates, cadence, step, cutoff)
     if REQUIRE_CONTINUITY_CURRENT_SCHEDULE and (
         expected_payment_missing or missed_expected > 0
     ):
