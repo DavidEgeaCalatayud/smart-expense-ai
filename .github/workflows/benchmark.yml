@@ -58,10 +58,10 @@ jobs:
 
           report = json.loads(Path('/tmp/benchmark-errors.json').read_text())
           assert report['mode'] == 'development'
-          assert report['reportVersion'] == 'benchmark-scenario-errors-v2'
+          assert report['reportVersion'] == 'benchmark-scenario-errors-v3'
           assert report['scope']['phases'] == ['calibration', 'validation']
           assert report['scope']['recurrenceLabelActivity'] == (
-              'cadence_continuity_after_three_observations_v1'
+              'cadence_continuity_nominal_boundary_v2'
           )
           assert report['scope']['minimumStreamEvidenceOccurrences'] == 3
           assert report['holdout']['status'] == 'sealed'
@@ -101,8 +101,11 @@ jobs:
               ) == (18, 0, 0)
 
               cancel_reactivate = scenario(recurrence, 'cancel_reactivate')
-              assert cancel_reactivate['falsePositives'] == 0
-              assert cancel_reactivate['falseNegatives'] == 9
+              assert (
+                  cancel_reactivate['truePositives'],
+                  cancel_reactivate['falsePositives'],
+                  cancel_reactivate['falseNegatives'],
+              ) == (9, 0, 0)
 
               for name, expected_tp in (
                   ('equal_amount_temporal_streams', 36),
@@ -223,6 +226,7 @@ jobs:
           report = json.loads(Path('/tmp/benchmark-development.json').read_text())
           assert report['mode'] == 'development'
           assert report['holdout']['status'] == 'sealed'
+          assert report['recurrenceGroundTruthStrategy'] == 'cadence_continuity_nominal_boundary_v2'
           calibration = [fold['evaluateMonth'] for fold in report['calibration']['folds']]
           validation = [fold['evaluateMonth'] for fold in report['validation']['folds']]
           assert calibration == [f'2024-{month:02d}' for month in range(1, 13)]
