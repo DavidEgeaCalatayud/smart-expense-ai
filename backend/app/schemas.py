@@ -1,7 +1,7 @@
 from datetime import datetime
 from decimal import Decimal
 from enum import Enum
-from typing import Annotated, Any
+from typing import Annotated, Any, Literal
 
 from pydantic import BaseModel, EmailStr, Field, PlainSerializer, field_validator
 
@@ -90,6 +90,83 @@ class LoginRequest(BaseModel):
 
 class AuthResponse(BaseModel):
     user: UserResponse
+
+
+class ChangePasswordRequest(BaseModel):
+    currentPassword: str = Field(..., min_length=1, max_length=128)
+    newPassword: str = Field(..., min_length=12, max_length=128)
+
+
+class DeleteAccountRequest(BaseModel):
+    password: str = Field(..., min_length=1, max_length=128)
+    confirmation: Literal["DELETE"]
+
+
+class PrivacyExportAccount(BaseModel):
+    id: str
+    email: EmailStr
+    displayName: str
+    createdAt: datetime
+
+
+class PrivacyExportTransaction(BaseModel):
+    id: str
+    merchant: str
+    description: str
+    category: str
+    amount: str
+    currency: str
+    date: str
+    type: str
+    paymentMethod: str
+    isRecurring: bool
+    source: str
+    createdAt: datetime
+    updatedAt: datetime
+
+
+class PrivacyExportFinding(BaseModel):
+    id: str
+    type: str
+    severity: str
+    status: str
+    fingerprint: str
+    ruleVersion: str
+    title: str
+    explanation: str
+    evidence: dict[str, Any]
+    firstDetectedAt: datetime
+    lastDetectedAt: datetime
+    resolvedAt: datetime | None = None
+
+
+class PrivacyExportScan(BaseModel):
+    id: str
+    ruleVersion: str
+    transactionCount: int
+    findingCount: int
+    createdAt: datetime
+
+
+class PrivacyExportHistoricalSnapshot(BaseModel):
+    id: str
+    analysisVersion: str
+    windowMonths: int
+    transactionCount: int
+    periodStart: str
+    periodEnd: str
+    result: dict[str, Any]
+    createdAt: datetime
+
+
+class PrivacyExportResponse(BaseModel):
+    schemaVersion: Literal["privacy-export-v1"] = "privacy-export-v1"
+    exportedAt: datetime
+    account: PrivacyExportAccount
+    transactions: list[PrivacyExportTransaction]
+    intelligenceFindings: list[PrivacyExportFinding]
+    intelligenceScans: list[PrivacyExportScan]
+    historicalAnalysisSnapshots: list[PrivacyExportHistoricalSnapshot]
 
 
 class CategoryResponse(BaseModel):
