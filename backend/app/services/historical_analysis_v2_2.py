@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from datetime import date, datetime, timezone
+from decimal import Decimal
 from uuid import UUID
 
 from sqlalchemy import select
@@ -19,6 +20,17 @@ from app.services.recurring_streams_v2_2 import build_recurring_profiles_v2_2
 
 
 ANALYSIS_VERSION = "historical-v2.2"
+DEFAULT_RECURRING_SCORE_THRESHOLD = Decimal("55")
+MIN_RECURRING_SCORE_THRESHOLD = Decimal("55")
+
+
+def _validated_recurring_threshold(value: Decimal) -> Decimal:
+    threshold = Decimal(str(value))
+    if threshold < MIN_RECURRING_SCORE_THRESHOLD or threshold > Decimal("100"):
+        raise ValueError(
+            f"recurring_score_threshold must be between {MIN_RECURRING_SCORE_THRESHOLD} and 100"
+        )
+    return threshold
 
 
 def analyze_historical_transactions_v2_2(
@@ -27,7 +39,16 @@ def analyze_historical_transactions_v2_2(
     *,
     analysis_end: date | None = None,
     identity_map: dict[str, MerchantIdentity] | None = None,
+    recurring_score_threshold: Decimal = DEFAULT_RECURRING_SCORE_THRESHOLD,
 ) -> tuple[date, date, list[TransactionSnapshot], dict[str, object]]:
+    """Run historical-v2.2 with an optionally stricter recurring acceptance threshold.
+
+    Production keeps the established threshold of 55. Evaluation may explore stricter
+    thresholds without changing feature extraction or scoring. Values below 55 are rejected
+    because v2.2 currently discards lower-scoring candidates before this acceptance layer.
+    """
+
+    threshold = _validated_recurring_threshold(recurring_score_threshold)
     period_start, period_end, window_transactions, result = analyze_historical_transactions_v2(
         all_transactions,
         window_months,
@@ -36,7 +57,12 @@ def analyze_historical_transactions_v2_2(
     eligible = [item for item in all_transactions if item.transaction_date <= period_end]
     fold_identity_map = identity_map or build_merchant_identity_map([item.merchant for item in eligible])
 
-    recurring_profiles = build_recurring_profiles_v2_2(window_transactions, period_end, fold_identity_map)
+    scored_profiles = build_recurring_profiles_v2_2(window_transactions, period_end, fold_identity_map)
+    recurring_profiles = [
+        profile
+        for profile in scored_profiles
+        if Decimal(str(profile.get("patternScore", "0"))) >= threshold
+    ]
     result["recurringProfiles"] = recurring_profiles
     coverage = result.get("coverage")
     temporal_phase_count = sum(
@@ -53,6 +79,7 @@ def analyze_historical_transactions_v2_2(
         "profileCount": len(recurring_profiles),
         "temporalPhaseProfileCount": temporal_phase_count,
         "ambiguityPolicy": "split_only_with_repeated_concurrent_calendar_evidence",
+        "recurringScoreThreshold": format(threshold, "f"),
     }
     return period_start, period_end, window_transactions, result
 
@@ -122,6 +149,8 @@ def get_latest_historical_analysis(
 
 __all__ = [
     "ANALYSIS_VERSION",
+    "DEFAULT_RECURRING_SCORE_THRESHOLD",
+    "MIN_RECURRING_SCORE_THRESHOLD",
     "analyze_historical_transactions_v2_2",
     "get_latest_historical_analysis",
     "run_historical_analysis",

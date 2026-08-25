@@ -1,8 +1,15 @@
 {
-  "datasetVersion": "fixture-v3",
-  "description": "Synthetic regression fixture for fold-local identity, temporal lifecycle and equal-amount calendar-stream evaluation. It is not evidence of real-world model quality.",
+  "datasetVersion": "fixture-v4",
+  "description": "Synthetic regression fixture for fold-local identity, temporal lifecycle, equal-amount calendar-stream evaluation and sealed calibration/validation/holdout protocol. It is not evidence of real-world model quality.",
   "evaluation": {
-    "minimumHistoryMonths": 6
+    "minimumHistoryMonths": 6,
+    "occurrenceEvaluationMonths": ["2026-07", "2026-08", "2026-09", "2026-10"],
+    "recurringScoreThresholdCandidates": ["55", "60", "65", "70"],
+    "splits": {
+      "calibration": {"startMonth": "2026-07", "endMonth": "2026-07"},
+      "validation": {"startMonth": "2026-08", "endMonth": "2026-09"},
+      "holdout": {"startMonth": "2026-10", "endMonth": "2026-10"}
+    }
   },
   "labels": {
     "recurringStreams": [

@@ -109,8 +109,13 @@ Goal: implement real analysis without simulated AI outputs.
 - [x] Measure occurrence precision/recall/F1, missed charges, extra predictions, date MAE/bias and decimal amount MAE/MAPE.
 - [x] Support explicit `{date, amount}` expected-occurrence ground truth while keeping date-only labels backward-compatible.
 - [x] Keep unlabelled occurrence months out of occurrence false-positive metrics unless the dataset explicitly declares complete coverage.
+- [x] Add chronological calibration, validation and final holdout ranges to labelled evaluation datasets.
+- [x] Keep final holdout rows physically out of development evaluator payloads and report calibration/validation separately.
+- [x] Require a SHA-256-fingerprinted frozen parameter manifest before final holdout evaluation.
+- [x] Add 95% month-block bootstrap confidence intervals with support/block counts for recurrence, anomaly and occurrence metrics.
+- [x] Add regressions for split overlap, holdout sealing, parameter tampering and deterministic bootstrap output.
 - [ ] Validate rules and historical algorithms against labelled real-world datasets and measure real-world precision/recall/false-positive rates.
-- [ ] Tune recurring-score weights/cutoffs, stream-clustering tolerances and anomaly thresholds only from labelled evaluation evidence.
+- [ ] Tune recurring-score weights/cutoffs, stream-clustering tolerances and anomaly thresholds only on labelled calibration data, use validation for design checks, then open holdout once for final reporting.
 - [ ] Add automatic/background analysis when deployment scheduling is available.
 - [ ] Promote category fallback/canonicalization into persisted findings only where real-world validation shows value.
 - [ ] Evaluate ML anomaly models (for example Isolation Forest) only after deterministic baselines have measurable real-world evaluation results.
@@ -163,6 +168,7 @@ Goal: prepare the application for real deployment.
 - [x] Gate historical-v2.1 fold-local identity and temporal stream-label evaluation in CI.
 - [x] Gate historical-v2.2 equal-amount temporal-phase clustering and calendar-signature evaluation in CI.
 - [x] Gate optimal recurring matching and prospective occurrence-level evaluation in backend CI.
+- [x] Gate sealed split/fingerprint/bootstrap evaluation behavior in backend tests.
 - [ ] Configure `Quality gate` as a required check for `main`.
 - [ ] Add staging deployment.
 - [ ] Add production TLS/domain/secrets configuration.
