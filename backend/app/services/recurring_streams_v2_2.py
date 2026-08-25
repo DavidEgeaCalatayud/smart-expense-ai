@@ -85,19 +85,24 @@ def _cadence_period_key(value: date, cadence: str) -> str:
 def build_recurring_streams_v2_2(
     transactions: list[TransactionSnapshot],
     identity_map: dict[str, MerchantIdentity],
+    *,
+    analysis_end: date | None = None,
 ) -> list[RecurringStreamV22]:
     """Build v2.2 streams with conservative price-continuity and temporal relinking.
 
     v2.1 remains untouched. v2.2 starts from deterministic descriptor/amount streams.
     Before temporal-lane splitting, fragmented streams may be re-linked only when merchant
     family, cadence, calendar position and sequential amount regimes jointly explain one
-    non-concurrent subscription schedule. Remaining descriptor-less ambiguity is then handled
-    by the existing temporal-lane splitter.
+    currently active, non-concurrent subscription schedule. Remaining descriptor-less
+    ambiguity is then handled by the existing temporal-lane splitter.
     """
 
     result: list[RecurringStreamV22] = []
     base_streams = build_recurring_streams(transactions, identity_map)
-    for continuity in relink_price_continuity_streams(base_streams):
+    for continuity in relink_price_continuity_streams(
+        base_streams,
+        analysis_end=analysis_end,
+    ):
         stream = continuity.stream
         if continuity.relinked:
             result.append(
@@ -146,7 +151,11 @@ def build_recurring_profiles_v2_2(
     limit: int | None = 20,
 ) -> list[dict[str, object]]:
     profiles: list[dict[str, object]] = []
-    for stream in build_recurring_streams_v2_2(transactions, identity_map):
+    for stream in build_recurring_streams_v2_2(
+        transactions,
+        identity_map,
+        analysis_end=analysis_end,
+    ):
         ordered = sorted(stream.transactions, key=lambda item: (item.transaction_date, item.id))
         unique_dates = sorted({item.transaction_date for item in ordered})
         if len(unique_dates) < 3:
