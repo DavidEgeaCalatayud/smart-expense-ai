@@ -24,6 +24,7 @@ from app.services.recurring_price_continuity import (
     MIN_CONTINUITY_CALENDAR_STABILITY,
     MIN_CONTINUITY_OCCURRENCES,
     MIN_QUALIFIED_ROOT_TOKENS,
+    REQUIRE_CONTINUITY_CURRENT_SCHEDULE,
 )
 from app.services.recurring_streams_v2_2 import (
     MIN_AMOUNT_ONLY_CALENDAR_STABILITY,
@@ -113,7 +114,7 @@ def analyze_historical_transactions_v2_2(
         "minimumAmountOnlyCalendarStability": format(MIN_AMOUNT_ONLY_CALENDAR_STABILITY, "f"),
         "minimumAmountOnlyEarlyConsecutivePeriods": MIN_AMOUNT_ONLY_EARLY_CONSECUTIVE_PERIODS,
         "minimumAmountOnlyEarlyCalendarStability": format(MIN_AMOUNT_ONLY_EARLY_CALENDAR_STABILITY, "f"),
-        "priceContinuityPolicy": "qualified_merchant_family_plus_single_schedule_plus_sequential_price_regimes",
+        "priceContinuityPolicy": "qualified_merchant_family_plus_current_single_schedule_plus_sequential_price_regimes",
         "minimumQualifiedMerchantRootTokens": MIN_QUALIFIED_ROOT_TOKENS,
         "minimumPriceContinuityOccurrences": MIN_CONTINUITY_OCCURRENCES,
         "minimumPriceContinuityCadenceFit": format(MIN_CONTINUITY_CADENCE_FIT, "f"),
@@ -121,6 +122,7 @@ def analyze_historical_transactions_v2_2(
         "maximumPriceContinuityRegimes": MAX_CONTINUITY_PRICE_REGIMES,
         "maximumPriceContinuityChangeRatio": format(MAX_CONTINUITY_PRICE_CHANGE_RATIO, "f"),
         "maximumPriceContinuityPeriodGapMultiplier": MAX_CONTINUITY_PERIOD_GAP_MULTIPLIER,
+        "priceContinuityRequiresCurrentSchedule": REQUIRE_CONTINUITY_CURRENT_SCHEDULE,
         "recurringScoreThreshold": format(threshold, "f"),
     }
     return period_start, period_end, window_transactions, result
