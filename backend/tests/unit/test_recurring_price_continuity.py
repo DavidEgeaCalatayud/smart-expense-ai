@@ -1,6 +1,11 @@
 from datetime import date
 from decimal import Decimal
 
+from app.historical_contract import (
+    HistoricalCoverageV22,
+    HistoricalRecurrenceSegmentationV22,
+    HistoricalRecurringProfileV22,
+)
 from app.services.historical_analysis_v2_2 import analyze_historical_transactions_v2_2
 from app.services.intelligence_rules import TransactionSnapshot
 from app.services.merchant_canonicalization import build_merchant_identity_map
@@ -51,6 +56,17 @@ def test_v22_relinks_merchant_variants_across_sequential_price_regimes() -> None
     assert profile["priceRegimeCount"] == 2
     assert profile["sourceStreamCount"] >= 3
     assert set(profile["observedMerchants"]) == set(variants)
+
+    profile_contract = HistoricalRecurringProfileV22.model_validate(profile)
+    segmentation_contract = HistoricalRecurrenceSegmentationV22.model_validate(
+        result["recurrenceSegmentation"]
+    )
+    coverage_contract = HistoricalCoverageV22.model_validate(result["coverage"])
+    assert profile_contract.priceRegimeCount == 2
+    assert segmentation_contract.strategyVersion == "price-continuity-v1"
+    assert segmentation_contract.priceContinuityRequiresCurrentSchedule is True
+    assert segmentation_contract.priceContinuityProfileCount == 1
+    assert coverage_contract.priceContinuityStreams == 1
 
 
 def test_v22_relinks_merchant_variants_before_any_price_change() -> None:
