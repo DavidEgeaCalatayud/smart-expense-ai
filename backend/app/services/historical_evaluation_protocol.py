@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
+from datetime import date
 from decimal import Decimal
 from hashlib import sha256
 import json
@@ -10,6 +11,16 @@ from typing import Any
 PROTOCOL_VERSION = "temporal_calibration_validation_holdout_v1"
 DEFAULT_PARAMETER_SET_ID = "historical-v2.2-default"
 DEFAULT_RECURRING_THRESHOLD = Decimal("55")
+
+
+def _validate_month_key(value: str, field: str) -> str:
+    if len(value) != 7 or value[4] != "-":
+        raise ValueError(f"{field} must use YYYY-MM")
+    try:
+        date.fromisoformat(f"{value}-01")
+    except ValueError as exc:
+        raise ValueError(f"{field} must be a valid calendar month") from exc
+    return value
 
 
 @dataclass(frozen=True)
@@ -33,6 +44,17 @@ class EvaluationParameters:
     parameter_set_id: str
     recurring_score_threshold: Decimal
     analysis_version: str = "historical-v2.2"
+
+    def __post_init__(self) -> None:
+        object.__setattr__(
+            self,
+            "recurring_score_threshold",
+            Decimal(str(self.recurring_score_threshold)),
+        )
+        if not self.parameter_set_id:
+            raise ValueError("parameter_set_id must not be empty")
+        if not Decimal("55") <= self.recurring_score_threshold <= Decimal("100"):
+            raise ValueError("recurring_score_threshold must be between 55 and 100")
 
     def canonical_payload(self) -> dict[str, str]:
         return {
@@ -108,10 +130,14 @@ class EvaluationProtocol:
 def _parse_split(name: str, raw: object) -> TemporalSplit:
     if not isinstance(raw, dict):
         raise ValueError(f"evaluation.splits.{name} must be an object")
-    start = str(raw.get("startMonth", ""))
-    end = str(raw.get("endMonth", ""))
-    if len(start) != 7 or len(end) != 7 or start[4] != "-" or end[4] != "-":
-        raise ValueError(f"evaluation.splits.{name} must use YYYY-MM boundaries")
+    start = _validate_month_key(
+        str(raw.get("startMonth", "")),
+        f"evaluation.splits.{name}.startMonth",
+    )
+    end = _validate_month_key(
+        str(raw.get("endMonth", "")),
+        f"evaluation.splits.{name}.endMonth",
+    )
     if start > end:
         raise ValueError(f"evaluation.splits.{name} startMonth must not be after endMonth")
     return TemporalSplit(name=name, start_month=start, end_month=end)
