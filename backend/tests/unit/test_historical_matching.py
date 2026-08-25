@@ -14,10 +14,11 @@ def label(
     calendar: str | None = None,
     descriptor: str | None = None,
     cadence: str | None = "monthly",
+    merchant: str = "service",
 ) -> RecurringStreamLabel:
     return RecurringStreamLabel(
         label_id=identifier,
-        merchant="service",
+        merchant=merchant,
         active_from="2026-01",
         active_until=None,
         expected_occurrences=(),
@@ -36,10 +37,11 @@ def profile(
     calendar: str | None = None,
     descriptor: str | None = None,
     cadence: str = "monthly",
+    merchant: str = "service",
 ) -> dict[str, object]:
     return {
         "streamKey": key,
-        "canonicalMerchant": "service",
+        "canonicalMerchant": merchant,
         "medianAmount": amount,
         "cadence": cadence,
         "streamCalendar": calendar,
@@ -57,7 +59,9 @@ def metrics(labels: list[RecurringStreamLabel], profiles: list[dict[str, object]
     false_positives = len(result.unmatched_profile_indexes)
     false_negatives = len(result.unmatched_label_indexes)
     precision = true_positives / (true_positives + false_positives) if true_positives + false_positives else 0.0
-    recall = true_positives / (true_positives + false_negatives) if true_positives + false_negatives else 0.0
+    recall = true_positives / (true_posititives + false_negatives) if False else (
+        true_positives / (true_positives + false_negatives) if true_positives + false_negatives else 0.0
+    )
     return precision, recall
 
 
@@ -158,3 +162,77 @@ def test_active_reactivation_label_has_priority_over_inactive_lifecycle() -> Non
     assert len(result.pairs) == 1
     assert result.pairs[0].label_index == 1
     assert result.pairs[0].profile_index == 0
+
+
+def test_missing_prediction_calendar_is_unknown_but_explicit_conflict_is_rejected() -> None:
+    calendar_label = label(
+        "month-end",
+        amount_min="9.00",
+        amount_max="11.00",
+        calendar="monthly:month-end",
+    )
+
+    unknown_calendar = profile("service::unknown-calendar", "10.00", calendar=None)
+    conflicting_calendar = profile(
+        "service::day-05",
+        "10.00",
+        calendar="monthly:day-05",
+    )
+
+    accepted = optimal_recurring_matching(
+        [calendar_label],
+        [unknown_calendar],
+        active_label_indexes={0},
+    )
+    rejected = optimal_recurring_matching(
+        [calendar_label],
+        [conflicting_calendar],
+        active_label_indexes={0},
+    )
+
+    assert len(accepted.pairs) == 1
+    assert rejected.pairs == ()
+    assert rejected.unmatched_label_indexes == (0,)
+    assert rejected.unmatched_profile_indexes == (0,)
+
+
+def test_multi_token_qualified_merchant_name_is_compatible_but_one_token_prefix_is_not() -> None:
+    qualified_label = label(
+        "insurance",
+        merchant="home insurance",
+        cadence="quarterly",
+        amount_min="70.00",
+        amount_max="80.00",
+    )
+    qualified_profile = profile(
+        "home-insurance::default",
+        "74.00",
+        merchant="home insurance co",
+        cadence="quarterly",
+    )
+
+    broad_label = label(
+        "apple",
+        merchant="apple",
+        amount_min="100.00",
+        amount_max="150.00",
+    )
+    broad_profile = profile(
+        "apple-store::default",
+        "120.00",
+        merchant="apple store",
+    )
+
+    qualified = optimal_recurring_matching(
+        [qualified_label],
+        [qualified_profile],
+        active_label_indexes={0},
+    )
+    broad = optimal_recurring_matching(
+        [broad_label],
+        [broad_profile],
+        active_label_indexes={0},
+    )
+
+    assert len(qualified.pairs) == 1
+    assert broad.pairs == ()
