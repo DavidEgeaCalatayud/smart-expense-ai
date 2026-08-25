@@ -25,6 +25,10 @@ from app.services.temporal_stream_clustering import split_temporal_lanes
 
 
 ANALYSIS_VERSION = "historical-v2.2"
+MIN_AMOUNT_ONLY_CONSECUTIVE_PERIODS = 5
+MIN_AMOUNT_ONLY_CALENDAR_STABILITY = Decimal("0.75")
+MIN_AMOUNT_ONLY_EARLY_CONSECUTIVE_PERIODS = 4
+MIN_AMOUNT_ONLY_EARLY_CALENDAR_STABILITY = Decimal("0.95")
 
 
 @dataclass(frozen=True)
@@ -157,6 +161,24 @@ def build_recurring_profiles_v2_2(
         latest_period_key = _cadence_period_key(unique_dates[-1], cadence_name)
         latest_period_extra_occurrences = max(0, period_counts[latest_period_key] - 1)
         missing_schedule_is_unambiguous = latest_period_extra_occurrences == 0
+
+        # Amount-only streams exist because multiple descriptor-less charges for one canonical
+        # merchant were separated by price. That is weaker identity evidence than an explicit
+        # descriptor, a single merchant-default stream or a repeated temporal lane. Normally
+        # require a longer consecutive history plus stable billing position. A four-period
+        # stream is accepted only when its calendar position is nearly exact so a genuine
+        # recurrence remains detectable when a later amount outlier was split into another band.
+        if stream.basis == "amount":
+            standard_evidence = (
+                consecutive_periods >= MIN_AMOUNT_ONLY_CONSECUTIVE_PERIODS
+                and calendar_position_stability >= MIN_AMOUNT_ONLY_CALENDAR_STABILITY
+            )
+            precise_early_evidence = (
+                consecutive_periods >= MIN_AMOUNT_ONLY_EARLY_CONSECUTIVE_PERIODS
+                and calendar_position_stability >= MIN_AMOUNT_ONLY_EARLY_CALENDAR_STABILITY
+            )
+            if not (standard_evidence or precise_early_evidence):
+                continue
 
         pattern_score = SCORE_HUNDRED * (
             Decimal("0.30") * cadence_fit

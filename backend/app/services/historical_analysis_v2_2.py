@@ -16,7 +16,17 @@ from app.services.historical_analysis_v2 import (
 )
 from app.services.intelligence_rules import TransactionSnapshot
 from app.services.merchant_canonicalization import MerchantIdentity, build_merchant_identity_map
-from app.services.recurring_streams_v2_2 import build_recurring_profiles_v2_2
+from app.services.recurring_streams_v2_2 import (
+    MIN_AMOUNT_ONLY_CALENDAR_STABILITY,
+    MIN_AMOUNT_ONLY_CONSECUTIVE_PERIODS,
+    MIN_AMOUNT_ONLY_EARLY_CALENDAR_STABILITY,
+    MIN_AMOUNT_ONLY_EARLY_CONSECUTIVE_PERIODS,
+    build_recurring_profiles_v2_2,
+)
+from app.services.temporal_stream_clustering import (
+    MIN_PARENT_SHORT_CADENCE_FIT,
+    MIN_PARENT_WEEKDAY_STABILITY,
+)
 
 
 ANALYSIS_VERSION = "historical-v2.2"
@@ -75,10 +85,19 @@ def analyze_historical_transactions_v2_2(
 
     result["recurrenceSegmentation"] = {
         "strategy": "canonical_merchant_then_descriptor_amount_then_temporal_phase",
+        "strategyVersion": "temporal-split-v2",
         "analysisVersion": ANALYSIS_VERSION,
         "profileCount": len(recurring_profiles),
         "temporalPhaseProfileCount": temporal_phase_count,
         "ambiguityPolicy": "split_only_with_repeated_concurrent_calendar_evidence",
+        "cadencePolicy": "parent_short_cadence_requires_stable_weekday_and_blocks_monthly_phase_split",
+        "minimumParentShortCadenceFit": format(MIN_PARENT_SHORT_CADENCE_FIT, ".2f"),
+        "minimumParentWeekdayStability": format(MIN_PARENT_WEEKDAY_STABILITY, ".2f"),
+        "amountOnlyPolicy": "require_consecutive_history_and_calendar_stability_with_precise_early_path",
+        "minimumAmountOnlyConsecutivePeriods": MIN_AMOUNT_ONLY_CONSECUTIVE_PERIODS,
+        "minimumAmountOnlyCalendarStability": format(MIN_AMOUNT_ONLY_CALENDAR_STABILITY, "f"),
+        "minimumAmountOnlyEarlyConsecutivePeriods": MIN_AMOUNT_ONLY_EARLY_CONSECUTIVE_PERIODS,
+        "minimumAmountOnlyEarlyCalendarStability": format(MIN_AMOUNT_ONLY_EARLY_CALENDAR_STABILITY, "f"),
         "recurringScoreThreshold": format(threshold, "f"),
     }
     return period_start, period_end, window_transactions, result

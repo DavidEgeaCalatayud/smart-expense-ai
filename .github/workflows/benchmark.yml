@@ -49,9 +49,11 @@ jobs:
         run: |
           python scripts/analyze_benchmark_errors.py \
             datasets/benchmark_v1 \
+            --max-errors 500 \
             --output /tmp/benchmark-errors.json > /dev/null
           python - <<'PY'
           import json
+          from collections import Counter
           from pathlib import Path
 
           report = json.loads(Path('/tmp/benchmark-errors.json').read_text())
@@ -100,6 +102,27 @@ jobs:
                           f"F1={row['f1']:.4f} cost={row['weightedErrorCost']}"
                       )
 
+          print('Ordinary-spend recurrence FP slices')
+          for engine_name, engine in report['engines'].items():
+              recurrence = engine['tasks'].get('recurrence')
+              if recurrence is None:
+                  continue
+              errors = [
+                  item for item in recurrence['errors']
+                  if item['type'] == 'FP' and item['scenario'] == 'ordinary_spend'
+              ]
+              cadence = Counter(item['detail'].get('cadence') or 'unknown' for item in errors)
+              calendar = Counter(item['detail'].get('streamCalendar') or 'none' for item in errors)
+              descriptors = Counter(
+                  'descriptor' if item['detail'].get('streamDescriptor') else 'no-descriptor'
+                  for item in errors
+              )
+              print(
+                  f"{engine_name:16} count={len(errors):3} "
+                  f"cadence={dict(cadence)} calendars={dict(calendar)} "
+                  f"descriptor={dict(descriptors)}"
+              )
+
           print('Top scenario error priorities')
           for row in report['priorityRanking'][:15]:
               print(
@@ -108,6 +131,8 @@ jobs:
                   f"FN={row['falseNegatives']:3} cost={row['weightedErrorCost']}"
               )
           PY
+      - name: Diagnose recurrence feature distributions
+        run: python scripts/diagnose_recurrence_fp_features.py datasets/benchmark_v1
       - name: Evaluate calibration and validation with holdout sealed
         run: |
           python scripts/evaluate_historical.py \
