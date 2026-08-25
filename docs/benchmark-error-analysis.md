@@ -57,6 +57,22 @@ Two production signals are intentionally not assigned precision/recall yet:
 
 Scoring either signal against the wrong label semantics would manufacture misleading metrics.
 
+## Recurring matching semantics
+
+Scenario diagnostics use `hungarian_max_weight_v2` for one-to-one recurring-stream assignment. This version separates representation mismatches from actual detection failures without changing the benchmark generator or opening the holdout.
+
+The matching rules are:
+
+- exact canonical merchant identity receives the highest utility;
+- a multi-token qualified merchant is also compatible when one canonical name is a token-prefix of the other, for example `home insurance` and `home insurance co`;
+- one-token prefixes remain incompatible, so `apple` does not automatically match `apple store`;
+- an explicit conflicting `streamCalendar` is incompatible;
+- a missing predicted `streamCalendar` is treated as unknown rather than as contradictory, because ordinary recurring profiles can expose cadence and next-date evidence without being created by calendar-lane segmentation;
+- descriptor, cadence and amount constraints remain hard compatibility checks when present;
+- active lifecycle labels receive the dominating assignment bonus used by the existing optimal matcher.
+
+The strategy name is versioned because changing matching semantics changes evaluation methodology. It does not change `historical-v2.2` or `rules-v2` detection behavior.
+
 ## Run locally
 
 From `backend/` after materializing the benchmark:
@@ -107,7 +123,7 @@ Each scored task includes:
 - bounded concrete FP/FN examples;
 - explicit evaluation unit.
 
-CI runs this diagnostic report before the existing bootstrap development evaluation and prints the highest-cost scenarios into the workflow log.
+CI runs this diagnostic report before the existing bootstrap development evaluation and prints the aggregate task metrics, the full scenario matrices and the highest-cost scenarios into the workflow log.
 
 ## Interpretation boundary
 
