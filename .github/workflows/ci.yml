@@ -81,6 +81,46 @@ jobs:
           assert 'precision' in report['aggregate']['recurrence']
           assert 'falsePositivesPer100Transactions' in report['aggregate']['anomalies']
           PY
+      - name: Run sealed split protocol and confidence fixture
+        run: |
+          python scripts/evaluate_historical.py \
+            evaluation/historical_v2_fixture.json \
+            --mode development \
+            --bootstrap-iterations 200 \
+            --parameters-output /tmp/historical-parameters.json \
+            --output /tmp/historical-development.json > /dev/null
+          python - <<'PY'
+          import json
+          from pathlib import Path
+          report = json.loads(Path('/tmp/historical-development.json').read_text())
+          assert report['mode'] == 'development'
+          assert report['holdout']['status'] == 'sealed'
+          assert [fold['evaluateMonth'] for fold in report['calibration']['folds']] == ['2026-07']
+          assert [fold['evaluateMonth'] for fold in report['validation']['folds']] == ['2026-08', '2026-09']
+          confidence = report['validation']['aggregate']['recurrence']['confidence']
+          assert confidence['method'] == 'month_block_percentile_bootstrap_v1'
+          assert confidence['level'] == 0.95
+          assert confidence['iterations'] == 200
+          assert confidence['blocks'] == 2
+          assert report['validation']['aggregate']['recurrence']['support'] == confidence['support']
+          assert len(report['frozenParameters']['fingerprint']) == 64
+          PY
+          python scripts/evaluate_historical.py \
+            evaluation/historical_v2_fixture.json \
+            --mode holdout \
+            --bootstrap-iterations 200 \
+            --parameters /tmp/historical-parameters.json \
+            --output /tmp/historical-holdout.json > /dev/null
+          python - <<'PY'
+          import json
+          from pathlib import Path
+          development = json.loads(Path('/tmp/historical-development.json').read_text())
+          holdout = json.loads(Path('/tmp/historical-holdout.json').read_text())
+          assert holdout['mode'] == 'holdout'
+          assert [fold['evaluateMonth'] for fold in holdout['holdout']['folds']] == ['2026-10']
+          assert holdout['frozenParameters']['fingerprint'] == development['frozenParameters']['fingerprint']
+          assert holdout['holdout']['aggregate']['recurrence']['confidence']['blocks'] == 1
+          PY
 
   frontend:
     name: Frontend quality
