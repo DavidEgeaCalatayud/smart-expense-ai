@@ -8,12 +8,13 @@ from typing import Mapping, Protocol
 INVALID_UTILITY = -1_000_000
 ACTIVE_LABEL_BONUS = 100_000
 MERCHANT_UTILITY = 10_000
+QUALIFIED_MERCHANT_UTILITY = 9_000
 CALENDAR_UTILITY = 5_000
 DESCRIPTOR_UTILITY = 3_500
 CADENCE_UTILITY = 2_500
 AMOUNT_SPECIFICITY_UTILITY = 1_000
 AMOUNT_CLOSENESS_UTILITY = 1_000
-MATCHING_STRATEGY = "hungarian_max_weight_v1"
+MATCHING_STRATEGY = "hungarian_max_weight_v2"
 
 
 class RecurringLabelLike(Protocol):
@@ -71,6 +72,34 @@ def _profile_sort_key(item: tuple[int, Mapping[str, object]]) -> tuple[str, ...]
     )
 
 
+def _merchant_utility(label_merchant: str, profile_merchant: str) -> int | None:
+    """Score evaluation-time merchant compatibility without re-running production identity.
+
+    Exact canonical identities remain preferred. A lower-utility qualified match is allowed
+    only when both merchant names contain at least two tokens and one is a token-prefix of
+    the other. This handles label/profile representation differences such as
+    ``home insurance`` vs ``home insurance co`` without broad one-token matches such as
+    ``apple`` vs ``apple store``.
+    """
+
+    if profile_merchant == label_merchant:
+        return MERCHANT_UTILITY
+
+    label_tokens = tuple(label_merchant.split())
+    profile_tokens = tuple(profile_merchant.split())
+    if min(len(label_tokens), len(profile_tokens)) < 2:
+        return None
+
+    shorter, longer = (
+        (label_tokens, profile_tokens)
+        if len(label_tokens) <= len(profile_tokens)
+        else (profile_tokens, label_tokens)
+    )
+    if longer[: len(shorter)] == shorter:
+        return QUALIFIED_MERCHANT_UTILITY
+    return None
+
+
 def _amount_utility(label: RecurringLabelLike, amount: Decimal) -> int | None:
     lower = label.amount_min
     upper = label.amount_max
@@ -99,21 +128,31 @@ def recurring_match_utility(
 ) -> int | None:
     """Return a deterministic utility for one label/profile edge.
 
-    Explicit ground-truth fields are hard compatibility constraints. Among compatible
-    candidates, higher utility represents a more specific and closer match. Active labels
-    receive a dominating bonus so a cancelled lifecycle cannot consume the one prediction
-    belonging to a concurrently active/reactivated label.
+    Explicit ground-truth fields are compatibility constraints when the prediction exposes
+    the corresponding evidence. Among compatible candidates, higher utility represents a
+    more specific and closer match. Active labels receive a dominating bonus so a cancelled
+    lifecycle cannot consume the one prediction belonging to a concurrently active or
+    reactivated label.
+
+    A missing predicted calendar signature is treated as unknown rather than contradictory.
+    An explicit conflicting signature still hard-rejects the edge. This matters because a
+    normal recurring profile can expose cadence/next-date evidence without having been
+    created by calendar-lane segmentation and therefore legitimately has no ``streamCalendar``.
     """
 
-    if str(profile.get("canonicalMerchant") or "") != label.merchant:
+    profile_merchant = str(profile.get("canonicalMerchant") or "")
+    merchant_utility = _merchant_utility(label.merchant, profile_merchant)
+    if merchant_utility is None:
         return None
 
-    utility = MERCHANT_UTILITY + (ACTIVE_LABEL_BONUS if active else 0)
+    utility = merchant_utility + (ACTIVE_LABEL_BONUS if active else 0)
 
     if label.calendar_signature:
-        if str(profile.get("streamCalendar") or "") != label.calendar_signature:
-            return None
-        utility += CALENDAR_UTILITY
+        profile_calendar = str(profile.get("streamCalendar") or "")
+        if profile_calendar:
+            if profile_calendar != label.calendar_signature:
+                return None
+            utility += CALENDAR_UTILITY
 
     if label.descriptor_contains:
         descriptor = str(profile.get("streamDescriptor") or "").casefold()

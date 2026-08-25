@@ -15,7 +15,7 @@ def test_walk_forward_evaluation_reports_required_metrics_and_slices() -> None:
     assert report["analysisVersion"] == "historical-v2.2"
     assert report["validationStrategy"] == "walk_forward_monthly_fold_local_identity"
     assert report["labelStrategy"] == "temporal_recurring_streams_with_calendar_signature"
-    assert report["recurrenceMatchingStrategy"] == "hungarian_max_weight_v1"
+    assert report["recurrenceMatchingStrategy"] == "hungarian_max_weight_v2"
     assert [fold["evaluateMonth"] for fold in report["folds"]] == [
         "2026-07",
         "2026-08",
@@ -24,7 +24,7 @@ def test_walk_forward_evaluation_reports_required_metrics_and_slices() -> None:
     ]
 
     for fold in report["folds"]:
-        assert fold["recurrenceMatchingStrategy"] == "hungarian_max_weight_v1"
+        assert fold["recurrenceMatchingStrategy"] == "hungarian_max_weight_v2"
         assert fold["recurrenceMatchingUtility"] >= 0
 
     for metric_group in (report["aggregate"]["recurrence"], report["aggregate"]["anomalies"]):
