@@ -90,6 +90,7 @@ class HistoricalRecurrenceSegmentationV22(HistoricalRecurrenceSegmentation):
     maximumPriceContinuityRegimes: int = 0
     maximumPriceContinuityChangeRatio: str = "0"
     maximumPriceContinuityPeriodGapMultiplier: int = 0
+    priceContinuityRequiresCurrentSchedule: bool = False
     recurringScoreThreshold: str = "55"
 
 
