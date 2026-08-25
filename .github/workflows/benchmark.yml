@@ -86,6 +86,20 @@ jobs:
                       f"P={metrics['precision']:.4f} R={metrics['recall']:.4f} "
                       f"F1={metrics['f1']:.4f}"
                   )
+
+          print('Scenario matrices')
+          for engine_name, engine in report['engines'].items():
+              for task_name, task in engine['tasks'].items():
+                  print(f"[{engine_name} / {task_name}]")
+                  for row in task['byScenario']:
+                      print(
+                          f"{row['scenario']:32} "
+                          f"TP={row['truePositives']:3} FP={row['falsePositives']:3} "
+                          f"FN={row['falseNegatives']:3} "
+                          f"P={row['precision']:.4f} R={row['recall']:.4f} "
+                          f"F1={row['f1']:.4f} cost={row['weightedErrorCost']}"
+                      )
+
           print('Top scenario error priorities')
           for row in report['priorityRanking'][:15]:
               print(
