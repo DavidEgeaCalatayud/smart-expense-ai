@@ -125,6 +125,36 @@ jobs:
           assert ordinary_historical['falsePositives'] <= 1
           assert ordinary_rules is None or ordinary_rules['falsePositives'] == 0
 
+          # Amount-anomaly acceptance contract. The baseline must stay merchant-specific,
+          # preserve every curated development spike, and avoid the heterogeneous category
+          # fallback that produced the legitimate-exception false positives in #41.
+          for amount_task in (historical['amount_anomaly'], rules['amount_anomaly']):
+              overall = amount_task['overall']
+              assert overall['truePositives'] == 7
+              assert overall['falseNegatives'] == 0
+              assert overall['falsePositives'] <= 2
+
+              calibration_spikes = scenario(amount_task, 'amount_spike_cal')
+              assert (
+                  calibration_spikes['truePositives'],
+                  calibration_spikes['falseNegatives'],
+              ) == (4, 0)
+
+              validation_spikes = scenario(amount_task, 'amount_spike_val')
+              assert (
+                  validation_spikes['truePositives'],
+                  validation_spikes['falseNegatives'],
+              ) == (3, 0)
+
+              legitimate = scenario(amount_task, 'legitimate_exception')
+              assert legitimate['falsePositives'] == 0
+
+              ordinary = scenario(amount_task, 'ordinary_spend')
+              assert ordinary['falsePositives'] <= 1
+
+              same_merchant_ad_hoc = scenario(amount_task, 'same_merchant_ad_hoc')
+              assert same_merchant_ad_hoc['falsePositives'] <= 1
+
           print('Scenario diagnostic summary')
           for engine_name, engine in report['engines'].items():
               for task_name, task in engine['tasks'].items():
@@ -178,6 +208,28 @@ jobs:
                   f"TP={row['truePositives']:3} FP={row['falsePositives']:3} "
                   f"FN={row['falseNegatives']:3} cost={row['weightedErrorCost']}"
               )
+          PY
+      - name: Inspect amount anomaly baseline evidence
+        run: |
+          python scripts/diagnose_amount_anomaly_fp_features.py \
+            datasets/benchmark_v1 > /tmp/amount-anomaly-features.json
+          python - <<'PY'
+          import json
+          from pathlib import Path
+
+          report = json.loads(Path('/tmp/amount-anomaly-features.json').read_text())
+          assert report['scope'] == ['calibration', 'validation']
+          assert report['holdout'] == {
+              'status': 'sealed',
+              'startMonth': '2025-07',
+              'endMonth': '2025-12',
+          }
+          for engine in ('historical-v2.2', 'rules-v2'):
+              assert report[engine]['truePositives']['count'] == 7
+              assert report[engine]['falsePositives']['count'] <= 2
+              assert report[engine]['truePositives']['byBaselineScope'] == {'merchant': 7}
+              assert set(report[engine]['falsePositives']['byBaselineScope']) <= {'merchant'}
+          print(json.dumps(report, indent=2, sort_keys=True))
           PY
       - name: Verify recurrence feature provenance
         run: |

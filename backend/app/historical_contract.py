@@ -48,6 +48,17 @@ class HistoricalRecurringProfileV22(HistoricalRecurringProfileV21):
     priorEpisodeOccurrenceCount: int = 0
 
 
+class HistoricalOutlierV22(HistoricalOutlier):
+    baselinePolicy: str = "legacy"
+    baselineMad: str = "0.00"
+    firstQuartile: str = "0.00"
+    thirdQuartile: str = "0.00"
+    interquartileRange: str = "0.00"
+    distributionUpperFence: str = "0.00"
+    ratio: str = "0.00"
+    threshold: str = "0.00"
+
+
 class HistoricalCoverageV21(BaseModel):
     transactionCount: int
     activeMonths: int
@@ -138,6 +149,6 @@ class HistoricalAnalysisResponseV22(BaseModel):
     recurrenceSegmentation: HistoricalRecurrenceSegmentationV22 = Field(
         default_factory=HistoricalRecurrenceSegmentationV22
     )
-    outliers: list[HistoricalOutlier]
+    outliers: list[HistoricalOutlierV22]
     categoryShifts: list[HistoricalCategoryShift]
     coverage: HistoricalCoverageV22
