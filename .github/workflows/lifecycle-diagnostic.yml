@@ -31,7 +31,7 @@ jobs:
         run: pip install -r requirements.txt -r requirements-dev.txt
       - name: Generate deterministic benchmark
         run: python scripts/generate_benchmark_v1.py
-      - name: Diagnose cancel/reactivate lifecycle
+      - name: Verify cancel/reactivate lifecycle acceptance
         run: |
           python scripts/diagnose_cancel_reactivate.py \
             datasets/benchmark_v1 > /tmp/cancel-reactivate.json
@@ -42,6 +42,7 @@ jobs:
           report = json.loads(Path('/tmp/cancel-reactivate.json').read_text())
           assert report['scope'] == ['calibration', 'validation']
           assert report['holdout']['status'] == 'sealed'
+
           print('month active matched base continuity v22 profiles')
           for row in report['evaluationMonths']:
               print(
@@ -53,8 +54,34 @@ jobs:
                   f"v22={[(item['basis'], len(item['transactions'])) for item in row['v22Streams']]}",
                   f"profiles={[(item['streamBasis'], item['cadence'], item['occurrenceCount'], item['missedExpectedOccurrences']) for item in row['profiles']]}",
               )
+
           active = [row for row in report['evaluationMonths'] if row['labelActive']]
           dormant = [row for row in report['evaluationMonths'] if not row['labelActive']]
-          print('active matched', sum(row['matched'] for row in active), '/', len(active))
-          print('dormant matched', sum(row['matched'] for row in dormant), '/', len(dormant))
+          active_matches = sum(row['matched'] for row in active)
+          dormant_matches = sum(row['matched'] for row in dormant)
+          print('active matched', active_matches, '/', len(active))
+          print('dormant matched', dormant_matches, '/', len(dormant))
+
+          assert len(report['evaluationMonths']) == 18
+          assert len(active) == 9
+          assert len(dormant) == 9
+          assert active_matches == 9
+          assert dormant_matches == 0
+          assert all(row['matched'] for row in active)
+          assert all(not row['matched'] for row in dormant)
+
+          reactivated = [
+              row for row in active
+              if row['month'] >= '2025-03'
+          ]
+          assert [row['month'] for row in reactivated] == [
+              '2025-03', '2025-04', '2025-05', '2025-06'
+          ]
+          assert all(
+              any(
+                  profile['streamBasis'] == 'merchant_lifecycle_reactivation'
+                  for profile in row['profiles']
+              )
+              for row in reactivated
+          )
           PY
