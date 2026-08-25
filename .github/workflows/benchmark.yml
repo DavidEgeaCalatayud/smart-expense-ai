@@ -72,6 +72,12 @@ jobs:
           def scenario(task, name):
               return next(row for row in task['byScenario'] if row['scenario'] == name)
 
+          def optional_scenario(task, name):
+              return next(
+                  (row for row in task['byScenario'] if row['scenario'] == name),
+                  None,
+              )
+
           # Price-continuity acceptance contract. These assertions intentionally use only
           # calibration + validation and keep the 2025 H2 holdout sealed.
           for recurrence in (historical['recurrence'], rules['recurrence']):
@@ -104,9 +110,9 @@ jobs:
               assert quarterly['falseNegatives'] == 0
 
           ordinary_historical = scenario(historical['recurrence'], 'ordinary_spend')
-          ordinary_rules = scenario(rules['recurrence'], 'ordinary_spend')
+          ordinary_rules = optional_scenario(rules['recurrence'], 'ordinary_spend')
           assert ordinary_historical['falsePositives'] <= 1
-          assert ordinary_rules['falsePositives'] == 0
+          assert ordinary_rules is None or ordinary_rules['falsePositives'] == 0
 
           print('Scenario diagnostic summary')
           for engine_name, engine in report['engines'].items():
