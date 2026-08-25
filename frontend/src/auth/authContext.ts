@@ -7,6 +7,7 @@ export interface AuthContextValue {
   signIn: (values: LoginValues) => Promise<void>;
   signUp: (values: RegisterValues) => Promise<void>;
   signOut: () => Promise<void>;
+  clearLocalSession: () => void;
 }
 
 export const AuthContext = createContext<AuthContextValue | null>(null);
