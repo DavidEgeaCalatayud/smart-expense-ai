@@ -21,6 +21,12 @@ coverage/
 playwright-report/
 test-results/
 
+# Generated financial benchmark materialization
+backend/datasets/benchmark_v1/transactions_v1.jsonl
+backend/datasets/benchmark_v1/labels/
+backend/datasets/benchmark_v1/metadata.json
+backend/datasets/benchmark_v1/historical_evaluation_payload.json
+
 # IDE and OS files
 .vscode/
 .idea/
