@@ -63,10 +63,13 @@ def test_v22_relinks_merchant_variants_across_sequential_price_regimes() -> None
     )
     coverage_contract = HistoricalCoverageV22.model_validate(result["coverage"])
     assert profile_contract.priceRegimeCount == 2
-    assert segmentation_contract.strategyVersion == "price-continuity-v1"
+    assert profile_contract.lifecycleReactivated is False
+    assert segmentation_contract.strategyVersion == "lifecycle-v1"
     assert segmentation_contract.priceContinuityRequiresCurrentSchedule is True
     assert segmentation_contract.priceContinuityProfileCount == 1
+    assert segmentation_contract.lifecycleReactivationProfileCount == 0
     assert coverage_contract.priceContinuityStreams == 1
+    assert coverage_contract.lifecycleReactivationStreams == 0
 
 
 def test_v22_relinks_merchant_variants_before_any_price_change() -> None:
@@ -146,7 +149,7 @@ def test_v22_does_not_relink_currently_inactive_schedule() -> None:
     assert not any(stream.basis == "merchant_price_continuity" for stream in streams)
 
 
-def test_v22_does_not_relink_long_dormant_reactivation() -> None:
+def test_v22_does_not_bridge_long_dormant_gap_as_price_continuity() -> None:
     variants = ("Fitness Pro", "FITNESS PRO*MEMBER")
     transactions = [
         tx("jan", variants[0], "29.90", "2026-01-01"),
@@ -165,6 +168,7 @@ def test_v22_does_not_relink_long_dormant_reactivation() -> None:
     )
 
     assert not any(stream.basis == "merchant_price_continuity" for stream in streams)
+    assert any(stream.basis == "merchant_lifecycle_reactivation" for stream in streams)
 
 
 def test_v22_does_not_relink_price_regime_that_reappears() -> None:
