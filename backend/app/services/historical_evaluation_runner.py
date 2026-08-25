@@ -1,8 +1,6 @@
 from __future__ import annotations
 
 from copy import deepcopy
-from datetime import date
-from decimal import Decimal
 from typing import Any
 
 from app.services.evaluation_confidence import (
@@ -15,7 +13,6 @@ from app.services.historical_evaluation_protocol import (
     DEFAULT_PARAMETER_SET_ID,
     DEFAULT_RECURRING_THRESHOLD,
     EvaluationParameters,
-    EvaluationProtocol,
     TemporalSplit,
     parse_evaluation_protocol,
 )
@@ -69,23 +66,25 @@ def _attach_confidence(report: dict[str, Any], config: BootstrapConfig) -> dict[
     enriched = deepcopy(report)
     folds = [item for item in enriched.get("folds", []) if isinstance(item, dict)]
     aggregate = enriched.setdefault("aggregate", {})
-    if isinstance(aggregate.get("recurrence"), dict):
-        aggregate["recurrence"]["confidence"] = bootstrap_binary_fold_metrics(
-            folds,
-            "recurrence",
-            config,
-        )
-    if isinstance(aggregate.get("anomalies"), dict):
-        aggregate["anomalies"]["confidence"] = bootstrap_binary_fold_metrics(
-            folds,
-            "anomalies",
-            config,
-        )
-    if isinstance(aggregate.get("occurrences"), dict):
-        aggregate["occurrences"]["confidence"] = bootstrap_occurrence_fold_metrics(
-            folds,
-            config,
-        )
+
+    recurrence = aggregate.get("recurrence")
+    if isinstance(recurrence, dict):
+        confidence = bootstrap_binary_fold_metrics(folds, "recurrence", config)
+        recurrence["support"] = confidence["support"]
+        recurrence["confidence"] = confidence
+
+    anomalies = aggregate.get("anomalies")
+    if isinstance(anomalies, dict):
+        confidence = bootstrap_binary_fold_metrics(folds, "anomalies", config)
+        anomalies["support"] = confidence["support"]
+        anomalies["confidence"] = confidence
+
+    occurrences = aggregate.get("occurrences")
+    if isinstance(occurrences, dict):
+        confidence = bootstrap_occurrence_fold_metrics(folds, config)
+        occurrences["support"] = confidence["support"]
+        occurrences["confidence"] = confidence
+
     enriched["confidenceMethod"] = {
         "method": "month_block_percentile_bootstrap_v1",
         "level": config.level,
