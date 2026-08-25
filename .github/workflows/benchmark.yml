@@ -58,7 +58,12 @@ jobs:
 
           report = json.loads(Path('/tmp/benchmark-errors.json').read_text())
           assert report['mode'] == 'development'
+          assert report['reportVersion'] == 'benchmark-scenario-errors-v2'
           assert report['scope']['phases'] == ['calibration', 'validation']
+          assert report['scope']['recurrenceLabelActivity'] == (
+              'cadence_continuity_after_three_observations_v1'
+          )
+          assert report['scope']['minimumStreamEvidenceOccurrences'] == 3
           assert report['holdout']['status'] == 'sealed'
           assert report['holdout']['range'] == {
               'startMonth': '2025-07',
@@ -78,7 +83,7 @@ jobs:
                   None,
               )
 
-          # Price-continuity acceptance contract. These assertions intentionally use only
+          # Recurrence acceptance contract. These assertions intentionally use only
           # calibration + validation and keep the 2025 H2 holdout sealed.
           for recurrence in (historical['recurrence'], rules['recurrence']):
               price_change = scenario(recurrence, 'recurring_price_change')
@@ -86,6 +91,13 @@ jobs:
                   price_change['truePositives'],
                   price_change['falsePositives'],
                   price_change['falseNegatives'],
+              ) == (18, 0, 0)
+
+              quarterly = scenario(recurrence, 'quarterly_price_change')
+              assert (
+                  quarterly['truePositives'],
+                  quarterly['falsePositives'],
+                  quarterly['falseNegatives'],
               ) == (18, 0, 0)
 
               cancel_reactivate = scenario(recurrence, 'cancel_reactivate')
@@ -104,10 +116,6 @@ jobs:
                       row['falsePositives'],
                       row['falseNegatives'],
                   ) == (expected_tp, 0, 0)
-
-              quarterly = scenario(recurrence, 'quarterly_price_change')
-              assert quarterly['truePositives'] == 6
-              assert quarterly['falseNegatives'] == 0
 
           ordinary_historical = scenario(historical['recurrence'], 'ordinary_spend')
           ordinary_rules = optional_scenario(rules['recurrence'], 'ordinary_spend')
@@ -182,6 +190,24 @@ jobs:
           assert price_change['count'] == 18
           assert price_change['streamBasis'] == {'merchant_price_continuity': 18}
           print(json.dumps(price_change, indent=2, sort_keys=True))
+          PY
+      - name: Verify quarterly stream lifecycle diagnostics
+        run: |
+          python scripts/diagnose_quarterly_recurrence.py \
+            datasets/benchmark_v1 > /tmp/quarterly-recurrence.json
+          python - <<'PY'
+          import json
+          from pathlib import Path
+
+          report = json.loads(Path('/tmp/quarterly-recurrence.json').read_text())
+          assert report['scope'] == ['calibration', 'validation']
+          assert report['holdout']['status'] == 'sealed'
+          assert report['truePositiveCount'] == 18
+          assert report['falsePositiveCount'] == 0
+          assert len(report['byEvaluationMonth']) == 18
+          assert all(len(row['truePositives']) == 1 for row in report['byEvaluationMonth'])
+          assert all(not row['falsePositives'] for row in report['byEvaluationMonth'])
+          print(json.dumps(report, indent=2, sort_keys=True))
           PY
       - name: Evaluate calibration and validation with holdout sealed
         run: |

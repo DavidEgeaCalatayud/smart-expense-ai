@@ -25,6 +25,21 @@ from benchmark.dataset import BenchmarkBundle, load_benchmark, validate_benchmar
 
 DEVELOPMENT_PHASES = ("calibration", "validation")
 UNATTRIBUTED_SCENARIO = "unattributed_prediction"
+MIN_STREAM_EVIDENCE_OCCURRENCES = 3
+CADENCE_MONTH_STEPS = {
+    "monthly": 1,
+    "quarterly": 3,
+    "yearly": 12,
+}
+RECURRENCE_LABEL_ACTIVITY_POLICY = "cadence_continuity_after_three_observations_v1"
+
+
+def _month_index(value: date | str) -> int:
+    if isinstance(value, str):
+        year, month = (int(part) for part in value.split("-")[:2])
+    else:
+        year, month = value.year, value.month
+    return year * 12 + month - 1
 
 
 @dataclass(frozen=True)
@@ -50,7 +65,30 @@ class RecurringScenarioLabel:
         return first is None or first <= month_key
 
     def is_active_in(self, month_key: str) -> bool:
-        return any(value.strftime("%Y-%m") == month_key for value in self.expected_occurrences)
+        """Return stream-level activity without using future occurrence labels.
+
+        Recurrence detection is a persistent-stream task, not a charge-in-this-month task.
+        Once at least three labelled occurrences have been observed, monthly/quarterly/yearly
+        streams remain active until their next cadence period is missed. This keeps sparse
+        schedules positive between legitimate billing months while still turning a cancelled
+        monthly stream negative immediately after the first missed period.
+        """
+
+        current_index = _month_index(month_key)
+        observed = [
+            value
+            for value in self.expected_occurrences
+            if _month_index(value) <= current_index
+        ]
+        if len(observed) < MIN_STREAM_EVIDENCE_OCCURRENCES:
+            return False
+
+        cadence_step = CADENCE_MONTH_STEPS.get(self.cadence or "")
+        if cadence_step is None:
+            return any(value.strftime("%Y-%m") == month_key for value in observed)
+
+        last_observed_index = max(_month_index(value) for value in observed)
+        return current_index - last_observed_index < cadence_step
 
 
 @dataclass(frozen=True)
@@ -706,12 +744,14 @@ def analyze_benchmark_errors(
     splits = bundle.metadata["evaluation"]["splits"]
     return {
         "datasetVersion": bundle.metadata["datasetVersion"],
-        "reportVersion": "benchmark-scenario-errors-v1",
+        "reportVersion": "benchmark-scenario-errors-v2",
         "mode": "development",
         "scope": {
             "phases": list(phases),
             "falsePositiveWeight": false_positive_weight,
             "falseNegativeWeight": false_negative_weight,
+            "recurrenceLabelActivity": RECURRENCE_LABEL_ACTIVITY_POLICY,
+            "minimumStreamEvidenceOccurrences": MIN_STREAM_EVIDENCE_OCCURRENCES,
             "note": "Scenario metrics are diagnostic synthetic-benchmark evidence, not real-world accuracy claims.",
         },
         "holdout": {
