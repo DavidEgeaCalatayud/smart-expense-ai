@@ -45,6 +45,69 @@ jobs:
           diff -r datasets/benchmark_v1 /tmp/benchmark-v1-copy --exclude README.md
       - name: Build historical evaluator payload
         run: python scripts/build_benchmark_payload.py
+      - name: Run scenario-level development error analysis
+        run: |
+          python scripts/analyze_benchmark_errors.py \
+            datasets/benchmark_v1 \
+            --output /tmp/benchmark-errors.json > /dev/null
+          python - <<'PY'
+          import json
+          from pathlib import Path
+
+          report = json.loads(Path('/tmp/benchmark-errors.json').read_text())
+          assert report['mode'] == 'development'
+          assert report['scope']['phases'] == ['calibration', 'validation']
+          assert report['holdout']['status'] == 'sealed'
+          assert report['holdout']['range'] == {
+              'startMonth': '2025-07',
+              'endMonth': '2025-12',
+          }
+          historical = report['engines']['historical-v2.2']['tasks']
+          rules = report['engines']['rules-v2']['tasks']
+          assert set(historical) == {'recurrence', 'amount_anomaly'}
+          assert set(rules) == {'recurrence', 'amount_anomaly', 'frequency_anomaly'}
+          assert any(
+              row['scenario'] == 'recurring_price_change'
+              for row in historical['recurrence']['byScenario']
+          )
+          assert any(
+              row['scenario'] == 'frequency_burst'
+              for row in rules['frequency_anomaly']['byScenario']
+          )
+
+          print('Scenario diagnostic summary')
+          for engine_name, engine in report['engines'].items():
+              for task_name, task in engine['tasks'].items():
+                  metrics = task['overall']
+                  print(
+                      f"{engine_name:16} {task_name:18} "
+                      f"TP={metrics['truePositives']:3} FP={metrics['falsePositives']:3} "
+                      f"FN={metrics['falseNegatives']:3} "
+                      f"P={metrics['precision']:.4f} R={metrics['recall']:.4f} "
+                      f"F1={metrics['f1']:.4f}"
+                  )
+
+          print('Scenario matrices')
+          for engine_name, engine in report['engines'].items():
+              for task_name, task in engine['tasks'].items():
+                  print(f"[{engine_name} / {task_name}]")
+                  for row in task['byScenario']:
+                      print(
+                          f"{row['scenario']:32} "
+                          f"TP={row['truePositives']:3} FP={row['falsePositives']:3} "
+                          f"FN={row['falseNegatives']:3} "
+                          f"P={row['precision']:.4f} R={row['recall']:.4f} "
+                          f"F1={row['f1']:.4f} cost={row['weightedErrorCost']}"
+                      )
+
+          print('Top scenario error priorities')
+          for row in report['priorityRanking'][:15]:
+              print(
+                  f"{row['engine']:16} {row['task']:18} {row['scenario']:32} "
+                  f"TP={row['truePositives']:3} FP={row['falsePositives']:3} "
+                  f"FN={row['falseNegatives']:3} cost={row['weightedErrorCost']}"
+              )
+          PY
       - name: Evaluate calibration and validation with holdout sealed
         run: |
           python scripts/evaluate_historical.py \
