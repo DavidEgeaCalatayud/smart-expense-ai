@@ -16,6 +16,14 @@ from app.services.historical_analysis_v2 import (
 )
 from app.services.intelligence_rules import TransactionSnapshot
 from app.services.merchant_canonicalization import MerchantIdentity, build_merchant_identity_map
+from app.services.recurring_price_continuity import (
+    MAX_CONTINUITY_PRICE_CHANGE_RATIO,
+    MAX_CONTINUITY_PRICE_REGIMES,
+    MIN_CONTINUITY_CADENCE_FIT,
+    MIN_CONTINUITY_CALENDAR_STABILITY,
+    MIN_CONTINUITY_OCCURRENCES,
+    MIN_QUALIFIED_ROOT_TOKENS,
+)
 from app.services.recurring_streams_v2_2 import (
     MIN_AMOUNT_ONLY_CALENDAR_STABILITY,
     MIN_AMOUNT_ONLY_CONSECUTIVE_PERIODS,
@@ -78,17 +86,23 @@ def analyze_historical_transactions_v2_2(
     temporal_phase_count = sum(
         profile.get("streamBasis") == "calendar_phase" for profile in recurring_profiles
     )
+    price_continuity_count = sum(
+        profile.get("streamBasis") == "merchant_price_continuity"
+        for profile in recurring_profiles
+    )
     if isinstance(coverage, dict):
         coverage["recurringProfiles"] = len(recurring_profiles)
         coverage["recurringStreams"] = len(recurring_profiles)
         coverage["temporalPhaseStreams"] = temporal_phase_count
+        coverage["priceContinuityStreams"] = price_continuity_count
 
     result["recurrenceSegmentation"] = {
-        "strategy": "canonical_merchant_then_descriptor_amount_then_temporal_phase",
-        "strategyVersion": "temporal-split-v2",
+        "strategy": "canonical_merchant_then_descriptor_amount_then_price_continuity_then_temporal_phase",
+        "strategyVersion": "price-continuity-v1",
         "analysisVersion": ANALYSIS_VERSION,
         "profileCount": len(recurring_profiles),
         "temporalPhaseProfileCount": temporal_phase_count,
+        "priceContinuityProfileCount": price_continuity_count,
         "ambiguityPolicy": "split_only_with_repeated_concurrent_calendar_evidence",
         "cadencePolicy": "parent_short_cadence_requires_stable_weekday_and_blocks_monthly_phase_split",
         "minimumParentShortCadenceFit": format(MIN_PARENT_SHORT_CADENCE_FIT, ".2f"),
@@ -98,6 +112,13 @@ def analyze_historical_transactions_v2_2(
         "minimumAmountOnlyCalendarStability": format(MIN_AMOUNT_ONLY_CALENDAR_STABILITY, "f"),
         "minimumAmountOnlyEarlyConsecutivePeriods": MIN_AMOUNT_ONLY_EARLY_CONSECUTIVE_PERIODS,
         "minimumAmountOnlyEarlyCalendarStability": format(MIN_AMOUNT_ONLY_EARLY_CALENDAR_STABILITY, "f"),
+        "priceContinuityPolicy": "qualified_merchant_family_plus_single_schedule_plus_sequential_price_regimes",
+        "minimumQualifiedMerchantRootTokens": MIN_QUALIFIED_ROOT_TOKENS,
+        "minimumPriceContinuityOccurrences": MIN_CONTINUITY_OCCURRENCES,
+        "minimumPriceContinuityCadenceFit": format(MIN_CONTINUITY_CADENCE_FIT, "f"),
+        "minimumPriceContinuityCalendarStability": format(MIN_CONTINUITY_CALENDAR_STABILITY, "f"),
+        "maximumPriceContinuityRegimes": MAX_CONTINUITY_PRICE_REGIMES,
+        "maximumPriceContinuityChangeRatio": format(MAX_CONTINUITY_PRICE_CHANGE_RATIO, "f"),
         "recurringScoreThreshold": format(threshold, "f"),
     }
     return period_start, period_end, window_transactions, result
@@ -108,6 +129,7 @@ def _snapshot_response(snapshot: HistoricalAnalysisSnapshot) -> HistoricalAnalys
     coverage = dict(result.get("coverage", {}))
     coverage.setdefault("recurringStreams", coverage.get("recurringProfiles", 0))
     coverage.setdefault("temporalPhaseStreams", 0)
+    coverage.setdefault("priceContinuityStreams", 0)
     return HistoricalAnalysisResponseV22(
         snapshotId=str(snapshot.id),
         analysisVersion=snapshot.analysis_version,
