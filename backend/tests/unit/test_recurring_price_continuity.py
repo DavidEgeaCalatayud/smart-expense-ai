@@ -3,6 +3,8 @@ from decimal import Decimal
 
 from app.services.historical_analysis_v2_2 import analyze_historical_transactions_v2_2
 from app.services.intelligence_rules import TransactionSnapshot
+from app.services.merchant_canonicalization import build_merchant_identity_map
+from app.services.recurring_streams_v2_2 import build_recurring_streams_v2_2
 
 
 def tx(identifier: str, merchant: str, amount: str, value: str) -> TransactionSnapshot:
@@ -107,3 +109,39 @@ def test_v22_does_not_merge_overlapping_same_merchant_subscriptions() -> None:
     assert {profile["streamBasis"] for profile in profiles} == {"amount"}
     assert all(profile["sourceStreamCount"] == 1 for profile in profiles)
     assert all(profile["priceRegimeCount"] == 1 for profile in profiles)
+
+
+def test_v22_does_not_relink_long_dormant_reactivation() -> None:
+    variants = ("Fitness Pro", "FITNESS PRO*MEMBER")
+    transactions = [
+        tx("jan", variants[0], "29.90", "2026-01-01"),
+        tx("feb", variants[1], "29.90", "2026-02-01"),
+        tx("mar", variants[0], "29.90", "2026-03-01"),
+        tx("apr", variants[1], "29.90", "2026-04-01"),
+        tx("nov", variants[0], "29.90", "2026-11-01"),
+        tx("dec", variants[1], "29.90", "2026-12-01"),
+    ]
+    identities = build_merchant_identity_map([item.merchant for item in transactions])
+
+    streams = build_recurring_streams_v2_2(transactions, identities)
+
+    assert not any(stream.basis == "merchant_price_continuity" for stream in streams)
+
+
+def test_v22_does_not_relink_price_regime_that_reappears() -> None:
+    variants = ("STREAM BOX*ONLINE", "Stream Box SL", "Stream Box Media")
+    amounts = ("9.99", "9.99", "9.99", "11.99", "11.99", "11.99", "9.99", "9.99", "9.99")
+    transactions = [
+        tx(
+            f"stream-{month}",
+            variants[(month - 1) % len(variants)],
+            amounts[month - 1],
+            f"2026-{month:02d}-05",
+        )
+        for month in range(1, 10)
+    ]
+    identities = build_merchant_identity_map([item.merchant for item in transactions])
+
+    streams = build_recurring_streams_v2_2(transactions, identities)
+
+    assert not any(stream.basis == "merchant_price_continuity" for stream in streams)
