@@ -22,12 +22,12 @@ PostgreSQL stores `NUMERIC(12,2)` and Python financial services use `Decimal`. T
 Current FastAPI application version:
 
 ```text
-1.3.0
+1.4.0
 ```
 
-## Authentication
+## Authentication and account controls
 
-The browser session is carried in an HttpOnly JWT cookie shared by both API versions.
+The browser session is carried in an HttpOnly JWT cookie shared by both API versions. JWTs include a server-checked session-version claim; password changes increment the persisted account version and invalidate previously issued tokens.
 
 Public endpoints:
 
@@ -37,6 +37,23 @@ POST /api/v1/auth/login
 POST /api/v1/auth/logout
 GET  /health
 ```
+
+Authenticated account endpoints:
+
+```text
+GET    /api/v1/auth/me
+PUT    /api/v1/auth/password
+GET    /api/v1/auth/privacy-export
+DELETE /api/v1/auth/account
+```
+
+`PUT /api/v1/auth/password` requires the current password and a different new password of at least 12 characters. A successful change rotates the current cookie and revokes older session versions.
+
+`GET /api/v1/auth/privacy-export` returns `privacy-export-v1`, scoped to the authenticated user. It includes account identity fields, transactions, intelligence findings, scan metadata and historical-analysis snapshots. Password hashes, session-version internals and JWTs are excluded.
+
+`DELETE /api/v1/auth/account` requires the current password plus the exact confirmation value `DELETE`. Successful deletion removes the user and database-cascaded user-owned financial/intelligence data and clears the authentication cookie.
+
+Password reset by email is not part of the current contract because the project does not yet provide a verified recovery-token delivery channel.
 
 Authenticated v2 endpoints include:
 
