@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from collections import Counter
 from dataclasses import dataclass
 from datetime import date
 from decimal import Decimal
@@ -45,6 +46,21 @@ def _as_v22(stream: RecurringStream, *, basis: str, calendar_signature: str = ""
         basis=basis,
         calendar_signature=calendar_signature,
     )
+
+
+def _cadence_period_key(value: date, cadence: str) -> str:
+    if cadence == "monthly":
+        return value.strftime("%Y-%m")
+    if cadence == "quarterly":
+        return f"{value.year}-Q{((value.month - 1) // 3) + 1}"
+    if cadence == "yearly":
+        return str(value.year)
+    iso_year, iso_week, _ = value.isocalendar()
+    if cadence == "weekly":
+        return f"{iso_year}-W{iso_week:02d}"
+    if cadence == "biweekly":
+        return f"{iso_year}-BW{(iso_week - 1) // 2:02d}"
+    return value.isoformat()
 
 
 def build_recurring_streams_v2_2(
@@ -136,6 +152,8 @@ def build_recurring_profiles_v2_2(
         history_depth = min(ONE, Decimal(len(unique_dates) - 2) / Decimal("4"))
         consecutive_periods = _longest_consecutive_periods(unique_dates, cadence_name, cadence_step)
         consecutive_fit = min(ONE, Decimal(max(consecutive_periods - 1, 0)) / Decimal("5"))
+        period_counts = Counter(_cadence_period_key(value, cadence_name) for value in unique_dates)
+        same_period_extra_occurrences = sum(max(0, count - 1) for count in period_counts.values())
 
         pattern_score = SCORE_HUNDRED * (
             Decimal("0.30") * cadence_fit
@@ -173,6 +191,7 @@ def build_recurring_profiles_v2_2(
                 "cadenceFit": _ratio(cadence_fit),
                 "historyDepth": _ratio(history_depth),
                 "consecutivePeriods": consecutive_periods,
+                "samePeriodExtraOccurrences": same_period_extra_occurrences,
                 "missedExpectedOccurrences": missed_expected,
                 "isExpectedPaymentMissing": expected_payment_missing,
                 "patternScore": _ratio(pattern_score, "0.1"),
