@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from collections import defaultdict
 from datetime import date, datetime, timezone
 from decimal import Decimal
 from uuid import UUID
@@ -9,6 +10,7 @@ from sqlalchemy.orm import Session
 
 from app.historical_contract import HistoricalAnalysisResponseV22
 from app.models.historical_analysis import HistoricalAnalysisSnapshot
+from app.services.amount_anomaly_baseline import BASELINE_POLICY, evaluate_amount_anomaly
 from app.services.historical_analysis_v2 import (
     _commit,
     _load_expense_transactions,
@@ -47,6 +49,11 @@ from app.services.temporal_stream_clustering import (
 ANALYSIS_VERSION = "historical-v2.2"
 DEFAULT_RECURRING_SCORE_THRESHOLD = Decimal("55")
 MIN_RECURRING_SCORE_THRESHOLD = Decimal("55")
+MONEY_CENT = Decimal("0.01")
+
+
+def _money(value: Decimal) -> str:
+    return format(value.quantize(MONEY_CENT), "f")
 
 
 def _validated_recurring_threshold(value: Decimal) -> Decimal:
@@ -90,6 +97,59 @@ def _merge_lifecycle_history_profiles(
     return retained + lifecycle_profiles
 
 
+def _qualified_amount_outliers(
+    transactions: list[TransactionSnapshot],
+    period_start: date,
+    period_end: date,
+    identity_map: dict[str, MerchantIdentity],
+) -> list[dict[str, object]]:
+    """Build v2.2 outliers from merchant-specific, temporally causal baselines."""
+
+    merchant_history: dict[str, list[Decimal]] = defaultdict(list)
+    outliers: list[dict[str, object]] = []
+    ordered = sorted(
+        (item for item in transactions if item.transaction_date <= period_end),
+        key=lambda item: (item.transaction_date, item.id),
+    )
+
+    for transaction in ordered:
+        canonical = identity_map[transaction.merchant].canonical
+        merchant_amounts = merchant_history[canonical] if canonical else []
+        decision = evaluate_amount_anomaly(transaction.amount, merchant_amounts)
+        if (
+            period_start <= transaction.transaction_date <= period_end
+            and decision is not None
+            and decision.is_anomaly
+        ):
+            outliers.append(
+                {
+                    "transactionId": transaction.id,
+                    "merchant": transaction.merchant,
+                    "canonicalMerchant": canonical,
+                    "category": transaction.category,
+                    "date": transaction.transaction_date.isoformat(),
+                    "amount": _money(transaction.amount),
+                    "baselineScope": "merchant",
+                    "baselinePolicy": BASELINE_POLICY,
+                    "baselineCount": decision.baseline_count,
+                    "baselineMedian": _money(decision.baseline_median),
+                    "baselineMad": _money(decision.mad),
+                    "robustSpread": _money(decision.robust_spread),
+                    "firstQuartile": _money(decision.first_quartile),
+                    "thirdQuartile": _money(decision.third_quartile),
+                    "interquartileRange": _money(decision.interquartile_range),
+                    "distributionUpperFence": _money(decision.distribution_upper_fence),
+                    "deviationScore": format(decision.deviation_score.quantize(Decimal("0.01")), "f"),
+                    "ratio": format(decision.ratio.quantize(Decimal("0.01")), "f"),
+                    "threshold": _money(decision.threshold),
+                }
+            )
+        if canonical:
+            merchant_history[canonical].append(transaction.amount)
+
+    return outliers
+
+
 def analyze_historical_transactions_v2_2(
     all_transactions: list[TransactionSnapshot],
     window_months: int,
@@ -118,6 +178,13 @@ def analyze_historical_transactions_v2_2(
     )
     eligible = [item for item in all_transactions if item.transaction_date <= period_end]
     fold_identity_map = identity_map or build_merchant_identity_map([item.merchant for item in eligible])
+
+    result["outliers"] = _qualified_amount_outliers(
+        eligible,
+        period_start,
+        period_end,
+        fold_identity_map,
+    )
 
     window_profiles = build_recurring_profiles_v2_2(
         window_transactions,
@@ -165,6 +232,7 @@ def analyze_historical_transactions_v2_2(
         coverage["temporalPhaseStreams"] = temporal_phase_count
         coverage["priceContinuityStreams"] = price_continuity_count
         coverage["lifecycleReactivationStreams"] = lifecycle_reactivation_count
+        coverage["outlierCount"] = len(result["outliers"])
 
     result["recurrenceSegmentation"] = {
         "strategy": "canonical_merchant_then_lifecycle_then_price_continuity_then_descriptor_amount_then_temporal_phase",
