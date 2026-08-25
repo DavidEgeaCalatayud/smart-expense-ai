@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from calendar import monthrange
+from collections import Counter
 from dataclasses import dataclass
 from datetime import date
 from statistics import median
@@ -13,6 +14,8 @@ MIN_MONTH_PHASE_SEPARATION = 7
 MIN_MONTHLY_OCCURRENCES = 3
 MIN_WEEKLY_OCCURRENCES = 4
 MIN_CONCURRENT_PERIODS = 2
+MIN_PARENT_SHORT_CADENCE_FIT = 0.60
+MIN_PARENT_WEEKDAY_STABILITY = 0.60
 
 
 @dataclass(frozen=True)
@@ -51,6 +54,38 @@ def _best_calendar_step(dates: list[date]) -> tuple[int, float]:
     best_step = max(candidates, key=lambda step: sum(gap == step for gap in month_gaps))
     fit = sum(gap == best_step for gap in month_gaps) / len(month_gaps)
     return best_step, fit
+
+
+def _parent_short_cadence(transactions: list[TransactionSnapshot]) -> str | None:
+    """Return a strong weekly/biweekly cadence present before temporal splitting.
+
+    A real short-cadence stream should be supported by both interval regularity and a stable
+    weekday. The weekday guard is important because two independent monthly streams can
+    interleave into 12-16 day gaps even though their weekdays rotate across the calendar.
+    """
+
+    dates = sorted({item.transaction_date for item in transactions})
+    if len(dates) < MIN_WEEKLY_OCCURRENCES:
+        return None
+
+    intervals = [(current - previous).days for previous, current in zip(dates, dates[1:])]
+    if not intervals:
+        return None
+
+    weekday_counts = Counter(value.weekday() for value in dates)
+    weekday_stability = max(weekday_counts.values()) / len(dates)
+    if weekday_stability < MIN_PARENT_WEEKDAY_STABILITY:
+        return None
+
+    weekly_fit = sum(5 <= interval <= 9 for interval in intervals) / len(intervals)
+    biweekly_fit = sum(12 <= interval <= 16 for interval in intervals) / len(intervals)
+    typical = float(median(intervals))
+
+    if weekly_fit >= MIN_PARENT_SHORT_CADENCE_FIT and 5 <= typical <= 9:
+        return "weekly"
+    if biweekly_fit >= MIN_PARENT_SHORT_CADENCE_FIT and 12 <= typical <= 16:
+        return "biweekly"
+    return None
 
 
 def _monthly_phase_groups(transactions: list[TransactionSnapshot]) -> list[tuple[int, list[TransactionSnapshot]]]:
@@ -143,77 +178,99 @@ def _weekly_groups_are_concurrent(groups: list[tuple[int, list[TransactionSnapsh
     return True
 
 
-def split_temporal_lanes(transactions: list[TransactionSnapshot]) -> list[TemporalLane] | None:
-    """Split an otherwise indistinguishable amount stream using concurrent calendar phases.
+def _monthly_lanes(
+    groups: list[tuple[int, list[TransactionSnapshot]]],
+    transactions: list[TransactionSnapshot],
+) -> list[TemporalLane]:
+    lanes: list[TemporalLane] = []
+    consumed_ids: set[str] = set()
+    for phase, group in sorted(groups, key=lambda item: item[0]):
+        if phase == 32:
+            suffix = "monthly-month-end"
+            signature = "monthly:month-end"
+        else:
+            suffix = f"monthly-day-{phase:02d}"
+            signature = f"monthly:day-{phase:02d}"
+        lanes.append(
+            TemporalLane(
+                suffix=suffix,
+                basis="calendar_phase",
+                calendar_signature=signature,
+                transactions=tuple(sorted(group, key=lambda item: (item.transaction_date, item.id))),
+            )
+        )
+        consumed_ids.update(item.id for item in group)
 
-    This is deliberately conservative. A split is accepted only when at least two lanes
-    independently show a stable cadence *and* coexist in repeated calendar periods. That
-    concurrency requirement prevents a single subscription that merely changes billing day
-    from being misclassified as two subscriptions.
+    residual = [item for item in transactions if item.id not in consumed_ids]
+    if residual:
+        lanes.append(
+            TemporalLane(
+                suffix="temporal-residual",
+                basis="calendar_residual",
+                calendar_signature="unresolved",
+                transactions=tuple(sorted(residual, key=lambda item: (item.transaction_date, item.id))),
+            )
+        )
+    return lanes
+
+
+def _weekly_lanes(
+    groups: list[tuple[int, list[TransactionSnapshot]]],
+    transactions: list[TransactionSnapshot],
+) -> list[TemporalLane]:
+    weekday_names = ("mon", "tue", "wed", "thu", "fri", "sat", "sun")
+    lanes: list[TemporalLane] = []
+    consumed_ids: set[str] = set()
+    for weekday, group in groups:
+        name = weekday_names[weekday]
+        lanes.append(
+            TemporalLane(
+                suffix=f"weekly-{name}",
+                basis="calendar_phase",
+                calendar_signature=f"weekly:{name}",
+                transactions=tuple(sorted(group, key=lambda item: (item.transaction_date, item.id))),
+            )
+        )
+        consumed_ids.update(item.id for item in group)
+
+    residual = [item for item in transactions if item.id not in consumed_ids]
+    if residual:
+        lanes.append(
+            TemporalLane(
+                suffix="temporal-residual",
+                basis="calendar_residual",
+                calendar_signature="unresolved",
+                transactions=tuple(sorted(residual, key=lambda item: (item.transaction_date, item.id))),
+            )
+        )
+    return lanes
+
+
+def split_temporal_lanes(transactions: list[TransactionSnapshot]) -> list[TemporalLane] | None:
+    """Split an ambiguous amount stream with parent-cadence-aware precedence.
+
+    Parent weekly/biweekly evidence takes precedence over monthly day-of-month clustering:
+    one short-cadence stream naturally visits repeated month phases and must remain intact.
+    Monthly splitting remains available when the apparent short interval pattern lacks the
+    weekday stability expected from a real weekly or biweekly schedule.
     """
 
     if len(transactions) < MIN_MONTHLY_OCCURRENCES * 2:
         return None
 
+    parent_short_cadence = _parent_short_cadence(transactions)
+    if parent_short_cadence is not None:
+        weekly_groups = _weekly_groups(transactions)
+        if _weekly_groups_are_concurrent(weekly_groups):
+            return _weekly_lanes(weekly_groups, transactions)
+        return None
+
     monthly_groups = _monthly_phase_groups(transactions)
     if _monthly_groups_are_concurrent(monthly_groups):
-        lanes: list[TemporalLane] = []
-        consumed_ids: set[str] = set()
-        for phase, group in sorted(monthly_groups, key=lambda item: item[0]):
-            if phase == 32:
-                suffix = "monthly-month-end"
-                signature = "monthly:month-end"
-            else:
-                suffix = f"monthly-day-{phase:02d}"
-                signature = f"monthly:day-{phase:02d}"
-            lanes.append(
-                TemporalLane(
-                    suffix=suffix,
-                    basis="calendar_phase",
-                    calendar_signature=signature,
-                    transactions=tuple(sorted(group, key=lambda item: (item.transaction_date, item.id))),
-                )
-            )
-            consumed_ids.update(item.id for item in group)
-
-        residual = [item for item in transactions if item.id not in consumed_ids]
-        if residual:
-            lanes.append(
-                TemporalLane(
-                    suffix="temporal-residual",
-                    basis="calendar_residual",
-                    calendar_signature="unresolved",
-                    transactions=tuple(sorted(residual, key=lambda item: (item.transaction_date, item.id))),
-                )
-            )
-        return lanes
+        return _monthly_lanes(monthly_groups, transactions)
 
     weekly_groups = _weekly_groups(transactions)
     if _weekly_groups_are_concurrent(weekly_groups):
-        weekday_names = ("mon", "tue", "wed", "thu", "fri", "sat", "sun")
-        lanes = []
-        consumed_ids: set[str] = set()
-        for weekday, group in weekly_groups:
-            name = weekday_names[weekday]
-            lanes.append(
-                TemporalLane(
-                    suffix=f"weekly-{name}",
-                    basis="calendar_phase",
-                    calendar_signature=f"weekly:{name}",
-                    transactions=tuple(sorted(group, key=lambda item: (item.transaction_date, item.id))),
-                )
-            )
-            consumed_ids.update(item.id for item in group)
-        residual = [item for item in transactions if item.id not in consumed_ids]
-        if residual:
-            lanes.append(
-                TemporalLane(
-                    suffix="temporal-residual",
-                    basis="calendar_residual",
-                    calendar_signature="unresolved",
-                    transactions=tuple(sorted(residual, key=lambda item: (item.transaction_date, item.id))),
-                )
-            )
-        return lanes
+        return _weekly_lanes(weekly_groups, transactions)
 
     return None
