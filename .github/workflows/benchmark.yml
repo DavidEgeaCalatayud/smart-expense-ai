@@ -68,14 +68,45 @@ jobs:
           rules = report['engines']['rules-v2']['tasks']
           assert set(historical) == {'recurrence', 'amount_anomaly'}
           assert set(rules) == {'recurrence', 'amount_anomaly', 'frequency_anomaly'}
-          assert any(
-              row['scenario'] == 'recurring_price_change'
-              for row in historical['recurrence']['byScenario']
-          )
-          assert any(
-              row['scenario'] == 'frequency_burst'
-              for row in rules['frequency_anomaly']['byScenario']
-          )
+
+          def scenario(task, name):
+              return next(row for row in task['byScenario'] if row['scenario'] == name)
+
+          # Price-continuity acceptance contract. These assertions intentionally use only
+          # calibration + validation and keep the 2025 H2 holdout sealed.
+          for recurrence in (historical['recurrence'], rules['recurrence']):
+              price_change = scenario(recurrence, 'recurring_price_change')
+              assert (
+                  price_change['truePositives'],
+                  price_change['falsePositives'],
+                  price_change['falseNegatives'],
+              ) == (18, 0, 0)
+
+              cancel_reactivate = scenario(recurrence, 'cancel_reactivate')
+              assert cancel_reactivate['falsePositives'] == 0
+              assert cancel_reactivate['falseNegatives'] == 9
+
+              for name, expected_tp in (
+                  ('equal_amount_temporal_streams', 36),
+                  ('merchant_descriptor_drift', 18),
+                  ('same_merchant_multi_stream', 36),
+                  ('weekly_holiday_shift', 18),
+              ):
+                  row = scenario(recurrence, name)
+                  assert (
+                      row['truePositives'],
+                      row['falsePositives'],
+                      row['falseNegatives'],
+                  ) == (expected_tp, 0, 0)
+
+              quarterly = scenario(recurrence, 'quarterly_price_change')
+              assert quarterly['truePositives'] == 6
+              assert quarterly['falseNegatives'] == 0
+
+          ordinary_historical = scenario(historical['recurrence'], 'ordinary_spend')
+          ordinary_rules = scenario(rules['recurrence'], 'ordinary_spend')
+          assert ordinary_historical['falsePositives'] <= 1
+          assert ordinary_rules['falsePositives'] == 0
 
           print('Scenario diagnostic summary')
           for engine_name, engine in report['engines'].items():
@@ -131,8 +162,21 @@ jobs:
                   f"FN={row['falseNegatives']:3} cost={row['weightedErrorCost']}"
               )
           PY
-      - name: Diagnose recurrence feature distributions
-        run: python scripts/diagnose_recurrence_fp_features.py datasets/benchmark_v1
+      - name: Verify recurrence feature provenance
+        run: |
+          python scripts/diagnose_recurrence_fp_features.py \
+            datasets/benchmark_v1 > /tmp/recurrence-features.json
+          python - <<'PY'
+          import json
+          from pathlib import Path
+
+          report = json.loads(Path('/tmp/recurrence-features.json').read_text())
+          assert report['scope'] == ['calibration', 'validation']
+          price_change = report['truePositivesByScenario']['recurring_price_change']
+          assert price_change['count'] == 18
+          assert price_change['streamBasis'] == {'merchant_price_continuity': 18}
+          print(json.dumps(price_change, indent=2, sort_keys=True))
+          PY
       - name: Evaluate calibration and validation with holdout sealed
         run: |
           python scripts/evaluate_historical.py \
