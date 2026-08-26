@@ -44,6 +44,8 @@ def test_current_technical_documentation_matches_contract_registry() -> None:
         "api": _read("docs/api.md"),
         "testing": _read("docs/testing.md"),
         "architecture": _read("docs/ARCHITECTURE.md"),
+        "data_model": _read("docs/DATA_MODEL.md"),
+        "product": _read("docs/PRODUCT_SPEC.md"),
     }
 
     for value in (
@@ -67,6 +69,10 @@ def test_current_technical_documentation_matches_contract_registry() -> None:
     assert HISTORICAL_ANALYSIS_VERSION in documents["testing"]
     assert HISTORICAL_ANALYSIS_VERSION in documents["architecture"]
     assert ACTIONABLE_RULES_VERSION in documents["architecture"]
+    assert "intelligence_findings" in documents["data_model"]
+    assert "historical_analysis_snapshots" in documents["data_model"]
+    assert ACTIONABLE_RULES_VERSION in documents["product"]
+    assert HISTORICAL_ANALYSIS_VERSION in documents["product"]
 
     stale_claims = (
         "new runs create `historical-v2.1` snapshots",
@@ -81,6 +87,9 @@ def test_current_technical_documentation_matches_contract_registry() -> None:
     combined = "\n".join(documents.values())
     for claim in stale_claims:
         assert claim not in combined
+
+    assert "Suggested fields" not in documents["data_model"]
+    assert "Simple prediction based on historical average" not in documents["product"]
 
 
 def test_repository_metadata_and_primary_docs_reference_project_governance_files() -> None:
