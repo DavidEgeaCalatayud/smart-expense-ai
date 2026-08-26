@@ -11,10 +11,12 @@ from sqlalchemy import (
     Date,
     DateTime,
     ForeignKey,
+    Index,
     Numeric,
     String,
     false,
     func,
+    text,
 )
 from sqlalchemy.dialects.postgresql import UUID as PG_UUID
 from sqlalchemy.orm import Mapped, mapped_column, relationship
@@ -42,6 +44,13 @@ class Transaction(Base):
             name="ck_transactions_source",
         ),
         CheckConstraint("amount > 0", name="ck_transactions_amount_positive"),
+        Index(
+            "uq_transactions_user_import_fingerprint",
+            "user_id",
+            "import_fingerprint",
+            unique=True,
+            postgresql_where=text("import_fingerprint IS NOT NULL"),
+        ),
     )
 
     id: Mapped[UUID] = mapped_column(
@@ -61,6 +70,13 @@ class Transaction(Base):
         nullable=False,
         index=True,
     )
+    import_batch_id: Mapped[UUID | None] = mapped_column(
+        PG_UUID(as_uuid=True),
+        ForeignKey("import_batches.id", ondelete="SET NULL"),
+        nullable=True,
+        index=True,
+    )
+    import_fingerprint: Mapped[str | None] = mapped_column(String(64), nullable=True)
     merchant: Mapped[str] = mapped_column(String(120), nullable=False)
     description: Mapped[str] = mapped_column(String(255), nullable=False, default="", server_default="")
     amount: Mapped[Decimal] = mapped_column(Numeric(12, 2), nullable=False)

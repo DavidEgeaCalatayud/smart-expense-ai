@@ -1,5 +1,3 @@
-# Changelog
-
 All notable changes to Smart Expense AI will be documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/). The project has not yet declared a stable semantic-version release, so existing repository history is not retroactively presented as fabricated releases. Git history and merged pull requests remain the authoritative record for work completed before changelog adoption.
@@ -21,6 +19,12 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 - Component regression coverage for responsive transaction cards, the desktop table, recurring indicators, accessible actions and the single empty state.
 - Reproducible, validated CycloneDX 1.6 backend/frontend dependency SBOM generation in GitHub Actions, retained as the `dependency-sboms` artifact.
 - `docs/supply-chain.md` documenting dependency-audit/SBOM scope and the remaining container-image scanning boundary.
+- Authenticated CSV transaction import with delimiter/header detection, reviewed column mapping, explicit date/decimal/sign normalization, preview, validation and atomic persistence.
+- Persisted `import_batches` audit records plus transaction import lineage and per-user SHA-256 duplicate fingerprints.
+- Database-enforced imported-transaction deduplication, including safe re-import, within-file duplicates and comparison against existing manually entered account history.
+- Guided **Import CSV** frontend workspace with mapping controls, valid/duplicate/invalid preview, commit feedback and batch history.
+- PostgreSQL and Playwright regression coverage for CSV import atomicity, account isolation, duplicate-only re-import and privacy/account-deletion lifecycle.
+- `docs/csv-import.md` as the source of truth for the CSV contract, supported normalization rules, EUR-only boundary, fingerprint semantics and import limits.
 - This changelog.
 
 ### Changed
@@ -35,6 +39,8 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 - The FastAPI application version is centralized in `backend/app/version.py`; the application and CI import smoke check consume the same `APP_VERSION` instead of maintaining independent version literals.
 - The transaction list now switches at the desktop breakpoint from cards to the existing dense table without changing server-side filters, pagination or mutation handlers.
 - Production-readiness tracking now distinguishes completed application dependency SBOM generation from pending container image scanning/image-level SBOM work.
+- `privacy-export-v1` now includes account-owned CSV import batch metadata so ingestion history follows the same portability/isolation guarantees as other persisted user data.
+- README and roadmap now present CSV historical import as an implemented product capability while keeping direct bank APIs and multi-currency/FX accounting explicitly future work.
 
 ### Removed
 

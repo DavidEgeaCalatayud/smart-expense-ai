@@ -44,6 +44,8 @@ Goal: make the first usable version persist real financial data.
 - [x] Keep money as PostgreSQL `NUMERIC` / Python `Decimal` through financial services and rules.
 - [x] Use decimal strings plus integer cents in the frontend instead of floating-point money arithmetic.
 - [x] Add responsive transaction cards for mobile/tablet while preserving the dense desktop table, filters, pagination and edit/delete actions.
+- [x] Add authenticated transactional CSV historical-data import with delimiter/header detection, reviewed column mapping, normalization, preview validation and atomic commit.
+- [x] Add per-user import fingerprints, duplicate suppression, persisted `import_batches` audit history and transaction import lineage.
 - [x] Add delete confirmation and operation feedback.
 - [x] Add distinct loading, refreshing, retry and mutation states in transaction UX.
 - [ ] Add user-managed category CRUD when needed.
@@ -68,7 +70,7 @@ Goal: isolate financial data by user before adding sensitive integrations.
 - [x] Add password change with server-side session-version revocation and current-session rotation.
 - [ ] Add verified password reset/recovery after an email delivery channel exists.
 - [x] Add account deletion and authenticated `privacy-export-v1` controls.
-- [x] Regression-test privacy export isolation across transactions, findings, scans and historical-analysis snapshots.
+- [x] Regression-test privacy export isolation across transactions, findings, scans, historical-analysis snapshots and CSV import batches.
 - [ ] MFA if required for Internet-facing production use.
 
 ## Phase 3 - Financial Intelligence
