@@ -37,10 +37,14 @@ def test_current_engine_and_model_modules_alias_the_contract_registry() -> None:
 
 
 def test_current_technical_documentation_matches_contract_registry() -> None:
-    contracts = _read("docs/analysis-contracts.md")
-    historical = _read("docs/historical-analysis.md")
-    intelligence = _read("docs/intelligence.md")
-    architecture = _read("docs/ARCHITECTURE.md")
+    documents = {
+        "contracts": _read("docs/analysis-contracts.md"),
+        "historical": _read("docs/historical-analysis.md"),
+        "intelligence": _read("docs/intelligence.md"),
+        "api": _read("docs/api.md"),
+        "testing": _read("docs/testing.md"),
+        "architecture": _read("docs/ARCHITECTURE.md"),
+    }
 
     for value in (
         ACTIONABLE_RULES_VERSION,
@@ -50,24 +54,31 @@ def test_current_technical_documentation_matches_contract_registry() -> None:
         CATEGORY_CLASSIFIER_VERSION,
         CATEGORY_CLASSIFIER_FEATURE_POLICY,
     ):
-        assert value in contracts
+        assert value in documents["contracts"]
 
-    assert HISTORICAL_ANALYSIS_VERSION in historical
-    assert RECURRENCE_SEGMENTATION_VERSION in historical
-    assert AMOUNT_ANOMALY_POLICY in historical
-    assert ACTIONABLE_RULES_VERSION in intelligence
-    assert AMOUNT_ANOMALY_POLICY in intelligence
-    assert HISTORICAL_ANALYSIS_VERSION in architecture
-    assert ACTIONABLE_RULES_VERSION in architecture
+    assert HISTORICAL_ANALYSIS_VERSION in documents["historical"]
+    assert RECURRENCE_SEGMENTATION_VERSION in documents["historical"]
+    assert AMOUNT_ANOMALY_POLICY in documents["historical"]
+    assert ACTIONABLE_RULES_VERSION in documents["intelligence"]
+    assert AMOUNT_ANOMALY_POLICY in documents["intelligence"]
+    assert HISTORICAL_ANALYSIS_VERSION in documents["api"]
+    assert AMOUNT_ANOMALY_POLICY in documents["api"]
+    assert ACTIONABLE_RULES_VERSION in documents["testing"]
+    assert HISTORICAL_ANALYSIS_VERSION in documents["testing"]
+    assert HISTORICAL_ANALYSIS_VERSION in documents["architecture"]
+    assert ACTIONABLE_RULES_VERSION in documents["architecture"]
 
     stale_claims = (
         "new runs create `historical-v2.1` snapshots",
         "Merchant baselines use the canonical merchant, with category fallback",
         "otherwise >= 8 earlier category charges",
+        "otherwise category fallback after at least 8 earlier charges",
         "category-fallback amount anomalies",
         "category fallback can compare heterogeneous purchases",
+        "category history is used only when canonical merchant history is insufficient",
+        "chronological robust outliers with merchant/category baselines",
     )
-    combined = "\n".join((historical, intelligence))
+    combined = "\n".join(documents.values())
     for claim in stale_claims:
         assert claim not in combined
 
