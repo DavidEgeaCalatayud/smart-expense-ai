@@ -70,6 +70,43 @@ def create_transaction(client: TestClient, merchant: str) -> dict[str, object]:
     return response.json()
 
 
+def seed_owned_analysis_data(user_id: UUID, marker: str) -> None:
+    with Session(engine) as db:
+        db.add(
+            IntelligenceFinding(
+                user_id=user_id,
+                finding_type="spending_anomaly",
+                severity="warning",
+                status="open",
+                fingerprint=f"{marker}-finding",
+                rule_version="rules-v2",
+                title=f"{marker} finding",
+                explanation=f"{marker} finding explanation",
+                evidence={"ownerMarker": marker},
+            )
+        )
+        db.add(
+            IntelligenceScan(
+                user_id=user_id,
+                rule_version="rules-v2",
+                transaction_count=1,
+                finding_count=1,
+            )
+        )
+        db.add(
+            HistoricalAnalysisSnapshot(
+                user_id=user_id,
+                analysis_version="historical-v2.2",
+                window_months=6,
+                transaction_count=1,
+                period_start=date(2026, 3, 1),
+                period_end=date(2026, 8, 24),
+                result={"ownerMarker": marker},
+            )
+        )
+        db.commit()
+
+
 def test_password_change_revokes_previous_tokens_and_rotates_current_session(
     client: TestClient,
 ) -> None:
@@ -122,26 +159,49 @@ def test_password_change_requires_current_password_and_rejects_reuse(client: Tes
     assert client.get(f"{API}/auth/me").status_code == 200
 
 
-def test_privacy_export_is_exactly_scoped_and_contains_no_credentials(client: TestClient) -> None:
-    register(client)
-    create_transaction(client, "Owner Market")
+def test_privacy_export_is_exactly_scoped_across_every_collection_and_contains_no_credentials(
+    client: TestClient,
+) -> None:
+    owner_registration = register(client)
+    owner_id = UUID(str(owner_registration["user"]["id"]))
+    owner_transaction = create_transaction(client, "Owner Market")
+    seed_owned_analysis_data(owner_id, "OWNER-ONLY")
 
     with TestClient(app) as other_client:
-        register(other_client, "other@example.com")
+        other_registration = register(other_client, "other@example.com")
+        other_id = UUID(str(other_registration["user"]["id"]))
         create_transaction(other_client, "Other Market")
+        seed_owned_analysis_data(other_id, "OTHER-USER-SECRET-MARKER")
 
     response = client.get(f"{API}/auth/privacy-export")
 
     assert response.status_code == 200
     export = response.json()
     assert export["schemaVersion"] == "privacy-export-v1"
+    assert export["account"]["id"] == str(owner_id)
     assert export["account"]["email"] == "owner@example.com"
+
+    assert [item["id"] for item in export["transactions"]] == [str(owner_transaction["id"])]
     assert [item["merchant"] for item in export["transactions"]] == ["Owner Market"]
     assert export["transactions"][0]["amount"] == "42.50"
+
+    assert len(export["intelligenceFindings"]) == 1
+    assert export["intelligenceFindings"][0]["fingerprint"] == "OWNER-ONLY-finding"
+    assert export["intelligenceFindings"][0]["evidence"]["ownerMarker"] == "OWNER-ONLY"
+
+    assert len(export["intelligenceScans"]) == 1
+    assert export["intelligenceScans"][0]["transactionCount"] == 1
+    assert export["intelligenceScans"][0]["findingCount"] == 1
+
+    assert len(export["historicalAnalysisSnapshots"]) == 1
+    assert export["historicalAnalysisSnapshots"][0]["analysisVersion"] == "historical-v2.2"
+    assert export["historicalAnalysisSnapshots"][0]["result"]["ownerMarker"] == "OWNER-ONLY"
 
     serialized = response.text
     assert "Other Market" not in serialized
     assert "other@example.com" not in serialized
+    assert str(other_id) not in serialized
+    assert "OTHER-USER-SECRET-MARKER" not in serialized
     assert PASSWORD not in serialized
     assert "password_hash" not in serialized
     assert "session_version" not in serialized
