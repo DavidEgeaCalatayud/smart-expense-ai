@@ -11,6 +11,10 @@ Goal: prepare the repository and define the product direction.
 - [x] Create frontend base project with React and TypeScript.
 - [x] Add environment configuration.
 - [x] Add Docker configuration.
+- [x] Add an explicit MIT `LICENSE` for the public repository.
+- [x] Add `CHANGELOG.md` with an `Unreleased` workflow instead of inventing retrospective releases.
+- [x] Centralize current analysis/model identifiers in `backend/app/analysis_contracts.py` and document their ownership/change procedure.
+- [x] Replace stale proposed architecture/version documentation with implementation-aligned technical documentation.
 
 ## Phase 1 - Persistent MVP Core
 
@@ -61,14 +65,15 @@ Goal: isolate financial data by user before adding sensitive integrations.
 - [x] Harden authentication errors, password policy and JWT claim validation.
 - [x] Add trusted-host, origin and CORS protections.
 - [x] Add authentication rate limiting at the trusted edge.
-- [x] Add password change with server-side session-version revocation.
+- [x] Add password change with server-side session-version revocation and current-session rotation.
 - [ ] Add verified password reset/recovery after an email delivery channel exists.
-- [x] Add account deletion and privacy export controls.
+- [x] Add account deletion and authenticated `privacy-export-v1` controls.
+- [x] Regression-test privacy export isolation across transactions, findings, scans and historical-analysis snapshots.
 - [ ] MFA if required for Internet-facing production use.
 
 ## Phase 3 - Financial Intelligence
 
-Goal: implement real analysis without simulated AI outputs.
+Goal: implement real analysis and evaluated ML baselines without simulated AI outputs.
 
 - [x] Detect recurring transactions from historical data.
 - [x] Detect possible duplicated subscriptions from repeated near-duplicate billing patterns.
@@ -84,7 +89,7 @@ Goal: implement real analysis without simulated AI outputs.
 - [x] Add least-squares monthly spending trend analysis with slope and R² evidence.
 - [x] Add deterministic recurring-behavior scoring from cadence fit, interval regularity, amount stability and history depth.
 - [x] Add chronological robust outlier analysis that avoids future-data leakage.
-- [x] Add category fallback baselines when merchant history is insufficient for historical outlier analysis.
+- [x] Replace heterogeneous category-only amount baselines with shared merchant-specific median/MAD plus extreme-IQR evidence (`merchant_mad_plus_extreme_iqr_v1`).
 - [x] Add three-month vs three-month category-spend shift analysis.
 - [x] Add Historical Analysis UI with coverage, trend, recurrence scores, outliers and category shifts.
 - [x] Persist and isolate historical-analysis snapshots by authenticated user.
@@ -105,6 +110,9 @@ Goal: implement real analysis without simulated AI outputs.
 - [x] Expose stream basis/calendar signatures and temporal-phase coverage in persisted snapshots and API responses.
 - [x] Extend temporal ground-truth labels with `calendarSignature` and evaluate v2.2 in the fold-local walk-forward harness.
 - [x] Add positive and negative regressions for equal-amount monthly/weekly streams and non-concurrent billing-day drift.
+- [x] Preserve recurring stream identity across qualified price changes without merging concurrent schedules.
+- [x] Model cancellation/dormancy/reactivation as lifecycle episodes instead of uninterrupted recurrence.
+- [x] Expose recurrence segmentation as `lifecycle-v1` with lifecycle, price-continuity, descriptor/amount and temporal-phase evidence.
 - [x] Replace order-dependent recurring-label matching with deterministic optimal bipartite assignment and permutation-invariance regressions.
 - [x] Add prospective occurrence-level evaluation using only the prior-month baseline for each expected charge.
 - [x] Measure occurrence precision/recall/F1, missed charges, extra predictions, date MAE/bias and decimal amount MAE/MAPE.
@@ -115,15 +123,21 @@ Goal: implement real analysis without simulated AI outputs.
 - [x] Require a SHA-256-fingerprinted frozen parameter manifest before final holdout evaluation.
 - [x] Add 95% month-block bootstrap confidence intervals with support/block counts for recurrence, anomaly and occurrence metrics.
 - [x] Add regressions for split overlap, holdout sealing, parameter tampering and deterministic bootstrap output.
-- [x] Upgrade actionable findings to `rules-v2` using canonical merchants and descriptor/amount/temporal recurring streams.
+- [x] Upgrade actionable findings to `rules-v2` using canonical merchants and shared recurring-stream primitives.
 - [x] Persist a separate `recurring_payment_missing` finding with stronger schedule/history requirements and same-period collision suppression.
-- [x] Upgrade actionable amount anomalies to chronological prior-only merchant baselines with category fallback when merchant history is insufficient.
+- [x] Upgrade actionable amount anomalies to the shared prior-only `merchant_mad_plus_extreme_iqr_v1` merchant baseline.
 - [x] Add `frequency_anomaly` findings from merchant monthly-count baselines and rolling seven-day burst evidence.
 - [x] Split intelligence summary metrics into recurring, missing-recurring, duplicate, amount-anomaly and frequency-anomaly counts.
 - [x] Add migration/API/UI/test coverage for the new `rules-v2` finding types and rule-version defaults.
+- [x] Add reusable offline `tfidf-logreg-v1` automatic category classification over merchant descriptor text.
+- [x] Evaluate category classification chronologically with 2023 history, 2024 calibration, 2025 H1 validation and sealed 2025 H2 holdout.
+- [x] Report category macro-F1, accuracy, per-category precision/recall/F1/support, confusion matrix and seen-vs-unseen merchant slices.
+- [x] Gate the category-classifier baseline in CI and document its synthetic-data and cold-start limitations in a model card.
 - [ ] Validate `rules-v2` and historical algorithms against labelled real-world datasets and measure real-world precision/recall/false-positive rates.
+- [ ] Validate category classification against independent/real labelled transactions with meaningful unseen-merchant support before production auto-assignment.
+- [ ] Add a user-correction/personalization loop for category labels and calibrate probabilities before showing model confidence.
 - [ ] Tune recurring-score weights/cutoffs, stream-clustering tolerances and anomaly thresholds only on labelled calibration data, use validation for design checks, then open holdout once for final reporting.
-- [ ] Reassess category fallback and frequency-anomaly thresholds from real-world false-positive cost before loosening them.
+- [ ] Reassess amount-anomaly distribution fences and frequency-anomaly policy from real-world false-positive cost before loosening them.
 - [ ] Add automatic/background analysis when deployment scheduling is available.
 - [ ] Evaluate ML anomaly models (for example Isolation Forest) only after deterministic baselines have measurable real-world evaluation results.
 
@@ -152,7 +166,7 @@ Goal: prepare the project for a subscription-based model.
 
 ## Phase 6 - Production Readiness
 
-Goal: prepare the application for real deployment.
+Goal: prepare the project for real deployment.
 
 - [x] Add backend automated tests.
 - [x] Add frontend automated tests.
@@ -160,6 +174,7 @@ Goal: prepare the application for real deployment.
 - [x] Run frontend tests, type checking, build and lint in CI.
 - [x] Validate Alembic migrations against PostgreSQL in CI.
 - [x] Add critical Playwright end-to-end coverage.
+- [x] Add a focused Security E2E for password rotation, current-session continuity and old-credential rejection.
 - [x] Add Docker Compose.
 - [x] Validate the full Docker Compose stack in CI.
 - [x] Add `SECURITY.md` vulnerability reporting policy.
@@ -177,12 +192,15 @@ Goal: prepare the application for real deployment.
 - [x] Gate optimal recurring matching and prospective occurrence-level evaluation in backend CI.
 - [x] Gate sealed split/fingerprint/bootstrap evaluation behavior in backend tests.
 - [x] Gate `rules-v2` migration, empty-summary contract and finding behavior in PostgreSQL/Docker CI.
+- [x] Gate `tfidf-logreg-v1` category classification with chronological metrics, per-category regression floors and a sealed synthetic holdout.
+- [x] Gate current analysis/model contract aliases and critical documentation consistency in backend tests.
+- [x] Add privacy/data-handling policy draft with production placeholders.
 - [ ] Configure `Quality gate` as a required check for `main`.
+- [ ] Declare the first semantic-version tag/GitHub Release when the project intentionally reaches a stable release boundary.
 - [ ] Add staging deployment.
 - [ ] Add production TLS/domain/secrets configuration.
 - [ ] Add centralized security monitoring and alerting.
 - [ ] Add container image scanning and SBOM generation.
-- [x] Add privacy/data-handling policy draft with production placeholders.
 
 ## Long-Term Ideas
 
