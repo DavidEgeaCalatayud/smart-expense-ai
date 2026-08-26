@@ -1,7 +1,7 @@
 # Security review - OWASP Top 10:2025
 
 Review date: **2026-08-24**  
-Last implementation update: **2026-08-25**
+Last implementation update: **2026-08-26**
 
 Scope: current React + Nginx + FastAPI + PostgreSQL application and its GitHub Actions supply chain.
 
@@ -15,12 +15,12 @@ Primary reference: <https://owasp.org/Top10/>
 | --- | --- | --- |
 | A01 Broken Access Control | Protected API routes; financial queries include authenticated `user_id`; foreign key ownership; cross-account integration + E2E tests; foreign resources return 404; privacy export independently scopes each data family by user | Future user-owned categories/files must repeat the same ownership pattern; add explicit authorization tests whenever a new resource type appears |
 | A02 Security Misconfiguration | Trusted host allow-list; restricted CORS; security headers; production API docs disabled; backend not published by Compose; container `no-new-privileges`; production config invariants | Production TLS terminator/domain configuration is deployment-specific; verify HSTS and TLS externally after deployment |
-| A03 Software Supply Chain Failures | npm lockfile + `npm ci`; pinned GitHub Action SHAs; weekly Dependabot for pip/npm/actions; `pip-audit`; `npm audit` | Add SBOM/container-image scanning before a public production release |
+| A03 Software Supply Chain Failures | npm lockfile + `npm ci`; pinned GitHub Action SHAs; weekly Dependabot for pip/npm/actions; `pip-audit`; `npm audit`; reproducible validated CycloneDX backend/frontend dependency SBOMs retained as CI artifacts | Add container-image vulnerability scanning and image-level SBOM/provenance before a public production release |
 | A04 Cryptographic Failures | Argon2 password hashing; JWT HS256 with mandatory 32-byte minimum secret; issuer/audience/jti/expiry/session-version validation; HttpOnly session cookie; password changes revoke old session versions | Normal logout clears the browser cookie but does not revoke a previously copied JWT; add per-session revocation/log-out-all semantics if the production threat model requires them |
 | A05 Injection | SQLAlchemy ORM/parameterized statements for user-controlled database access; Pydantic validation; React output escaping; CSP blocks arbitrary scripts | Continue avoiding dynamic SQL, unsafe HTML rendering, shell interpolation, and unvalidated file parsing when import features arrive |
 | A06 Insecure Design | Per-user ownership is a server-side invariant; login/register edge rate limits; cross-site mutation guard; generic auth failures; destructive account deletion requires password + explicit confirmation; privacy export excludes credentials | Perform a fuller threat model before bank integrations, CSV/file ingestion, email-based password recovery, or external AI processing |
 | A07 Authentication Failures | Argon2; 12-character password minimum; generic login/registration errors; timing equalization for unknown users; short-lived signed sessions; server-side version revocation after password changes; rate limiting | Verified password reset/recovery and MFA are not implemented; edge rate limiting must be preserved/replaced in another deployment architecture |
-| A08 Software or Data Integrity Failures | Locked npm dependency graph; immutable Action SHAs; Dependabot; migration history; CI quality gate | Artifact signing/provenance and deployment attestations are not yet implemented |
+| A08 Software or Data Integrity Failures | Locked npm dependency graph; immutable Action SHAs; Dependabot; migration history; CI quality gate; validated dependency SBOM artifacts | Artifact signing/provenance and deployment attestations are not yet implemented |
 | A09 Security Logging and Alerting Failures | Security event logs for register/login/logout/session/password-change/privacy-export/account-deletion/cross-site events; generated request IDs; logs omit email/password/body/JWT/cookie/export payloads | Logs are not centralized and there is no SIEM/alerting/retention policy; production monitoring remains required |
 | A10 Mishandling of Exceptional Conditions | Database rollback on persistence failures; invalid/revoked tokens collapse to 401; unknown/foreign transactions collapse to 404; production debug disabled | Add explicit chaos/load/failure-path testing as external integrations are introduced |
 
@@ -65,9 +65,14 @@ Controls:
 - weekly Dependabot checks for pip, npm, and Actions;
 - Python runtime audit via `pip-audit`;
 - npm dependency audit blocking high/critical findings;
-- dependency checks included in the consolidated CI Quality gate.
+- dependency checks included in the consolidated CI Quality gate;
+- backend and frontend CycloneDX 1.6 dependency SBOMs generated on pull requests and pushes to `main`;
+- SBOMs generated in reproducible mode, validated before upload, and retained together as the `dependency-sboms` Actions artifact;
+- backend inventory generated from an isolated environment installed from `backend/requirements.txt`, and frontend inventory generated from the `npm ci` project tree represented by `frontend/package-lock.json`.
 
-**Residual:** container image vulnerability scanning and SBOM generation are good candidates before an Internet-facing release.
+The exact SBOM coverage and limitations are documented in `docs/supply-chain.md`.
+
+**Residual:** the current dependency SBOMs do not inventory Docker/OCI image filesystems or base-image operating-system packages. Container image vulnerability scanning, image-level SBOM/provenance, artifact signing and deployment attestations remain production-readiness work.
 
 ### A04 - Cryptographic failures
 
@@ -128,6 +133,7 @@ Frontend tests/typecheck/lint    PASS
 Production frontend build        PASS
 pip-audit                        PASS
 npm audit (high/critical)        PASS
+CycloneDX dependency SBOMs       PASS
 Authenticated E2E                PASS
 Docker Compose smoke             PASS
 Security headers                 PASS
