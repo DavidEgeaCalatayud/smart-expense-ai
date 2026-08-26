@@ -9,12 +9,12 @@ from app.core.http_security import log_security_event
 from app.core.security import create_access_token
 from app.db.session import get_db
 from app.models.user import User
+from app.privacy_schemas import PrivacyExportResponseWithImports
 from app.schemas import (
     AuthResponse,
     ChangePasswordRequest,
     DeleteAccountRequest,
     LoginRequest,
-    PrivacyExportResponse,
     RegisterRequest,
     UserResponse,
 )
@@ -152,12 +152,12 @@ def change_password(
     log_security_event(request, "password_change", "success", user_id=current_user.id)
 
 
-@router.get("/privacy-export", response_model=PrivacyExportResponse)
+@router.get("/privacy-export", response_model=PrivacyExportResponseWithImports)
 def privacy_export(
     request: Request,
     current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db),
-) -> PrivacyExportResponse:
+) -> PrivacyExportResponseWithImports:
     export = build_privacy_export(db, current_user)
     log_security_event(request, "privacy_export", "success", user_id=current_user.id)
     return export
