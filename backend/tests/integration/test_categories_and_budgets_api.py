@@ -50,11 +50,7 @@ def register(client: TestClient, email: str) -> None:
     assert response.status_code == 201
 
 
-def create_category(
-    client: TestClient,
-    name: str,
-    transaction_type: str = "expense",
-) -> dict[str, object]:
+def create_category(client: TestClient, name: str, transaction_type: str = "expense") -> dict[str, object]:
     response = client.post(
         f"{API_V1}/categories",
         json={"name": name, "transactionType": transaction_type},
@@ -63,24 +59,23 @@ def create_category(
     return response.json()
 
 
-def create_expense(
-    client: TestClient,
-    category: str,
-    amount: str,
-    date: str = "2026-08-24",
-) -> dict[str, object]:
+def expense_payload(category: str, amount: str, transaction_date: str = "2026-08-24") -> dict[str, object]:
+    return {
+        "merchant": "Budget Test Merchant",
+        "description": "Category and budget integration",
+        "category": category,
+        "amount": amount,
+        "date": transaction_date,
+        "type": "expense",
+        "paymentMethod": "card",
+        "isRecurring": False,
+    }
+
+
+def create_expense(client: TestClient, category: str, amount: str, transaction_date: str = "2026-08-24") -> dict[str, object]:
     response = client.post(
         f"{API_V2}/transactions",
-        json={
-            "merchant": "Budget Test Merchant",
-            "description": "Category and budget integration",
-            "category": category,
-            "amount": amount,
-            "date": date,
-            "type": "expense",
-            "paymentMethod": "card",
-            "isRecurring": False,
-        },
+        json=expense_payload(category, amount, transaction_date),
     )
     assert response.status_code == 201, response.text
     return response.json()
@@ -113,16 +108,7 @@ def test_custom_categories_are_isolated_and_system_categories_are_immutable() ->
         assert "Gym" not in other_names
         assert other.post(
             f"{API_V2}/transactions",
-            json={
-                "merchant": "Cross account",
-                "description": "Must not resolve owner category",
-                "category": "Gym",
-                "amount": "10.00",
-                "date": "2026-08-24",
-                "type": "expense",
-                "paymentMethod": "card",
-                "isRecurring": False,
-            },
+            json=expense_payload("Gym", "10.00"),
         ).status_code == 422
 
 
@@ -139,23 +125,12 @@ def test_archive_can_preserve_history_restore_or_atomically_reassign() -> None:
         assert archived.status_code == 200
         assert archived.json()["archived"] is True
         assert archived.json()["transactionCount"] == 1
-        assert all(
-            item["name"] != "Gym" for item in client.get(f"{API_V1}/categories").json()
-        )
-        history = client.get(f"{API_V2}/transactions").json()["items"]
-        assert history[0]["category"] == "Gym"
-        assert create_rejected := client.post(
+        assert all(item["name"] != "Gym" for item in client.get(f"{API_V1}/categories").json())
+        assert client.get(f"{API_V2}/transactions").json()["items"][0]["category"] == "Gym"
+
+        create_rejected = client.post(
             f"{API_V2}/transactions",
-            json={
-                "merchant": "Archived category",
-                "description": "Must fail",
-                "category": "Gym",
-                "amount": "8.00",
-                "date": "2026-08-25",
-                "type": "expense",
-                "paymentMethod": "card",
-                "isRecurring": False,
-            },
+            json=expense_payload("Gym", "8.00", "2026-08-25"),
         )
         assert create_rejected.status_code == 422
 
@@ -211,9 +186,7 @@ def test_monthly_budgets_use_decimal_strings_and_persisted_expense_spend(client:
     )
     assert numeric_money.status_code == 422
 
-    month = client.get(f"{API_V2}/budgets?month=2026-08")
-    assert month.status_code == 200
-    payload = month.json()
+    payload = client.get(f"{API_V2}/budgets?month=2026-08").json()
     assert payload["totalBudget"]["limitAmount"] == "2000.00"
     assert payload["totalBudget"]["spentAmount"] == "328.00"
     assert payload["totalBudget"]["remainingAmount"] == "1672.00"
@@ -268,8 +241,7 @@ def test_budget_category_rules_isolation_and_privacy_export() -> None:
 
         register(other, "budget-private-other@example.com")
         assert other.put(
-            f"{API_V2}/budgets/{budget.json()['id']}",
-            json={"limitAmount": "10.00"},
+            f"{API_V2}/budgets/{budget.json()['id']}", json={"limitAmount": "10.00"}
         ).status_code == 404
         assert other.delete(f"{API_V2}/budgets/{budget.json()['id']}").status_code == 404
 
@@ -277,10 +249,9 @@ def test_budget_category_rules_isolation_and_privacy_export() -> None:
 def test_csv_import_can_use_only_visible_active_custom_categories(client: TestClient) -> None:
     register(client, "csv-custom-category@example.com")
     create_category(client, "Trips")
-    content = "Date,Merchant,Amount,Category\n2026-08-24,Train,35.00,Trips"
     request = {
         "filename": "custom-category.csv",
-        "content": content,
+        "content": "Date,Merchant,Amount,Category\n2026-08-24,Train,35.00,Trips",
         "mapping": {
             "date": "Date",
             "amount": "Amount",
