@@ -1,180 +1,156 @@
-# Product Specification
+# Product specification
 
-## Product Name
+## Product
 
-Smart Expense AI
+Smart Expense AI is a personal-finance application focused on persisted transaction management, explainable financial intelligence and evidence-driven progression toward machine-learning features.
 
-## Vision
+This document separates **implemented product behavior** from roadmap intent. Future capabilities are not presented as current features.
 
-Smart Expense AI is a personal finance platform focused on intelligent expense analysis. The product should help users understand their spending behavior, predict future expenses and detect financial anomalies automatically.
+## Product principles
 
-The long-term goal is to become a proactive financial assistant, not just an expense tracker.
+1. Financial source data is persisted and user-scoped.
+2. Money is handled exactly rather than with floating-point business arithmetic.
+3. Analytical findings expose deterministic evidence rather than fake probability.
+4. Historical diagnostics remain distinct from actionable review-state findings.
+5. ML features enter the product only after reproducible evaluation and an appropriate user-control workflow exist.
+6. Synthetic benchmark performance is regression evidence, not a claim of real banking accuracy.
 
-## Problem
+## Target user
 
-Many users do not have a clear view of their financial habits. Traditional expense apps usually show charts and categories, but they often fail to answer more important questions:
+The current product is aimed at people who want to understand and review personal financial activity without manually building spreadsheet analyses.
 
-- Why did my spending increase this month?
-- Which subscriptions am I still paying for?
-- Is this charge normal for me?
-- Will I exceed my usual monthly spending?
-- Where can I reduce expenses with minimal lifestyle impact?
+The long-term audience may include users with subscriptions, variable spending or multiple data sources, but bank integrations and multi-account aggregation are not implemented yet.
 
-## Target Users
+## Implemented product capabilities
 
-### Primary User
+### Accounts and ownership
 
-People who want better control over their personal finances but do not want to manually analyze spreadsheets or bank movements.
+- registration/login/logout;
+- Argon2 password hashing;
+- HttpOnly JWT session;
+- user-scoped transaction and analytical data;
+- cross-account isolation tests.
 
-### Secondary Users
+### Transaction management
 
-- Young professionals.
-- People with multiple subscriptions.
-- Users who want to save money.
-- Freelancers with variable monthly expenses.
-- People who want simple but intelligent financial insights.
+Users can create, read, update and delete persisted transactions. The product supports:
 
-## Core Value Proposition
+- merchant and description;
+- exact amount;
+- date;
+- seeded category;
+- income/expense type;
+- payment method;
+- recurring flag;
+- source metadata;
+- server-side pagination, search, filtering and sorting.
 
-Smart Expense AI helps users detect spending patterns, predict future expenses and receive automatic alerts when something unusual happens in their finances.
+Custom user-managed category CRUD is not implemented yet.
 
-## Main Features
+### Dashboard and aggregates
 
-### 1. Transaction Management
+The current dashboard is backed by persisted data and server-side aggregates, including summary balances and monthly spending series.
 
-Users can create, edit and delete transactions.
+### Actionable financial intelligence — `rules-v2`
 
-Each transaction should contain:
+The product can run explicit scans that persist reviewable findings:
 
-- Amount.
-- Date.
-- Description.
-- Category.
-- Merchant.
-- Payment method.
-- Recurring flag.
+```text
+recurring_pattern
+recurring_payment_missing
+duplicate_subscription
+spending_anomaly
+frequency_anomaly
+```
 
-### 2. Expense Categorization
+Findings expose explainable evidence and support `open`, `dismissed` and `resolved` review states.
 
-The system should classify expenses into categories such as:
+The amount anomaly policy is `merchant_mad_plus_extreme_iqr_v1`: it uses only prior history from the same canonical merchant. Category-only history is not accepted as a fallback for merchant-level amount alerts.
 
-- Housing.
-- Food.
-- Transport.
-- Subscriptions.
-- Health.
-- Leisure.
-- Shopping.
-- Education.
-- Other.
+### Historical diagnostics — `historical-v2.2`
 
-### 3. Pattern Detection
+The product persists versioned historical-analysis snapshots containing:
 
-The system should detect repeated behaviors, such as:
+- complete/partial month coverage;
+- spending trend;
+- canonical merchant evidence;
+- recurring profiles and `lifecycle-v1` segmentation metadata;
+- missed expected-occurrence evidence;
+- chronological merchant-specific amount outliers;
+- category spending shifts.
 
-- Recurring payments.
-- Monthly spending peaks.
-- Category growth.
-- Frequent merchants.
-- Habitual spending windows.
+Historical snapshots do not automatically create review-state findings.
 
-### 4. Prediction
+### Evaluated automatic category baseline — offline only
 
-The system should estimate:
+The repository contains `tfidf-logreg-v1` with feature policy `merchant_descriptor_only_v1`.
 
-- Expected monthly spending.
-- End-of-month balance.
-- Future recurring expenses.
-- Spending trend by category.
+It is evaluated chronologically on the deterministic benchmark and reports macro-F1, per-category metrics, confusion matrix and seen/unseen merchant slices.
 
-### 5. Anomaly Detection
+It is **not** currently connected to transaction writes and does not silently replace a user's persisted category. Production categorization still requires independent/real labelled evidence, a correction/personalization workflow and a product decision around suggestion vs automatic assignment.
 
-The system should alert the user when detecting:
+## Evaluation evidence
 
-- Duplicated subscriptions.
-- Suspicious charges.
-- Unusual transaction amounts.
-- Unexpected category increases.
-- Recurring payment price changes.
+The project distinguishes three evidence levels:
 
-### 6. Insights
+```text
+small fixture -> regression protection
+financial-benchmark-v1 -> strong synthetic evaluation
+independent / real labelled data -> real quality evidence
+```
 
-The system should generate human-readable insights, for example:
+The final synthetic holdout remains sealed during development tuning under the documented evaluation protocol.
 
-- "Your restaurant spending is 35% higher than last month."
-- "You may have two duplicated streaming subscriptions."
-- "At this pace, you may spend 180 EUR more than usual this month."
-- "A recurring payment increased from 9.99 EUR to 14.99 EUR."
+## Not implemented
 
-## MVP Scope
+The following should not be described elsewhere as current product capabilities:
 
-The first version should focus on a controlled but useful experience.
+- bank/account aggregation APIs;
+- automatic/background intelligence scheduling;
+- production automatic category assignment;
+- calibrated ML confidence displayed to users;
+- ML anomaly/fraud classification;
+- end-of-month or category-level spending forecasts;
+- future balance prediction;
+- MFA;
+- password reset/change;
+- privacy export/account deletion controls;
+- custom category CRUD;
+- multi-currency business support;
+- paid subscription/billing integration;
+- mobile application.
 
-### Included in MVP
+## Near-term product direction
 
-- User authentication.
-- Manual transaction entry.
-- Basic categories.
-- Dashboard with monthly summary.
-- Recurring expense detection.
-- Basic anomaly alerts.
-- Simple prediction based on historical average.
+Before expanding predictive features, priorities are:
 
-### Excluded from MVP
+1. validate deterministic intelligence on sufficiently large independent/real labelled data;
+2. strengthen category-classifier cold-start/unseen-merchant evidence;
+3. introduce user correction/personalization semantics before production categorization;
+4. continue evidence-based false-positive reduction, especially frequency anomalies;
+5. complete account/privacy and deployment hardening;
+6. only then evaluate ML anomaly replacements and Phase 4 prediction features.
 
-- Bank integrations.
-- Mobile app.
-- Complex machine learning models.
-- Payment subscriptions.
-- Multi-currency support.
-- Tax features.
+The authoritative task sequence is maintained in [`../ROADMAP.md`](../ROADMAP.md).
 
-## Success Criteria
+## Product trust boundaries
 
-The MVP will be considered successful if it can:
+Smart Expense AI does not currently claim to:
 
-- Store and manage user transactions.
-- Display monthly expense summaries.
-- Detect at least one type of recurring expense.
-- Detect simple anomalies.
-- Generate useful financial insights.
-- Provide a clear path toward premium AI features.
+- detect fraud with certainty;
+- provide financial advice;
+- infer why a recurring payment disappeared;
+- produce calibrated probabilities from deterministic scores;
+- achieve real-world accuracy based solely on synthetic benchmarks.
 
-## Monetization
+A recurring, missing, duplicate or anomaly finding is evidence for user review, not an assertion of financial wrongdoing.
 
-The product is intended to use a freemium model.
+## Technical references
 
-### Free Plan
-
-- Manual tracking.
-- Basic dashboard.
-- Limited insights.
-
-### Premium Plan
-
-- Predictive analysis.
-- Advanced anomaly detection.
-- Subscription monitoring.
-- Automatic alerts.
-- Exportable reports.
-- Advanced financial recommendations.
-
-## Risks
-
-- Bank integration complexity.
-- Privacy and security requirements.
-- Prediction accuracy.
-- User trust in automated insights.
-- Differentiation from existing finance apps.
-
-## Privacy Considerations
-
-Financial data is highly sensitive. The product should be designed with privacy and security from the beginning.
-
-Initial principles:
-
-- Store only necessary data.
-- Encrypt sensitive information when required.
-- Never expose private financial data in logs.
-- Use secure authentication.
-- Make data deletion possible.
+- [`ARCHITECTURE.md`](ARCHITECTURE.md) — implemented architecture.
+- [`DATA_MODEL.md`](DATA_MODEL.md) — implemented persistence model.
+- [`analysis-contracts.md`](analysis-contracts.md) — current engine/model/policy identifiers.
+- [`intelligence.md`](intelligence.md) — actionable rule semantics.
+- [`historical-analysis.md`](historical-analysis.md) — historical diagnostics.
+- [`evaluation-protocol.md`](evaluation-protocol.md) — evaluation split/holdout discipline.
+- [`../ai/category-classifier/README.md`](../ai/category-classifier/README.md) — category model card.
