@@ -92,3 +92,12 @@ def test_category_evaluation_report_is_chronological_and_keeps_holdout_sealed(tm
     assert all(len(row) == len(labels) for row in matrix)
     assert sum(sum(row) for row in matrix) == validation["evaluationSamples"]
     assert validation["merchantCoverage"]["seen"]["support"] + validation["merchantCoverage"]["unseen"]["support"] == validation["evaluationSamples"]
+
+    off_diagonal_errors = sum(
+        value
+        for row_index, row in enumerate(matrix)
+        for column_index, value in enumerate(row)
+        if row_index != column_index
+    )
+    assert len(validation["errors"]) == off_diagonal_errors
+    assert all(error["actual"] != error["predicted"] for error in validation["errors"])
