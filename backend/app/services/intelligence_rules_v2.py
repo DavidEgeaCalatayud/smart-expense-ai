@@ -7,13 +7,14 @@ from hashlib import sha256
 from math import ceil
 from statistics import median
 
+from app.analysis_contracts import ACTIONABLE_RULES_VERSION
 from app.services.amount_anomaly_baseline import BASELINE_POLICY, evaluate_amount_anomaly
 from app.services.intelligence_rules import FindingCandidate, TransactionSnapshot
 from app.services.merchant_canonicalization import MerchantIdentity, build_merchant_identity_map
 from app.services.recurring_streams_v2_2 import build_recurring_profiles_v2_2
 
 
-RULE_VERSION = "rules-v2"
+RULE_VERSION = ACTIONABLE_RULES_VERSION
 MONEY_CENT = Decimal("0.01")
 ZERO = Decimal("0")
 
