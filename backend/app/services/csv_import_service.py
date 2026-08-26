@@ -376,13 +376,11 @@ def _resolve_category(
     transaction_type: TransactionType,
     categories: dict[tuple[str, str], Category],
 ) -> Category:
-    name = (
-        "Other"
-        if raw_category is None or not raw_category.strip() and transaction_type == TransactionType.expense
-        else "Salary"
-        if raw_category is None or not raw_category.strip()
-        else raw_category.strip()
-    )
+    if raw_category is None or not raw_category.strip():
+        name = "Other" if transaction_type == TransactionType.expense else "Salary"
+    else:
+        name = raw_category.strip()
+
     category = categories.get((name.lower(), transaction_type.value))
     if category is None:
         if raw_category is None or not raw_category.strip():
