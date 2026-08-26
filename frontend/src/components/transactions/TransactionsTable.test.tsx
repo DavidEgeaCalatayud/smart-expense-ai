@@ -3,7 +3,6 @@ import { describe, expect, it, vi } from 'vitest';
 import type { DetailedTransaction } from '../../types/transactions';
 import { TransactionsTable } from './TransactionsTable';
 
-
 const transaction: DetailedTransaction = {
   id: '11111111-1111-4111-8111-111111111111',
   merchant: 'Test Market',
@@ -16,7 +15,6 @@ const transaction: DetailedTransaction = {
   status: 'normal',
   isRecurring: true,
 };
-
 
 describe('TransactionsTable', () => {
   it('renders the same transaction capability in mobile cards and the desktop table', () => {
@@ -37,22 +35,17 @@ describe('TransactionsTable', () => {
     expect(cards).toHaveClass('lg:hidden');
     expect(table).toHaveClass('hidden', 'lg:block');
 
-    expect(within(cards).getByText('Test Market')).toBeInTheDocument();
-    expect(within(cards).getByText('Food')).toBeInTheDocument();
-    expect(within(cards).getByText('2026-08-24')).toBeInTheDocument();
-    expect(within(cards).getByText('Card')).toBeInTheDocument();
-    expect(within(cards).getByText('expense')).toBeInTheDocument();
-    expect(within(cards).getByText('Normal')).toBeInTheDocument();
-    expect(within(cards).getByText('Recurring')).toBeInTheDocument();
-    expect(within(cards).getByText(/€64\.35/)).toBeInTheDocument();
-
-    expect(within(table).getByText('Test Market')).toBeInTheDocument();
-    expect(within(table).getByText('Food')).toBeInTheDocument();
-    expect(within(table).getByText('2026-08-24')).toBeInTheDocument();
-    expect(within(table).getByText('Card')).toBeInTheDocument();
-    expect(within(table).getByText('expense')).toBeInTheDocument();
-    expect(within(table).getByText('Normal')).toBeInTheDocument();
-    expect(within(table).getByText(/€64\.35/)).toBeInTheDocument();
+    for (const representation of [cards, table]) {
+      expect(representation).toHaveTextContent('Test Market');
+      expect(representation).toHaveTextContent('Weekly groceries');
+      expect(representation).toHaveTextContent('Food');
+      expect(representation).toHaveTextContent('2026-08-24');
+      expect(representation).toHaveTextContent('Card');
+      expect(representation).toHaveTextContent('expense');
+      expect(representation).toHaveTextContent('Normal');
+      expect(representation).toHaveTextContent('-€64.35');
+    }
+    expect(cards).toHaveTextContent('Recurring');
 
     fireEvent.click(within(cards).getByRole('button', { name: 'Edit Test Market' }));
     expect(onEdit).toHaveBeenCalledWith(transaction);
