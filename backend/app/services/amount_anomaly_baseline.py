@@ -4,6 +4,8 @@ from dataclasses import dataclass
 from decimal import Decimal
 from statistics import median
 
+from app.analysis_contracts import AMOUNT_ANOMALY_POLICY
+
 
 ZERO = Decimal("0")
 MIN_MERCHANT_BASELINE_COUNT = 4
@@ -12,7 +14,7 @@ MIN_AMOUNT_DELTA = Decimal("20.00")
 MIN_AMOUNT_RATIO = Decimal("1.50")
 MAD_MULTIPLIER = Decimal("3.00")
 IQR_EXTREME_MULTIPLIER = Decimal("3.00")
-BASELINE_POLICY = "merchant_mad_plus_extreme_iqr_v1"
+BASELINE_POLICY = AMOUNT_ANOMALY_POLICY
 
 
 @dataclass(frozen=True)
