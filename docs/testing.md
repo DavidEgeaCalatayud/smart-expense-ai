@@ -178,7 +178,12 @@ Backend contract/security coverage includes:
 - partial-month and recurrence segmentation metadata;
 - distribution-aware outlier evidence;
 - historical snapshot isolation between accounts;
-- authentication/JWT/security regressions.
+- authentication/JWT/security regressions;
+- password changes that increment `session_version`, revoke previously issued tokens and rotate the successful caller's current session;
+- current-password and password-reuse guards;
+- `privacy-export-v1` isolation across account, transaction, intelligence-finding, intelligence-scan and historical-analysis-snapshot data;
+- a two-user export regression that seeds every persisted export collection for both accounts and proves that no second-user object or credential/session-version material leaks into the first user's export;
+- confirmed account deletion and database-cascade removal of user-owned financial/intelligence data.
 
 ## Frontend
 
@@ -208,9 +213,18 @@ Historical Analysis component coverage includes:
 - robust historical outlier evidence;
 - persisted analysis reruns through the API.
 
+Security-page component coverage verifies password-change, privacy-export and account-deletion controls without duplicating backend authorization logic in the browser layer.
+
 ## End-to-end
 
-Playwright exercises the critical authenticated persisted-transaction flow against PostgreSQL/FastAPI/Vite. Algorithm depth is intentionally tested at service/integration/evaluation layers rather than forcing all financial semantics through one browser test.
+Playwright exercises critical authenticated flows against PostgreSQL/FastAPI/Vite. Algorithm depth is intentionally tested at service/integration/evaluation layers rather than forcing all financial semantics through browser tests.
+
+Current E2E coverage includes:
+
+- the persisted authenticated transaction flow and cross-account transaction isolation;
+- a focused Security flow that registers/signs in, changes the password from the Security page, verifies the rotated current session remains authenticated, logs out, confirms the old password is rejected and confirms the new password authenticates successfully.
+
+The Security E2E deliberately covers one end-to-end credential-rotation contract instead of duplicating every password/privacy negative case already covered by PostgreSQL integration tests.
 
 ## Docker contract/security smoke test
 
@@ -236,10 +250,10 @@ The offline category classifier is not loaded by the Compose production runtime.
 
 Functional gates:
 
-- **Backend tests**: dependencies, clean PostgreSQL migration, FastAPI import, pytest, historical regression evaluation and sealed-split checks.
+- **Backend tests**: dependencies, clean PostgreSQL migration, canonical FastAPI `APP_VERSION` import smoke, pytest, historical regression evaluation and sealed-split checks.
 - **Frontend quality**: locked npm install, Vitest, TypeScript, ESLint and production build.
 - **Dependency security audit**: `pip-audit` and `npm audit --audit-level=high`.
-- **Critical E2E**: PostgreSQL/FastAPI/Vite/Chromium flow.
+- **Critical E2E**: PostgreSQL/FastAPI/Vite/Chromium transaction and focused Security flows.
 - **Docker Compose smoke test**: deployment-style images and proxy/API contract.
 - **Quality gate**: fails unless every functional gate succeeds.
 

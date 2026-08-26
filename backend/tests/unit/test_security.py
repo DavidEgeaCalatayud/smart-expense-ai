@@ -21,12 +21,13 @@ def test_password_hashing_never_stores_plaintext() -> None:
     assert verify_password("wrong-password", password_hash) is False
 
 
-def test_access_token_round_trip_preserves_user_id() -> None:
+def test_access_token_round_trip_preserves_user_id_and_session_version() -> None:
     user_id = uuid4()
+    session_version = 3
 
-    token = create_access_token(user_id)
+    token = create_access_token(user_id, session_version)
 
-    assert decode_access_token(token) == user_id
+    assert decode_access_token(token) == (user_id, session_version)
 
 
 def test_invalid_access_token_is_rejected() -> None:
@@ -53,6 +54,7 @@ def test_token_with_wrong_audience_is_rejected() -> None:
     token = jwt.encode(
         {
             "sub": str(uuid4()),
+            "ver": 1,
             "iat": now,
             "exp": now + timedelta(minutes=5),
             "iss": settings.jwt_issuer,
