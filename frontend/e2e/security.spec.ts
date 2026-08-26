@@ -31,7 +31,12 @@ test('password change keeps the current session active and rotates credentials',
   await expect(page.getByRole('status')).toContainText(
     'Password updated. Previously issued sessions have been revoked.',
   );
-  await expect(page.getByText(email, { exact: true })).toBeVisible();
+
+  // Force a new authenticated page load so this verifies the rotated cookie,
+  // rather than merely observing UI state that existed before the password change.
+  await page.reload();
+  await expect(page.getByRole('heading', { name: 'Security' })).toBeVisible();
+  await expect(page.getByRole('button', { name: 'Sign out' })).toBeVisible();
 
   await page.getByRole('button', { name: 'Sign out' }).click();
   await expect(page.getByRole('heading', { name: 'Sign in' })).toBeVisible();
