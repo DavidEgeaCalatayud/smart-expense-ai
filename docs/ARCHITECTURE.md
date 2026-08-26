@@ -1,189 +1,299 @@
 # Architecture
 
-## Overview
+## Purpose
 
-Smart Expense AI is planned as a modular web application composed of four main areas:
+This document describes the **implemented** Smart Expense AI architecture. Future ideas belong in `ROADMAP.md`; this file should not present speculative modules as if they already existed.
 
-1. Frontend web application.
-2. Backend API.
-3. Database and persistence layer.
-4. AI and analytics services.
+Current versioned analytical contracts are centralized in `backend/app/analysis_contracts.py` and explained in [`analysis-contracts.md`](analysis-contracts.md).
 
-The initial architecture should stay simple enough for an MVP, but structured in a way that allows future growth.
+## High-level system
 
-## Proposed High-Level Architecture
+```text
+Browser
+  |
+  v
+Nginx + React 19 / TypeScript / Vite
+  |
+  |  /api/* reverse proxy
+  v
+FastAPI
+  |
+  +---------------- Authentication / authorization
+  |
+  +---------------- Transaction + analytics services
+  |
+  +---------------- rules-v2 actionable findings
+  |
+  +---------------- historical-v2.2 persisted diagnostics
+  |
+  v
+SQLAlchemy 2
+  |
+  v
+PostgreSQL 16
 
-```txt
-User
- │
- ▼
-Frontend Web App
- │
- ▼
-Backend API
- ├── Authentication
- ├── Transaction Management
- ├── Category Management
- ├── Dashboard Data
- ├── Alert Engine
- └── AI Analysis Orchestrator
- │
- ▼
-Database
- │
- ▼
-AI / Analytics Layer
- ├── Categorization
- ├── Pattern Detection
- ├── Forecasting
- └── Anomaly Detection
+Offline evaluation / ML
+  |
+  +---------------- financial-benchmark-v1
+  +---------------- chronological evaluation harnesses
+  +---------------- tfidf-logreg-v1 category classifier
+```
+
+The category classifier is currently an offline evaluated model and is **not** loaded by the production API or Compose stack.
+
+## Repository layout
+
+```text
+smart-expense-ai/
+├── frontend/
+│   ├── src/                    # React application and typed API client
+│   ├── tests/                  # frontend/component coverage
+│   └── ...
+├── backend/
+│   ├── app/
+│   │   ├── api/                # FastAPI routes/dependencies
+│   │   ├── models/             # SQLAlchemy models
+│   │   ├── schemas/            # API schemas/contracts
+│   │   ├── services/           # business and intelligence services
+│   │   ├── analysis_contracts.py
+│   │   └── main.py
+│   ├── benchmark/              # deterministic benchmark generation/evaluation helpers
+│   ├── datasets/               # generated/materialized benchmark documentation/data
+│   ├── evaluation/             # labelled regression fixtures
+│   ├── ml/                     # offline ML baselines
+│   ├── scripts/                # reproducible evaluation/diagnostic commands
+│   └── tests/
+├── ai/                         # model cards / ML experiment documentation
+├── docs/
+├── compose.yaml
+├── SECURITY.md
+├── ROADMAP.md
+├── CHANGELOG.md
+├── LICENSE
+└── README.md
 ```
 
 ## Frontend
 
-The frontend should provide a clean and simple financial dashboard.
+The frontend is a React/TypeScript application served by Nginx.
 
-Expected sections:
+Responsibilities include:
 
-- Login and registration.
-- Main dashboard.
-- Transaction list.
-- Transaction form.
-- Category summary.
-- Alerts and insights panel.
-- Predictions view.
+- authentication/session UX;
+- dashboard and aggregate financial views;
+- transaction CRUD, filtering, sorting and pagination;
+- Financial Intelligence review workflow;
+- Historical Analysis visualization;
+- typed handling of API errors;
+- fixed-point monetary presentation using decimal strings/integer cents rather than JavaScript floating-point business arithmetic.
 
-Possible stack:
+The frontend does not independently reproduce backend financial rules. Analytical decisions remain server-side so there is one implementation of financial logic.
 
-- React.
-- TypeScript.
-- Tailwind CSS.
-- Charting library for visualizations.
+## Edge / reverse proxy
 
-## Backend
+Nginx is the browser-facing service in Docker Compose.
 
-The backend should expose a REST API for the frontend and coordinate business logic.
+It provides:
 
-Possible stack:
+- static frontend delivery;
+- `/api/*` proxying to FastAPI;
+- authentication endpoint rate limiting;
+- browser security headers.
 
-- Python.
-- FastAPI.
-- SQLAlchemy.
-- Pydantic.
-- PostgreSQL.
+PostgreSQL and the backend are not published directly to the host in the normal Compose topology.
 
-Main responsibilities:
+## Backend API
 
-- User authentication.
-- Transaction CRUD.
-- Category management.
-- Financial summaries.
-- Alert generation.
-- AI analysis execution.
+FastAPI exposes authenticated versioned endpoints under `/api/v1` and `/api/v2`.
 
-## Database
+Key responsibilities:
 
-The first database model should be focused on clarity and future expansion.
+- user registration/login/logout and session validation;
+- user-scoped transaction CRUD;
+- category reads;
+- aggregate analytics;
+- explicit Financial Intelligence scans and persisted findings;
+- persisted historical-analysis snapshots;
+- normalized error envelopes.
 
-Initial entities:
+API v2 is the preferred monetary contract and uses decimal strings for financial amounts. API v1 remains for compatibility where required.
 
-- User.
-- Transaction.
-- Category.
-- Merchant.
-- RecurringExpense.
-- Alert.
-- Insight.
+## Persistence and ownership
 
-## AI and Analytics Layer
+PostgreSQL is the source of truth for application data. SQLAlchemy 2 and Alembic provide persistence and schema migrations.
 
-The AI layer should start with deterministic and statistical logic before moving into complex models.
+Financial records are scoped by authenticated user ownership. Seeded categories are global/read-only until custom category management is introduced.
 
-### Phase 1
+Important persisted concepts include:
 
-- Rule-based categorization.
-- Historical averages.
-- Recurring transaction detection by merchant, amount and frequency.
-- Simple anomaly thresholds.
+- users;
+- transactions;
+- categories;
+- intelligence findings;
+- intelligence scans;
+- historical analysis snapshots.
 
-### Phase 2
+Derived analytical data does not silently rewrite source transactions.
 
-- Machine learning assisted categorization.
-- Better anomaly scoring.
-- Time-series forecasting.
-- Personalized spending baselines.
+## Financial arithmetic
 
-### Phase 3
+Money is stored as PostgreSQL `NUMERIC` and processed with Python `Decimal` in backend business logic.
 
-- Natural-language financial assistant.
-- Advanced recommendations.
-- Multi-account behavioral analysis.
+API v2 serializes money as decimal strings. The frontend converts those strings to integer cents for calculations that must occur client-side.
 
-## Suggested API Modules
+Floating-point values may be used for non-monetary visualization coordinates or ML probability outputs, but not as the authoritative representation of money.
 
-```txt
-backend/
-├── app/
-│   ├── api/
-│   │   ├── routes_auth.py
-│   │   ├── routes_transactions.py
-│   │   ├── routes_categories.py
-│   │   ├── routes_dashboard.py
-│   │   └── routes_alerts.py
-│   ├── core/
-│   │   ├── config.py
-│   │   └── security.py
-│   ├── models/
-│   ├── schemas/
-│   ├── services/
-│   ├── ai/
-│   └── main.py
-└── tests/
+## Actionable intelligence: `rules-v2`
+
+`rules-v2` creates persisted findings that users can review, dismiss, resolve and reopen.
+
+Current finding types:
+
+```text
+recurring_pattern
+recurring_payment_missing
+duplicate_subscription
+spending_anomaly
+frequency_anomaly
 ```
 
-## Security Principles
+The engine uses:
 
-Because the application handles financial information, security must be considered from the beginning.
+- canonical merchant identity;
+- recurring-stream segmentation shared with historical analysis;
+- calendar/lifecycle recurrence evidence;
+- the shared `merchant_mad_plus_extreme_iqr_v1` amount baseline;
+- chronological frequency baselines;
+- stable fingerprints for idempotent rescans.
 
-Initial principles:
+Amount anomalies are merchant-specific and prior-only. Category-only history is not sufficient evidence for a merchant-level amount alert.
 
-- Password hashing.
-- JWT or secure session handling.
-- Environment-based secrets.
-- No sensitive data in logs.
-- Input validation.
-- Authorization checks per user.
-- Data isolation between users.
+See [`intelligence.md`](intelligence.md).
 
-## Data Privacy Principles
+## Historical diagnostics: `historical-v2.2`
 
-- Store the minimum amount of personal data required.
-- Avoid storing bank credentials directly.
-- Keep transaction data private by default.
-- Provide future export and deletion options.
-- Prepare the project for GDPR-oriented decisions if the product becomes real.
+Historical analysis is stored as versioned snapshots and is separate from review-state findings.
 
-## MVP Technical Strategy
+It provides:
 
-For the MVP, the project should avoid unnecessary complexity.
+- complete-month spending trend analysis;
+- month-completeness metadata;
+- canonical merchant evidence;
+- calendar/lifecycle-aware recurring profiles;
+- recurrence segmentation metadata;
+- chronological distribution-aware amount outliers;
+- category spending shifts;
+- coverage metadata.
 
-Recommended approach:
+The current recurrence segmentation contract is `lifecycle-v1`, using canonical merchant, lifecycle, price-continuity, descriptor/amount and temporal-phase evidence.
 
-1. Start with manual transaction input.
-2. Add database persistence.
-3. Add dashboards and summaries.
-4. Add rule-based recurring expense detection.
-5. Add simple anomaly detection.
-6. Add predictive estimates based on historical averages.
-7. Improve the AI layer only after real sample data exists.
+See [`historical-analysis.md`](historical-analysis.md).
 
-## Future Integrations
+## Shared analysis primitives
 
-Possible future integrations:
+`rules-v2` and `historical-v2.2` intentionally share selected services so the same concept is not implemented with incompatible semantics in two places.
 
-- Bank aggregation APIs.
-- Email receipt analysis.
-- Push notifications.
-- Stripe for subscriptions.
-- OpenAI or local LLM-based insight generation.
-- Mobile app.
+Examples:
+
+```text
+merchant canonicalization
+recurring stream construction
+price continuity
+lifecycle reactivation
+amount anomaly baseline
+```
+
+Stable identifiers that cross those boundaries are defined in:
+
+```text
+backend/app/analysis_contracts.py
+```
+
+That registry currently owns:
+
+```text
+rules-v2
+historical-v2.2
+merchant_mad_plus_extreme_iqr_v1
+lifecycle-v1
+tfidf-logreg-v1
+merchant_descriptor_only_v1
+```
+
+Algorithm-specific thresholds remain next to their owning implementation.
+
+## Offline category classification
+
+The first supervised category baseline is `tfidf-logreg-v1` with feature policy `merchant_descriptor_only_v1`.
+
+```text
+merchant descriptor
+        |
+        v
+word + character TF-IDF
+        |
+        v
+Logistic Regression
+        |
+        v
+category prediction / offline evaluation report
+```
+
+The model is trained/evaluated through the benchmark tooling only. It is not part of transaction creation/update flows and does not silently assign categories to users.
+
+`scikit-learn` therefore remains an offline/development dependency rather than a production runtime dependency.
+
+## Evaluation architecture
+
+Financial behavior is evaluated chronologically instead of with random time-series splits.
+
+The repository contains:
+
+- deterministic labelled fixture/regression tests;
+- `financial-benchmark-v1` synthetic benchmark;
+- calibration / validation / sealed holdout ranges;
+- fold-local merchant identity;
+- stream-level optimal matching;
+- prospective occurrence evaluation;
+- month-block confidence intervals;
+- scenario-level diagnostics;
+- dedicated category-classifier metrics and seen/unseen merchant slices.
+
+The evidence hierarchy remains:
+
+```text
+small fixture -> regression protection
+financial-benchmark-v1 -> strong synthetic evaluation
+independent/real labelled data -> real quality evidence
+```
+
+Synthetic benchmark metrics are not presented as real-world banking accuracy.
+
+## Security boundaries
+
+The current baseline includes:
+
+- Argon2 password hashing;
+- signed JWT sessions stored in HttpOnly cookies;
+- issuer/audience/expiry validation;
+- per-user authorization;
+- trusted-host/origin/CORS protections;
+- edge rate limiting for authentication;
+- dependency audits;
+- security headers;
+- reduced sensitive logging.
+
+Internet-facing production still requires the residual work documented in `SECURITY.md`, `docs/SECURITY_REVIEW.md` and `ROADMAP.md`.
+
+## Change discipline
+
+Architecture/version changes should not be documented independently of implementation.
+
+For current analysis/model identifiers:
+
+1. change `backend/app/analysis_contracts.py`;
+2. update the owning implementation;
+3. update the relevant technical document and `docs/analysis-contracts.md`;
+4. update `CHANGELOG.md`;
+5. run applicable benchmark and full CI;
+6. merge only when `main` remains coherent.

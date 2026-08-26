@@ -8,6 +8,11 @@ from uuid import UUID
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
+from app.analysis_contracts import (
+    HISTORICAL_ANALYSIS_VERSION,
+    RECURRENCE_SEGMENTATION_STRATEGY,
+    RECURRENCE_SEGMENTATION_VERSION,
+)
 from app.historical_contract import HistoricalAnalysisResponseV22
 from app.models.historical_analysis import HistoricalAnalysisSnapshot
 from app.services.amount_anomaly_baseline import BASELINE_POLICY, evaluate_amount_anomaly
@@ -46,7 +51,7 @@ from app.services.temporal_stream_clustering import (
 )
 
 
-ANALYSIS_VERSION = "historical-v2.2"
+ANALYSIS_VERSION = HISTORICAL_ANALYSIS_VERSION
 DEFAULT_RECURRING_SCORE_THRESHOLD = Decimal("55")
 MIN_RECURRING_SCORE_THRESHOLD = Decimal("55")
 MONEY_CENT = Decimal("0.01")
@@ -235,8 +240,8 @@ def analyze_historical_transactions_v2_2(
         coverage["outlierCount"] = len(result["outliers"])
 
     result["recurrenceSegmentation"] = {
-        "strategy": "canonical_merchant_then_lifecycle_then_price_continuity_then_descriptor_amount_then_temporal_phase",
-        "strategyVersion": "lifecycle-v1",
+        "strategy": RECURRENCE_SEGMENTATION_STRATEGY,
+        "strategyVersion": RECURRENCE_SEGMENTATION_VERSION,
         "analysisVersion": ANALYSIS_VERSION,
         "profileCount": len(recurring_profiles),
         "temporalPhaseProfileCount": temporal_phase_count,
