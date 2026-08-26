@@ -49,16 +49,34 @@ jobs:
           assert report['datasetVersion'] == 'financial-benchmark-v1'
           assert report['model']['version'] == 'tfidf-logreg-v1'
           assert report['model']['featureFields'] == ['merchant']
+          assert report['labelCoverage']['total'] == 2560
+          assert set(report['labelCoverage']['byCategory']) == {
+              'Food', 'Health', 'Other', 'Salary', 'Shopping', 'Subscriptions', 'Transport'
+          }
+
           assert report['holdout']['status'] == 'sealed'
+          assert report['holdout']['range'] == {
+              'startMonth': '2025-07',
+              'endMonth': '2025-12',
+          }
           assert report['holdout']['usedForFit'] is False
           assert report['holdout']['usedForMetrics'] is False
-          assert report['labelCoverage']['total'] >= 2500
 
+          # Floors are deliberately below the first measured development run
+          # (calibration macro-F1 0.9931, validation 0.994367). They protect the
+          # baseline from silent regression without pretending this synthetic
+          # benchmark measures real-world accuracy.
           for split_name in ('calibration', 'validation'):
               split = report[split_name]
               metrics = split['metrics']
-              assert 0.0 <= metrics['macroF1'] <= 1.0
-              assert 0.0 <= metrics['accuracy'] <= 1.0
+              assert metrics['macroF1'] >= 0.98
+              assert metrics['accuracy'] >= 0.98
+              assert split['merchantCoverage']['seen']['macroF1'] >= 0.99
+              assert split['merchantCoverage']['unseen']['support'] > 0
+              for category_metrics in split['perCategory'].values():
+                  assert category_metrics['precision'] >= 0.95
+                  assert category_metrics['recall'] >= 0.95
+
               labels = split['confusionMatrix']['labels']
               matrix = split['confusionMatrix']['matrix']
               assert set(labels) == set(split['perCategory'])
@@ -80,5 +98,8 @@ jobs:
               print('confusionMatrix labels=', split['confusionMatrix']['labels'])
               for row in split['confusionMatrix']['matrix']:
                   print(' ', row)
+              print('errors=')
+              for error in split['errors']:
+                  print(' ', error)
           print('\nHoldout:', report['holdout'])
           PY
