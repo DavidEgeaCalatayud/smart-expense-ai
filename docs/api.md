@@ -4,6 +4,8 @@ Smart Expense AI exposes versioned application contracts under `/api/v1` and `/a
 
 `/health` is intentionally outside the versioned application contract because it is an infrastructure probe. Unversioned `/api/*` application routes are not supported.
 
+Stable analytical identifiers are defined centrally in `backend/app/analysis_contracts.py` and documented in [`analysis-contracts.md`](analysis-contracts.md).
+
 ## Version overview
 
 `/api/v1` remains the backwards-compatible contract for existing clients. Its transaction/analytics money fields remain JSON numbers at the serialization boundary.
@@ -15,7 +17,7 @@ Smart Expense AI exposes versioned application contracts under `/api/v1` and `/a
 - monetary values inside intelligence evidence are decimal strings;
 - transaction writes must send `amount` as a JSON string;
 - JSON numeric amounts are rejected with HTTP `422`;
-- historical-analysis evidence includes completeness/canonicalization metadata.
+- historical-analysis evidence includes completeness, merchant identity, recurrence segmentation and amount-baseline metadata.
 
 PostgreSQL stores `NUMERIC(12,2)` and Python financial services use `Decimal`. The v1 number conversion is compatibility serialization only.
 
@@ -25,9 +27,21 @@ Current FastAPI application version:
 1.4.0
 ```
 
+The application-version source of truth is `backend/app/version.py`. FastAPI and the CI import smoke check both consume `APP_VERSION`; CI does not duplicate the version literal.
+
+Algorithm/model versions are independent from the HTTP application version. The current analytical contracts are:
+
+```text
+rules-v2
+historical-v2.2
+merchant_mad_plus_extreme_iqr_v1
+lifecycle-v1
+tfidf-logreg-v1   # offline only; not an API auto-categorization path
+```
+
 ## Authentication and account controls
 
-The browser session is carried in an HttpOnly JWT cookie shared by both API versions. JWTs include a server-checked session-version claim; password changes increment the persisted account version and invalidate previously issued tokens.
+The browser session is carried in an HttpOnly JWT cookie shared by both API versions. JWTs include a server-checked session-version claim. Password changes increment the persisted session version, invalidate previously issued tokens and rotate the current browser cookie so the successful caller remains authenticated.
 
 Public endpoints:
 
@@ -47,9 +61,19 @@ GET    /api/v1/auth/privacy-export
 DELETE /api/v1/auth/account
 ```
 
-`PUT /api/v1/auth/password` requires the current password and a different new password of at least 12 characters. A successful change rotates the current cookie and revokes older session versions.
+`PUT /api/v1/auth/password` requires the current password and a different new password of at least 12 characters. A successful change revokes older session versions and returns a newly versioned session cookie for the current browser.
 
-`GET /api/v1/auth/privacy-export` returns `privacy-export-v1`, scoped to the authenticated user. It includes account identity fields, transactions, intelligence findings, scan metadata and historical-analysis snapshots. Password hashes, session-version internals and JWTs are excluded.
+`GET /api/v1/auth/privacy-export` returns `privacy-export-v1`, scoped to the authenticated user. The contract contains:
+
+```text
+account
+transactions
+intelligenceFindings
+intelligenceScans
+historicalAnalysisSnapshots
+```
+
+Every persisted collection is filtered by the authenticated `user_id`. Integration regression coverage seeds all five export areas for two separate users and verifies that no object owned by the second user appears in the first user's export. Password hashes, session-version internals and JWT/session-token material are excluded.
 
 `DELETE /api/v1/auth/account` requires the current password plus the exact confirmation value `DELETE`. Successful deletion removes the user and database-cascaded user-owned financial/intelligence data and clears the authentication cookie.
 
@@ -193,16 +217,59 @@ frequency_anomaly
 
 ### rules-v2 recurrence
 
-Recurring findings use canonical merchant identity plus descriptor/amount/temporal stream segmentation and calendar-aware recurrence features. `recurring_pattern` is informational and exposes an explainable deterministic `patternScore`, not a probability.
+Recurring findings use canonical merchant identity plus the shared `historical-v2.2` recurring-stream primitives. The current segmentation metadata is versioned as `lifecycle-v1` and combines lifecycle, qualified price continuity, descriptor/amount and conservative calendar-phase evidence.
 
-`recurring_payment_missing` is a separate warning/high signal requiring stronger history and a learned schedule. It can indicate cancellation, date changes or missing imported data; it does not assert a cause. Same-cadence-period extra charges suppress this missing-payment signal while the schedule is ambiguous.
+`recurring_pattern` is informational and exposes a deterministic `patternScore`, not a probability.
 
-### rules-v2 basic anomalies
+`recurring_payment_missing` is a separate warning/high signal requiring stronger history and a learned schedule. It can indicate cancellation, date changes or missing imported data; it does not assert a cause. Same-cadence-period collisions suppress this missing-payment signal while the schedule is ambiguous.
 
-`spending_anomaly` evaluates charges chronologically. Baselines use only earlier transaction amounts:
+### rules-v2 amount anomaly
 
-- canonical merchant baseline after at least 4 earlier charges, up to 12;
-- otherwise category fallback after at least 8 earlier charges, up to 20.
+`spending_anomaly` evaluates charges chronologically using the shared policy:
+
+```text
+merchant_mad_plus_extreme_iqr_v1
+```
+
+Baseline contract:
+
+- only amounts from transactions earlier than the candidate are eligible;
+- history is scoped to the same canonical merchant;
+- at least four prior merchant observations are required;
+- at most the last 12 prior merchant amounts are used;
+- category-only history is not sufficient evidence for a merchant-level amount alert.
+
+The decision combines median/MAD evidence with an extreme Tukey fence. The candidate must exceed:
+
+```text
+max(
+  1.50 * median,
+  median + 3 * robustSpread,
+  Q3 + 3 * IQR
+)
+```
+
+and also satisfy the minimum absolute-delta and robust-deviation requirements documented in [`intelligence.md`](intelligence.md).
+
+Amount-anomaly evidence exposes:
+
+```text
+baselineScope = merchant
+baselinePolicy = merchant_mad_plus_extreme_iqr_v1
+baselineCount
+baselineMedian
+baselineMad
+robustSpread
+firstQuartile
+thirdQuartile
+interquartileRange
+distributionUpperFence
+deviationScore
+ratio
+threshold
+```
+
+### rules-v2 frequency anomaly
 
 `frequency_anomaly` compares a merchant's current monthly charge count with up to six previous active months and requires at least three prior active periods. It also exposes the maximum number of charges in any rolling seven-day interval.
 
@@ -251,21 +318,22 @@ POST /api/v2/intelligence/historical-analysis?months=12
 
 `months` accepts 6–24. The period ends at the latest persisted expense date so historical fixture analysis is reproducible.
 
-Historical-v2.2 includes:
+`historical-v2.2` includes:
 
 - monthly spend with explicit partial-month completeness;
 - complete-month least-squares trend;
 - auditable merchant canonicalization;
-- descriptor/amount/temporal-phase recurring streams;
+- recurrence segmentation under `lifecycle-v1`;
+- lifecycle, price-continuity, descriptor/amount and temporal-phase recurrence evidence;
 - calendar-aware recurrence features and pattern score;
 - missed expected occurrences;
-- chronological robust outliers with merchant/category baselines;
+- chronological robust amount outliers using `merchant_mad_plus_extreme_iqr_v1` and merchant-only prior history;
 - complete-month category shifts;
 - coverage and segmentation evidence.
 
 The incomplete cutoff month remains visible but is excluded from trend/category-shift calculations. The engine does not extrapolate the partial month.
 
-`patternScore` is deterministic, not calibrated confidence. Historical outlier baselines are chronological: future transactions never participate in an earlier candidate's amount baseline.
+`patternScore` is deterministic, not calibrated confidence. Future transactions never participate in an earlier candidate's amount baseline.
 
 ### Latest snapshot
 
@@ -275,11 +343,15 @@ GET /api/v2/intelligence/historical-analysis/latest
 
 Returns the newest snapshot owned by the authenticated user. If none exists it returns `404 historical_analysis_not_found`.
 
-See [`historical-analysis.md`](historical-analysis.md), [`evaluation-protocol.md`](evaluation-protocol.md) and [`occurrence-evaluation.md`](occurrence-evaluation.md) for algorithm and evaluation details.
+See [`historical-analysis.md`](historical-analysis.md), [`analysis-contracts.md`](analysis-contracts.md), [`evaluation-protocol.md`](evaluation-protocol.md) and [`occurrence-evaluation.md`](occurrence-evaluation.md) for algorithm and evaluation details.
+
+## Offline category classifier boundary
+
+`tfidf-logreg-v1` is evaluated in repository tooling with feature policy `merchant_descriptor_only_v1`, but it is not exposed as a production automatic-category API. Transaction categories therefore remain explicit application data rather than silently rewritten model output.
 
 ## Error contract
 
-Both versions use the same safe envelope:
+Both HTTP versions use the same safe envelope:
 
 ```json
 {
@@ -307,6 +379,6 @@ Semantic codes include `invalid_date_range`, `invalid_transaction`, `transaction
 
 ## Versioning policy
 
-Breaking HTTP representation changes require a new URL version. Backwards-compatible fields/types may be added within an existing version.
+Breaking HTTP representation changes require a new URL version. Backwards-compatible fields/types may be added within an existing URL version.
 
-`rules-v2` and `historical-v2.2` are **algorithm versions**, not URL versions. API v2 remains the decimal-safe web contract while finding/snapshot versions identify which deterministic logic produced persisted analytical evidence.
+The FastAPI application release identifier lives in `backend/app/version.py`. `rules-v2`, `historical-v2.2`, `merchant_mad_plus_extreme_iqr_v1`, `lifecycle-v1` and `tfidf-logreg-v1` are algorithm/model/policy identifiers, not URL versions. Their source of truth and change procedure are defined in [`analysis-contracts.md`](analysis-contracts.md).
