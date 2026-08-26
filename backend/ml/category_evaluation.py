@@ -127,13 +127,26 @@ def evaluate_predictions(
     seen_predicted: list[str] = []
     unseen_actual: list[str] = []
     unseen_predicted: list[str] = []
+    errors: list[dict[str, Any]] = []
     for item, predicted_category in zip(evaluation, predicted, strict=True):
-        if _normalise_merchant(item.merchant) in train_merchants:
+        seen_merchant = _normalise_merchant(item.merchant) in train_merchants
+        if seen_merchant:
             seen_actual.append(item.category)
             seen_predicted.append(predicted_category)
         else:
             unseen_actual.append(item.category)
             unseen_predicted.append(predicted_category)
+        if predicted_category != item.category:
+            errors.append(
+                {
+                    "transactionId": item.transaction_id,
+                    "date": item.date,
+                    "merchant": item.merchant,
+                    "actual": item.category,
+                    "predicted": predicted_category,
+                    "seenMerchant": seen_merchant,
+                }
+            )
 
     per_category: dict[str, dict[str, float | int]] = {}
     for label in labels:
@@ -164,6 +177,7 @@ def evaluate_predictions(
             "seen": _slice_metrics(seen_actual, seen_predicted),
             "unseen": _slice_metrics(unseen_actual, unseen_predicted),
         },
+        "errors": errors,
     }
 
 
