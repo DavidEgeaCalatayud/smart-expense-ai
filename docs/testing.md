@@ -1,6 +1,6 @@
 # Testing and CI
 
-Smart Expense AI uses layered automated verification for persistence, authentication, security controls, versioned API contracts, monetary precision, deterministic financial intelligence, historical analysis, evaluation semantics, offline ML baselines and critical browser flows.
+Smart Expense AI uses layered automated verification for persistence, authentication, security controls, versioned API contracts, monetary precision, deterministic financial intelligence, historical analysis, evaluation semantics, offline ML baselines, responsive transaction UX, supply-chain inventory and critical browser flows.
 
 Current analytical identifiers come from `backend/app/analysis_contracts.py`; see [`analysis-contracts.md`](analysis-contracts.md). Tests include explicit checks that those identifiers and the primary technical documentation do not silently drift apart.
 
@@ -203,6 +203,14 @@ Browser money remains decimal strings/integer cents. Recharts receives JavaScrip
 
 The API client has direct typed-error tests for authentication, authorization, not-found, conflict, validation, server and network failures while retaining safe backend messages/request IDs.
 
+Transaction-list component coverage verifies:
+
+- mobile/tablet card and desktop table representations are both driven by the same transaction props;
+- merchant, category, date, payment method, type, review status, amount and recurring state remain visible in the responsive presentation;
+- Edit/Delete controls preserve the same accessible names and parent handlers in both presentations;
+- the desktop table remains the `lg+` representation while the card grid is used below that breakpoint;
+- an empty result renders one explicit empty state rather than duplicated card/table placeholders.
+
 Historical Analysis component coverage includes:
 
 - partial-month exclusion notice;
@@ -244,6 +252,16 @@ The deployment-style Compose job verifies:
 
 The offline category classifier is not loaded by the Compose production runtime.
 
+## Supply-chain SBOM verification
+
+`.github/workflows/sbom.yml` runs on pull requests and pushes to `main` independently of the vulnerability-audit job.
+
+It reconstructs an isolated backend runtime from `backend/requirements.txt`, installs the locked frontend project with `npm ci`, generates CycloneDX 1.6 JSON inventories, validates them, asserts that both contain components and uploads them together as the retained `dependency-sboms` artifact.
+
+The workflow does not replace the blocking `pip-audit`/`npm audit` quality gate. It adds dependency inventory evidence. Container/OCI image contents and operating-system packages remain outside this dependency-level SBOM and are tracked separately in `ROADMAP.md`.
+
+See [`supply-chain.md`](supply-chain.md) for the exact coverage boundary.
+
 ## GitHub Actions
 
 `.github/workflows/ci.yml` runs on pushes and pull requests targeting `main`.
@@ -257,9 +275,11 @@ Functional gates:
 - **Docker Compose smoke test**: deployment-style images and proxy/API contract.
 - **Quality gate**: fails unless every functional gate succeeds.
 
-Additional analysis/model gates:
+Additional merge-candidate gates:
 
+- **Supply chain SBOM**: reproducible, validated backend/frontend CycloneDX dependency inventories and retained artifact upload.
 - **Financial benchmark**: deterministic labelled financial benchmark and protected development scenarios.
+- **Lifecycle diagnostic**: recurrence lifecycle regression evidence.
 - **Category classifier benchmark**: chronological TF-IDF/Logistic Regression evaluation and label/holdout contract.
 
 Third-party Actions are pinned to immutable commit SHAs. Dependabot monitors Actions, pip and npm dependencies.
