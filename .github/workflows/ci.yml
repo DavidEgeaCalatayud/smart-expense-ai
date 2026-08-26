@@ -62,7 +62,7 @@ jobs:
       - name: Apply migrations to a clean PostgreSQL database
         run: alembic upgrade head
       - name: Verify FastAPI imports
-        run: python -c "from app.main import app; assert app.title == 'Smart Expense AI API'; assert app.version == '1.3.0'"
+        run: python -c "from app.main import app; from app.version import APP_VERSION; assert app.title == 'Smart Expense AI API'; assert app.version == APP_VERSION"
       - name: Run backend tests
         run: pytest
       - name: Run historical-v2.2 walk-forward evaluation fixture
