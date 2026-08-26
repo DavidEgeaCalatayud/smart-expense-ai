@@ -43,7 +43,7 @@ test('authenticated user can preview, import and safely re-import a CSV statemen
 
   await page.getByRole('button', { name: 'Import 2 transactions' }).click();
   await expect(page.getByRole('status')).toContainText('2 transactions imported. 0 duplicates skipped.');
-  await expect(page.getByText('playwright-statement.csv')).toBeVisible();
+  await expect(page.getByRole('article').getByText('playwright-statement.csv')).toBeVisible();
 
   await page.getByRole('link', { name: 'Transactions' }).click();
   await expect(page.getByRole('heading', { name: 'Transactions' })).toBeVisible();
@@ -62,9 +62,10 @@ test('authenticated user can preview, import and safely re-import a CSV statemen
   await page.getByLabel('Decimal separator').selectOption('comma');
   await page.getByRole('button', { name: 'Preview import' }).click();
 
-  await expect(page.getByText('Import 0 transactions')).toBeEnabled();
+  const duplicateOnlyImport = page.getByRole('button', { name: 'Import 0 transactions' });
+  await expect(duplicateOnlyImport).toBeEnabled();
   await expect(page.getByText('0 new rows are ready. 2 duplicate rows will be skipped and recorded in the import batch.')).toBeVisible();
-  await page.getByRole('button', { name: 'Import 0 transactions' }).click();
+  await duplicateOnlyImport.click();
   await expect(page.getByRole('status')).toContainText('No new transactions imported. 2 duplicates were already present.');
 
   await page.getByRole('link', { name: 'Transactions' }).click();
