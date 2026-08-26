@@ -187,7 +187,7 @@ All import endpoints require the existing HttpOnly authenticated session. Duplic
 
 The CSV is processed in request memory and is **not persisted as raw file content**. Only normalized transactions, the batch metadata and SHA-256 hashes/fingerprints are stored.
 
-Deleting the account cascades its import batches and transactions through database foreign keys. Import batch metadata should also be included in the authenticated privacy export so ingestion history remains portable with the rest of the account data.
+Deleting the account cascades its import batches and transactions through database foreign keys. Import batch metadata is included in the authenticated `privacy-export-v1` response so ingestion history remains portable with the rest of the account data.
 
 ## What this does not do
 
