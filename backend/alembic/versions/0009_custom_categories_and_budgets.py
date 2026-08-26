@@ -1,6 +1,6 @@
 """Add user-owned categories and monthly budgets.
 
-Revision ID: 0009_custom_categories_and_budgets
+Revision ID: 0009_categories_budgets
 Revises: 0008_csv_import_batches
 Create Date: 2026-08-26 15:25:00
 
@@ -12,7 +12,7 @@ import sqlalchemy as sa
 from sqlalchemy.dialects import postgresql
 
 
-revision: str = "0009_custom_categories_and_budgets"
+revision: str = "0009_categories_budgets"
 down_revision: Union[str, Sequence[str], None] = "0008_csv_import_batches"
 branch_labels: Union[str, Sequence[str], None] = None
 depends_on: Union[str, Sequence[str], None] = None
