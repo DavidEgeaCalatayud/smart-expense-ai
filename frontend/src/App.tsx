@@ -2,6 +2,8 @@ import { Navigate, Outlet, Route, Routes } from 'react-router-dom';
 import { useAuth } from './auth/useAuth';
 import { AppShell } from './components/layout/AppShell';
 import { AlertsPage } from './pages/AlertsPage';
+import { BudgetsPage } from './pages/BudgetsPage';
+import { CategoriesPage } from './pages/CategoriesPage';
 import { DashboardPage } from './pages/DashboardPage';
 import { ImportPage } from './pages/ImportPage';
 import { LoginPage } from './pages/LoginPage';
@@ -42,6 +44,8 @@ function App() {
       <Route element={<ProtectedWorkspace />}>
         <Route path={ROUTES.dashboard} element={<DashboardPage />} />
         <Route path={ROUTES.transactions} element={<TransactionsPage />} />
+        <Route path={ROUTES.categories} element={<CategoriesPage />} />
+        <Route path={ROUTES.budgets} element={<BudgetsPage />} />
         <Route path={ROUTES.imports} element={<ImportPage />} />
         <Route path={ROUTES.predictions} element={<PredictionsPage />} />
         <Route path={ROUTES.alerts} element={<AlertsPage />} />
