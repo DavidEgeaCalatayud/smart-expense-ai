@@ -12,11 +12,14 @@ The product does **not** simulate AI results. Transactions, dashboard metrics, a
 - Authenticated per-user transaction ownership.
 - Transaction CRUD with server-side pagination, search, filters and sorting.
 - Responsive transaction cards on mobile/tablet and a dense table on desktop, sharing the same persisted data and mutation handlers.
+- Guided authenticated CSV history import with column mapping, explicit date/decimal/sign normalization, preview, per-user duplicate fingerprints and transactional import batches.
 - Server-side summary/monthly analytics.
 - PostgreSQL `NUMERIC(12,2)` and Python `Decimal` for financial calculations.
 - Decimal-string monetary contracts in `/api/v2` and integer-cent arithmetic in the frontend.
 - Backwards-compatible `/api/v1` serialization for existing clients.
 - Typed frontend API errors preserving safe backend messages, validation details and request IDs.
+
+CSV ingestion deliberately accepts EUR only until a real FX/multi-currency accounting model exists. Invalid rows block the entire commit; known duplicates are skipped and recorded without duplicating account history. See [`docs/csv-import.md`](docs/csv-import.md).
 
 ### Accounts and security baseline
 
@@ -149,7 +152,8 @@ Human-readable ownership and change rules are documented in [`docs/analysis-cont
 - User-managed custom categories.
 - Production automatic category assignment or personalized category-model training.
 - Automatic/background intelligence scans.
-- Bank integrations.
+- Direct bank API integrations.
+- Multi-currency/FX accounting and foreign-currency CSV import.
 - Calibrated AI probabilities.
 - Probabilistic fraud detection.
 - Trained ML anomaly/forecasting models validated against labelled real-world data.
@@ -183,6 +187,7 @@ Nginx + React :5173
   v
 FastAPI :8000 (internal)
   |  authenticated user scoping
+  |  CSV detect / preview / atomic import
   |  Decimal financial domain
   |  rules-v2 actionable findings
   |  historical-v2.2 persisted analysis
@@ -275,6 +280,10 @@ PUT    /api/v2/transactions/{transaction_id}
 DELETE /api/v2/transactions/{transaction_id}
 GET    /api/v2/analytics/summary
 GET    /api/v2/analytics/monthly-expenses
+POST   /api/v2/imports/csv/detect
+POST   /api/v2/imports/csv/preview
+POST   /api/v2/imports/csv/commit
+GET    /api/v2/imports/batches
 POST   /api/v2/intelligence/scan
 GET    /api/v2/intelligence/summary
 GET    /api/v2/intelligence/findings
@@ -296,6 +305,7 @@ Errors use a stable envelope with semantic `code`, safe `message`, `requestId` a
 Key documentation:
 
 - [`docs/api.md`](docs/api.md) — HTTP contract.
+- [`docs/csv-import.md`](docs/csv-import.md) — CSV mapping, normalization, duplicate fingerprint and transactional-import semantics.
 - [`docs/analysis-contracts.md`](docs/analysis-contracts.md) — canonical versions and named policies.
 - [`docs/intelligence.md`](docs/intelligence.md) — `rules-v2` actionable findings.
 - [`docs/historical-analysis.md`](docs/historical-analysis.md) — `historical-v2.2` algorithms.
@@ -370,6 +380,7 @@ GitHub Actions validates:
 
 - clean PostgreSQL Alembic migrations;
 - backend unit/integration tests;
+- CSV import parsing, normalization, deduplication, atomic commit, account isolation and privacy lifecycle;
 - analysis-contract/documentation consistency;
 - `rules-v2` recurrence, missing-payment, duplicate, amount and frequency findings;
 - `historical-v2.2` algorithms;
@@ -378,7 +389,7 @@ GitHub Actions validates:
 - TypeScript, ESLint, Vitest and production frontend build;
 - Python/npm dependency audits;
 - reproducible and validated backend/frontend CycloneDX dependency SBOM generation;
-- critical authenticated Playwright E2E;
+- critical authenticated Playwright E2E, including safe CSV re-import;
 - complete Docker Compose startup and API smoke contract.
 
 The consolidated `Quality gate` requires backend, frontend, dependency security, E2E and Docker jobs to pass. The Supply chain SBOM workflow and financial/category benchmark workflows run as additional merge-candidate gates.
