@@ -7,8 +7,14 @@ from sklearn.feature_extraction.text import TfidfVectorizer
 from sklearn.linear_model import LogisticRegression
 from sklearn.pipeline import FeatureUnion, Pipeline
 
-MODEL_VERSION = "tfidf-logreg-v1"
-FEATURE_POLICY = "merchant_descriptor_only_v1"
+from app.analysis_contracts import (
+    CATEGORY_CLASSIFIER_FEATURE_POLICY,
+    CATEGORY_CLASSIFIER_VERSION,
+)
+
+
+MODEL_VERSION = CATEGORY_CLASSIFIER_VERSION
+FEATURE_POLICY = CATEGORY_CLASSIFIER_FEATURE_POLICY
 RANDOM_STATE = 20260826
 
 
@@ -109,3 +115,12 @@ class CategoryClassifier:
     def _require_fitted(self) -> None:
         if not self._fitted:
             raise RuntimeError("category classifier must be fitted before prediction")
+
+
+__all__ = [
+    "CategoryClassifier",
+    "CategoryPrediction",
+    "FEATURE_POLICY",
+    "MODEL_VERSION",
+    "RANDOM_STATE",
+]

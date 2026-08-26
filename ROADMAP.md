@@ -11,6 +11,10 @@ Goal: prepare the repository and define the product direction.
 - [x] Create frontend base project with React and TypeScript.
 - [x] Add environment configuration.
 - [x] Add Docker configuration.
+- [x] Add an explicit MIT `LICENSE` for the public repository.
+- [x] Add `CHANGELOG.md` with an `Unreleased` workflow instead of inventing retrospective releases.
+- [x] Centralize current analysis/model identifiers in `backend/app/analysis_contracts.py` and document their ownership/change procedure.
+- [x] Replace stale proposed architecture/version documentation with implementation-aligned technical documentation.
 
 ## Phase 1 - Persistent MVP Core
 
@@ -83,7 +87,7 @@ Goal: implement real analysis and evaluated ML baselines without simulated AI ou
 - [x] Add least-squares monthly spending trend analysis with slope and R² evidence.
 - [x] Add deterministic recurring-behavior scoring from cadence fit, interval regularity, amount stability and history depth.
 - [x] Add chronological robust outlier analysis that avoids future-data leakage.
-- [x] Replace heterogeneous category-only amount baselines with shared merchant-specific median/MAD plus extreme-IQR evidence.
+- [x] Replace heterogeneous category-only amount baselines with shared merchant-specific median/MAD plus extreme-IQR evidence (`merchant_mad_plus_extreme_iqr_v1`).
 - [x] Add three-month vs three-month category-spend shift analysis.
 - [x] Add Historical Analysis UI with coverage, trend, recurrence scores, outliers and category shifts.
 - [x] Persist and isolate historical-analysis snapshots by authenticated user.
@@ -104,6 +108,9 @@ Goal: implement real analysis and evaluated ML baselines without simulated AI ou
 - [x] Expose stream basis/calendar signatures and temporal-phase coverage in persisted snapshots and API responses.
 - [x] Extend temporal ground-truth labels with `calendarSignature` and evaluate v2.2 in the fold-local walk-forward harness.
 - [x] Add positive and negative regressions for equal-amount monthly/weekly streams and non-concurrent billing-day drift.
+- [x] Preserve recurring stream identity across qualified price changes without merging concurrent schedules.
+- [x] Model cancellation/dormancy/reactivation as lifecycle episodes instead of uninterrupted recurrence.
+- [x] Expose recurrence segmentation as `lifecycle-v1` with lifecycle, price-continuity, descriptor/amount and temporal-phase evidence.
 - [x] Replace order-dependent recurring-label matching with deterministic optimal bipartite assignment and permutation-invariance regressions.
 - [x] Add prospective occurrence-level evaluation using only the prior-month baseline for each expected charge.
 - [x] Measure occurrence precision/recall/F1, missed charges, extra predictions, date MAE/bias and decimal amount MAE/MAPE.
@@ -114,7 +121,7 @@ Goal: implement real analysis and evaluated ML baselines without simulated AI ou
 - [x] Require a SHA-256-fingerprinted frozen parameter manifest before final holdout evaluation.
 - [x] Add 95% month-block bootstrap confidence intervals with support/block counts for recurrence, anomaly and occurrence metrics.
 - [x] Add regressions for split overlap, holdout sealing, parameter tampering and deterministic bootstrap output.
-- [x] Upgrade actionable findings to `rules-v2` using canonical merchants and descriptor/amount/temporal recurring streams.
+- [x] Upgrade actionable findings to `rules-v2` using canonical merchants and shared recurring-stream primitives.
 - [x] Persist a separate `recurring_payment_missing` finding with stronger schedule/history requirements and same-period collision suppression.
 - [x] Upgrade actionable amount anomalies to the shared prior-only `merchant_mad_plus_extreme_iqr_v1` merchant baseline.
 - [x] Add `frequency_anomaly` findings from merchant monthly-count baselines and rolling seven-day burst evidence.
@@ -157,7 +164,7 @@ Goal: prepare the project for a subscription-based model.
 
 ## Phase 6 - Production Readiness
 
-Goal: prepare the application for real deployment.
+Goal: prepare the project for real deployment.
 
 - [x] Add backend automated tests.
 - [x] Add frontend automated tests.
@@ -183,7 +190,9 @@ Goal: prepare the application for real deployment.
 - [x] Gate sealed split/fingerprint/bootstrap evaluation behavior in backend tests.
 - [x] Gate `rules-v2` migration, empty-summary contract and finding behavior in PostgreSQL/Docker CI.
 - [x] Gate `tfidf-logreg-v1` category classification with chronological metrics, per-category regression floors and a sealed synthetic holdout.
+- [x] Gate current analysis/model contract aliases and critical documentation consistency in backend tests.
 - [ ] Configure `Quality gate` as a required check for `main`.
+- [ ] Declare the first semantic-version tag/GitHub Release when the project intentionally reaches a stable release boundary.
 - [ ] Add staging deployment.
 - [ ] Add production TLS/domain/secrets configuration.
 - [ ] Add centralized security monitoring and alerting.
