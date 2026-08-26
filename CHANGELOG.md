@@ -21,6 +21,11 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 - Component regression coverage for responsive transaction cards, the desktop table, recurring indicators, accessible actions and the single empty state.
 - Reproducible, validated CycloneDX 1.6 backend/frontend dependency SBOM generation in GitHub Actions, retained as the `dependency-sboms` artifact.
 - `docs/supply-chain.md` documenting dependency-audit/SBOM scope and the remaining container-image scanning boundary.
+- Transactional CSV historical-data import with delimiter/header detection, explicit column mapping, date/decimal/sign normalization, preview validation and duplicate classification.
+- Per-user SHA-256 import fingerprints backed by a database uniqueness constraint, including duplicate detection against existing manual transactions and within one CSV.
+- Persisted `import_batches` audit history plus transaction batch/fingerprint lineage, with batch metadata included in `privacy-export-v1` and cascaded on account deletion.
+- Authenticated Import CSV frontend workspace and critical E2E coverage for first import and safe duplicate-only re-import.
+- `docs/csv-import.md` documenting the CSV contract, EUR-only accounting guard, fingerprint semantics and transactional failure behavior.
 - This changelog.
 
 ### Changed
@@ -35,6 +40,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 - The FastAPI application version is centralized in `backend/app/version.py`; the application and CI import smoke check consume the same `APP_VERSION` instead of maintaining independent version literals.
 - The transaction list now switches at the desktop breakpoint from cards to the existing dense table without changing server-side filters, pagination or mutation handlers.
 - Production-readiness tracking now distinguishes completed application dependency SBOM generation from pending container image scanning/image-level SBOM work.
+- `privacy-export-v1` now includes account-scoped CSV import batch metadata so historical-data ingestion remains portable with the rest of the user's persisted financial data.
 
 ### Removed
 
