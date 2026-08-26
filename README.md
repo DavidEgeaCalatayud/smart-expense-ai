@@ -1,8 +1,8 @@
 # Smart Expense AI
 
-Smart Expense AI is a personal-finance application built around persisted transaction data, account isolation and explainable analysis before probabilistic or machine-learning features are introduced.
+Smart Expense AI is a personal-finance application built around persisted transaction data, account isolation and explainable analysis before probabilistic or machine-learning features are introduced into user-facing financial decisions.
 
-The product does **not** simulate AI results. Transactions, dashboard metrics, actionable findings and historical-analysis snapshots come from PostgreSQL data and reproducible algorithms. Forecasting, automatic classification and calibrated ML confidence remain explicitly unimplemented until they can be evaluated properly.
+The product does **not** simulate AI results. Transactions, dashboard metrics, actionable findings and historical-analysis snapshots come from PostgreSQL data and reproducible algorithms. An offline automatic category-classification baseline is now implemented and evaluated, but production auto-assignment, forecasting and calibrated ML confidence remain explicitly gated on stronger real-world evidence.
 
 ## Current capabilities
 
@@ -49,8 +49,8 @@ Highlights:
 - Separate expected-but-missing recurring-payment alerts with stronger history requirements.
 - Same-period collision suppression so an extra charge inside one billing period does not manufacture a missing-payment alert.
 - Possible duplicate-subscription detection across repeated near-duplicate months.
-- Chronological amount anomalies whose baseline contains only earlier amounts.
-- Merchant baseline first, then conservative category fallback when merchant history is insufficient.
+- Chronological amount anomalies using prior-only merchant history.
+- Shared `merchant_mad_plus_extreme_iqr_v1` amount baseline combining median/MAD with an extreme IQR fence; heterogeneous category fallback is no longer treated as sufficient merchant-level evidence.
 - Frequency anomalies based on prior active-month counts plus rolling seven-day burst evidence.
 - Stable fingerprints and persisted `open`, `dismissed`, `resolved` workflow states.
 - Separate summary counts for recurring, missing-recurring, duplicate, amount-anomaly and frequency-anomaly signals.
@@ -68,13 +68,29 @@ It includes:
 - Descriptor/amount plus conservative temporal-phase clustering.
 - Calendar-aware cadence, month-end behavior, amount MAD/CV and history-depth features.
 - Missed expected-occurrence evidence.
-- Chronological robust amount outliers with merchant/category baselines.
+- Chronological robust amount outliers using the same merchant-specific distribution-aware amount baseline as `rules-v2`.
 - Three-complete-month vs previous-three-complete-month category shifts.
 - Versioned snapshots per authenticated user.
 
+### Evaluated category classification — `tfidf-logreg-v1`
+
+The repository now contains the first supervised ML baseline for automatic transaction categorization. It is deliberately an **offline evaluated model**, not a production auto-assignment path.
+
+- TF-IDF over merchant descriptor text only.
+- Word 1–2 grams plus character 3–5 grams for bank-descriptor variation.
+- Logistic Regression with class balancing.
+- 2,560 complete category labels from `financial-benchmark-v1`.
+- Chronological development protocol: 2023 history -> 2024 calibration; unchanged pipeline refit on 2023+2024 -> 2025 H1 validation.
+- 2025 H2 remains sealed.
+- Reports macro-F1, accuracy, weighted F1, per-category precision/recall/F1/support and a confusion matrix.
+- Separately reports seen-vs-unseen merchant performance so repeated synthetic merchants are not confused with cold-start generalization.
+- Current synthetic validation macro-F1 is 0.994367, but unseen-merchant macro-F1 is only 0.20 on four rows; neither figure is presented as real-world banking accuracy.
+
+See [`ai/category-classifier/README.md`](ai/category-classifier/README.md).
+
 ### Evaluation methodology
 
-The repository includes a labelled chronological evaluation harness rather than random train/test splitting for time series.
+The repository includes labelled chronological evaluation harnesses rather than random train/test splitting for temporal financial behavior.
 
 Implemented methodology includes:
 
@@ -85,15 +101,17 @@ Implemented methodology includes:
 - precision, recall, F1, false-positive cost, date/amount error metrics and slices;
 - explicit calibration / validation / sealed holdout ranges;
 - SHA-256-fingerprinted frozen parameter manifests before holdout evaluation;
-- deterministic 95% month-block bootstrap confidence intervals with support and temporal-block reliability metadata.
+- deterministic 95% month-block bootstrap confidence intervals with support and temporal-block reliability metadata;
+- chronological category-classifier calibration/validation with macro-F1, per-category metrics, confusion matrices and merchant cold-start slices.
 
-The included evaluation fixture is synthetic and proves reproducibility/regression behavior only. It is **not** evidence of real-world accuracy.
+The included evaluation fixtures are synthetic and prove reproducibility/regression behavior only. They are **not** evidence of real-world accuracy.
 
 ## Not implemented yet
 
 - Password reset/change and account deletion/privacy export controls.
 - MFA.
 - User-managed custom categories.
+- Production automatic category assignment or personalized category-model training.
 - Automatic/background intelligence scans.
 - Bank integrations.
 - Calibrated AI probabilities.
@@ -135,6 +153,8 @@ FastAPI :8000 (internal)
   v
 PostgreSQL 16 :5432 (internal)
 ```
+
+The category classifier is currently evaluated offline and is not loaded by the production Compose stack.
 
 The backend and PostgreSQL are not published to the host in Compose. Nginx is the browser-facing entry point.
 
@@ -181,6 +201,14 @@ rules-v2 findings             historical-v2.2
                       |
                       v
              PostgreSQL NUMERIC(12,2)
+
+Offline ML evaluation
+        |
+        v
+merchant text -> TF-IDF -> Logistic Regression
+        |
+        v
+category benchmark report (not production auto-assignment)
 ```
 
 Inferred findings and historical snapshots are separate from source transactions. Neither engine silently rewrites a user's financial data.
@@ -194,8 +222,9 @@ smart-expense-ai/
 ├── frontend/        # React + TypeScript, tests and Nginx image
 ├── backend/         # FastAPI, SQLAlchemy, Alembic, intelligence and evaluation
 │   ├── evaluation/  # labelled deterministic evaluation fixtures
+│   ├── ml/          # reusable offline ML baselines/evaluation code
 │   └── scripts/     # reproducible evaluation commands
-├── ai/              # reserved for future validated ML experiments
+├── ai/              # model cards and validated ML experiment documentation
 ├── docs/
 ├── compose.yaml
 ├── SECURITY.md
@@ -241,6 +270,7 @@ See:
 - [`docs/historical-analysis.md`](docs/historical-analysis.md) — historical algorithms.
 - [`docs/evaluation-protocol.md`](docs/evaluation-protocol.md) — calibration/validation/holdout protocol.
 - [`docs/occurrence-evaluation.md`](docs/occurrence-evaluation.md) — prospective recurring-occurrence evaluation.
+- [`ai/category-classifier/README.md`](ai/category-classifier/README.md) — category classifier model card and metrics.
 
 ## Manual local development
 
@@ -282,6 +312,16 @@ python scripts/evaluate_historical.py evaluation/historical_v2_fixture.json \
   --output development-report.json
 ```
 
+Run the category-classifier benchmark:
+
+```bash
+pip install -r requirements-dev.txt
+python scripts/generate_benchmark_v1.py
+python scripts/evaluate_category_classifier.py \
+  datasets/benchmark_v1 \
+  --output /tmp/category-classifier-report.json
+```
+
 ### Frontend
 
 ```bash
@@ -308,13 +348,14 @@ GitHub Actions validates:
 - backend unit/integration tests;
 - `rules-v2` recurrence, missing-payment, duplicate, amount and frequency finding behavior;
 - `historical-v2.2` algorithms;
-- chronological evaluation and sealed holdout protocol;
+- chronological financial evaluation and sealed holdout protocol;
+- TF-IDF + Logistic Regression category-classifier regression metrics, per-category metrics, confusion matrix structure and sealed holdout;
 - TypeScript, ESLint, Vitest and production frontend build;
 - Python/npm dependency audits;
 - critical authenticated Playwright E2E;
 - complete Docker Compose startup and API smoke contract.
 
-The consolidated `Quality gate` requires backend, frontend, dependency security, E2E and Docker jobs to pass. Repository-level branch protection is still a separate pending configuration task.
+The consolidated `Quality gate` requires backend, frontend, dependency security, E2E and Docker jobs to pass. Financial and category benchmark workflows run as additional model/evaluation gates. Repository-level branch protection is still a separate pending configuration task.
 
 See [`docs/testing.md`](docs/testing.md).
 
@@ -332,16 +373,18 @@ Frontend: React 19, TypeScript, Vite, Tailwind CSS, Recharts, Vitest, React Test
 
 Backend: Python 3.12, FastAPI, Pydantic, SQLAlchemy 2, PostgreSQL 16, Alembic, Psycopg 3, PyJWT, pwdlib/Argon2, pytest.
 
+Offline ML evaluation: scikit-learn 1.9, TF-IDF and Logistic Regression.
+
 Infrastructure: Docker, Docker Compose, GitHub Actions, Dependabot, pip-audit, npm audit.
 
 ## Near-term priorities
 
-1. Run `rules-v2` and `historical-v2.2` over sufficiently large labelled real-world/realistically curated data.
-2. Calibrate thresholds only on calibration data, use validation for design decisions, then open final holdout once.
-3. Measure false-positive cost and bootstrap intervals before relaxing category/frequency thresholds.
-4. Only then compare an ML anomaly candidate such as Isolation Forest against the deterministic baseline.
-5. Add automatic/background analysis when deployment scheduling exists.
-6. Continue account/privacy and production-readiness work.
+1. Run `rules-v2`, `historical-v2.2` and category classification against sufficiently large independent/real labelled data.
+2. Improve category cold-start evidence with merchant-group evaluation and user-specific corrections before any production auto-assignment.
+3. Continue reducing the remaining `frequency_anomaly` false-positive surface using labelled evidence rather than threshold chasing.
+4. Calibrate financial thresholds only on calibration data, use validation for design decisions, then open final holdout once.
+5. Only after deterministic baselines have real-world evidence, compare an ML anomaly candidate such as Isolation Forest.
+6. Add automatic/background analysis when deployment scheduling exists and continue account/privacy/production-readiness work.
 
 The detailed roadmap is maintained in [`ROADMAP.md`](ROADMAP.md).
 
