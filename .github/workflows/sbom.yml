@@ -1,0 +1,85 @@
+name: Supply chain SBOM
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: sbom-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  dependency-sboms:
+    name: Backend and frontend CycloneDX SBOMs
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+      - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
+        with:
+          python-version: '3.12'
+          cache: pip
+          cache-dependency-path: backend/requirements.txt
+
+      - name: Build isolated backend runtime environment
+        run: |
+          python -m venv /tmp/smart-expense-backend-runtime
+          /tmp/smart-expense-backend-runtime/bin/python -m pip install --disable-pip-version-check -r backend/requirements.txt
+
+      - name: Generate backend CycloneDX SBOM
+        run: |
+          python -m pip install --disable-pip-version-check cyclonedx-bom==7.3.1
+          mkdir -p sbom
+          cyclonedx-py environment \
+            --spec-version 1.6 \
+            --output-format JSON \
+            --output-reproducible \
+            --validate \
+            --output-file sbom/backend.cdx.json \
+            /tmp/smart-expense-backend-runtime/bin/python
+
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version: '22'
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+
+      - name: Install locked frontend dependencies
+        working-directory: frontend
+        run: npm ci --no-audit --no-fund
+
+      - name: Generate frontend CycloneDX SBOM
+        working-directory: frontend
+        run: |
+          npx --yes @cyclonedx/cyclonedx-npm@6.0.0 \
+            --spec-version 1.6 \
+            --output-format JSON \
+            --output-reproducible \
+            --validate \
+            --output-file ../sbom/frontend.cdx.json
+
+      - name: Verify generated SBOM contracts
+        run: |
+          python - <<'PY'
+          import json
+          from pathlib import Path
+
+          for path in (Path('sbom/backend.cdx.json'), Path('sbom/frontend.cdx.json')):
+              payload = json.loads(path.read_text())
+              assert payload['bomFormat'] == 'CycloneDX'
+              assert payload['specVersion'] == '1.6'
+              assert payload.get('components'), f'{path} contains no components'
+          PY
+
+      - name: Upload dependency SBOMs
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: dependency-sboms
+          path: sbom/*.cdx.json
+          retention-days: 14
+          if-no-files-found: error

@@ -1,4 +1,4 @@
-import { fireEvent, render, screen, waitFor } from '@testing-library/react';
+import { fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { fetchTransactionSummary } from '../services/analyticsApi';
 import { fetchCategories } from '../services/categoriesApi';
@@ -60,6 +60,12 @@ const pageWith = (items: DetailedTransaction[], page = 1, total = items.length):
   pages: total === 0 ? 0 : Math.ceil(total / 10),
 });
 
+async function getTransactionCards() {
+  const cards = await screen.findByTestId('transaction-cards');
+  expect(within(cards).getByText('Persisted Market')).toBeInTheDocument();
+  return cards;
+}
+
 describe('TransactionsPage', () => {
   beforeEach(() => {
     vi.clearAllMocks();
@@ -73,7 +79,7 @@ describe('TransactionsPage', () => {
   it('loads a paginated transaction page, categories and server summary', async () => {
     render(<TransactionsPage />);
 
-    expect(await screen.findByText('Persisted Market')).toBeInTheDocument();
+    await getTransactionCards();
     expect(fetchTransactions).toHaveBeenCalledWith(
       expect.objectContaining({ page: 1, pageSize: 10 }),
     );
@@ -85,7 +91,7 @@ describe('TransactionsPage', () => {
 
   it('sends filters to the API instead of filtering the loaded page in memory', async () => {
     render(<TransactionsPage />);
-    await screen.findByText('Persisted Market');
+    await getTransactionCards();
 
     fireEvent.change(screen.getByLabelText('Review status'), { target: { value: 'review' } });
 
@@ -114,7 +120,7 @@ describe('TransactionsPage', () => {
       .mockResolvedValue(pageWith([createdTransaction, persistedTransaction], 1, 2));
 
     render(<TransactionsPage />);
-    await screen.findByText('Persisted Market');
+    await getTransactionCards();
 
     fireEvent.change(screen.getByLabelText('Merchant'), { target: { value: 'New Market' } });
     fireEvent.change(screen.getByLabelText('Amount'), { target: { value: '40' } });
@@ -125,7 +131,9 @@ describe('TransactionsPage', () => {
         expect.objectContaining({ merchant: 'New Market', amount: '40', category: 'Food' }),
       ),
     );
-    expect(await screen.findByText('New Market')).toBeInTheDocument();
+    await waitFor(() =>
+      expect(within(screen.getByTestId('transaction-cards')).getByText('New Market')).toBeInTheDocument(),
+    );
     expect(fetchTransactionSummary).toHaveBeenCalledTimes(2);
     expect(screen.getByRole('status')).toHaveTextContent('Transaction created successfully.');
   });
@@ -136,20 +144,25 @@ describe('TransactionsPage', () => {
       .mockResolvedValue(pageWith([]));
 
     render(<TransactionsPage />);
-    await screen.findByText('Persisted Market');
+    const cards = await getTransactionCards();
 
-    fireEvent.click(screen.getByRole('button', { name: 'Delete Persisted Market' }));
+    fireEvent.click(within(cards).getByRole('button', { name: 'Delete Persisted Market' }));
     expect(deleteTransaction).not.toHaveBeenCalled();
     expect(screen.getByRole('dialog', { name: 'Delete transaction?' })).toBeInTheDocument();
 
     fireEvent.click(screen.getByRole('button', { name: 'Cancel' }));
     expect(deleteTransaction).not.toHaveBeenCalled();
 
-    fireEvent.click(screen.getByRole('button', { name: 'Delete Persisted Market' }));
+    fireEvent.click(
+      within(screen.getByTestId('transaction-cards')).getByRole('button', {
+        name: 'Delete Persisted Market',
+      }),
+    );
     fireEvent.click(screen.getByRole('button', { name: 'Delete transaction' }));
 
     await waitFor(() => expect(deleteTransaction).toHaveBeenCalledWith(persistedTransaction.id));
-    await waitFor(() => expect(screen.queryByText('Persisted Market')).not.toBeInTheDocument());
+    expect(await screen.findByTestId('transactions-empty-state')).toBeInTheDocument();
+    expect(screen.queryByTestId('transaction-cards')).not.toBeInTheDocument();
     expect(screen.getByRole('status')).toHaveTextContent('Transaction deleted successfully.');
   });
 });

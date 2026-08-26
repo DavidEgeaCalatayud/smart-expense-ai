@@ -17,6 +17,10 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 - Security-page controls for password rotation, privacy export and account deletion.
 - PostgreSQL regression coverage proving privacy-export isolation across transactions, findings, scans and historical-analysis snapshots for separate users.
 - A focused Playwright Security flow covering password rotation, current-session continuity, logout, rejection of the old password and login with the new password.
+- Responsive mobile/tablet transaction cards that preserve the same transaction metadata and Edit/Delete behavior as the desktop table.
+- Component regression coverage for responsive transaction cards, the desktop table, recurring indicators, accessible actions and the single empty state.
+- Reproducible, validated CycloneDX 1.6 backend/frontend dependency SBOM generation in GitHub Actions, retained as the `dependency-sboms` artifact.
+- `docs/supply-chain.md` documenting dependency-audit/SBOM scope and the remaining container-image scanning boundary.
 - This changelog.
 
 ### Changed
@@ -29,6 +33,8 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 - Product documentation now distinguishes implemented behavior from future roadmap capabilities such as forecasting, bank integrations and production automatic categorization.
 - Current strategy identifiers are consumed from the central registry by their owning implementations.
 - The FastAPI application version is centralized in `backend/app/version.py`; the application and CI import smoke check consume the same `APP_VERSION` instead of maintaining independent version literals.
+- The transaction list now switches at the desktop breakpoint from cards to the existing dense table without changing server-side filters, pagination or mutation handlers.
+- Production-readiness tracking now distinguishes completed application dependency SBOM generation from pending container image scanning/image-level SBOM work.
 
 ### Removed
 
