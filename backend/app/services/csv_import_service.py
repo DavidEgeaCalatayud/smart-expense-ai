@@ -10,7 +10,7 @@ from datetime import date, datetime
 from decimal import Decimal, InvalidOperation
 from uuid import UUID
 
-from sqlalchemy import select
+from sqlalchemy import func, select
 from sqlalchemy.exc import IntegrityError, SQLAlchemyError
 from sqlalchemy.orm import Session
 
@@ -685,4 +685,10 @@ def list_import_batches(
         .order_by(ImportBatch.created_at.desc())
         .limit(limit)
     ).all()
-    return ImportBatchPage(items=[_batch_response(batch) for batch in batches], total=len(batches))
+    total = db.scalar(
+        select(func.count(ImportBatch.id)).where(ImportBatch.user_id == user_id)
+    ) or 0
+    return ImportBatchPage(
+        items=[_batch_response(batch) for batch in batches],
+        total=total,
+    )
