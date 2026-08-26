@@ -2,6 +2,7 @@ import {
   Brain,
   CreditCard,
   Database,
+  FileSpreadsheet,
   LayoutDashboard,
   LineChart,
   LogOut,
@@ -16,6 +17,7 @@ import { ROUTES } from '../../routes/paths';
 const navigationItems = [
   { icon: LayoutDashboard, label: 'Dashboard', to: ROUTES.dashboard },
   { icon: CreditCard, label: 'Transactions', to: ROUTES.transactions },
+  { icon: FileSpreadsheet, label: 'Import CSV', to: ROUTES.imports },
   { icon: LineChart, label: 'Predictions', to: ROUTES.predictions },
   { icon: ScanSearch, label: 'Intelligence', to: ROUTES.alerts },
   { icon: ShieldCheck, label: 'Security', to: ROUTES.security },

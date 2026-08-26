@@ -5,14 +5,15 @@ from sqlalchemy.orm import Session
 
 from app.core.security import hash_password, verify_password
 from app.models.historical_analysis import HistoricalAnalysisSnapshot
+from app.models.import_batch import ImportBatch
 from app.models.intelligence import IntelligenceFinding, IntelligenceScan
 from app.models.transaction import Transaction
 from app.models.user import User
+from app.privacy_schemas import PrivacyExportImportBatch, PrivacyExportResponseWithImports
 from app.schemas import (
     PrivacyExportAccount,
     PrivacyExportFinding,
     PrivacyExportHistoricalSnapshot,
-    PrivacyExportResponse,
     PrivacyExportScan,
     PrivacyExportTransaction,
 )
@@ -38,7 +39,7 @@ def change_password(db: Session, user: User, current_password: str, new_password
     db.refresh(user)
 
 
-def build_privacy_export(db: Session, user: User) -> PrivacyExportResponse:
+def build_privacy_export(db: Session, user: User) -> PrivacyExportResponseWithImports:
     transactions = db.scalars(
         select(Transaction)
         .where(Transaction.user_id == user.id)
@@ -59,8 +60,13 @@ def build_privacy_export(db: Session, user: User) -> PrivacyExportResponse:
         .where(HistoricalAnalysisSnapshot.user_id == user.id)
         .order_by(HistoricalAnalysisSnapshot.created_at.asc(), HistoricalAnalysisSnapshot.id.asc())
     ).all()
+    import_batches = db.scalars(
+        select(ImportBatch)
+        .where(ImportBatch.user_id == user.id)
+        .order_by(ImportBatch.created_at.asc(), ImportBatch.id.asc())
+    ).all()
 
-    return PrivacyExportResponse(
+    return PrivacyExportResponseWithImports(
         exportedAt=datetime.now(timezone.utc),
         account=PrivacyExportAccount(
             id=str(user.id),
@@ -125,6 +131,19 @@ def build_privacy_export(db: Session, user: User) -> PrivacyExportResponse:
                 createdAt=snapshot.created_at,
             )
             for snapshot in snapshots
+        ],
+        importBatches=[
+            PrivacyExportImportBatch(
+                id=str(batch.id),
+                filename=batch.filename,
+                fileHash=batch.file_hash,
+                rowsTotal=batch.rows_total,
+                rowsImported=batch.rows_imported,
+                duplicatesSkipped=batch.duplicates_skipped,
+                invalidRows=batch.invalid_rows,
+                createdAt=batch.created_at,
+            )
+            for batch in import_batches
         ],
     )
 
