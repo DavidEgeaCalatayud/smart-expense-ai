@@ -8,6 +8,9 @@ export interface TransactionCategory {
   id: string;
   name: string;
   transactionType: TransactionType;
+  scope?: 'system' | 'user';
+  archived?: boolean;
+  transactionCount?: number;
 }
 
 export interface DetailedTransaction {
