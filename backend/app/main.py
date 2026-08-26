@@ -15,6 +15,7 @@ from app.core.http_security import SecurityMiddleware
 from app.routers.analytics import router as analytics_router
 from app.routers.analytics_v2 import router as analytics_v2_router
 from app.routers.auth import router as auth_router
+from app.routers.budgets import router as budgets_router
 from app.routers.categories import router as categories_router
 from app.routers.historical_analysis import router as historical_analysis_router
 from app.routers.imports import router as imports_router
@@ -75,3 +76,4 @@ app.include_router(analytics_v2_router, prefix=API_V2_PREFIX)
 app.include_router(intelligence_v2_router, prefix=API_V2_PREFIX)
 app.include_router(historical_analysis_router, prefix=API_V2_PREFIX)
 app.include_router(imports_router, prefix=API_V2_PREFIX)
+app.include_router(budgets_router, prefix=API_V2_PREFIX)
