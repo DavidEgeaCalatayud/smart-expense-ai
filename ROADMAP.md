@@ -67,7 +67,7 @@ Goal: isolate financial data by user before adding sensitive integrations.
 
 ## Phase 3 - Financial Intelligence
 
-Goal: implement real analysis without simulated AI outputs.
+Goal: implement real analysis and evaluated ML baselines without simulated AI outputs.
 
 - [x] Detect recurring transactions from historical data.
 - [x] Detect possible duplicated subscriptions from repeated near-duplicate billing patterns.
@@ -83,7 +83,7 @@ Goal: implement real analysis without simulated AI outputs.
 - [x] Add least-squares monthly spending trend analysis with slope and R² evidence.
 - [x] Add deterministic recurring-behavior scoring from cadence fit, interval regularity, amount stability and history depth.
 - [x] Add chronological robust outlier analysis that avoids future-data leakage.
-- [x] Add category fallback baselines when merchant history is insufficient for historical outlier analysis.
+- [x] Replace heterogeneous category-only amount baselines with shared merchant-specific median/MAD plus extreme-IQR evidence.
 - [x] Add three-month vs three-month category-spend shift analysis.
 - [x] Add Historical Analysis UI with coverage, trend, recurrence scores, outliers and category shifts.
 - [x] Persist and isolate historical-analysis snapshots by authenticated user.
@@ -116,13 +116,19 @@ Goal: implement real analysis without simulated AI outputs.
 - [x] Add regressions for split overlap, holdout sealing, parameter tampering and deterministic bootstrap output.
 - [x] Upgrade actionable findings to `rules-v2` using canonical merchants and descriptor/amount/temporal recurring streams.
 - [x] Persist a separate `recurring_payment_missing` finding with stronger schedule/history requirements and same-period collision suppression.
-- [x] Upgrade actionable amount anomalies to chronological prior-only merchant baselines with category fallback when merchant history is insufficient.
+- [x] Upgrade actionable amount anomalies to the shared prior-only `merchant_mad_plus_extreme_iqr_v1` merchant baseline.
 - [x] Add `frequency_anomaly` findings from merchant monthly-count baselines and rolling seven-day burst evidence.
 - [x] Split intelligence summary metrics into recurring, missing-recurring, duplicate, amount-anomaly and frequency-anomaly counts.
 - [x] Add migration/API/UI/test coverage for the new `rules-v2` finding types and rule-version defaults.
+- [x] Add reusable offline `tfidf-logreg-v1` automatic category classification over merchant descriptor text.
+- [x] Evaluate category classification chronologically with 2023 history, 2024 calibration, 2025 H1 validation and sealed 2025 H2 holdout.
+- [x] Report category macro-F1, accuracy, per-category precision/recall/F1/support, confusion matrix and seen-vs-unseen merchant slices.
+- [x] Gate the category-classifier baseline in CI and document its synthetic-data and cold-start limitations in a model card.
 - [ ] Validate `rules-v2` and historical algorithms against labelled real-world datasets and measure real-world precision/recall/false-positive rates.
+- [ ] Validate category classification against independent/real labelled transactions with meaningful unseen-merchant support before production auto-assignment.
+- [ ] Add a user-correction/personalization loop for category labels and calibrate probabilities before showing model confidence.
 - [ ] Tune recurring-score weights/cutoffs, stream-clustering tolerances and anomaly thresholds only on labelled calibration data, use validation for design checks, then open holdout once for final reporting.
-- [ ] Reassess category fallback and frequency-anomaly thresholds from real-world false-positive cost before loosening them.
+- [ ] Reassess amount-anomaly distribution fences and frequency-anomaly policy from real-world false-positive cost before loosening them.
 - [ ] Add automatic/background analysis when deployment scheduling is available.
 - [ ] Evaluate ML anomaly models (for example Isolation Forest) only after deterministic baselines have measurable real-world evaluation results.
 
@@ -176,6 +182,7 @@ Goal: prepare the application for real deployment.
 - [x] Gate optimal recurring matching and prospective occurrence-level evaluation in backend CI.
 - [x] Gate sealed split/fingerprint/bootstrap evaluation behavior in backend tests.
 - [x] Gate `rules-v2` migration, empty-summary contract and finding behavior in PostgreSQL/Docker CI.
+- [x] Gate `tfidf-logreg-v1` category classification with chronological metrics, per-category regression floors and a sealed synthetic holdout.
 - [ ] Configure `Quality gate` as a required check for `main`.
 - [ ] Add staging deployment.
 - [ ] Add production TLS/domain/secrets configuration.
