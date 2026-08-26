@@ -43,7 +43,7 @@ Goal: make the first usable version persist real financial data.
 - [x] Add backward-compatible `/api/v2` financial endpoints with decimal-string monetary contracts.
 - [x] Keep money as PostgreSQL `NUMERIC` / Python `Decimal` through financial services and rules.
 - [x] Use decimal strings plus integer cents in the frontend instead of floating-point money arithmetic.
-- [ ] Improve responsive transaction UX.
+- [x] Add responsive transaction cards for mobile/tablet while preserving the dense desktop table, filters, pagination and edit/delete actions.
 - [x] Add delete confirmation and operation feedback.
 - [x] Add distinct loading, refreshing, retry and mutation states in transaction UX.
 - [ ] Add user-managed category CRUD when needed.
@@ -195,12 +195,13 @@ Goal: prepare the project for real deployment.
 - [x] Gate `tfidf-logreg-v1` category classification with chronological metrics, per-category regression floors and a sealed synthetic holdout.
 - [x] Gate current analysis/model contract aliases and critical documentation consistency in backend tests.
 - [x] Add privacy/data-handling policy draft with production placeholders.
+- [x] Generate reproducible, validated backend/frontend CycloneDX dependency SBOMs in CI and retain them as a GitHub Actions artifact.
 - [ ] Configure `Quality gate` as a required check for `main`.
 - [ ] Declare the first semantic-version tag/GitHub Release when the project intentionally reaches a stable release boundary.
 - [ ] Add staging deployment.
 - [ ] Add production TLS/domain/secrets configuration.
 - [ ] Add centralized security monitoring and alerting.
-- [ ] Add container image scanning and SBOM generation.
+- [ ] Add container image vulnerability scanning and image-level SBOM/provenance generation.
 
 ## Long-Term Ideas
 
