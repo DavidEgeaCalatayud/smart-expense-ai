@@ -24,8 +24,10 @@ PostgreSQL stores `NUMERIC(12,2)` and Python financial services use `Decimal`. T
 Current FastAPI application version:
 
 ```text
-1.3.0
+1.4.0
 ```
+
+The application-version source of truth is `backend/app/version.py`. FastAPI and the CI import smoke check both consume `APP_VERSION`; CI does not duplicate the version literal.
 
 Algorithm/model versions are independent from the HTTP application version. The current analytical contracts are:
 
@@ -37,9 +39,9 @@ lifecycle-v1
 tfidf-logreg-v1   # offline only; not an API auto-categorization path
 ```
 
-## Authentication
+## Authentication and account controls
 
-The browser session is carried in an HttpOnly JWT cookie shared by both API versions.
+The browser session is carried in an HttpOnly JWT cookie shared by both API versions. JWTs include a server-checked session-version claim. Password changes increment the persisted session version, invalidate previously issued tokens and rotate the current browser cookie so the successful caller remains authenticated.
 
 Public endpoints:
 
@@ -49,6 +51,33 @@ POST /api/v1/auth/login
 POST /api/v1/auth/logout
 GET  /health
 ```
+
+Authenticated account endpoints:
+
+```text
+GET    /api/v1/auth/me
+PUT    /api/v1/auth/password
+GET    /api/v1/auth/privacy-export
+DELETE /api/v1/auth/account
+```
+
+`PUT /api/v1/auth/password` requires the current password and a different new password of at least 12 characters. A successful change revokes older session versions and returns a newly versioned session cookie for the current browser.
+
+`GET /api/v1/auth/privacy-export` returns `privacy-export-v1`, scoped to the authenticated user. The contract contains:
+
+```text
+account
+transactions
+intelligenceFindings
+intelligenceScans
+historicalAnalysisSnapshots
+```
+
+Every persisted collection is filtered by the authenticated `user_id`. Integration regression coverage seeds all five export areas for two separate users and verifies that no object owned by the second user appears in the first user's export. Password hashes, session-version internals and JWT/session-token material are excluded.
+
+`DELETE /api/v1/auth/account` requires the current password plus the exact confirmation value `DELETE`. Successful deletion removes the user and database-cascaded user-owned financial/intelligence data and clears the authentication cookie.
+
+Password reset by email is not part of the current contract because the project does not yet provide a verified recovery-token delivery channel.
 
 Authenticated v2 endpoints include:
 
@@ -352,4 +381,4 @@ Semantic codes include `invalid_date_range`, `invalid_transaction`, `transaction
 
 Breaking HTTP representation changes require a new URL version. Backwards-compatible fields/types may be added within an existing URL version.
 
-`rules-v2`, `historical-v2.2`, `merchant_mad_plus_extreme_iqr_v1`, `lifecycle-v1` and `tfidf-logreg-v1` are algorithm/model/policy identifiers, not URL versions. Their source of truth and change procedure are defined in [`analysis-contracts.md`](analysis-contracts.md).
+The FastAPI application release identifier lives in `backend/app/version.py`. `rules-v2`, `historical-v2.2`, `merchant_mad_plus_extreme_iqr_v1`, `lifecycle-v1` and `tfidf-logreg-v1` are algorithm/model/policy identifiers, not URL versions. Their source of truth and change procedure are defined in [`analysis-contracts.md`](analysis-contracts.md).

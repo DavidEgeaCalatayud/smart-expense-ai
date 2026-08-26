@@ -65,8 +65,10 @@ Goal: isolate financial data by user before adding sensitive integrations.
 - [x] Harden authentication errors, password policy and JWT claim validation.
 - [x] Add trusted-host, origin and CORS protections.
 - [x] Add authentication rate limiting at the trusted edge.
-- [ ] Password change and password reset flow.
-- [ ] Account deletion and privacy export controls.
+- [x] Add password change with server-side session-version revocation and current-session rotation.
+- [ ] Add verified password reset/recovery after an email delivery channel exists.
+- [x] Add account deletion and authenticated `privacy-export-v1` controls.
+- [x] Regression-test privacy export isolation across transactions, findings, scans and historical-analysis snapshots.
 - [ ] MFA if required for Internet-facing production use.
 
 ## Phase 3 - Financial Intelligence
@@ -172,6 +174,7 @@ Goal: prepare the project for real deployment.
 - [x] Run frontend tests, type checking, build and lint in CI.
 - [x] Validate Alembic migrations against PostgreSQL in CI.
 - [x] Add critical Playwright end-to-end coverage.
+- [x] Add a focused Security E2E for password rotation, current-session continuity and old-credential rejection.
 - [x] Add Docker Compose.
 - [x] Validate the full Docker Compose stack in CI.
 - [x] Add `SECURITY.md` vulnerability reporting policy.
@@ -191,13 +194,13 @@ Goal: prepare the project for real deployment.
 - [x] Gate `rules-v2` migration, empty-summary contract and finding behavior in PostgreSQL/Docker CI.
 - [x] Gate `tfidf-logreg-v1` category classification with chronological metrics, per-category regression floors and a sealed synthetic holdout.
 - [x] Gate current analysis/model contract aliases and critical documentation consistency in backend tests.
+- [x] Add privacy/data-handling policy draft with production placeholders.
 - [ ] Configure `Quality gate` as a required check for `main`.
 - [ ] Declare the first semantic-version tag/GitHub Release when the project intentionally reaches a stable release boundary.
 - [ ] Add staging deployment.
 - [ ] Add production TLS/domain/secrets configuration.
 - [ ] Add centralized security monitoring and alerting.
 - [ ] Add container image scanning and SBOM generation.
-- [ ] Add privacy policy draft.
 
 ## Long-Term Ideas
 

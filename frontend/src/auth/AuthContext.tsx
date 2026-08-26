@@ -42,6 +42,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         await logout();
         setUser(null);
       },
+      clearLocalSession: () => {
+        setUser(null);
+      },
     }),
     [isLoading, user],
   );

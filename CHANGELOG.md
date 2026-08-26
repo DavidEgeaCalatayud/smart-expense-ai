@@ -12,6 +12,11 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 - Documentation consistency coverage that prevents current analysis contracts from silently drifting away from implementation.
 - MIT license granting explicit reuse, modification and distribution rights.
 - `docs/analysis-contracts.md` as the human-readable index for current analysis/model versions, policy ownership and change procedure.
+- Revocable authenticated sessions through a persisted user `session_version` claim.
+- Account self-service for password changes, authenticated `privacy-export-v1` downloads and confirmed account deletion.
+- Security-page controls for password rotation, privacy export and account deletion.
+- PostgreSQL regression coverage proving privacy-export isolation across transactions, findings, scans and historical-analysis snapshots for separate users.
+- A focused Playwright Security flow covering password rotation, current-session continuity, logout, rejection of the old password and login with the new password.
 - This changelog.
 
 ### Changed
@@ -23,6 +28,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 - Data-model documentation now describes the actual persisted `users`, `categories`, `transactions`, `intelligence_findings`, `intelligence_scans` and `historical_analysis_snapshots` schema rather than speculative future entities.
 - Product documentation now distinguishes implemented behavior from future roadmap capabilities such as forecasting, bank integrations and production automatic categorization.
 - Current strategy identifiers are consumed from the central registry by their owning implementations.
+- The FastAPI application version is centralized in `backend/app/version.py`; the application and CI import smoke check consume the same `APP_VERSION` instead of maintaining independent version literals.
 
 ### Removed
 

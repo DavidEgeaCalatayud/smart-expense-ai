@@ -21,6 +21,7 @@ from app.routers.intelligence import router as intelligence_router
 from app.routers.intelligence_v2 import router as intelligence_v2_router
 from app.routers.transactions import router as transactions_router
 from app.routers.transactions_v2 import router as transactions_v2_router
+from app.version import APP_VERSION
 
 
 production_docs_disabled = settings.app_env == "production"
@@ -30,7 +31,7 @@ API_V2_PREFIX = "/api/v2"
 app = FastAPI(
     title="Smart Expense AI API",
     description="Versioned API for authenticated transaction management, analytics and explainable financial intelligence.",
-    version="1.3.0",
+    version=APP_VERSION,
     debug=settings.app_debug,
     docs_url=None if production_docs_disabled else "/docs",
     redoc_url=None if production_docs_disabled else "/redoc",

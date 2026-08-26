@@ -22,6 +22,7 @@ JWT validation is restricted to HS256 and requires:
 
 ```text
 sub
+session version (ver)
 issued-at (iat)
 expiration (exp)
 issuer (iss)
@@ -29,11 +30,17 @@ audience (aud)
 unique token id (jti)
 ```
 
+Each account persists a monotonically increasing `session_version`. Authentication succeeds only when the JWT `ver` claim matches the current account value. This gives the application a server-side revocation primitive without persisting individual JWTs.
+
+Changing a password increments `session_version`, immediately invalidating previously issued tokens even if their `exp` time has not yet elapsed. The successful password-change response issues a fresh cookie containing the new version so the initiating browser can remain authenticated.
+
 ## Password storage and authentication behavior
 
-Passwords are hashed with the recommended Argon2 configuration provided by `pwdlib`. Plaintext passwords are accepted only in registration/login request bodies and are never persisted or returned.
+Passwords are hashed with the recommended Argon2 configuration provided by `pwdlib`. Plaintext passwords are accepted only in sensitive authentication/account request bodies and are never persisted or returned.
 
 New passwords must contain at least 12 characters. Login failure messages do not distinguish an unknown account from an incorrect password. Unknown accounts still execute a dummy Argon2 verification to reduce timing differences. Duplicate registration also returns a generic error and performs password hashing before account-existence rejection.
+
+Authenticated password changes require the current password. Reusing the existing password is rejected. Password-reset-by-email is intentionally not represented as implemented because the project does not yet have a verified recovery-token delivery channel.
 
 ## Rate limiting
 
@@ -46,7 +53,7 @@ POST /api/v1/auth/register  3 requests/minute, burst 2
 
 The configured burst allows the initial requests immediately; excess requests receive HTTP `429`.
 
-This control lives at the trusted edge rather than in per-process Python memory, so deploying FastAPI behind a different gateway requires an equivalent distributed/edge limiter.
+This control lives at the trusted edge rather than in per-process Python memory, so deploying FastAPI behind a different gateway requires an equivalent distributed/edge limiter. A production deployment should also decide whether password-change and account-deletion endpoints need dedicated stricter edge limits based on the chosen threat model.
 
 ## Cross-site request defense
 
@@ -60,7 +67,8 @@ Transactions, intelligence findings and intelligence scan history are owned by a
 
 ```text
 request cookie
-    -> authenticated User
+    -> decoded user id + session version
+    -> authenticated User + version match
     -> service(db, user.id, ...)
     -> WHERE resource.user_id = user.id
 ```
@@ -69,7 +77,17 @@ Transaction update/delete operations query by both transaction ID and user ID. I
 
 The intelligence scanner first loads only expense transactions owned by the authenticated user, then persists all generated findings and scan metadata under that same user ID. No cross-account transaction is available to a user's rule evaluation.
 
+Privacy-export queries independently scope transactions, intelligence findings, scans and historical-analysis snapshots by the authenticated user ID. The export excludes password hashes, session-version internals and JWTs.
+
 Seeded categories remain global read-only reference data for now, but reading them requires an authenticated session. If custom user categories are introduced later, ownership will be added at that point.
+
+## Account deletion
+
+Account deletion is a destructive authenticated operation. The API requires both the current password and the exact confirmation value `DELETE`; the frontend adds an additional confirmation dialog.
+
+Deleting the user is committed transactionally. User-owned transaction, intelligence-finding, intelligence-scan and historical-analysis rows reference `users.id` with database cascade deletion, so the application does not leave those financial records orphaned. The authentication cookie is cleared after successful deletion.
+
+Infrastructure logs and backups have separate lifecycle concerns and must be covered by the production retention policy; application deletion must not be described as immediate backup erasure unless the deployed backup system actually provides that guarantee.
 
 ## Error semantics
 
@@ -95,6 +113,8 @@ This migration behavior is intended for the existing single-user development/MVP
 
 Financial-intelligence persistence is introduced later by migration `0004_financial_intelligence`; it does not create or migrate cross-user findings from legacy data. Findings are generated only when an authenticated owner runs analysis.
 
+Migration `0007_user_session_version` adds the revocable session-version counter with a default of `1` for existing users.
+
 ## Security logging
 
 Authentication/security events record an event name, outcome, generated request ID, and an internal user UUID only after authentication when useful.
@@ -107,6 +127,7 @@ The application deliberately does not log:
 - JWTs or session cookies;
 - database URLs/secrets;
 - financial transaction payloads;
+- privacy-export payloads;
 - financial-intelligence evidence payloads.
 
 The container disables Uvicorn access logging and uses the Nginx edge access log, configured with method + `$uri` + status + request ID. `$uri` excludes query strings.
@@ -122,10 +143,18 @@ POST /api/v1/auth/logout
 GET  /health
 ```
 
-Authenticated:
+Authenticated account controls:
 
 ```text
 GET    /api/v1/auth/me
+PUT    /api/v1/auth/password
+GET    /api/v1/auth/privacy-export
+DELETE /api/v1/auth/account
+```
+
+Authenticated financial endpoints include:
+
+```text
 GET    /api/v1/categories
 GET    /api/v1/transactions
 POST   /api/v1/transactions
@@ -145,17 +174,24 @@ Unversioned application routes such as `/api/auth/login` and `/api/transactions`
 
 Backend integration tests create multiple accounts and prove cross-account transaction and intelligence-finding isolation. They also cover API v1 versioning, normalized errors, security headers, cookie flags, trusted-host rejection, cross-site mutation rejection, and generic authentication failures.
 
+Account/privacy integration coverage additionally proves that:
+
+- an old JWT is rejected after password change;
+- the initiating browser receives a fresh valid session;
+- privacy exports are user-scoped and exclude credentials/session internals;
+- deletion requires password + explicit confirmation;
+- deletion cascades through user-owned transactions, findings, scans and historical snapshots.
+
 The Playwright critical flow repeats transaction ownership isolation in a real browser session. Intelligence ownership is additionally covered by PostgreSQL integration tests, while Docker CI verifies authenticated/unauthenticated intelligence access through the reverse proxy.
 
 ## Remaining production controls
 
 The current MVP still needs:
 
-- password reset/change;
-- account deletion and privacy export;
+- verified email-based password reset/recovery;
 - production TLS termination/domain configuration;
 - centralized security log collection and alerting;
-- token revocation/secret rotation if the production threat model requires it;
+- an operator-defined backup/log retention and deletion policy;
 - MFA if the application becomes Internet-facing with real financial data.
 
-See `docs/intelligence.md` for the rules-engine data flow, `docs/SECURITY_REVIEW.md` for the OWASP Top 10:2025 review and `SECURITY.md` for vulnerability reporting.
+See `docs/privacy.md` for the pre-production privacy/data-handling draft, `docs/intelligence.md` for the rules-engine data flow, `docs/SECURITY_REVIEW.md` for the OWASP Top 10:2025 review and `SECURITY.md` for vulnerability reporting.
