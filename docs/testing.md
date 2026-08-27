@@ -1,76 +1,63 @@
 # Testing and CI
 
-Smart Expense AI uses layered automated verification for persistence, authentication, security controls, versioned API contracts, monetary precision, deterministic financial intelligence, historical analysis, evaluation semantics, offline ML baselines, responsive transaction UX, supply-chain inventory and critical browser flows.
+Smart Expense AI uses layered automated verification for persistence, authentication, security controls, versioned API contracts, monetary precision, deterministic financial intelligence, historical analysis, category suggestions/personalization, ML evaluation, responsive UX, supply-chain inventory and critical browser flows.
 
-Current analytical identifiers come from `backend/app/analysis_contracts.py`; see [`analysis-contracts.md`](analysis-contracts.md). Tests include explicit checks that those identifiers and the primary technical documentation do not silently drift apart.
+Current analytical identifiers come from `backend/app/analysis_contracts.py`; see [`analysis-contracts.md`](analysis-contracts.md). Tests explicitly prevent key implementation/documentation contracts from silently drifting.
 
 ## Backend
 
-Install development dependencies from `backend`:
+From `backend/`:
 
 ```bash
 pip install -r requirements.txt -r requirements-dev.txt
-```
-
-Run pure/unit tests:
-
-```bash
 pytest -m "not integration"
-```
-
-Run the complete backend suite against the configured disposable PostgreSQL test database with:
-
-```bash
 pytest
 ```
 
-Financial logic uses `Decimal`; money is not evaluated with binary floating-point business arithmetic.
+Integration tests run against PostgreSQL rather than SQLite. Financial logic uses `Decimal`; money is never validated through binary floating-point business arithmetic.
 
-## Actionable findings: `rules-v2`
+## Actionable findings — `rules-v2`
 
-Current pure/integration coverage includes:
+Coverage includes canonical merchant identity, multi-stream recurrence, calendar/lifecycle evidence, missing recurring payments, duplicate subscriptions, `merchant_mad_plus_extreme_iqr_v1`, prior-only amount baselines, frequency anomalies, idempotent fingerprints, review states and decimal-string evidence.
 
-- canonical merchant identity;
-- multiple recurring streams under one merchant;
-- monthly/quarterly/yearly and short-cadence recurrence evidence;
-- recurring price continuity and its hard negatives;
-- cancellation/dormancy/reactivation lifecycle behavior through shared recurrence primitives;
-- missing expected-payment detection;
-- same-period collision suppression;
-- possible duplicate-subscription evidence;
-- chronological merchant-only amount anomaly baselines;
-- shared `merchant_mad_plus_extreme_iqr_v1` median/MAD/IQR evidence;
-- minimum merchant-history requirements and no category-only fallback for amount alerts;
-- frequency anomalies and their minimum prior-active-month guards;
-- stable fingerprints, idempotent rescans and review-state behavior;
-- decimal-string financial evidence.
+## Historical analysis — `historical-v2.2`
 
-`rules-v1` remains covered where compatibility/legacy behavior is intentionally retained, but `rules-v2` is the current actionable engine.
+Tests cover month completeness, fold-local merchant identity, recurrence calendars/lifecycle, temporal stream segmentation, price continuity, cancellation/reactivation, missed occurrences, prior-only merchant amount outliers, category shifts, snapshot versioning and compatibility. The current recurrence segmentation contract is `lifecycle-v1`.
 
-## Historical analysis: `historical-v2.2`
+## Category suggestion/product contract
 
-Historical tests assert algorithm properties rather than merely HTTP success:
+Backend integration coverage verifies:
 
-- a partial latest month remains visible but is excluded from trend regression/category-shift calculations;
-- category shifts compare complete months only;
-- merchant canonicalization preserves raw descriptor evidence;
-- fold-local merchant identity prevents future-descriptor leakage;
-- month-end schedules survive February/30/31-day differences;
-- recurrence exposes cadence, interval, calendar, amount-stability and history-depth evidence;
-- amount-only temporal splitting requires stronger calendar/consecutive evidence;
-- qualified price changes preserve stream identity without merging concurrent subscriptions;
-- long dormant gaps do not become uninterrupted recurrence;
-- reactivation requires an established prior episode plus fresh compatible current evidence;
-- overdue expected payments and missed expected occurrences remain observable;
-- amount outlier baselines contain only earlier transactions from the same canonical merchant;
-- the shared amount baseline exposes MAD, quartiles, IQR and the extreme distribution fence;
-- insufficient merchant history produces no amount outlier rather than borrowing heterogeneous category history;
-- persisted snapshots identify `historical-v2.2` and expose recurrence segmentation version `lifecycle-v1`;
-- older persisted snapshots remain readable through compatibility defaults.
+- authenticated `POST /api/v2/category-suggestions/preview`;
+- global `tfidf-logreg-v1` suggestion behavior over merchant text;
+- preview responses contain category/source/model/feature provenance but no `confidence` or probability vector;
+- requesting a suggestion does not mutate transaction data;
+- a user's prior correction for a canonical merchant takes precedence over the global classifier only for that user;
+- account-owned categories can be learned through that user's feedback without entering the global model taxonomy;
+- historical choices are ignored if no longer active/visible/type-compatible;
+- two users do not share personalization history;
+- v2 transaction + suggestion feedback persistence is atomic;
+- privacy export includes only the authenticated user's `categorySuggestions` records;
+- account deletion cascades category-suggestion feedback.
+
+Frontend component coverage verifies that displaying a suggestion leaves the existing category unchanged until `Accept` is clicked. Accessible selector assertions are scoped to the transaction form rather than relying on ambiguous `.first()` selectors.
+
+Playwright covers the full correction loop:
+
+```text
+MERCADONA 3921
+  -> global Food suggestion
+  -> Change to user category
+  -> save transaction/feedback
+Mercadona 9999
+  -> personalized user-history suggestion
+  -> form still unchanged
+  -> Accept
+```
 
 ## Analysis contract / documentation consistency
 
-`backend/tests/unit/test_analysis_contracts.py` verifies that current modules alias the central contract registry:
+`backend/tests/unit/test_analysis_contracts.py` verifies current implementation aliases:
 
 ```text
 rules-v2
@@ -81,69 +68,72 @@ tfidf-logreg-v1
 merchant_descriptor_only_v1
 ```
 
-It also checks key current technical documents for those identifiers and rejects known stale claims such as `historical-v2.1` being current or category fallback being part of the current amount-anomaly policy.
-
-This turns version/policy documentation debt into a CI failure instead of relying only on manual review.
+It also reads primary technical documents and rejects known stale policy claims.
 
 ## Labelled chronological financial evaluation
 
-The historical/financial evaluation harness uses chronological monthly folds rather than random time-series splitting.
-
-Run the checked-in historical regression fixture from `backend/`:
+The financial/historical harness uses chronological monthly folds rather than random time-series splitting.
 
 ```bash
+cd backend
 python scripts/evaluate_historical.py evaluation/historical_v2_fixture.json
 ```
 
-The broader deterministic `financial-benchmark-v1` workflow additionally verifies:
+`financial-benchmark-v1` additionally verifies generated hashes/labels, calibration/validation discipline, sealed holdout behavior, recurrence/anomaly scenarios, fold-local identity, deterministic matching, prospective occurrence metrics, lifecycle diagnostics and protected amount-anomaly behavior.
 
-- generated dataset hashes and label integrity;
-- calibration/validation split discipline;
-- sealed 2025 H2 holdout behavior;
-- scenario-level recurrence, amount and frequency metrics;
-- fold-local identity;
-- deterministic optimal stream matching;
-- prospective occurrence metrics;
-- lifecycle/price-continuity diagnostics;
-- protected amount-anomaly behavior.
-
-The evidence hierarchy is:
+Evidence hierarchy:
 
 ```text
 small fixture -> regression protection
-financial-benchmark-v1 -> strong synthetic evaluation
+financial-benchmark-v1 -> synthetic development evidence
 independent / real labelled data -> real quality evidence
 ```
 
-Synthetic evaluation is not presented as real-world banking accuracy.
-
 ## Category classifier benchmark
 
-The first supervised categorization baseline is:
+Model contract:
 
 ```text
 model = tfidf-logreg-v1
 featurePolicy = merchant_descriptor_only_v1
+report = category-classifier-evaluation-v2
 ```
 
-The dedicated category workflow:
+The dedicated workflow:
 
-- regenerates the 2,560-label deterministic benchmark;
-- trains/evaluates chronologically rather than with a random split;
-- keeps 2025 H2 sealed;
-- reports macro-F1, accuracy and weighted F1;
-- reports per-category precision/recall/F1/support;
-- validates confusion-matrix structure/support;
-- reports seen-vs-unseen merchant slices;
+- regenerates all 2,560 complete synthetic category labels;
+- preserves chronological 2023 -> 2024 -> 2025 H1 evaluation and the sealed 2025 H2 holdout;
+- reports macro-F1, accuracy, weighted F1, per-category metrics and confusion matrices;
+- reports seen-vs-unseen exact merchant slices;
+- performs a canonical merchant-group-disjoint cold-start benchmark with zero group overlap;
+- measures raw, Platt and isotonic probabilities with multiclass Brier score, Expected Calibration Error and ten reliability bins;
+- asserts `productConfidenceEnabled=false`;
 - runs deterministic model/protocol unit tests.
 
-The currently high global synthetic validation score is not treated as proof of cold-start or real-world accuracy; unseen-merchant evidence remains a known limitation.
+Measured synthetic cold-start evidence:
+
+```text
+evaluationSamples        382
+evaluationMerchantGroups 9
+merchantGroupOverlap     0
+accuracy                 0.400524
+macroF1                  0.201242
+weightedF1               0.254513
+```
+
+Measured synthetic calibration diagnostics:
+
+| Method | Brier | ECE |
+| --- | ---: | ---: |
+| Raw | 0.018193 | 0.082021 |
+| Platt | 0.008871 | 0.004624 |
+| Isotonic | 0.009156 | 0.004711 |
+
+These diagnostics prove neither real-world accuracy nor real-world calibration. Product confidence remains disabled until representative real labelled data supports it.
 
 ## PostgreSQL integration
 
-Integration tests use PostgreSQL rather than SQLite. Create a disposable test database, point `TEST_DATABASE_URL` at it, migrate it, then run pytest.
-
-PowerShell:
+PowerShell example:
 
 ```powershell
 $env:TEST_DATABASE_URL="postgresql+psycopg://postgres:postgres@localhost:5432/smart_expense_ai_test"
@@ -161,33 +151,11 @@ alembic upgrade head
 pytest
 ```
 
-The test bootstrap deliberately does not inherit a normal development database URL, reducing the risk of integration tests modifying development transactions.
+Backend integration coverage includes v1 compatibility, v2 decimal money, pagination/filtering, categories/budgets/imports, category suggestions/feedback, intelligence, historical snapshots, authentication/session rotation, privacy export isolation and account deletion.
 
-Backend contract/security coverage includes:
+## Frontend quality chain
 
-- backwards-compatible `/api/v1` behavior;
-- decimal-safe `/api/v2` transaction, analytics and intelligence behavior;
-- exact `"0.10" + "0.20" = "0.30"` persistence/aggregation;
-- v2 rejection of JSON numeric money;
-- normalized error envelopes and validation details;
-- transaction pagination/filtering;
-- intelligence scan/summary/findings/review workflows;
-- idempotent findings and cross-account isolation;
-- Alembic migrations on a clean PostgreSQL database;
-- persisted `historical-v2.2` snapshot creation/latest retrieval;
-- partial-month and recurrence segmentation metadata;
-- distribution-aware outlier evidence;
-- historical snapshot isolation between accounts;
-- authentication/JWT/security regressions;
-- password changes that increment `session_version`, revoke previously issued tokens and rotate the successful caller's current session;
-- current-password and password-reuse guards;
-- `privacy-export-v1` isolation across account, transaction, intelligence-finding, intelligence-scan and historical-analysis-snapshot data;
-- a two-user export regression that seeds every persisted export collection for both accounts and proves that no second-user object or credential/session-version material leaks into the first user's export;
-- confirmed account deletion and database-cascade removal of user-owned financial/intelligence data.
-
-## Frontend
-
-Use locked dependencies:
+Use locked dependencies and run the complete chain in order:
 
 ```bash
 cd frontend
@@ -199,89 +167,50 @@ npm run build
 npm audit --audit-level=high
 ```
 
-Browser money remains decimal strings/integer cents. Recharts receives JavaScript numbers only at its visualization adapter boundary after fixed-point arithmetic is complete.
-
-The API client has direct typed-error tests for authentication, authorization, not-found, conflict, validation, server and network failures while retaining safe backend messages/request IDs.
-
-Transaction-list component coverage verifies:
-
-- mobile/tablet card and desktop table representations are both driven by the same transaction props;
-- merchant, category, date, payment method, type, review status, amount and recurring state remain visible in the responsive presentation;
-- Edit/Delete controls preserve the same accessible names and parent handlers in both presentations;
-- the desktop table remains the `lg+` representation while the card grid is used below that breakpoint;
-- an empty result renders one explicit empty state rather than duplicated card/table placeholders.
-
-Historical Analysis component coverage includes:
-
-- partial-month exclusion notice;
-- complete-month trend evidence;
-- canonical merchant vs observed descriptor display;
-- calendar-aware recurrence components;
-- overdue expected-payment evidence;
-- robust historical outlier evidence;
-- persisted analysis reruns through the API.
-
-Security-page component coverage verifies password-change, privacy-export and account-deletion controls without duplicating backend authorization logic in the browser layer.
+Passing Vitest alone is not considered a green frontend. CI requires component tests, TypeScript, ESLint and the production build.
 
 ## End-to-end
 
-Playwright exercises critical authenticated flows against PostgreSQL/FastAPI/Vite. Algorithm depth is intentionally tested at service/integration/evaluation layers rather than forcing all financial semantics through browser tests.
+Playwright exercises critical authenticated flows against PostgreSQL/FastAPI/Vite/Chromium, including:
 
-Current E2E coverage includes:
+- transaction CRUD and cross-account isolation;
+- custom category + budget flow;
+- CSV import/re-import safety;
+- password/session rotation;
+- category suggestion correction + personalized reuse.
 
-- the persisted authenticated transaction flow and cross-account transaction isolation;
-- a focused Security flow that registers/signs in, changes the password from the Security page, verifies the rotated current session remains authenticated, logs out, confirms the old password is rejected and confirms the new password authenticates successfully.
+Algorithm depth remains tested at service/integration/evaluation layers rather than duplicating every semantic through the browser.
 
-The Security E2E deliberately covers one end-to-end credential-rotation contract instead of duplicating every password/privacy negative case already covered by PostgreSQL integration tests.
+## Docker Compose smoke test
 
-## Docker contract/security smoke test
+The deployment-style job verifies Nginx/browser security headers, API no-store behavior, authentication, exact money, current historical-analysis contracts, normalized errors, rate limiting, internal-only services and startup of the production backend image.
 
-The deployment-style Compose job verifies:
+The backend image now includes `backend/ml` and installs `scikit-learn` from runtime requirements because category suggestions are served by FastAPI in production Compose.
 
-- Nginx security headers;
-- API `Cache-Control: no-store`;
-- authenticated proxy behavior;
-- exact decimal-money aggregation;
-- generation/retrieval of the current persisted historical-analysis contract;
-- partial-month completeness behavior;
-- sparse historical data reported as insufficient rather than fabricated trend;
-- v2 numeric-money rejection;
-- normalized 404/401 behavior;
-- authentication rate limiting;
-- internal-only backend/PostgreSQL networking.
+## Dependency security and SBOM
 
-The offline category classifier is not loaded by the Compose production runtime.
+The blocking security audit runs `pip-audit` and `npm audit --audit-level=high`.
 
-## Supply-chain SBOM verification
+`.github/workflows/sbom.yml` independently reconstructs backend/frontend runtime dependencies, generates/validates CycloneDX 1.6 JSON inventories and uploads the `dependency-sboms` artifact. Container/OS image scanning remains a separate roadmap item.
 
-`.github/workflows/sbom.yml` runs on pull requests and pushes to `main` independently of the vulnerability-audit job.
-
-It reconstructs an isolated backend runtime from `backend/requirements.txt`, installs the locked frontend project with `npm ci`, generates CycloneDX 1.6 JSON inventories, validates them, asserts that both contain components and uploads them together as the retained `dependency-sboms` artifact.
-
-The workflow does not replace the blocking `pip-audit`/`npm audit` quality gate. It adds dependency inventory evidence. Container/OCI image contents and operating-system packages remain outside this dependency-level SBOM and are tracked separately in `ROADMAP.md`.
-
-See [`supply-chain.md`](supply-chain.md) for the exact coverage boundary.
-
-## GitHub Actions
+## GitHub Actions gates
 
 `.github/workflows/ci.yml` runs on pushes and pull requests targeting `main`.
 
 Functional gates:
 
-- **Backend tests**: dependencies, clean PostgreSQL migration, canonical FastAPI `APP_VERSION` import smoke, pytest, historical regression evaluation and sealed-split checks.
-- **Frontend quality**: locked npm install, Vitest, TypeScript, ESLint and production build.
-- **Dependency security audit**: `pip-audit` and `npm audit --audit-level=high`.
-- **Critical E2E**: PostgreSQL/FastAPI/Vite/Chromium transaction and focused Security flows.
-- **Docker Compose smoke test**: deployment-style images and proxy/API contract.
-- **Quality gate**: fails unless every functional gate succeeds.
+- **Backend tests** — clean PostgreSQL migration, FastAPI import, pytest and protected evaluation checks.
+- **Frontend quality** — Vitest -> TypeScript -> ESLint -> production build.
+- **Dependency security audit** — Python and npm audits.
+- **Critical E2E** — PostgreSQL/FastAPI/Vite/Chromium flows.
+- **Docker Compose smoke test** — deployment-style image/proxy/API contract.
+- **Quality gate** — fails unless every functional gate succeeds.
 
-Additional merge-candidate gates:
+Additional merge-candidate workflows:
 
-- **Supply chain SBOM**: reproducible, validated backend/frontend CycloneDX dependency inventories and retained artifact upload.
-- **Financial benchmark**: deterministic labelled financial benchmark and protected development scenarios.
-- **Lifecycle diagnostic**: recurrence lifecycle regression evidence.
-- **Category classifier benchmark**: chronological TF-IDF/Logistic Regression evaluation and label/holdout contract.
+- **Financial benchmark**;
+- **Lifecycle diagnostic**;
+- **Category classifier benchmark** — chronological + merchant-group cold-start + calibration evidence + sealed holdout;
+- **Supply chain SBOM**.
 
 Third-party Actions are pinned to immutable commit SHAs. Dependabot monitors Actions, pip and npm dependencies.
-
-Repository-level branch protection/ruleset enforcement remains a separate pending production-readiness task; `Quality gate` should be configured as a required check before external collaboration relies on GitHub enforcement alone.
