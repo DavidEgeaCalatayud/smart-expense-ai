@@ -47,6 +47,8 @@ def test_current_technical_documentation_matches_contract_registry() -> None:
         "data_model": _read("docs/DATA_MODEL.md"),
         "product": _read("docs/PRODUCT_SPEC.md"),
         "classifier": _read("ai/category-classifier/README.md"),
+        "private_evaluation": _read("docs/private-evaluation.md"),
+        "evaluation_protocol": _read("docs/evaluation-protocol.md"),
     }
 
     for value in (
@@ -72,15 +74,23 @@ def test_current_technical_documentation_matches_contract_registry() -> None:
     assert ACTIONABLE_RULES_VERSION in documents["testing"]
     assert HISTORICAL_ANALYSIS_VERSION in documents["testing"]
     assert "merchant-group" in documents["testing"]
+    assert "private-real-data-v1" in documents["testing"]
     assert HISTORICAL_ANALYSIS_VERSION in documents["architecture"]
     assert ACTIONABLE_RULES_VERSION in documents["architecture"]
     assert "category suggestion" in documents["architecture"].lower()
+    assert "private-real-data-v1" in documents["architecture"]
     assert "category_suggestions" in documents["data_model"]
     assert "budgets" in documents["data_model"]
     assert ACTIONABLE_RULES_VERSION in documents["product"]
     assert HISTORICAL_ANALYSIS_VERSION in documents["product"]
     assert "user-controlled category suggestions" in documents["product"].lower()
+    assert "private-real-data-v1" in documents["product"]
     assert "productConfidenceEnabled=false" in documents["classifier"]
+    assert "private-real-data-v1" in documents["classifier"]
+    assert "private-real-data-v1" in documents["private_evaluation"]
+    assert "aggregate-only" in documents["private_evaluation"].lower()
+    assert "private-real-data-v1" in documents["evaluation_protocol"]
+    assert "holdout" in documents["evaluation_protocol"].lower()
 
     stale_claims = (
         "new runs create `historical-v2.1` snapshots",
@@ -112,11 +122,14 @@ def test_repository_metadata_and_primary_docs_reference_project_governance_files
     readme = _read("README.md")
     roadmap = _read("ROADMAP.md")
     assert "docs/analysis-contracts.md" in readme
+    assert "docs/private-evaluation.md" in readme
     assert "CHANGELOG.md" in readme
     assert "LICENSE" in readme
     assert "category-suggestions/preview" in readme
     assert "productConfidenceEnabled=false" in readme
+    assert "private-real-data-v1" in readme
     assert "analysis_contracts.py" in roadmap
     assert "category-suggestion feedback" in roadmap
+    assert "private-real-data-v1" in roadmap
     assert "CHANGELOG.md" in roadmap
     assert "LICENSE" in roadmap
