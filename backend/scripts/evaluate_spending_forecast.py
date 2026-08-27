@@ -28,9 +28,7 @@ def _tx(identifier: str, merchant: str, amount: str, value: date) -> Transaction
 
 
 def _synthetic_history() -> list[TransactionSnapshot]:
-    transactions: list[TransactionSnapshot] = [
-        _tx("coverage-anchor", "Coverage Anchor", "0.00", date(2024, 11, 30)),
-    ]
+    transactions: list[TransactionSnapshot] = []
     identifier = 0
     for year, month in [
         (2024, 12),
