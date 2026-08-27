@@ -10,6 +10,7 @@ from app.analysis_contracts import (
     HISTORICAL_ANALYSIS_VERSION,
     RECURRENCE_SEGMENTATION_STRATEGY,
     RECURRENCE_SEGMENTATION_VERSION,
+    SPENDING_FORECAST_VERSION,
     UPCOMING_PAYMENTS_VERSION,
 )
 from app.services.amount_anomaly_baseline import BASELINE_POLICY
@@ -29,6 +30,7 @@ def test_current_engine_and_model_modules_alias_the_contract_registry() -> None:
     assert RULE_VERSION == ACTIONABLE_RULES_VERSION == "rules-v2"
     assert ANALYSIS_VERSION == HISTORICAL_ANALYSIS_VERSION == "historical-v2.2"
     assert UPCOMING_PAYMENTS_VERSION == "recurring-calendar-v1"
+    assert SPENDING_FORECAST_VERSION == "spending-forecast-v1"
     assert BASELINE_POLICY == AMOUNT_ANOMALY_POLICY == "merchant_mad_plus_extreme_iqr_v1"
     assert MODEL_VERSION == CATEGORY_CLASSIFIER_VERSION == "tfidf-logreg-v1"
     assert FEATURE_POLICY == CATEGORY_CLASSIFIER_FEATURE_POLICY == "merchant_descriptor_only_v1"
@@ -52,12 +54,14 @@ def test_current_technical_documentation_matches_contract_registry() -> None:
         "private_evaluation": _read("docs/private-evaluation.md"),
         "evaluation_protocol": _read("docs/evaluation-protocol.md"),
         "upcoming_payments": _read("docs/upcoming-payments.md"),
+        "spending_forecast": _read("docs/spending-forecast.md"),
     }
 
     for value in (
         ACTIONABLE_RULES_VERSION,
         HISTORICAL_ANALYSIS_VERSION,
         UPCOMING_PAYMENTS_VERSION,
+        SPENDING_FORECAST_VERSION,
         AMOUNT_ANOMALY_POLICY,
         RECURRENCE_SEGMENTATION_VERSION,
         CATEGORY_CLASSIFIER_VERSION,
@@ -72,7 +76,9 @@ def test_current_technical_documentation_matches_contract_registry() -> None:
     assert AMOUNT_ANOMALY_POLICY in documents["intelligence"]
     assert HISTORICAL_ANALYSIS_VERSION in documents["api"]
     assert UPCOMING_PAYMENTS_VERSION in documents["api"]
+    assert SPENDING_FORECAST_VERSION in documents["api"]
     assert "upcoming-payments" in documents["api"]
+    assert "spending-forecast" in documents["api"]
     assert AMOUNT_ANOMALY_POLICY in documents["api"]
     assert CATEGORY_CLASSIFIER_VERSION in documents["api"]
     assert "category-suggestions/preview" in documents["api"]
@@ -80,11 +86,13 @@ def test_current_technical_documentation_matches_contract_registry() -> None:
     assert ACTIONABLE_RULES_VERSION in documents["testing"]
     assert HISTORICAL_ANALYSIS_VERSION in documents["testing"]
     assert UPCOMING_PAYMENTS_VERSION in documents["testing"]
+    assert SPENDING_FORECAST_VERSION in documents["testing"]
     assert "merchant-group" in documents["testing"]
     assert "private-real-data-v1" in documents["testing"]
     assert HISTORICAL_ANALYSIS_VERSION in documents["architecture"]
     assert ACTIONABLE_RULES_VERSION in documents["architecture"]
     assert UPCOMING_PAYMENTS_VERSION in documents["architecture"]
+    assert SPENDING_FORECAST_VERSION in documents["architecture"]
     assert "category suggestion" in documents["architecture"].lower()
     assert "private-real-data-v1" in documents["architecture"]
     assert "category_suggestions" in documents["data_model"]
@@ -92,6 +100,7 @@ def test_current_technical_documentation_matches_contract_registry() -> None:
     assert ACTIONABLE_RULES_VERSION in documents["product"]
     assert HISTORICAL_ANALYSIS_VERSION in documents["product"]
     assert UPCOMING_PAYMENTS_VERSION in documents["product"]
+    assert SPENDING_FORECAST_VERSION in documents["product"]
     assert "user-controlled category suggestions" in documents["product"].lower()
     assert "private-real-data-v1" in documents["product"]
     assert "productConfidenceEnabled=false" in documents["classifier"]
@@ -102,6 +111,11 @@ def test_current_technical_documentation_matches_contract_registry() -> None:
     assert "holdout" in documents["evaluation_protocol"].lower()
     assert UPCOMING_PAYMENTS_VERSION in documents["upcoming_payments"]
     assert "overdue" in documents["upcoming_payments"].lower()
+    assert SPENDING_FORECAST_VERSION in documents["spending_forecast"]
+    assert "walk-forward" in documents["spending_forecast"].lower()
+    assert "mae" in documents["spending_forecast"].lower()
+    assert "smape" in documents["spending_forecast"].lower()
+    assert "bias" in documents["spending_forecast"].lower()
 
     stale_claims = (
         "new runs create `historical-v2.1` snapshots",
@@ -118,6 +132,8 @@ def test_current_technical_documentation_matches_contract_registry() -> None:
         "custom user-managed category crud is not implemented yet",
         "the offline `tfidf-logreg-v1` category classifier",
         "recurring-payment calendar / upcoming-payment product view",
+        "end-of-month spending forecast baselines or ml forecasting",
+        "end-of-month spending forecasts / phase 4 forecasting baselines",
     )
     combined = "\n".join(documents.values()).lower()
     for claim in stale_claims:
@@ -136,15 +152,18 @@ def test_repository_metadata_and_primary_docs_reference_project_governance_files
     assert "docs/analysis-contracts.md" in readme
     assert "docs/private-evaluation.md" in readme
     assert "docs/upcoming-payments.md" in readme
+    assert "docs/spending-forecast.md" in readme
     assert "CHANGELOG.md" in readme
     assert "LICENSE" in readme
     assert "category-suggestions/preview" in readme
     assert "productConfidenceEnabled=false" in readme
     assert "private-real-data-v1" in readme
     assert UPCOMING_PAYMENTS_VERSION in readme
+    assert SPENDING_FORECAST_VERSION in readme
     assert "analysis_contracts.py" in roadmap
     assert "category-suggestion feedback" in roadmap
     assert "private-real-data-v1" in roadmap
     assert UPCOMING_PAYMENTS_VERSION in roadmap
+    assert SPENDING_FORECAST_VERSION in roadmap
     assert "CHANGELOG.md" in roadmap
     assert "LICENSE" in roadmap
