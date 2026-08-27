@@ -36,9 +36,12 @@ Evaluation / ML evidence
   +---------------- chronological evaluation harnesses
   +---------------- merchant-group cold-start evaluation
   +---------------- probability calibration diagnostics
+  +---------------- private-real-data-v1 local aggregate evaluator
 ```
 
 The `tfidf-logreg-v1` classifier is loaded by the production backend as a **suggestion** layer. It never silently assigns a category and it does not expose an uncalibrated confidence score to the product.
+
+The private real-data evaluator is **not** part of the production request path. It is a local/offline evaluation tool that reuses production classifier/rule/historical implementations while keeping private financial files outside Git and CI.
 
 ## Repository layout
 
@@ -58,7 +61,9 @@ smart-expense-ai/
 │   ├── benchmark/              # deterministic benchmark generation
 │   ├── datasets/
 │   ├── scripts/
+│   ├── private_evaluation.py   # aggregate-only local/private evaluator
 │   └── tests/
+├── data/private/               # ignored local financial evaluation data; README only tracked
 ├── ai/                         # model cards / ML evidence documentation
 ├── docs/
 ├── compose.yaml
@@ -148,6 +153,8 @@ Every private record is scoped by authenticated ownership. Seeded system categor
 
 Derived analytical data does not silently rewrite source transactions.
 
+`data/private/` is intentionally outside this persistence model. It is local evaluation input, git-ignored by default and never read by the production API.
+
 ## Financial arithmetic
 
 Money is stored as PostgreSQL `NUMERIC` and processed with Python `Decimal`. API v2 serializes money as decimal strings; the frontend uses integer cents for client-side financial arithmetic.
@@ -204,6 +211,40 @@ Measured synthetic merchant-group holdout evidence is 382 transactions across ni
 
 Calibration diagnostics improve substantially on the synthetic chronological development split (raw Brier/ECE `0.018193/0.082021`, Platt `0.008871/0.004624`, isotonic `0.009156/0.004711`), but `productConfidenceEnabled=false` remains the contract until representative real data supports a product confidence policy.
 
+## Private evaluation architecture — `private-real-data-v1`
+
+The private harness is an **adapter around existing implementations**, not a parallel analytical system:
+
+```text
+ignored data/private/*.jsonl
+        |
+        v
+private_evaluation.py
+        |
+        +--> fixed production tfidf-logreg-v1
+        +--> rules-v2
+        +--> historical-v2.2 development/holdout runner
+        |
+        v
+aggregate-only JSON report
+```
+
+Key properties:
+
+- complete category labels are joined to private transactions by local transaction ID;
+- complete anomaly labels are required for expense rows;
+- calibration, validation and holdout ranges are explicit and non-overlapping;
+- the production category classifier is **not retrained** on the private evaluation set;
+- natural seen/unseen merchant support is measured relative to the immutable runtime bootstrap corpus;
+- Platt/isotonic calibrators may be fit on the private calibration range and compared on private validation only;
+- holdout requires frozen historical parameters plus one preselected category calibration method;
+- `rules-v2` sees only historical context available through the scored split boundary;
+- `historical-v2.2` reuses the normal walk-forward/bootstrap code path;
+- sanitization removes raw merchants, transaction IDs, row-level prediction errors and merchant-specific historical slices;
+- a SHA-256 fingerprint identifies the exact private source material without publishing it.
+
+CI constructs a synthetic private-format dataset under a temporary directory solely to validate this mechanism/privacy boundary. Therefore CI never requires private financial records and a green private-evaluator test is **not** a real-world model-quality claim.
+
 ## Deployment architecture
 
 The backend Docker image copies both `app/` and `ml/` and installs `scikit-learn` from runtime requirements because suggestion serving is now part of the API process.
@@ -212,16 +253,17 @@ The backend Docker image copies both `app/` and `ml/` and installs `scikit-learn
 Browser -> Nginx -> FastAPI + ML suggestion runtime -> PostgreSQL
 ```
 
-The model does not run in the browser and no external ML service is required for the current baseline.
+The model does not run in the browser and no external ML service is required for the current baseline. The `data/private/` evaluator path is not mounted or invoked by production Compose.
 
 ## Evaluation boundary
 
-The evidence hierarchy remains:
+The evidence hierarchy is now:
 
 ```text
 unit/integration fixtures -> regression protection
 financial-benchmark-v1 -> synthetic development evidence
-independent/real labels -> production-quality evidence
+private-real-data-v1 harness -> mechanism for private/independent evaluation
+independent/real labelled results -> production-quality evidence
 ```
 
-No synthetic metric is represented as real banking accuracy. Automatic categorization, a confidence threshold and per-user model retraining remain future decisions requiring stronger real-world evidence.
+No synthetic metric is represented as real banking accuracy, and the presence of the private harness is not itself claimed as real validation. Automatic categorization, a confidence threshold and per-user model retraining remain future decisions requiring representative real-world evidence.
