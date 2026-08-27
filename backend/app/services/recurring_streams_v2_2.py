@@ -375,6 +375,7 @@ def build_recurring_profiles_v2_2(
                 "cadence": cadence_name,
                 "occurrenceCount": len(schedule_dates),
                 "medianAmount": _money(typical_amount),
+                "latestAmount": _money(ordered[-1].amount),
                 "medianIntervalDays": _ratio(typical_interval, "0.1"),
                 "intervalRegularity": _ratio(interval_regularity),
                 "dayOfMonthStability": _ratio(day_of_month_stability),
