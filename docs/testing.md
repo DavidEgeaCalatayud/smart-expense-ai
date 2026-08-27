@@ -1,6 +1,6 @@
 # Testing and CI
 
-Smart Expense AI uses layered automated verification for persistence, authentication, security controls, versioned API contracts, monetary precision, deterministic financial intelligence, historical analysis, category suggestions/personalization, ML evaluation, responsive UX, supply-chain inventory and critical browser flows.
+Smart Expense AI uses layered automated verification for persistence, authentication, security controls, versioned API contracts, monetary precision, deterministic financial intelligence, historical analysis, category suggestions/personalization, ML evaluation, privacy-safe private-evaluation tooling, responsive UX, supply-chain inventory and critical browser flows.
 
 Current analytical identifiers come from `backend/app/analysis_contracts.py`; see [`analysis-contracts.md`](analysis-contracts.md). Tests explicitly prevent key implementation/documentation contracts from silently drifting.
 
@@ -86,8 +86,11 @@ Evidence hierarchy:
 ```text
 small fixture -> regression protection
 financial-benchmark-v1 -> synthetic development evidence
-independent / real labelled data -> real quality evidence
+private-real-data-v1 harness -> private/independent evaluation mechanism
+independent / real labelled results -> real quality evidence
 ```
+
+The existence of the private harness is not itself real-world validation.
 
 ## Category classifier benchmark
 
@@ -130,6 +133,35 @@ Measured synthetic calibration diagnostics:
 | Isotonic | 0.009156 | 0.004711 |
 
 These diagnostics prove neither real-world accuracy nor real-world calibration. Product confidence remains disabled until representative real labelled data supports it.
+
+## Private real-data evaluator — `private-real-data-v1`
+
+`backend/tests/unit/test_private_evaluation.py` creates its dataset entirely under pytest's temporary directory. No private file, bank export or real merchant history is present in the repository or required by CI.
+
+The regression exercises the same command path intended for local real-data evaluation and verifies:
+
+- `manifest.json` requires ordered, non-overlapping calibration/validation/holdout month ranges;
+- category labels have complete one-to-one transaction coverage;
+- anomaly labels have complete one-to-one expense-transaction coverage;
+- the production runtime classifier is evaluated without retraining on the private dataset;
+- natural seen/unseen merchant support is computed relative to the immutable runtime bootstrap corpus;
+- development mode compares raw/Platt/isotonic calibration on validation while keeping holdout sealed;
+- holdout mode requires previously frozen `historical-v2.2` parameters and one preselected category calibration method;
+- `rules-v2` amount/frequency anomaly metrics use only historical context through the scored split boundary;
+- `historical-v2.2` reuses the established walk-forward/bootstrap runner rather than a second private-only algorithm;
+- aggregate reports omit merchant strings, transaction IDs, row-level errors and merchant-specific historical slices.
+
+Local private run from `backend/`:
+
+```bash
+python scripts/evaluate_private_dataset.py \
+  ../data/private \
+  --mode development \
+  --parameters-output ../data/private/historical-parameters.json \
+  --output ../data/private/development-report.json
+```
+
+See [`private-evaluation.md`](private-evaluation.md) for the schema, holdout procedure and privacy boundary.
 
 ## PostgreSQL integration
 
@@ -185,7 +217,7 @@ Algorithm depth remains tested at service/integration/evaluation layers rather t
 
 The deployment-style job verifies Nginx/browser security headers, API no-store behavior, authentication, exact money, current historical-analysis contracts, normalized errors, rate limiting, internal-only services and startup of the production backend image.
 
-The backend image now includes `backend/ml` and installs `scikit-learn` from runtime requirements because category suggestions are served by FastAPI in production Compose.
+The backend image includes `backend/ml` and installs `scikit-learn` from runtime requirements because category suggestions are served by FastAPI in production Compose.
 
 ## Dependency security and SBOM
 
@@ -199,7 +231,7 @@ The blocking security audit runs `pip-audit` and `npm audit --audit-level=high`.
 
 Functional gates:
 
-- **Backend tests** — clean PostgreSQL migration, FastAPI import, pytest and protected evaluation checks.
+- **Backend tests** — clean PostgreSQL migration, FastAPI import, pytest, protected evaluation checks and the synthetic private-evaluator privacy regression.
 - **Frontend quality** — Vitest -> TypeScript -> ESLint -> production build.
 - **Dependency security audit** — Python and npm audits.
 - **Critical E2E** — PostgreSQL/FastAPI/Vite/Chromium flows.

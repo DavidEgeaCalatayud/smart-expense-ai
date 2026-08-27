@@ -6,6 +6,12 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ### Added
 
+- Privacy-safe `private-real-data-v1` dataset contract for independently labelled local transactions under git-ignored `data/private/`, with explicit calibration/validation/holdout ranges and complete category/anomaly label-coverage requirements.
+- Aggregate-only private evaluator for the deployed `tfidf-logreg-v1` runtime classifier, natural seen-vs-unseen merchant support, out-of-taxonomy support and raw/Platt/isotonic calibration diagnostics without retraining the production model on evaluation data.
+- Aggregate transaction-level private evaluation of `rules-v2` spending/frequency anomalies with precision, recall, F1 and false positives per 100 transactions, plus reuse of the existing `historical-v2.2` walk-forward/holdout/bootstrap machinery.
+- SHA-256 private-dataset fingerprints and sanitized reports that omit raw transactions, merchant strings, transaction IDs, row-level classifier errors and merchant-specific historical slices.
+- Synthetic temporary-data regressions that exercise development and holdout private-evaluation paths in normal backend CI without requiring or accessing private financial data.
+- `docs/private-evaluation.md` and tracked `data/private/README.md` documenting the local schema, privacy boundary, holdout discipline and reproducible CLI workflow.
 - User-controlled AI category suggestions in the transaction workflow using `tfidf-logreg-v1`, with explicit **Accept** / **Change** controls and no automatic category mutation.
 - Persisted `category_suggestions` feedback capturing user, transaction, canonical merchant, suggestion provenance, model/feature contract, suggested category, selected category and acceptance/correction timestamps.
 - Per-user canonical-merchant personalization that reuses an account's latest compatible category choice before falling back to the global classifier, including account-owned custom categories without adding them to the global model taxonomy.
@@ -39,6 +45,9 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ### Changed
 
+- The roadmap now separates the implemented private-evaluation **mechanism** from still-pending real-data evidence, and sequences product work as recurring-payment calendar -> deterministic forecasting baselines/backtesting -> ML forecasting challengers -> later anomaly ML challengers.
+- Future forecasting now has an explicit gate: Ridge/Random Forest/Gradient Boosting or other ML approaches must consistently beat simple walk-forward baselines measured with MAE, sMAPE and bias before entering the product.
+- Future anomaly ML is explicitly a challenger to `rules-v2`; an `IsolationForest-v1` path must use causal/prior-only features and be compared on the same labelled evidence rather than automatically replacing the deterministic engine.
 - API v2 transaction creation/update now computes suggestion provenance server-side and persists the transaction plus category-feedback record atomically; clients cannot supply or spoof model version, feature policy or suggested category metadata.
 - `scikit-learn` is now a runtime backend dependency and `backend/ml` is packaged in the backend Docker image because FastAPI serves the category suggestion baseline.
 - `privacy-export-v1` now includes account-owned category-suggestion feedback in addition to CSV import batches, custom categories and budgets; account deletion removes the same feedback through database ownership cascades.

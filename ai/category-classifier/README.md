@@ -112,7 +112,7 @@ macroF1                  0.201242
 weightedF1               0.254513
 ```
 
-This is the most informative current classifier result: generalization to genuinely unseen merchant identities is far weaker than chronological repeated-merchant performance. It is a direct reason to keep the product in suggestion-only mode.
+This is the most informative current synthetic classifier result: generalization to genuinely unseen merchant identities is far weaker than chronological repeated-merchant performance. It is a direct reason to keep the product in suggestion-only mode.
 
 The sealed 2025 H2 holdout is not used for this development benchmark.
 
@@ -139,7 +139,51 @@ The report also produces ten-bin reliability data for every method.
 
 Platt/isotonic improve these synthetic development diagnostics substantially, but this does **not** establish real-world calibration. No method is promoted into a product confidence threshold from this benchmark.
 
-## Reproduce
+## Independent/private evaluation — `private-real-data-v1`
+
+The repository now has a local, git-ignored evaluator for independent/private labelled transactions. This closes the **tooling gap**, not the real-evidence gap: no private financial dataset is committed and no real-world score is claimed until the harness is actually run on independently labelled data.
+
+The important methodological choice is that the private evaluator measures the **deployed runtime classifier as-is**. It does not retrain `tfidf-logreg-v1` on the same private records and then report that easier in-sample/domain-adapted result as production accuracy.
+
+Development protocol:
+
+```text
+fixed runtime classifier -> private validation labels
+private calibration labels -> fit Platt/isotonic calibrators
+private validation labels  -> compare raw/Platt/isotonic Brier + ECE
+private holdout             -> sealed
+```
+
+The report additionally separates natural seen vs unseen merchant support relative to the immutable runtime bootstrap corpus. Categories outside the global system taxonomy are reported as aggregate `outOfTaxonomy` support rather than silently remapped or injected into the global model.
+
+From `backend/`:
+
+```bash
+python scripts/evaluate_private_dataset.py \
+  ../data/private \
+  --mode development \
+  --parameters-output ../data/private/historical-parameters.json \
+  --output ../data/private/development-report.json
+```
+
+Opening holdout requires one calibration method chosen from development evidence before inspection:
+
+```bash
+python scripts/evaluate_private_dataset.py \
+  ../data/private \
+  --mode holdout \
+  --calibration-method platt \
+  --historical-parameters ../data/private/historical-parameters.json \
+  --output ../data/private/holdout-report.json
+```
+
+Do not compare raw/Platt/isotonic on holdout and then pick the best one. A design change after holdout inspection requires a new versioned holdout.
+
+Privacy contract: the aggregate report omits merchant strings, transaction IDs, row-level errors and merchant-specific historical slices. CI verifies this behavior using temporary synthetic records only; CI never needs access to private financial data.
+
+See [`../../docs/private-evaluation.md`](../../docs/private-evaluation.md).
+
+## Reproduce synthetic benchmark
 
 ```bash
 cd backend
@@ -150,14 +194,14 @@ python scripts/evaluate_category_classifier.py \
   --output /tmp/category-classifier-report.json
 ```
 
-`Category classifier benchmark` gates chronological metrics, merchant-group disjointness/support, calibration structure/metrics and the sealed-holdout contract in CI.
+`Category classifier benchmark` gates chronological metrics, merchant-group disjointness/support, calibration structure/metrics and the sealed-holdout contract in CI. Backend unit tests separately gate the private-evaluation mechanism with synthetic temporary data.
 
 ## Evidence still needed
 
 Before automatic categorization or user-facing confidence:
 
-1. collect/evaluate independent or real labelled transaction feedback;
-2. measure real-world cold-start performance with meaningful merchant/category support;
+1. run `private-real-data-v1` against genuinely independent/real labelled transactions;
+2. measure real-world cold-start performance with meaningful natural unseen-merchant/category support;
 3. evaluate stale-preference behavior and personalization benefit on real usage;
-4. calibrate on representative real data and choose a method from that evidence;
+4. calibrate on representative real data and choose a method from calibration/validation evidence before opening holdout;
 5. define explicit false-positive/user-control costs for any future auto-category policy.
