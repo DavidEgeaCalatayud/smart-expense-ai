@@ -48,7 +48,8 @@ Goal: make the first usable version persist real financial data.
 - [x] Add per-user import fingerprints, duplicate suppression, persisted `import_batches` audit history and transaction import lineage.
 - [x] Add delete confirmation and operation feedback.
 - [x] Add distinct loading, refreshing, retry and mutation states in transaction UX.
-- [ ] Add user-managed category CRUD when needed.
+- [x] Add user-managed custom categories with system/user ownership, case-insensitive conflict protection, rename, archive/reassign and restore semantics.
+- [x] Add persisted monthly overall and per-expense-category budgets with Decimal limits and server-calculated progress.
 
 ## Phase 2 - Accounts and Data Ownership
 
@@ -61,7 +62,7 @@ Goal: isolate financial data by user before adding sensitive integrations.
 - [x] Add mandatory user ownership to transactions.
 - [x] Scope transaction list/update/delete operations by authenticated user ID.
 - [x] Require authentication for financial/category API reads.
-- [x] Keep seeded categories global and read-only until custom category CRUD is introduced.
+- [x] Keep seeded categories global and read-only while allowing authenticated account-owned custom categories.
 - [x] Add authenticated session visibility in the Security page.
 - [x] Cover cross-account transaction isolation in integration and E2E tests.
 - [x] Harden authentication errors, password policy and JWT claim validation.
@@ -70,7 +71,7 @@ Goal: isolate financial data by user before adding sensitive integrations.
 - [x] Add password change with server-side session-version revocation and current-session rotation.
 - [ ] Add verified password reset/recovery after an email delivery channel exists.
 - [x] Add account deletion and authenticated `privacy-export-v1` controls.
-- [x] Regression-test privacy export isolation across transactions, findings, scans, historical-analysis snapshots and CSV import batches.
+- [x] Regression-test privacy export isolation across transactions, findings, scans, historical-analysis snapshots, CSV import batches, custom categories and budgets.
 - [ ] MFA if required for Internet-facing production use.
 
 ## Phase 3 - Financial Intelligence
