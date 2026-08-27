@@ -91,7 +91,12 @@ def _history_covers_month(transactions: list[TransactionSnapshot], month: date) 
     if not transactions:
         return False
     earliest = min(item.transaction_date for item in transactions)
-    return earliest <= _month_start(month)
+    # Transaction history does not carry an explicit account-history-start timestamp.
+    # Treat the calendar month containing the earliest observed expense as the first
+    # observable month; months after it can legitimately contain zero spend. Requiring
+    # an expense on/before day 1 would incorrectly reject normal histories whose first
+    # recorded purchase happened later in that month.
+    return _month_start(earliest) <= _month_start(month)
 
 
 def _three_month_mean(
