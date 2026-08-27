@@ -6,6 +6,11 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ### Added
 
+- `recurring-calendar-v1`, an authenticated API/product projection that converts existing `historical-v2.2` / `lifecycle-v1` recurrence evidence into upcoming recurring charges without introducing another prediction model.
+- Protected **Predictions** recurring-payment calendar with exact next-30-days future total, month-grouped charges, deterministic `expected` / `likely` / `price_changed` states and a separate overdue-schedule section.
+- `GET /api/v2/intelligence/upcoming-payments` with a bounded 1–90 day window, optional reproducible `asOf` date, decimal-string amounts and explicit recurrence/lifecycle/price evidence for every item.
+- Backend regressions for month-end schedule preservation, overdue/dormant safety and latest-price-regime projection, plus component and persisted Playwright coverage for recurring-history -> calendar behavior.
+- `docs/upcoming-payments.md` documenting `recurring-calendar-v1`, projection states, exact-money behavior, dormancy safety and the API/UI contract.
 - Privacy-safe `private-real-data-v1` dataset contract for independently labelled local transactions under git-ignored `data/private/`, with explicit calibration/validation/holdout ranges and complete category/anomaly label-coverage requirements.
 - Aggregate-only private evaluator for the deployed `tfidf-logreg-v1` runtime classifier, natural seen-vs-unseen merchant support, out-of-taxonomy support and raw/Platt/isotonic calibration diagnostics without retraining the production model on evaluation data.
 - Aggregate transaction-level private evaluation of `rules-v2` spending/frequency anomalies with precision, recall, F1 and false positives per 100 transactions, plus reuse of the existing `historical-v2.2` walk-forward/holdout/bootstrap machinery.
@@ -45,8 +50,10 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ### Changed
 
-- The roadmap now separates the implemented private-evaluation **mechanism** from still-pending real-data evidence, and sequences product work as recurring-payment calendar -> deterministic forecasting baselines/backtesting -> ML forecasting challengers -> later anomaly ML challengers.
-- Future forecasting now has an explicit gate: Ridge/Random Forest/Gradient Boosting or other ML approaches must consistently beat simple walk-forward baselines measured with MAE, sMAPE and bias before entering the product.
+- Recurring profiles now expose the latest observed stream amount in addition to the median so downstream price-continuity projections can represent the current sequential price regime without changing historical recurrence scoring.
+- Missing/overdue recurring schedules are not automatically rolled into future expected totals; new observed activity must re-establish the stream before future projection resumes.
+- The roadmap now separates the implemented private-evaluation **mechanism** from still-pending real-data evidence, marks `recurring-calendar-v1` as implemented, and keeps forecasting baselines/backtesting and ML challengers explicitly subsequent work.
+- Future forecasting has an explicit gate: Ridge/Random Forest/Gradient Boosting or other ML approaches must consistently beat simple walk-forward baselines measured with MAE, sMAPE and bias before entering the product.
 - Future anomaly ML is explicitly a challenger to `rules-v2`; an `IsolationForest-v1` path must use causal/prior-only features and be compared on the same labelled evidence rather than automatically replacing the deterministic engine.
 - API v2 transaction creation/update now computes suggestion provenance server-side and persists the transaction plus category-feedback record atomically; clients cannot supply or spoof model version, feature policy or suggested category metadata.
 - `scikit-learn` is now a runtime backend dependency and `backend/ml` is packaged in the backend Docker image because FastAPI serves the category suggestion baseline.
@@ -66,6 +73,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ### Removed
 
+- Obsolete Predictions placeholder that claimed no predictive/product projection backend existed; the workspace now serves the deterministic recurring-payment calendar while month-end forecasting remains pending.
 - Obsolete documentation that described `tfidf-logreg-v1` as offline-only or unavailable to the production Compose/API runtime.
 - Obsolete documentation claiming that `rules-v2` or `historical-v2.2` falls back to category history when merchant history is insufficient for amount-anomaly detection.
 - Obsolete wording that presented `historical-v2.1` as the current historical engine.
