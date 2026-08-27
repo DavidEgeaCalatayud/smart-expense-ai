@@ -1,6 +1,6 @@
 # Testing and CI
 
-Smart Expense AI uses layered automated verification for persistence, authentication, security controls, versioned API contracts, exact monetary arithmetic, deterministic financial intelligence, historical analysis, recurring-payment projection, month-end forecasting, category suggestions/personalization, ML evaluation, privacy-safe private-evaluation tooling, responsive UX, supply-chain inventory and critical browser flows.
+Smart Expense AI uses layered automated verification for persistence, authentication, security controls, versioned API contracts, exact monetary arithmetic, deterministic financial intelligence, historical analysis, recurring-payment projection, month-end forecasting, anomaly challengers, category suggestions/personalization, ML evaluation, privacy-safe private-evaluation tooling, responsive UX, supply-chain inventory and critical browser flows.
 
 Current analytical identifiers come from `backend/app/analysis_contracts.py`; see [`analysis-contracts.md`](analysis-contracts.md). Tests explicitly prevent key implementation/documentation contracts from silently drifting.
 
@@ -19,6 +19,32 @@ Integration tests run against PostgreSQL rather than SQLite. Financial logic use
 ## Actionable findings — `rules-v2`
 
 Coverage includes canonical merchant identity, multi-stream recurrence, calendar/lifecycle evidence, missing recurring payments, duplicate subscriptions, `merchant_mad_plus_extreme_iqr_v1`, prior-only amount baselines, frequency anomalies, idempotent fingerprints, review states and decimal-string evidence.
+
+## Offline anomaly challenger — `isolation-forest-v1`
+
+`backend/tests/unit/test_isolation_forest_anomaly.py` protects the offline challenger contract:
+
+- feature rows are chronological and use only prior merchant/global state;
+- appending future extreme transactions leaves earlier feature rows unchanged;
+- fit, calibration and evaluation windows must be disjoint and ordered;
+- the forest is fitted only on the pre-calibration range;
+- calibration labels select a frozen score threshold without refitting the forest;
+- later evaluation uses identical labelled support for `rules-v2`, `isolation-forest-v1` and `rules-v2-or-isolation-forest-v1`;
+- each system reports precision, recall, F1, false positives per 100 and history-depth slices;
+- reports explicitly keep `finalHoldoutUsedForFit=false` and `replaceProductionRules=false`;
+- appending rows after the evaluation window cannot alter an existing aggregate report.
+
+### Dedicated anomaly challenger benchmark
+
+From `backend/`:
+
+```bash
+python scripts/evaluate_anomaly_challenger.py --output /tmp/anomaly-challenger.json
+```
+
+`.github/workflows/anomaly-challenger.yml` executes the same controlled fixture on every PR targeting `main` and every push to `main`. It verifies `anomaly-challenger-benchmark-v1`, `isolation-forest-v1`, `causal-transaction-features-v1`, the explicit union hybrid, common support, metric completeness, future-row invariance and the non-promotion guard.
+
+The gate does **not** require the ML model to beat `rules-v2` on synthetic data. Complexity is not an acceptance criterion, and the fixture is not a real-world accuracy or fraud-detection claim. See [`isolation-forest-challenger.md`](isolation-forest-challenger.md).
 
 ## Historical analysis — `historical-v2.2`
 
@@ -86,12 +112,15 @@ historical-v2.2
 recurring-calendar-v1
 spending-forecast-v1
 merchant_mad_plus_extreme_iqr_v1
+isolation-forest-v1
+causal-transaction-features-v1
+rules-v2-or-isolation-forest-v1
 lifecycle-v1
 tfidf-logreg-v1
 merchant_descriptor_only_v1
 ```
 
-It also rejects known stale policy claims, including documentation that would describe the implemented recurring calendar or deterministic forecast baselines as future work.
+It also rejects known stale policy claims, including documentation that would describe the implemented recurring calendar, deterministic forecast baselines or offline anomaly challenger as future work.
 
 ## Labelled chronological financial evaluation
 
@@ -110,6 +139,7 @@ Evidence hierarchy:
 small fixture -> regression protection
 financial-benchmark-v1 -> synthetic development evidence
 spending-forecast-benchmark-v1 -> deterministic forecast regression evidence
+anomaly-challenger-benchmark-v1 -> causal rules-vs-ML regression evidence
 private-real-data-v1 harness -> private/independent evaluation mechanism
 independent / real labelled results -> real quality evidence
 ```
@@ -125,6 +155,8 @@ Current synthetic cold-start evidence includes 382 evaluation samples across nin
 `backend/tests/unit/test_private_evaluation.py` constructs its dataset entirely under pytest temporary storage. CI never requires real financial files.
 
 Regression coverage verifies ordered non-overlapping calibration/validation/holdout ranges, complete label coverage, fixed production classifier evaluation without retraining on the private set, natural seen/unseen support, calibration selection discipline, prior-only `rules-v2` context, reuse of `historical-v2.2`, SHA-256 dataset fingerprints and aggregate-only sanitization.
+
+The `isolation-forest-v1` challenger is compatible with this split/label discipline but remains a separate aggregate-only evaluator in this cycle; CI does not consume private financial rows.
 
 See [`private-evaluation.md`](private-evaluation.md).
 
@@ -178,7 +210,7 @@ Playwright exercises critical authenticated flows against PostgreSQL/FastAPI/Vit
 - persisted recurring history -> `recurring-calendar-v1` projection;
 - persisted historical spending -> `spending-forecast-v1` month-end forecast with common day-15 backtest evidence.
 
-Algorithm depth remains tested at service/integration/evaluation layers rather than duplicating every semantic through the browser.
+The IsolationForest challenger is offline-only, so it intentionally has no browser/Product E2E path. Algorithm depth remains tested at unit/evaluation layers.
 
 ## Docker Compose smoke test
 
@@ -209,6 +241,7 @@ Additional merge-candidate workflows:
 - **Lifecycle diagnostic**;
 - **Category classifier benchmark**;
 - **Spending forecast benchmark**;
+- **Anomaly challenger benchmark**;
 - **Supply chain SBOM**.
 
 Third-party Actions are pinned to immutable commit SHAs. Dependabot monitors Actions, pip and npm dependencies.
