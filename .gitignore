@@ -27,6 +27,11 @@ backend/datasets/benchmark_v1/labels/
 backend/datasets/benchmark_v1/metadata.json
 backend/datasets/benchmark_v1/historical_evaluation_payload.json
 
+# Private real-world financial evaluation data
+# Keep the contract README tracked, but never commit local financial records or labels.
+data/private/*
+!data/private/README.md
+
 # IDE and OS files
 .vscode/
 .idea/
