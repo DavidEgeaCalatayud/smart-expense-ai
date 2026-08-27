@@ -6,6 +6,7 @@ import {
   LayoutDashboard,
   LineChart,
   LogOut,
+  MessageSquareText,
   ScanSearch,
   ShieldCheck,
   Tags,
@@ -24,6 +25,7 @@ const navigationItems = [
   { icon: FileSpreadsheet, label: 'Import CSV', to: ROUTES.imports },
   { icon: LineChart, label: 'Predictions', to: ROUTES.predictions },
   { icon: ScanSearch, label: 'Intelligence', to: ROUTES.alerts },
+  { icon: MessageSquareText, label: 'Assistant', to: ROUTES.assistant },
   { icon: ShieldCheck, label: 'Security', to: ROUTES.security },
 ];
 
@@ -94,7 +96,7 @@ export function Sidebar() {
         </div>
         <p className="mb-2 text-sm font-semibold">Account-isolated data</p>
         <p className="text-sm leading-6 text-slate-300">
-          Transaction, category, budget and intelligence queries are scoped to your authenticated user before financial data leaves the API.
+          Transaction, category, budget, intelligence and assistant tool queries are scoped to your authenticated user before financial data leaves the API.
         </p>
       </div>
     </aside>

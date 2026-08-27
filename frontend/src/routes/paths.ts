@@ -6,6 +6,7 @@ export const ROUTES = {
   imports: '/imports',
   predictions: '/predictions',
   alerts: '/alerts',
+  assistant: '/assistant',
   security: '/security',
   login: '/login',
   register: '/register',
