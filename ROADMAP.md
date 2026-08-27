@@ -96,8 +96,9 @@ Goal: implement real analysis and evaluated ML baselines without simulated AI ou
 - [ ] Tune recurring-score weights/cutoffs, stream-clustering tolerances and anomaly thresholds only on labelled calibration data, use validation for design checks, then open holdout once for final reporting.
 - [ ] Reassess amount-anomaly distribution fences and frequency-anomaly policy from real-world false-positive cost before loosening them.
 - [ ] Add automatic/background analysis when deployment scheduling is available.
-- [ ] Evaluate an `IsolationForest-v1` anomaly challenger with causal/prior-only features and explicit evidence limitations; keep it outside the product-authoritative path until evaluation requirements are met.
-- [ ] Compare `rules-v2`, the ML challenger and any hybrid on the same labelled walk-forward evidence with precision, recall, F1 and false positives per 100; never replace the deterministic engine merely because the ML model is more complex.
+- [x] Evaluate `isolation-forest-v1` as an offline anomaly challenger using `causal-transaction-features-v1`, strict prior-only feature state, disjoint fit/calibration/evaluation windows and deterministic model configuration.
+- [x] Compare `rules-v2`, `isolation-forest-v1` and `rules-v2-or-isolation-forest-v1` on identical labelled observations with precision, recall, F1, false positives per 100, confusion counts and history-depth slices.
+- [x] Enforce that synthetic challenger evidence never auto-replaces `rules-v2`; production promotion still requires representative independently labelled real evidence and acceptable false-positive cost.
 
 ## Phase 4 - Prediction and Upcoming Payments
 
@@ -146,6 +147,7 @@ Goal: prepare the project for real deployment.
 - [x] Gate the `private-real-data-v1` loader/evaluator privacy contract with temporary synthetic data.
 - [x] Gate `recurring-calendar-v1` with backend, component and persisted Playwright coverage.
 - [x] Gate `spending-forecast-v1` with backend unit/integration tests, Predictions component/E2E coverage and a dedicated deterministic forecast benchmark workflow.
+- [x] Gate `isolation-forest-v1` with future-leakage regressions, same-support comparison metrics, non-promotion assertions and a dedicated anomaly challenger workflow.
 - [x] Gate current analysis/model contract aliases and critical documentation consistency in backend tests.
 - [x] Add privacy/data-handling policy draft with production placeholders.
 - [x] Generate reproducible, validated backend/frontend CycloneDX dependency SBOMs and retain the artifact in CI.
