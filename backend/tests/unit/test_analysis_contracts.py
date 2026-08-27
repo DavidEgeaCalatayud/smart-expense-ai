@@ -5,9 +5,12 @@ from pathlib import Path
 from app.analysis_contracts import (
     ACTIONABLE_RULES_VERSION,
     AMOUNT_ANOMALY_POLICY,
+    ANOMALY_HYBRID_POLICY,
     CATEGORY_CLASSIFIER_FEATURE_POLICY,
     CATEGORY_CLASSIFIER_VERSION,
     HISTORICAL_ANALYSIS_VERSION,
+    ISOLATION_FOREST_FEATURE_POLICY,
+    ISOLATION_FOREST_VERSION,
     RECURRENCE_SEGMENTATION_STRATEGY,
     RECURRENCE_SEGMENTATION_VERSION,
     SPENDING_FORECAST_VERSION,
@@ -17,6 +20,11 @@ from app.services.amount_anomaly_baseline import BASELINE_POLICY
 from app.services.historical_analysis_v2_2 import ANALYSIS_VERSION
 from app.services.intelligence_rules_v2 import RULE_VERSION
 from ml.category_classifier import FEATURE_POLICY, MODEL_VERSION
+from ml.isolation_forest_anomaly import (
+    FEATURE_POLICY as ANOMALY_FEATURE_POLICY,
+    HYBRID_POLICY as ANOMALY_HYBRID,
+    MODEL_VERSION as ANOMALY_MODEL_VERSION,
+)
 
 
 REPO_ROOT = Path(__file__).resolve().parents[3]
@@ -32,6 +40,9 @@ def test_current_engine_and_model_modules_alias_the_contract_registry() -> None:
     assert UPCOMING_PAYMENTS_VERSION == "recurring-calendar-v1"
     assert SPENDING_FORECAST_VERSION == "spending-forecast-v1"
     assert BASELINE_POLICY == AMOUNT_ANOMALY_POLICY == "merchant_mad_plus_extreme_iqr_v1"
+    assert ANOMALY_MODEL_VERSION == ISOLATION_FOREST_VERSION == "isolation-forest-v1"
+    assert ANOMALY_FEATURE_POLICY == ISOLATION_FOREST_FEATURE_POLICY == "causal-transaction-features-v1"
+    assert ANOMALY_HYBRID == ANOMALY_HYBRID_POLICY == "rules-v2-or-isolation-forest-v1"
     assert MODEL_VERSION == CATEGORY_CLASSIFIER_VERSION == "tfidf-logreg-v1"
     assert FEATURE_POLICY == CATEGORY_CLASSIFIER_FEATURE_POLICY == "merchant_descriptor_only_v1"
     assert RECURRENCE_SEGMENTATION_VERSION == "lifecycle-v1"
@@ -55,6 +66,7 @@ def test_current_technical_documentation_matches_contract_registry() -> None:
         "evaluation_protocol": _read("docs/evaluation-protocol.md"),
         "upcoming_payments": _read("docs/upcoming-payments.md"),
         "spending_forecast": _read("docs/spending-forecast.md"),
+        "anomaly_challenger": _read("docs/isolation-forest-challenger.md"),
     }
 
     for value in (
@@ -63,6 +75,9 @@ def test_current_technical_documentation_matches_contract_registry() -> None:
         UPCOMING_PAYMENTS_VERSION,
         SPENDING_FORECAST_VERSION,
         AMOUNT_ANOMALY_POLICY,
+        ISOLATION_FOREST_VERSION,
+        ISOLATION_FOREST_FEATURE_POLICY,
+        ANOMALY_HYBRID_POLICY,
         RECURRENCE_SEGMENTATION_VERSION,
         CATEGORY_CLASSIFIER_VERSION,
         CATEGORY_CLASSIFIER_FEATURE_POLICY,
@@ -87,6 +102,7 @@ def test_current_technical_documentation_matches_contract_registry() -> None:
     assert HISTORICAL_ANALYSIS_VERSION in documents["testing"]
     assert UPCOMING_PAYMENTS_VERSION in documents["testing"]
     assert SPENDING_FORECAST_VERSION in documents["testing"]
+    assert ISOLATION_FOREST_VERSION in documents["testing"]
     assert "merchant-group" in documents["testing"]
     assert "private-real-data-v1" in documents["testing"]
     assert HISTORICAL_ANALYSIS_VERSION in documents["architecture"]
@@ -116,6 +132,11 @@ def test_current_technical_documentation_matches_contract_registry() -> None:
     assert "mae" in documents["spending_forecast"].lower()
     assert "smape" in documents["spending_forecast"].lower()
     assert "bias" in documents["spending_forecast"].lower()
+    assert ISOLATION_FOREST_VERSION in documents["anomaly_challenger"]
+    assert ISOLATION_FOREST_FEATURE_POLICY in documents["anomaly_challenger"]
+    assert ANOMALY_HYBRID_POLICY in documents["anomaly_challenger"]
+    assert "replaceproductionrules=false" in documents["anomaly_challenger"].lower()
+    assert "fraud" in documents["anomaly_challenger"].lower()
 
     stale_claims = (
         "new runs create `historical-v2.1` snapshots",
@@ -153,6 +174,7 @@ def test_repository_metadata_and_primary_docs_reference_project_governance_files
     assert "docs/private-evaluation.md" in readme
     assert "docs/upcoming-payments.md" in readme
     assert "docs/spending-forecast.md" in readme
+    assert "docs/isolation-forest-challenger.md" in readme
     assert "CHANGELOG.md" in readme
     assert "LICENSE" in readme
     assert "category-suggestions/preview" in readme
@@ -160,10 +182,12 @@ def test_repository_metadata_and_primary_docs_reference_project_governance_files
     assert "private-real-data-v1" in readme
     assert UPCOMING_PAYMENTS_VERSION in readme
     assert SPENDING_FORECAST_VERSION in readme
+    assert ISOLATION_FOREST_VERSION in readme
     assert "analysis_contracts.py" in roadmap
     assert "category-suggestion feedback" in roadmap
     assert "private-real-data-v1" in roadmap
     assert UPCOMING_PAYMENTS_VERSION in roadmap
     assert SPENDING_FORECAST_VERSION in roadmap
+    assert ISOLATION_FOREST_VERSION in roadmap
     assert "CHANGELOG.md" in roadmap
     assert "LICENSE" in roadmap
