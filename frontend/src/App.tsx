@@ -5,6 +5,7 @@ import { AlertsPage } from './pages/AlertsPage';
 import { BudgetsPage } from './pages/BudgetsPage';
 import { CategoriesPage } from './pages/CategoriesPage';
 import { DashboardPage } from './pages/DashboardPage';
+import { FinancialAssistantPage } from './pages/FinancialAssistantPage';
 import { ImportPage } from './pages/ImportPage';
 import { LoginPage } from './pages/LoginPage';
 import { PredictionsPage } from './pages/PredictionsPage';
@@ -49,6 +50,7 @@ function App() {
         <Route path={ROUTES.imports} element={<ImportPage />} />
         <Route path={ROUTES.predictions} element={<PredictionsPage />} />
         <Route path={ROUTES.alerts} element={<AlertsPage />} />
+        <Route path={ROUTES.assistant} element={<FinancialAssistantPage />} />
         <Route path={ROUTES.security} element={<SecurityPage />} />
       </Route>
 
