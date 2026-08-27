@@ -1,132 +1,126 @@
 # Category Classifier — TF-IDF + Logistic Regression
 
-Status: **evaluated development baseline; not wired into production transaction writes**.
+Status: **production suggestion baseline with user-controlled feedback; no automatic categorization and no product confidence score**.
 
-## Purpose
+## Product role
 
-This is Smart Expense AI's first supervised category-classification experiment. It predicts the existing transaction category from the raw merchant/bank descriptor using an interpretable text baseline:
+The classifier now supports the authenticated transaction workflow as a suggestion, not as an authority:
 
 ```text
 merchant descriptor
       |
-      +--> word TF-IDF (1-2 grams)
+      +--> previous user merchant feedback, when available
+      |          |
+      |          +--> active visible user/system category
       |
-      +--> character TF-IDF (3-5 grams)
+      +--> global word TF-IDF + char TF-IDF + Logistic Regression
+                 |
+                 +--> compatible system category
+
+Suggested category
       |
-      v
-Logistic Regression
+      +--> Accept
       |
-      v
-category prediction
+      +--> Change
+             |
+             +--> persisted correction label
 ```
 
-The production application does not train on or serve this synthetic model. The implementation is an offline, reusable baseline that establishes an evaluation contract before a future user-facing categorization flow is introduced.
+A suggestion never changes the transaction category until the user explicitly accepts it or chooses another category. Every API v2 manual transaction write records the model/history suggestion together with the category that was actually selected. That feedback becomes the first per-user personalization layer for future occurrences of the same canonical merchant.
 
-## Feature contract
+## Global feature contract
 
 Model version: `tfidf-logreg-v1`
 
 Feature policy: `merchant_descriptor_only_v1`
 
-Only `merchant` text is passed to the model. These fields are intentionally excluded:
+The global model remains deliberately limited to merchant descriptor text. It does not use amount, date, transaction type, user identity, scenario IDs, anomaly/recurrence labels or the selected category as model features.
 
-- category label;
-- scenario ID;
-- amount;
-- transaction date;
-- transaction type;
-- anomaly/recurrence labels.
+The runtime bootstrap corpus is explicit and deterministic and is kept separate from the synthetic evaluation fixture. The global model only targets seeded system categories. User-owned categories enter suggestions only through that user's persisted correction history.
 
-This keeps the initial experiment simple and prevents target/scenario leakage.
+## Personalization contract
 
-## Dataset
+Personalization version: `user-merchant-history-v1`
 
-`financial-benchmark-v1` currently contains **2,560 complete category labels**:
+Feature policy: `canonical_merchant_feedback_v1`
 
-| Category | Labels |
-| --- | ---: |
-| Food | 971 |
-| Health | 195 |
-| Other | 278 |
-| Salary | 36 |
-| Shopping | 377 |
-| Subscriptions | 266 |
-| Transport | 437 |
+Resolution order:
 
-Chronological split counts:
+1. canonicalize the merchant using the same auditable merchant-identity utilities used elsewhere in the project;
+2. look for the authenticated user's latest compatible feedback for that canonical merchant and transaction type;
+3. ignore historical choices that are archived, no longer visible or type-incompatible;
+4. otherwise fall back to the global classifier and restrict its ranking to compatible active system categories.
+
+Feedback is isolated by `user_id`. A correction by one account cannot affect another account. A custom category can therefore be learned for one user without expanding or retraining the global taxonomy.
+
+## Persisted feedback
+
+`category_suggestions` stores the training/evaluation provenance needed for real future evidence:
+
+- `user_id` and `transaction_id`;
+- canonical `merchant_key` and transaction type;
+- suggestion source (`global_model` or `user_history`);
+- `model_version` and `feature_policy`;
+- suggested and selected category IDs;
+- `accepted` plus `corrected_at`;
+- creation/update timestamps.
+
+API v2 transaction writes persist the transaction and its suggestion decision in one database transaction. Deleting a transaction removes its suggestion feedback, account deletion cascades the account-owned records, and privacy export includes the feedback collection.
+
+## Product confidence policy
+
+`CategoryClassifier.predict_with_probabilities()` still exposes raw Logistic Regression probabilities for offline evaluation. Those numbers are **not** presented as probabilities of correctness in the product.
+
+The category-suggestion API intentionally returns:
+
+- category ID/name;
+- suggestion source;
+- model/personalization version;
+- feature policy.
+
+It intentionally does **not** return a confidence percentage or probability vector.
+
+## Evaluation dataset
+
+`financial-benchmark-v1` contains 2,560 complete synthetic category labels. The chronological protocol remains:
 
 | Split | Rows | Role |
 | --- | ---: | --- |
-| 2023 history | 850 | initial training |
-| 2024 calibration | 869 | calibration evaluation, then eligible for refit |
-| 2025 H1 validation | 417 | development validation |
+| 2023 history | 850 | initial model fit |
+| 2024 calibration | 869 | calibration-development data |
+| 2025 H1 validation | 417 | development evaluation |
 | 2025 H2 holdout | 424 | **sealed** |
 
-Protocol:
+The previous chronological regression metrics remain useful for detecting implementation regressions, but they are not treated as real-world model quality because many merchant identities recur across months.
 
-1. Fit on 2023 and evaluate 2024 calibration.
-2. Keep the model definition/hyperparameters unchanged.
-3. Refit on 2023 + 2024.
-4. Evaluate on 2025-01 through 2025-06.
-5. Do not fit on or report development metrics from 2025-07 through 2025-12.
+## Merchant-group cold-start benchmark
 
-## Development results
-
-### Calibration — 2024
-
-- accuracy: **0.994246**
-- macro-F1: **0.993100**
-- weighted-F1: **0.994268**
-- seen-merchant macro-F1: **1.000000** over 859 rows
-- unseen-merchant macro-F1: **0.266667** over 10 rows
-
-### Validation — 2025 H1
-
-- accuracy: **0.995204**
-- macro-F1: **0.994367**
-- weighted-F1: **0.995202**
-- seen-merchant macro-F1: **1.000000** over 413 rows
-- unseen-merchant macro-F1: **0.200000** over 4 rows
-
-Per-category validation metrics:
-
-| Category | Precision | Recall | F1 | Support |
-| --- | ---: | ---: | ---: | ---: |
-| Food | 1.0000 | 1.0000 | 1.0000 | 176 |
-| Health | 1.0000 | 1.0000 | 1.0000 | 26 |
-| Other | 1.0000 | 0.9762 | 0.9880 | 42 |
-| Salary | 1.0000 | 1.0000 | 1.0000 | 6 |
-| Shopping | 0.9839 | 1.0000 | 0.9919 | 61 |
-| Subscriptions | 0.9783 | 1.0000 | 0.9890 | 45 |
-| Transport | 1.0000 | 0.9836 | 0.9917 | 61 |
-
-Validation confusion matrix. Rows are actual categories and columns are predicted categories in this order:
+Evaluation report `category-classifier-evaluation-v2` adds a development-only merchant-group holdout. Canonical merchant groups selected for evaluation are removed completely from the corresponding training set, so:
 
 ```text
-Food, Health, Other, Salary, Shopping, Subscriptions, Transport
+train merchant groups ∩ evaluation merchant groups = ∅
 ```
+
+This directly tests the harder question: whether merchant-text features generalize to merchant identities the classifier did not see during fit. Groups that cannot be held out without removing the only training identity for a class are not forced into the evaluation slice. The sealed 2025 H2 holdout is not used for this development benchmark.
+
+## Probability calibration diagnostics
+
+The v2 report also runs a separate calibration protocol:
 
 ```text
-[176,  0,  0, 0,  0,  0,  0]
-[  0, 26,  0, 0,  0,  0,  0]
-[  0,  0, 41, 0,  1,  0,  0]
-[  0,  0,  0, 6,  0,  0,  0]
-[  0,  0,  0, 0, 61,  0,  0]
-[  0,  0,  0, 0,  0, 45,  0]
-[  0,  0,  0, 0,  0,  1, 60]
+fit base classifier: 2023 history
+fit calibrators:      2024 calibration
+measure calibration:  2025 H1 validation
+sealed:               2025 H2
 ```
 
-## Interpretation
+It reports, for raw, Platt-scaled and isotonic probabilities:
 
-The headline validation macro-F1 is intentionally **not** treated as real-world model quality. The synthetic benchmark repeats many merchant identities across months, and the seen-merchant slice reaches 1.0. The much weaker unseen-merchant slice shows that cold-start/generalization is the real unresolved problem.
+- multiclass Brier score;
+- Expected Calibration Error (ECE);
+- ten-bin reliability-diagram data.
 
-Accordingly:
-
-- the global synthetic metric is useful as a regression baseline;
-- the unseen-merchant metric is diagnostic only because its support is currently tiny;
-- the 2025 H2 synthetic holdout remains sealed;
-- no claim is made about banking-data accuracy;
-- no production confidence threshold is derived from `predict_proba`, because Logistic Regression probabilities have not been calibrated.
+These diagnostics are **synthetic development evidence only**. They do not enable product confidence and they do not justify an automatic categorization threshold.
 
 ## Reproduce
 
@@ -139,12 +133,14 @@ python scripts/evaluate_category_classifier.py \
   --output /tmp/category-classifier-report.json
 ```
 
-CI runs the same protocol in `Category classifier benchmark` and enforces development regression floors while keeping the holdout sealed.
+`Category classifier benchmark` gates the chronological regression baseline, merchant-group disjointness/support, calibration-report structure and sealed-holdout contract in CI.
 
-## Next evidence needed before product integration
+## Evidence still needed
 
-1. A larger independent or real labelled transaction dataset.
-2. Merchant-group/cold-start evaluation with meaningful support.
-3. User-specific category semantics and corrections.
-4. Probability calibration if confidence will be shown in the UI.
-5. A product decision on whether predictions auto-assign categories or are presented as suggestions requiring confirmation.
+Before any automatic categorization or user-facing confidence threshold:
+
+1. collect and evaluate independent/real labelled transaction feedback;
+2. measure real-world cold-start performance, including meaningful merchant/category slices;
+3. evaluate whether per-user merchant history improves corrections without harmful stale preferences;
+4. calibrate probabilities on representative real data and choose a calibration method only from that evidence;
+5. define explicit false-positive/user-control costs for any future auto-category policy.
