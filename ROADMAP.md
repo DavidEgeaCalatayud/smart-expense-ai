@@ -140,24 +140,33 @@ Goal: implement real analysis and evaluated ML baselines without simulated AI ou
 - [x] Add a canonical merchant-group-disjoint cold-start benchmark with zero train/evaluation group overlap and meaningful synthetic support.
 - [x] Measure raw, Platt and isotonic probability calibration with multiclass Brier score, Expected Calibration Error and reliability bins while keeping product confidence disabled.
 - [x] Gate chronological, cold-start, calibration and sealed-holdout category-classifier contracts in CI and document their synthetic-data limitations in the model card.
-- [ ] Validate `rules-v2` and historical algorithms against labelled real-world datasets and measure real-world precision/recall/false-positive rates.
-- [ ] Validate category classification and probability calibration against independent/real labelled transactions with meaningful unseen-merchant support before showing confidence or enabling optional automatic assignment.
+- [x] Add `private-real-data-v1`: a git-ignored private dataset contract and aggregate-only local evaluator for the deployed category classifier, natural unseen merchants, calibration diagnostics, transaction-level `rules-v2` anomaly metrics and `historical-v2.2` development/holdout evaluation.
+- [x] Regression-test the private evaluator with temporary synthetic data so CI proves holdout sealing and verifies that reports omit raw merchants, transaction IDs and row-level errors without ever requiring private financial records.
+- [ ] Run `private-real-data-v1` against a genuinely independent/private labelled transaction dataset and retain only aggregate evidence outside the ignored private directory.
+- [ ] Validate `rules-v2` and historical algorithms against labelled real-world data and measure real-world precision/recall/false-positive rates.
+- [ ] Validate category classification and probability calibration against independent/real labelled transactions with meaningful natural unseen-merchant support before showing confidence or enabling optional automatic assignment.
 - [ ] Tune recurring-score weights/cutoffs, stream-clustering tolerances and anomaly thresholds only on labelled calibration data, use validation for design checks, then open holdout once for final reporting.
 - [ ] Reassess amount-anomaly distribution fences and frequency-anomaly policy from real-world false-positive cost before loosening them.
 - [ ] Add automatic/background analysis when deployment scheduling is available.
-- [ ] Evaluate ML anomaly models (for example Isolation Forest) only after deterministic baselines have measurable real-world evaluation results.
+- [ ] Evaluate an `IsolationForest-v1` anomaly challenger only after deterministic baselines have measurable real-world evaluation results, using prior-only features such as amount/merchant median, robust deviation, time since previous purchase, merchant frequency, rolling counts and amount CV.
+- [ ] Compare `rules-v2`, the ML challenger and any hybrid on the same labelled walk-forward evidence with precision, recall, F1 and false positives per 100; never replace the deterministic engine merely because the ML model is more complex.
 
-## Phase 4 - Prediction
+## Phase 4 - Prediction and Upcoming Payments
 
-Goal: estimate future spending and provide proactive warnings.
+Goal: turn existing recurrence evidence into visible product value, then forecast spending with baselines before introducing predictive ML.
 
-- [ ] Predict end-of-month spending.
-- [ ] Predict recurring charges.
-- [ ] Compare predicted spending with historical averages.
-- [ ] Add warning thresholds.
-- [ ] Add category-level spending forecasts.
-- [ ] Expose prediction evidence and assumptions.
-- [ ] Add model evaluation before displaying confidence metrics.
+- [ ] Add an upcoming recurring-payments calendar using existing cadence, expected occurrence, amount stability, lifecycle and price-continuity evidence rather than inventing a new model.
+- [ ] Show upcoming-payment states such as `expected`, `likely`, `overdue` and `price_changed`, plus an exact expected-total amount for the next 30 days.
+- [ ] Add a three-complete-month mean baseline for estimated month-end spending.
+- [ ] Add a current-month run-rate baseline: `spent_so_far / elapsed_days * days_in_month` with explicit partial-month assumptions.
+- [ ] Add a recurrence-aware baseline: projected variable spending plus known expected recurring payments.
+- [ ] Walk-forward backtest every forecasting baseline with MAE, sMAPE and bias before exposing it as a prediction.
+- [ ] Compare forecasted spending with historical averages and expose evidence/assumptions rather than a bare number.
+- [ ] Add warning thresholds only after backtested forecast error is understood.
+- [ ] Add category-level spending forecasts after the overall baseline contract is stable.
+- [ ] Evaluate Ridge/Random Forest/Gradient Boosting or other forecasting challengers only after simple baselines exist.
+- [ ] Allow an ML forecasting model into the product only if it consistently beats the simple baselines on the same walk-forward folds and remains robust across meaningful slices.
+- [ ] Do not display probabilistic forecast confidence until it has a separately evaluated calibration contract.
 
 ## Phase 5 - Premium SaaS Preparation
 
@@ -199,6 +208,7 @@ Goal: prepare the project for real deployment.
 - [x] Gate sealed split/fingerprint/bootstrap evaluation behavior in backend tests.
 - [x] Gate `rules-v2` migration, empty-summary contract and finding behavior in PostgreSQL/Docker CI.
 - [x] Gate `tfidf-logreg-v1` category suggestions with chronological metrics, merchant-group cold-start, raw/Platt/isotonic calibration diagnostics and a sealed synthetic holdout.
+- [x] Gate the `private-real-data-v1` loader/evaluator contract with temporary synthetic data while ensuring private financial files are excluded from Git and CI.
 - [x] Gate current analysis/model contract aliases and critical documentation consistency in backend tests.
 - [x] Add privacy/data-handling policy draft with production placeholders.
 - [x] Generate reproducible, validated backend/frontend CycloneDX dependency SBOMs in CI and retain them as a GitHub Actions artifact.
