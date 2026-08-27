@@ -15,6 +15,8 @@ This document separates **implemented behavior** from roadmap intent. Future cap
 5. ML features enter the product behind explicit user control and reproducible evaluation.
 6. Synthetic benchmark performance is regression/development evidence, not real banking accuracy.
 7. A model suggestion never silently overrides a user's persisted category.
+8. A private-evaluation harness is scientific infrastructure, not proof of real-world quality until it is actually run on independent labelled data.
+9. Future ML forecasting/anomaly systems must beat transparent baselines on the same walk-forward evidence before they can displace simpler methods.
 
 ## Implemented product capabilities
 
@@ -104,26 +106,45 @@ isotonic  Brier 0.009156   ECE 0.004711
 
 `productConfidenceEnabled=false` remains explicit. These numbers do not justify confidence display without representative real labelled data.
 
+## Private real-data evaluation capability
+
+The repository implements `private-real-data-v1`, a local/offline evaluation path for independently labelled transactions. Private financial records remain under ignored `data/private/`; the product/runtime database does not ingest them merely for evaluation.
+
+The harness can evaluate:
+
+- the fixed production `tfidf-logreg-v1` classifier without retraining it on the evaluation set;
+- natural seen/unseen merchant support relative to the production bootstrap corpus;
+- private calibration -> validation raw/Platt/isotonic Brier/ECE diagnostics;
+- transaction-level `rules-v2` spending/frequency anomaly precision/recall/F1/false positives per 100;
+- `historical-v2.2` recurrence/anomaly/occurrence metrics through the established chronological/bootstrap evaluator when recurring labels are supplied.
+
+Reports are aggregate-only and deliberately omit merchant strings, transaction IDs, row-level errors and merchant-specific historical slices. A SHA-256 dataset fingerprint supports reproducibility without publishing the underlying transactions.
+
+This is an **implemented evaluation capability**, not an implemented real-world result. Until a genuine private/independent labelled dataset is executed, the product must still say that real validation is pending.
+
 ## Evidence hierarchy
 
 ```text
 small fixture -> regression protection
 financial-benchmark-v1 -> synthetic development evidence
-independent / real labelled data -> real quality evidence
+private-real-data-v1 -> mechanism for independent/private evaluation
+independent / real labelled results -> real quality evidence
 ```
 
-The final synthetic holdout remains sealed during development tuning.
+The final synthetic holdout remains sealed during development tuning. Private datasets should use the same calibration/validation/final-holdout discipline.
 
 ## Not implemented
 
 The following must not be described as current capabilities:
 
+- completed real-world validation results for classifier, `rules-v2` or `historical-v2.2`;
 - bank/account aggregation APIs;
 - automatic/background intelligence scheduling;
 - automatic category assignment;
 - user-facing calibrated category confidence;
 - per-user classifier retraining;
 - ML anomaly/fraud classification;
+- recurring-payments calendar/upcoming-payments product view;
 - spending/balance forecasts;
 - MFA;
 - verified password-reset email flow;
@@ -133,20 +154,23 @@ The following must not be described as current capabilities:
 
 ## Near-term product direction
 
-1. collect/evaluate real category corrections and independent labelled data;
-2. measure real-world cold-start and personalization behavior;
-3. calibrate probabilities on representative real data before displaying confidence;
-4. validate deterministic financial intelligence on independent/real labels;
-5. continue deployment/security hardening;
-6. only then consider optional auto-category thresholds, ML anomaly replacements and Phase 4 prediction.
+The intended sequence is deliberately evidence-first:
+
+1. **Run the private evaluator on genuinely independent labelled data.** Measure real category accuracy/macro-F1, natural unseen merchants, calibration, `rules-v2` false-positive costs and historical recurrence/anomaly/occurrence quality. Keep raw financial data private.
+2. **Turn existing recurrence evidence into an upcoming-payments calendar.** Reuse cadence, expected occurrence, amount stability, lifecycle and price-continuity semantics. Show states such as `expected`, `likely`, `overdue` and `price_changed` plus an exact expected next-30-days total.
+3. **Add transparent month-end forecasting baselines.** Start with three-complete-month mean, current-month run rate, and a recurrence-aware baseline combining projected variable spending with known expected recurring payments.
+4. **Backtest before product claims.** Use walk-forward MAE, sMAPE and bias, expose assumptions and do not present a prediction without historical error evidence.
+5. **Only then test forecasting ML challengers.** Ridge, Random Forest, Gradient Boosting or another model enters the product only if it consistently outperforms the simple baselines on the same walk-forward folds and relevant slices.
+6. **Treat anomaly ML as a later challenger.** An `IsolationForest-v1` experiment should use causal/prior-only features and be compared against `rules-v2` and a hybrid on precision, recall, F1 and false positives per 100; complexity alone is not a reason to replace deterministic rules.
+7. Continue deployment/security hardening in parallel where it does not compromise the evaluation discipline.
 
 The authoritative sequence is maintained in [`../ROADMAP.md`](../ROADMAP.md).
 
 ## Product trust boundaries
 
-Smart Expense AI does not claim to detect fraud with certainty, provide financial advice, infer why a recurring payment disappeared, produce real-world-calibrated category probabilities from synthetic data, or achieve real-world accuracy based solely on benchmark fixtures.
+Smart Expense AI does not claim to detect fraud with certainty, provide financial advice, infer why a recurring payment disappeared, produce real-world-calibrated category probabilities from synthetic data, or achieve real-world accuracy based solely on benchmark fixtures or the existence of a private evaluator.
 
-Suggestions/findings are evidence for user control and review, not assertions.
+Suggestions/findings are evidence for user control and review, not assertions. Future forecasts must similarly expose their baseline/evidence and known backtest error.
 
 ## Technical references
 
@@ -155,6 +179,7 @@ Suggestions/findings are evidence for user control and review, not assertions.
 - [`analysis-contracts.md`](analysis-contracts.md)
 - [`api.md`](api.md)
 - [`testing.md`](testing.md)
+- [`private-evaluation.md`](private-evaluation.md)
 - [`intelligence.md`](intelligence.md)
 - [`historical-analysis.md`](historical-analysis.md)
 - [`evaluation-protocol.md`](evaluation-protocol.md)
