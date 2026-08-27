@@ -136,11 +136,17 @@ export function TransactionsPage() {
         if (!isActive) return;
 
         setCategories(loadedCategories);
-        const defaultExpenseCategory =
-          loadedCategories.find((category) => category.transactionType === 'expense')?.name ??
-          loadedCategories[0]?.name ??
-          '';
-        setFormValues(buildDefaultFormValues(defaultExpenseCategory));
+        setFormValues((current) => {
+          const currentCategoryIsCompatible = loadedCategories.some(
+            (category) =>
+              category.transactionType === current.type && category.name === current.category,
+          );
+          if (currentCategoryIsCompatible) return current;
+
+          const fallbackCategory =
+            loadedCategories.find((category) => category.transactionType === current.type)?.name ?? '';
+          return { ...current, category: fallbackCategory };
+        });
       } catch (loadError) {
         if (isActive) setError(getApiErrorPresentation(loadError, 'Unable to load categories'));
       }

@@ -21,11 +21,10 @@ test('user can correct an AI suggestion and reuse that merchant preference', asy
   await expect(page.getByRole('status')).toContainText('Category created.');
 
   await page.getByRole('link', { name: 'Transactions' }).click();
-  const transactionForm = page.locator('form').filter({
-    has: page.getByRole('heading', { name: 'Add transaction' }),
-  });
+  const transactionForm = page.getByRole('form', { name: 'Add transaction form' });
   await expect(transactionForm).toBeVisible();
   const categorySelect = transactionForm.getByRole('combobox', { name: 'Category', exact: true });
+  await expect(categorySelect).toHaveValue('Food');
 
   await transactionForm.getByLabel('Merchant').fill('MERCADONA 3921');
   await transactionForm.getByRole('button', { name: 'Suggest category' }).click();
@@ -38,6 +37,8 @@ test('user can correct an AI suggestion and reuse that merchant preference', asy
   await transactionForm.getByRole('spinbutton', { name: 'Amount' }).fill('25.00');
   await transactionForm.getByRole('button', { name: 'Add transaction' }).click();
   await expect(page.getByRole('status')).toContainText('Transaction created successfully.');
+  await expect(transactionForm.getByLabel('Merchant')).toHaveValue('');
+  await expect(transactionForm.getByRole('button', { name: 'Add transaction' })).toBeEnabled();
 
   await transactionForm.getByLabel('Merchant').fill('Mercadona 9999');
   await transactionForm.getByRole('button', { name: 'Suggest category' }).click();
