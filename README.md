@@ -13,6 +13,9 @@ The product does **not** simulate AI results. Transactions, dashboard metrics, a
 - Transaction CRUD with server-side pagination, search, filters and sorting.
 - Responsive transaction cards on mobile/tablet and a dense table on desktop, sharing the same persisted data and mutation handlers.
 - Guided authenticated CSV history import with column mapping, explicit date/decimal/sign normalization, preview, per-user duplicate fingerprints and transactional import batches.
+- User-managed custom categories with account ownership, explicit transaction type, case-insensitive conflict protection, rename, archive/reassign and restore semantics while seeded system categories remain global and read-only.
+- Persisted monthly overall and per-expense-category budgets with Decimal limits and server-calculated spent/remaining/percent-used progress.
+- Protected Categories and Budgets frontend workspaces backed by authenticated APIs rather than client-side-only state.
 - Server-side summary/monthly analytics.
 - PostgreSQL `NUMERIC(12,2)` and Python `Decimal` for financial calculations.
 - Decimal-string monetary contracts in `/api/v2` and integer-cent arithmetic in the frontend.
@@ -29,6 +32,7 @@ CSV ingestion deliberately accepts EUR only until a real FX/multi-currency accou
 - Issuer/audience/expiry/session-version validation.
 - Password rotation with server-side revocation of previously issued session versions while keeping the successful caller authenticated with a fresh cookie.
 - Authenticated `privacy-export-v1` and confirmed account deletion controls.
+- Privacy export includes account-owned import batches, custom categories and budgets in addition to transactions and intelligence/history data.
 - Trusted-host validation, restricted CORS and cross-site mutation protection.
 - Nginx login/registration rate limiting and browser security headers.
 - Dependency audits through `pip-audit` and `npm audit`.
@@ -149,7 +153,6 @@ Human-readable ownership and change rules are documented in [`docs/analysis-cont
 
 - Verified password reset/recovery through an email/token delivery channel.
 - MFA.
-- User-managed custom categories.
 - Production automatic category assignment or personalized category-model training.
 - Automatic/background intelligence scans.
 - Direct bank API integrations.
@@ -188,6 +191,8 @@ Nginx + React :5173
 FastAPI :8000 (internal)
   |  authenticated user scoping
   |  CSV detect / preview / atomic import
+  |  system + account-owned category resolution
+  |  persisted monthly budget progress
   |  Decimal financial domain
   |  rules-v2 actionable findings
   |  historical-v2.2 persisted analysis
@@ -269,9 +274,19 @@ smart-expense-ai/
 
 ## API
 
-Authentication/shared categories remain under v1. Existing v1 transaction, analytics and intelligence endpoints remain available for compatibility.
+Authenticated categories remain under v1. Existing v1 transaction, analytics and intelligence endpoints remain available for compatibility. New strict-money financial flows use v2.
 
-New financial flows use v2:
+Custom category operations:
+
+```text
+GET    /api/v1/categories?includeArchived=false
+POST   /api/v1/categories
+PATCH  /api/v1/categories/{category_id}
+POST   /api/v1/categories/{category_id}/archive
+POST   /api/v1/categories/{category_id}/restore
+```
+
+Current v2 financial flows include:
 
 ```text
 GET    /api/v2/transactions
@@ -284,6 +299,10 @@ POST   /api/v2/imports/csv/detect
 POST   /api/v2/imports/csv/preview
 POST   /api/v2/imports/csv/commit
 GET    /api/v2/imports/batches
+GET    /api/v2/budgets?month=YYYY-MM
+POST   /api/v2/budgets
+PUT    /api/v2/budgets/{budget_id}
+DELETE /api/v2/budgets/{budget_id}
 POST   /api/v2/intelligence/scan
 GET    /api/v2/intelligence/summary
 GET    /api/v2/intelligence/findings
@@ -298,7 +317,7 @@ A v2 amount is JSON text:
 { "amount": "42.50" }
 ```
 
-not a JSON number.
+not a JSON number. Budget `limitAmount` follows the same decimal-string rule.
 
 Errors use a stable envelope with semantic `code`, safe `message`, `requestId` and optional safe `details`.
 
@@ -380,6 +399,8 @@ GitHub Actions validates:
 
 - clean PostgreSQL Alembic migrations;
 - backend unit/integration tests;
+- custom-category ownership, conflict, archive/reassign/restore and category/type compatibility behavior;
+- monthly overall/per-category budget persistence, uniqueness, decimal-money and progress behavior;
 - CSV import parsing, normalization, deduplication, atomic commit, account isolation and privacy lifecycle;
 - analysis-contract/documentation consistency;
 - `rules-v2` recurrence, missing-payment, duplicate, amount and frequency findings;
@@ -389,7 +410,7 @@ GitHub Actions validates:
 - TypeScript, ESLint, Vitest and production frontend build;
 - Python/npm dependency audits;
 - reproducible and validated backend/frontend CycloneDX dependency SBOM generation;
-- critical authenticated Playwright E2E, including safe CSV re-import;
+- critical authenticated Playwright E2E, including safe CSV re-import and custom-category/monthly-budget creation;
 - complete Docker Compose startup and API smoke contract.
 
 The consolidated `Quality gate` requires backend, frontend, dependency security, E2E and Docker jobs to pass. The Supply chain SBOM workflow and financial/category benchmark workflows run as additional merge-candidate gates.
