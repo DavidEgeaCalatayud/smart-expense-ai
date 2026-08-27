@@ -1,0 +1,60 @@
+name: Anomaly challenger benchmark
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: anomaly-challenger-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  anomaly-challenger:
+    name: IsolationForest causal benchmark
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: backend
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
+        with:
+          python-version: '3.12'
+          cache: pip
+          cache-dependency-path: |
+            backend/requirements.txt
+            backend/requirements-dev.txt
+      - name: Install backend dependencies
+        run: pip install -r requirements.txt -r requirements-dev.txt
+      - name: Run causal anomaly challenger benchmark
+        run: python scripts/evaluate_anomaly_challenger.py --output /tmp/anomaly-challenger.json > /dev/null
+      - name: Verify challenger contract
+        run: |
+          python - <<'PY'
+          import json
+          from pathlib import Path
+
+          report = json.loads(Path('/tmp/anomaly-challenger.json').read_text())
+          assert report['reportVersion'] == 'anomaly-challenger-benchmark-v1'
+          evaluation = report['evaluation']
+          assert evaluation['modelVersion'] == 'isolation-forest-v1'
+          assert evaluation['featurePolicy'] == 'causal-transaction-features-v1'
+          assert evaluation['hybridPolicy'] == 'rules-v2-or-isolation-forest-v1'
+          assert evaluation['productionEngine'] == 'rules-v2'
+          assert evaluation['protocol']['finalHoldoutUsedForFit'] is False
+          assert evaluation['promotionDecision']['replaceProductionRules'] is False
+          models = evaluation['models']
+          assert set(models) == {
+              'rules-v2',
+              'isolation-forest-v1',
+              'rules-v2-or-isolation-forest-v1',
+          }
+          supports = {entry['metrics']['support'] for entry in models.values()}
+          assert supports == {evaluation['protocol']['evaluationSupport']}
+          print(json.dumps(report, indent=2, sort_keys=True))
+          PY
