@@ -155,8 +155,8 @@ Goal: implement real analysis and evaluated ML baselines without simulated AI ou
 
 Goal: turn existing recurrence evidence into visible product value, then forecast spending with baselines before introducing predictive ML.
 
-- [ ] Add an upcoming recurring-payments calendar using existing cadence, expected occurrence, amount stability, lifecycle and price-continuity evidence rather than inventing a new model.
-- [ ] Show upcoming-payment states such as `expected`, `likely`, `overdue` and `price_changed`, plus an exact expected-total amount for the next 30 days.
+- [x] Add `recurring-calendar-v1`, an upcoming recurring-payments calendar using existing cadence, expected occurrence, amount stability, lifecycle and price-continuity evidence rather than inventing a new model.
+- [x] Show upcoming-payment states `expected`, `likely`, `overdue` and `price_changed`, plus an exact future-only expected-total amount for the next 30 days; keep overdue/dormant schedules separate until activity resumes.
 - [ ] Add a three-complete-month mean baseline for estimated month-end spending.
 - [ ] Add a current-month run-rate baseline: `spent_so_far / elapsed_days * days_in_month` with explicit partial-month assumptions.
 - [ ] Add a recurrence-aware baseline: projected variable spending plus known expected recurring payments.
@@ -209,6 +209,7 @@ Goal: prepare the project for real deployment.
 - [x] Gate `rules-v2` migration, empty-summary contract and finding behavior in PostgreSQL/Docker CI.
 - [x] Gate `tfidf-logreg-v1` category suggestions with chronological metrics, merchant-group cold-start, raw/Platt/isotonic calibration diagnostics and a sealed synthetic holdout.
 - [x] Gate the `private-real-data-v1` loader/evaluator contract with temporary synthetic data while ensuring private financial files are excluded from Git and CI.
+- [x] Gate `recurring-calendar-v1` with backend month-end/dormancy/price regressions, component coverage and a persisted recurring-history Playwright flow.
 - [x] Gate current analysis/model contract aliases and critical documentation consistency in backend tests.
 - [x] Add privacy/data-handling policy draft with production placeholders.
 - [x] Generate reproducible, validated backend/frontend CycloneDX dependency SBOMs in CI and retain them as a GitHub Actions artifact.
