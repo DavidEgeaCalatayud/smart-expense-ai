@@ -24,6 +24,7 @@ from app.routers.intelligence import router as intelligence_router
 from app.routers.intelligence_v2 import router as intelligence_v2_router
 from app.routers.transactions import router as transactions_router
 from app.routers.transactions_v2 import router as transactions_v2_router
+from app.routers.upcoming_payments import router as upcoming_payments_router
 from app.version import APP_VERSION
 
 
@@ -79,3 +80,4 @@ app.include_router(historical_analysis_router, prefix=API_V2_PREFIX)
 app.include_router(imports_router, prefix=API_V2_PREFIX)
 app.include_router(budgets_router, prefix=API_V2_PREFIX)
 app.include_router(category_suggestions_router, prefix=API_V2_PREFIX)
+app.include_router(upcoming_payments_router, prefix=API_V2_PREFIX)
