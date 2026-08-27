@@ -49,6 +49,25 @@ frequency_anomaly
 
 Highlights include lifecycle/calendar-aware recurrence, missed-payment evidence, duplicate-subscription signals, prior-only merchant amount anomalies using `merchant_mad_plus_extreme_iqr_v1`, frequency anomalies and persisted review states.
 
+### Offline anomaly challenger — `isolation-forest-v1`
+
+The repository now evaluates an IsolationForest challenger without wiring it into the product engine. `rules-v2` remains authoritative for persisted findings.
+
+```text
+strictly prior transaction state
+        -> causal-transaction-features-v1
+        -> fit history only
+        -> calibrate score threshold on a later labelled range
+        -> evaluate on later validation/holdout rows
+        -> compare rules-v2 / isolation-forest-v1 / union hybrid
+```
+
+Features include current amount, prior merchant median and robust deviation, days since previous purchase, merchant frequency, current-month and rolling-seven-day merchant counts, prior amount CV and prior history depth. Reports use identical labelled support and expose precision, recall, F1, false positives per 100 and history-depth slices.
+
+The documented hybrid `rules-v2-or-isolation-forest-v1` is an evaluation policy only. Every challenger report keeps `replaceProductionRules=false`; synthetic performance does not authorize a production replacement and no fraud claim is made.
+
+See [`docs/isolation-forest-challenger.md`](docs/isolation-forest-challenger.md).
+
 ### Historical analysis — `historical-v2.2`
 
 Historical analysis is a separate persisted diagnostic layer. It includes complete-month trend analysis, partial-month handling, auditable merchant canonicalization, recurrence segmentation under `lifecycle-v1`, missed expected occurrences, chronological merchant amount outliers, category shifts and versioned snapshots.
@@ -159,6 +178,7 @@ Evidence hierarchy:
 small fixture -> regression protection
 financial-benchmark-v1 -> synthetic development evidence
 spending-forecast-benchmark-v1 -> deterministic forecast regression evidence
+anomaly-challenger-benchmark-v1 -> causal ML-vs-rules regression evidence
 private-real-data-v1 harness -> mechanism for independent/private evidence
 independent / real labelled results -> real quality evidence
 ```
@@ -181,6 +201,9 @@ historical-v2.2
 recurring-calendar-v1
 spending-forecast-v1
 merchant_mad_plus_extreme_iqr_v1
+isolation-forest-v1
+causal-transaction-features-v1
+rules-v2-or-isolation-forest-v1
 lifecycle-v1
 tfidf-logreg-v1
 merchant_descriptor_only_v1
@@ -198,7 +221,8 @@ Ownership and change rules are documented in [`docs/analysis-contracts.md`](docs
 - Direct bank API integrations.
 - Multi-currency/FX accounting and foreign-currency CSV import.
 - Probabilistic fraud detection.
-- Independent real-world validation results for classifier, `rules-v2`, `historical-v2.2` and forecasting; the evaluation mechanisms exist but no private financial dataset is committed or claimed as validated evidence.
+- Production anomaly ML replacement: `isolation-forest-v1` remains an offline challenger and `rules-v2` stays the product engine until representative real labelled evidence justifies any promotion.
+- Independent real-world validation results for classifier, `rules-v2`, `historical-v2.2`, forecasting and the IsolationForest challenger; the evaluation mechanisms exist but no private financial dataset is committed or claimed as validated evidence.
 - Category-level spending forecasting and forecast warning thresholds.
 - Production forecasting ML; any challenger must first beat the deterministic baselines on the same causal folds/support.
 - Production staging/TLS/centralized monitoring.
@@ -232,7 +256,7 @@ FastAPI :8000 (internal)
 PostgreSQL 16 :5432 (internal)
 ```
 
-The backend runtime includes the `tfidf-logreg-v1` suggestion layer and `scikit-learn`; neither backend nor PostgreSQL is exposed directly to the host.
+`isolation-forest-v1` is intentionally absent from the production path above. It exists only in offline evaluation tooling. The backend runtime already includes `scikit-learn` for `tfidf-logreg-v1` category suggestions.
 
 Stop with `docker compose down`. Use `docker compose down -v` only when intentionally deleting the database volume.
 
@@ -260,6 +284,7 @@ SQLAlchemy 2 -> PostgreSQL NUMERIC
 Evaluation tooling
         +--> financial-benchmark-v1
         +--> spending-forecast-benchmark-v1
+        +--> anomaly-challenger-benchmark-v1 -> rules-v2 vs isolation-forest-v1 vs union
         +--> chronological / cold-start / calibration reports
         +--> private-real-data-v1 aggregate-only local evaluation
 ```
@@ -309,7 +334,7 @@ Forecast endpoint:
 GET /api/v2/analytics/spending-forecast?asOf=YYYY-MM-DD
 ```
 
-Full contract: [`docs/api.md`](docs/api.md).
+There is deliberately no IsolationForest product endpoint. Full HTTP contract: [`docs/api.md`](docs/api.md).
 
 ## Testing and CI
 
@@ -332,9 +357,9 @@ npm run lint
 npm run build
 ```
 
-GitHub Actions gates PostgreSQL migrations, critical Playwright E2E, Docker Compose, dependency security audits, Financial benchmark, Lifecycle diagnostic, Category classifier benchmark, **Spending forecast benchmark** and CycloneDX SBOM generation. Critical browser coverage includes persisted recurring-history -> upcoming calendar and persisted historical spending -> month-end forecast.
+GitHub Actions gates PostgreSQL migrations, critical Playwright E2E, Docker Compose, dependency security audits, Financial benchmark, Lifecycle diagnostic, Category classifier benchmark, **Spending forecast benchmark**, **Anomaly challenger benchmark** and CycloneDX SBOM generation. Critical browser coverage includes persisted recurring-history -> upcoming calendar and persisted historical spending -> month-end forecast.
 
-See [`docs/testing.md`](docs/testing.md), [`docs/upcoming-payments.md`](docs/upcoming-payments.md) and [`docs/spending-forecast.md`](docs/spending-forecast.md).
+See [`docs/testing.md`](docs/testing.md), [`docs/upcoming-payments.md`](docs/upcoming-payments.md), [`docs/spending-forecast.md`](docs/spending-forecast.md) and [`docs/isolation-forest-challenger.md`](docs/isolation-forest-challenger.md).
 
 ## Documentation and governance
 
@@ -344,6 +369,7 @@ See [`docs/testing.md`](docs/testing.md), [`docs/upcoming-payments.md`](docs/upc
 - [`docs/private-evaluation.md`](docs/private-evaluation.md) — local independent/private evaluation contract.
 - [`docs/upcoming-payments.md`](docs/upcoming-payments.md) — recurring calendar projection semantics.
 - [`docs/spending-forecast.md`](docs/spending-forecast.md) — deterministic forecast/backtest contract.
+- [`docs/isolation-forest-challenger.md`](docs/isolation-forest-challenger.md) — causal anomaly challenger model/evaluation contract.
 - [`docs/api.md`](docs/api.md) — HTTP contracts.
 - [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md) — implemented architecture.
 - [`docs/DATA_MODEL.md`](docs/DATA_MODEL.md) — persistence model.
