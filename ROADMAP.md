@@ -99,6 +99,10 @@ Goal: implement real analysis and evaluated ML baselines without simulated AI ou
 - [x] Evaluate `isolation-forest-v1` as an offline anomaly challenger using `causal-transaction-features-v1`, strict prior-only feature state, disjoint fit/calibration/evaluation windows and deterministic model configuration.
 - [x] Compare `rules-v2`, `isolation-forest-v1` and `rules-v2-or-isolation-forest-v1` on identical labelled observations with precision, recall, F1, false positives per 100, confusion counts and history-depth slices.
 - [x] Enforce that synthetic challenger evidence never auto-replaces `rules-v2`; production promotion still requires representative independently labelled real evidence and acceptable false-positive cost.
+- [x] Add stateless Financial Assistant v1 with `POST /api/v2/assistant/query`, structured answers, canonical evidence references and a protected frontend workspace.
+- [x] Expose six strict read-only assistant tools over authenticated transaction analytics, exact period comparison, budgets, persisted `rules-v2` findings, persisted `historical-v2.2` insights and bounded transaction search.
+- [x] Keep authenticated user identity outside every LLM tool schema, derive scope from `current_user.id`, compute financial arithmetic server-side with `Decimal` and filter model-invented evidence references.
+- [x] Isolate provider-specific Responses API code behind an `LLMProvider` boundary, keep provider configuration optional/backend-only and retain a stateless no-RAG/no-memory/no-multi-agent v1 contract.
 
 ## Phase 4 - Prediction and Upcoming Payments
 
@@ -138,7 +142,7 @@ Goal: prepare the project for real deployment.
 - [x] Add backend and frontend automated tests.
 - [x] Add GitHub Actions CI and require the frontend chain `Vitest -> TypeScript -> ESLint -> build` inside CI.
 - [x] Validate Alembic migrations against PostgreSQL in CI.
-- [x] Add critical Playwright end-to-end coverage, including password/session rotation, category/budget/import/suggestion flows, recurring calendar and month-end forecast.
+- [x] Add critical Playwright end-to-end coverage, including password/session rotation, category/budget/import/suggestion flows, recurring calendar, month-end forecast and the stateless Financial Assistant request/evidence contract.
 - [x] Add Docker Compose and validate the full stack in CI.
 - [x] Add `SECURITY.md`, Dependabot, Python/npm vulnerability audits, immutable Action SHAs, HTTP security headers and baseline OWASP Top 10:2025 review.
 - [x] Add API v1/v2 contract documentation and decimal-money/Docker smoke coverage.
@@ -148,6 +152,7 @@ Goal: prepare the project for real deployment.
 - [x] Gate `recurring-calendar-v1` with backend, component and persisted Playwright coverage.
 - [x] Gate `spending-forecast-v1` with backend unit/integration tests, Predictions component/E2E coverage and a dedicated deterministic forecast benchmark workflow.
 - [x] Gate `isolation-forest-v1` with future-leakage regressions, same-support comparison metrics, non-promotion assertions and a dedicated anomaly challenger workflow.
+- [x] Gate Financial Assistant v1 user-scope/evidence-grounding contracts with fake-provider unit tests, PostgreSQL account-isolation integration coverage, component tests and critical Playwright coverage without external provider calls.
 - [x] Gate current analysis/model contract aliases and critical documentation consistency in backend tests.
 - [x] Add privacy/data-handling policy draft with production placeholders.
 - [x] Generate reproducible, validated backend/frontend CycloneDX dependency SBOMs and retain the artifact in CI.
@@ -163,7 +168,6 @@ Goal: prepare the project for real deployment.
 - Bank account integration.
 - Email receipt analysis.
 - Mobile application.
-- AI chat assistant for financial questions.
 - Multi-currency support.
 - Shared household accounts.
 - Budget recommendations.
