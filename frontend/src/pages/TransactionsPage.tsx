@@ -9,9 +9,10 @@ import { TransactionsTable } from '../components/transactions/TransactionsTable'
 import { ApiErrorAlert } from '../components/ui/ApiErrorAlert';
 import { ConfirmDialog } from '../components/ui/ConfirmDialog';
 import { Toast } from '../components/ui/Toast';
-import { getApiErrorPresentation, type ApiErrorPresentation } from '../services/apiClient';
 import { fetchTransactionSummary } from '../services/analyticsApi';
+import { getApiErrorPresentation, type ApiErrorPresentation } from '../services/apiClient';
 import { fetchCategories } from '../services/categoriesApi';
+import { previewCategorySuggestion } from '../services/categorySuggestionsApi';
 import {
   createTransaction,
   deleteTransaction,
@@ -19,6 +20,7 @@ import {
   updateTransaction,
 } from '../services/transactionsApi';
 import type {
+  CategorySuggestionPreview,
   DetailedTransaction,
   TransactionCategory,
   TransactionFilters as TransactionFiltersType,
@@ -85,6 +87,7 @@ export function TransactionsPage() {
   const [summary, setSummary] = useState<TransactionSummary>(emptySummary);
   const [categories, setCategories] = useState<TransactionCategory[]>([]);
   const [formValues, setFormValues] = useState<TransactionFormValues>(() => buildDefaultFormValues());
+  const [suggestion, setSuggestion] = useState<CategorySuggestionPreview | null>(null);
   const [filters, setFilters] = useState<TransactionFiltersType>(defaultFilters);
   const [queryFilters, setQueryFilters] = useState<TransactionFiltersType>(defaultFilters);
   const [page, setPage] = useState(1);
@@ -94,6 +97,7 @@ export function TransactionsPage() {
   const [isPageLoading, setIsPageLoading] = useState(true);
   const [isSummaryLoading, setIsSummaryLoading] = useState(true);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [isSuggesting, setIsSuggesting] = useState(false);
   const [deletingTransactionId, setDeletingTransactionId] = useState<string | null>(null);
   const [error, setError] = useState<ApiErrorPresentation | null>(null);
   const [successMessage, setSuccessMessage] = useState<string | null>(null);
@@ -181,11 +185,34 @@ export function TransactionsPage() {
   const handleFormChange = (nextValues: TransactionFormValues) => {
     const compatibleCategories = categories.filter((category) => category.transactionType === nextValues.type);
     const categoryIsCompatible = compatibleCategories.some((category) => category.name === nextValues.category);
+    if (nextValues.merchant !== formValues.merchant || nextValues.type !== formValues.type) {
+      setSuggestion(null);
+    }
 
     setFormValues({
       ...nextValues,
       category: categoryIsCompatible ? nextValues.category : compatibleCategories[0]?.name ?? '',
     });
+  };
+
+  const handleRequestSuggestion = async () => {
+    const merchant = formValues.merchant.trim();
+    if (!merchant || editingTransactionId !== null) return;
+    setError(null);
+    setIsSuggesting(true);
+    try {
+      setSuggestion(await previewCategorySuggestion(merchant, formValues.type));
+    } catch (suggestionError) {
+      setSuggestion(null);
+      setError(getApiErrorPresentation(suggestionError, 'Unable to suggest a category'));
+    } finally {
+      setIsSuggesting(false);
+    }
+  };
+
+  const handleAcceptSuggestion = () => {
+    if (!suggestion) return;
+    setFormValues((current) => ({ ...current, category: suggestion.categoryName }));
   };
 
   const refreshPageAndSummary = async () => {
@@ -206,6 +233,7 @@ export function TransactionsPage() {
       }
 
       setEditingTransactionId(null);
+      setSuggestion(null);
       setFormValues(buildDefaultFormValues(defaultExpenseCategory));
       await refreshPageAndSummary();
       setSuccessMessage(isEditing ? 'Transaction updated successfully.' : 'Transaction created successfully.');
@@ -219,6 +247,7 @@ export function TransactionsPage() {
   const handleEditTransaction = (transaction: DetailedTransaction) => {
     setError(null);
     setSuccessMessage(null);
+    setSuggestion(null);
     setEditingTransactionId(transaction.id);
     setFormValues(mapTransactionToFormValues(transaction));
   };
@@ -244,6 +273,7 @@ export function TransactionsPage() {
 
       if (editingTransactionId === transactionId) {
         setEditingTransactionId(null);
+        setSuggestion(null);
         setFormValues(buildDefaultFormValues(defaultExpenseCategory));
       }
 
@@ -264,6 +294,7 @@ export function TransactionsPage() {
 
   const handleCancelEdit = () => {
     setEditingTransactionId(null);
+    setSuggestion(null);
     setFormValues(buildDefaultFormValues(defaultExpenseCategory));
   };
 
@@ -322,10 +353,15 @@ export function TransactionsPage() {
         <TransactionForm
           categories={compatibleFormCategories}
           values={formValues}
+          suggestion={suggestion}
           isEditing={editingTransactionId !== null}
           isSubmitting={isSubmitting || !hasLoadedPage || compatibleFormCategories.length === 0}
+          isSuggesting={isSuggesting}
           onChange={handleFormChange}
           onSubmit={handleSubmitTransaction}
+          onRequestSuggestion={() => void handleRequestSuggestion()}
+          onAcceptSuggestion={handleAcceptSuggestion}
+          onDismissSuggestion={() => setSuggestion(null)}
           onCancelEdit={handleCancelEdit}
         />
 
