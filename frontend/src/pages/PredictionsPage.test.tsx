@@ -2,6 +2,7 @@ import { render, screen, within } from '@testing-library/react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { fetchSpendingForecast } from '../services/spendingForecastApi';
 import { fetchUpcomingPayments } from '../services/upcomingPaymentsApi';
+import type { SpendingForecastResponse } from '../types/spendingForecast';
 import { PredictionsPage } from './PredictionsPage';
 
 vi.mock('../services/spendingForecastApi', () => ({
@@ -81,7 +82,7 @@ const report = {
   ],
 };
 
-const forecast = {
+const forecast: SpendingForecastResponse = {
   forecastVersion: 'spending-forecast-v1',
   asOf: '2026-08-27',
   month: '2026-08',
@@ -94,7 +95,7 @@ const forecast = {
   backtestMonths: 6,
   baselines: [
     {
-      baseline: 'three_month_mean' as const,
+      baseline: 'three_month_mean',
       label: 'Previous 3 complete months',
       available: true,
       projectedMonthEnd: '500.00',
@@ -104,7 +105,7 @@ const forecast = {
       backtest: { support: 6, cutoffDay: 15, mae: '35.00', smapePercent: '7.200', bias: '-5.00' },
     },
     {
-      baseline: 'run_rate' as const,
+      baseline: 'run_rate',
       label: 'Current-month run rate',
       available: true,
       projectedMonthEnd: '482.22',
@@ -114,7 +115,7 @@ const forecast = {
       backtest: { support: 6, cutoffDay: 15, mae: '48.00', smapePercent: '9.100', bias: '12.00' },
     },
     {
-      baseline: 'recurrence_aware' as const,
+      baseline: 'recurrence_aware',
       label: 'Recurrence-aware projection',
       available: true,
       projectedMonthEnd: '455.99',
