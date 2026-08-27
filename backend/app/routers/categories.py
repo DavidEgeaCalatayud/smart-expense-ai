@@ -16,7 +16,7 @@ from app.services.category_service import (
     CategoryInputError,
     archive_category,
     create_category,
-    list_categories,
+    list_visible_categories,
     rename_category,
     restore_category,
 )
@@ -44,7 +44,7 @@ def get_categories(
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ) -> list[CategoryResponse]:
-    return list_categories(db, current_user.id, include_archived=include_archived)
+    return list_visible_categories(db, current_user.id, include_archived=include_archived)
 
 
 @router.post("", response_model=CategoryResponse, status_code=status.HTTP_201_CREATED)
