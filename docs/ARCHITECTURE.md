@@ -23,6 +23,7 @@ FastAPI
   +---------------- Category suggestion + correction feedback
   +---------------- rules-v2 actionable findings
   +---------------- historical-v2.2 persisted diagnostics
+  +---------------- recurring-calendar-v1 upcoming-payment projection
   |
   v
 SQLAlchemy 2
@@ -54,7 +55,7 @@ smart-expense-ai/
 │   ├── app/
 │   │   ├── models/             # SQLAlchemy models
 │   │   ├── routers/            # FastAPI routes
-│   │   ├── services/           # business, suggestion and intelligence services
+│   │   ├── services/           # business, projection, suggestion and intelligence services
 │   │   ├── analysis_contracts.py
 │   │   └── main.py
 │   ├── ml/                     # runtime classifier + evaluation helpers
@@ -76,11 +77,11 @@ smart-expense-ai/
 
 ## Frontend
 
-The React/TypeScript frontend is served by Nginx. Responsibilities include authentication/session UX, transaction/category/budget/import workflows, category suggestion controls, Financial Intelligence review, Historical Analysis visualization, typed API errors and fixed-point monetary presentation.
+The React/TypeScript frontend is served by Nginx. Responsibilities include authentication/session UX, transaction/category/budget/import workflows, category suggestion controls, Financial Intelligence review, Historical Analysis visualization, recurring-payment/calendar presentation, typed API errors and fixed-point monetary presentation.
 
 Category suggestions are explicit user controls. The form can request a suggestion and show `Accept` / `Change`, but the selected category is not changed until the user acts.
 
-The frontend does not reproduce backend financial or classifier logic. Authoritative decisions and suggestion provenance remain server-side.
+The **Predictions** workspace consumes `recurring-calendar-v1` from the backend. It does not reproduce recurrence rules in the browser; grouping/formatting is client-side while schedule generation, status and amounts remain server-authoritative.
 
 ## Edge / reverse proxy
 
@@ -100,6 +101,7 @@ Key responsibilities:
 - aggregate analytics;
 - explicit Financial Intelligence scans/findings;
 - persisted historical-analysis snapshots;
+- deterministic upcoming-payment projection;
 - normalized error envelopes.
 
 API v2 is the preferred strict monetary contract and uses decimal strings for financial amounts.
@@ -151,7 +153,7 @@ PostgreSQL is the source of truth. Important persisted concepts include:
 
 Every private record is scoped by authenticated ownership. Seeded system categories are global/read-only; custom categories are account-owned. Suggestion history is user-scoped and cannot influence another account.
 
-Derived analytical data does not silently rewrite source transactions.
+`recurring-calendar-v1` is derived at request time from the authenticated user's transaction history. It does not add a second source-of-truth table and never mutates source transactions.
 
 `data/private/` is intentionally outside this persistence model. It is local evaluation input, git-ignored by default and never read by the production API.
 
@@ -159,7 +161,7 @@ Derived analytical data does not silently rewrite source transactions.
 
 Money is stored as PostgreSQL `NUMERIC` and processed with Python `Decimal`. API v2 serializes money as decimal strings; the frontend uses integer cents for client-side financial arithmetic.
 
-Floating point is allowed for non-monetary ML/evaluation quantities, but raw classifier probabilities are not exposed as product confidence.
+Upcoming-payment totals are accumulated as `Decimal` and serialized as decimal strings. Floating point is allowed for non-monetary ML/evaluation quantities, but raw classifier probabilities are not exposed as product confidence.
 
 ## Actionable intelligence: `rules-v2`
 
@@ -181,6 +183,34 @@ Historical analysis is stored as versioned snapshots and remains separate from r
 
 It provides month completeness, trend, canonical merchant evidence, lifecycle/calendar-aware recurring profiles, chronological amount outliers, category shifts and coverage metadata.
 
+## Upcoming recurring payments: `recurring-calendar-v1`
+
+The calendar deliberately reuses the historical recurrence primitive instead of creating a competing prediction model:
+
+```text
+authenticated expense history
+        |
+        v
+historical-v2.2 recurrence / lifecycle-v1
+        |
+        +--> nextExpectedDate
+        +--> cadence / calendar position
+        +--> median + latest amount
+        +--> lifecycle activity
+        +--> sequential price regimes
+        +--> missing-occurrence evidence
+        |
+        v
+recurring-calendar-v1
+        |
+        +--> future window: expected / likely / price_changed
+        +--> separate overdue schedules
+```
+
+Monthly/quarterly/yearly projection preserves month-end schedules. Weekly and biweekly streams advance through their established day cadence. A missing stream is never automatically rolled forward to a new future date; new observed activity must first re-establish current activity. This prevents old subscriptions from inflating expected totals.
+
+Price-continuity streams project the latest observed price regime. `patternScore` remains a deterministic feature index rather than a probability.
+
 ## Shared analysis contracts
 
 Stable identifiers crossing implementation/documentation boundaries are defined in `backend/app/analysis_contracts.py`:
@@ -188,6 +218,7 @@ Stable identifiers crossing implementation/documentation boundaries are defined 
 ```text
 rules-v2
 historical-v2.2
+recurring-calendar-v1
 merchant_mad_plus_extreme_iqr_v1
 lifecycle-v1
 tfidf-logreg-v1
@@ -251,9 +282,11 @@ The backend Docker image copies both `app/` and `ml/` and installs `scikit-learn
 
 ```text
 Browser -> Nginx -> FastAPI + ML suggestion runtime -> PostgreSQL
+                         |
+                         +--> recurring-calendar-v1 from user transaction history
 ```
 
-The model does not run in the browser and no external ML service is required for the current baseline. The `data/private/` evaluator path is not mounted or invoked by production Compose.
+The classifier does not run in the browser and no external ML service is required for the current baseline. The `data/private/` evaluator path is not mounted or invoked by production Compose.
 
 ## Evaluation boundary
 
