@@ -66,8 +66,9 @@ test('historical spending becomes a causal month-end forecast with comparable ba
 
   await page.evaluate(async (rows) => {
     for (const row of rows) {
-      const response = await fetch('/api/v2/transactions', {
+      const response = await fetch('http://localhost:8000/api/v2/transactions', {
         method: 'POST',
+        credentials: 'include',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           merchant: row.merchant,
