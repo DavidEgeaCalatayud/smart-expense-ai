@@ -36,8 +36,8 @@ class FinancialAssistantDraft(BaseModel):
     model_config = ConfigDict(extra="forbid")
 
     answer: str = Field(..., min_length=1, max_length=5000)
-    evidence: list[DraftEvidenceReference] = Field(default_factory=list, max_length=20)
-    limitations: list[str] = Field(default_factory=list, max_length=20)
+    evidence: list[DraftEvidenceReference] = Field(..., max_length=20)
+    limitations: list[str] = Field(..., max_length=20)
 
 
 class FinancialAssistantResult(BaseModel):
