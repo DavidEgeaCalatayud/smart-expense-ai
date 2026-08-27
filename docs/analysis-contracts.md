@@ -17,6 +17,9 @@ Documentation explains identifiers but must not invent different current values.
 | Upcoming recurring-payment projection | `recurring-calendar-v1` | `backend/app/services/upcoming_payments.py`, Predictions workspace |
 | Month-end spending forecast | `spending-forecast-v1` | `backend/app/services/spending_forecast.py`, Predictions workspace, forecast benchmark |
 | Amount anomaly baseline | `merchant_mad_plus_extreme_iqr_v1` | shared amount-anomaly service |
+| Offline anomaly challenger | `isolation-forest-v1` | `backend/ml/isolation_forest_anomaly.py`, anomaly challenger benchmark |
+| Anomaly challenger feature policy | `causal-transaction-features-v1` | offline IsolationForest evaluation only |
+| Anomaly hybrid evaluation policy | `rules-v2-or-isolation-forest-v1` | same-support anomaly comparison only |
 | Recurrence segmentation strategy | `canonical_merchant_then_lifecycle_then_price_continuity_then_descriptor_amount_then_temporal_phase` | `historical-v2.2` recurrence metadata |
 | Recurrence segmentation version | `lifecycle-v1` | `historical-v2.2` recurrence metadata |
 | Category classifier | `tfidf-logreg-v1` | `backend/ml/category_classifier.py`, runtime suggestion service, benchmark |
@@ -33,6 +36,22 @@ merchant_mad_plus_extreme_iqr_v1
 The baseline is temporally causal and merchant-specific: canonicalize the merchant, use only earlier transactions from the same canonical merchant, retain at most the last 12 amounts, require at least four observations, compute median/MAD/Q1/Q3/IQR, and require the candidate to exceed the configured ratio/robust/distribution fences plus absolute-delta safeguards.
 
 Category-only history is **not** accepted as evidence for a merchant-level amount anomaly. This policy is anomaly detection, not fraud detection.
+
+## IsolationForest challenger contract
+
+`isolation-forest-v1` is an offline challenger to `rules-v2`; it is not part of the product finding engine. Its `causal-transaction-features-v1` feature state is constructed transaction-by-transaction using only information already observed before each candidate, including merchant median/deviation, previous-purchase timing, frequency, monthly/rolling counts and prior amount CV.
+
+The evaluation protocol is chronological and disjoint:
+
+```text
+prior history -> fit IsolationForest
+later calibration labels -> freeze score threshold
+later validation/holdout -> evaluate frozen model + threshold
+```
+
+The evaluation compares `rules-v2`, `isolation-forest-v1` and the documented union `rules-v2-or-isolation-forest-v1` on identical labelled observations. Every system reports precision, recall, F1, false positives per 100, support/confusion counts and history-depth slices. The hybrid is only an evaluation policy; union behavior may trade precision for recall.
+
+Synthetic performance never triggers product promotion. Challenger reports explicitly keep `replaceProductionRules=false`, the final holdout is never used for fit/calibration, scores are not probabilities, and no fraud claim is made. See [`isolation-forest-challenger.md`](isolation-forest-challenger.md).
 
 ## Recurrence segmentation contract
 
@@ -117,6 +136,7 @@ A version identifier changes when externally meaningful behavior/evidence change
 - recurring-payment projection semantics -> new `recurring-calendar-*`;
 - month-end forecast baseline/backtest semantics -> new `spending-forecast-*`;
 - material amount-anomaly policy changes -> new policy identifier;
+- anomaly challenger model/features -> new `isolation-forest-*` and/or feature-policy identifier;
 - category model pipeline/features -> new model and/or feature-policy identifier.
 
 Product wiring/personalization can have its own provenance version without changing `tfidf-logreg-v1` when the underlying global classifier pipeline is unchanged.
@@ -129,7 +149,7 @@ When a current contract changes:
 2. update owning implementation/tests;
 3. update this document plus relevant engine/model documentation;
 4. align `README.md` / `ROADMAP.md` / `CHANGELOG.md` when product state changes;
-5. run applicable financial/category/forecast benchmarks with holdout/causality discipline preserved;
+5. run applicable financial/category/forecast/anomaly-challenger benchmarks with holdout/causality discipline preserved;
 6. merge only after full CI is green.
 
 `backend/tests/unit/test_analysis_contracts.py` protects aliases and key documentation assertions so critical version/policy drift fails CI.
