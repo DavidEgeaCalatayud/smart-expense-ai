@@ -29,7 +29,10 @@ test('authenticated user can create a custom category and monthly category budge
   await page.getByLabel('Budget limit').fill('400');
   await page.getByRole('button', { name: 'Create budget' }).click();
   await expect(page.getByRole('status')).toContainText('Budget created.');
-  await expect(page.getByText(category)).toBeVisible();
-  await expect(page.getByText('€400.00')).toBeVisible();
-  await expect(page.getByText('€400.00 remaining')).toBeVisible();
+
+  const budgetCard = page.getByRole('article').filter({ hasText: category });
+  await expect(budgetCard).toBeVisible();
+  await expect(budgetCard).toContainText(category);
+  await expect(budgetCard).toContainText('/ €400.00');
+  await expect(budgetCard.getByText('€400.00 remaining', { exact: true })).toBeVisible();
 });
