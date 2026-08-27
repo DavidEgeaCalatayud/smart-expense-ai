@@ -1,4 +1,4 @@
-import { fireEvent, render, screen, waitFor } from '@testing-library/react';
+import { fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import {
   archiveCategory,
@@ -72,8 +72,9 @@ describe('CategoriesPage', () => {
     expect(await screen.findByText('Gym')).toBeInTheDocument();
 
     fireEvent.click(screen.getByRole('button', { name: 'Archive & keep history' }));
-    expect(screen.getByRole('dialog')).toBeInTheDocument();
-    fireEvent.click(screen.getByRole('button', { name: 'Archive & keep history' }));
+    const dialog = screen.getByRole('dialog');
+    expect(dialog).toBeInTheDocument();
+    fireEvent.click(within(dialog).getByRole('button', { name: 'Archive & keep history' }));
 
     await waitFor(() => {
       expect(archiveCategory).toHaveBeenCalledWith('user-gym', { mode: 'archive' });
