@@ -59,7 +59,10 @@ def test_causal_features_are_unchanged_when_future_rows_are_appended() -> None:
     assert before[1].prior_merchant_count == 1
     assert before[1].merchant_median == Decimal("40.00")
     assert before[1].days_since_previous == 7
-    assert before[1].rolling_seven_day_count == 2
+    assert before[1].current_month_merchant_count == 2
+    # The trailing seven-calendar-day window for Jan 12 is Jan 6-12, so the
+    # Jan 5 observation is prior merchant history but is outside this feature.
+    assert before[1].rolling_seven_day_count == 1
 
 
 def test_challenger_uses_disjoint_fit_calibration_and_evaluation_windows() -> None:
