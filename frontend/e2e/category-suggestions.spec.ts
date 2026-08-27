@@ -25,6 +25,7 @@ test('user can correct an AI suggestion and reuse that merchant preference', asy
     has: page.getByRole('heading', { name: 'Add transaction' }),
   });
   await expect(transactionForm).toBeVisible();
+  const categorySelect = transactionForm.getByRole('combobox', { name: 'Category', exact: true });
 
   await transactionForm.getByLabel('Merchant').fill('MERCADONA 3921');
   await transactionForm.getByRole('button', { name: 'Suggest category' }).click();
@@ -33,7 +34,7 @@ test('user can correct an AI suggestion and reuse that merchant preference', asy
   await expect(suggestion).toContainText('Food');
   await expect(suggestion).not.toContainText(/confidence/i);
   await suggestion.getByRole('button', { name: 'Change' }).click();
-  await transactionForm.getByLabel('Category').selectOption({ label: customCategory });
+  await categorySelect.selectOption({ label: customCategory });
   await transactionForm.getByRole('spinbutton', { name: 'Amount' }).fill('25.00');
   await transactionForm.getByRole('button', { name: 'Add transaction' }).click();
   await expect(page.getByRole('status')).toContainText('Transaction created successfully.');
@@ -43,8 +44,8 @@ test('user can correct an AI suggestion and reuse that merchant preference', asy
   suggestion = transactionForm.getByRole('region', { name: 'AI category suggestion' });
   await expect(suggestion).toContainText(customCategory);
   await expect(suggestion).toContainText('Based on how you categorized this merchant before.');
-  await expect(transactionForm.getByLabel('Category')).toHaveValue('Food');
+  await expect(categorySelect).toHaveValue('Food');
 
   await suggestion.getByRole('button', { name: 'Accept' }).click();
-  await expect(transactionForm.getByLabel('Category')).toHaveValue(customCategory);
+  await expect(categorySelect).toHaveValue(customCategory);
 });
