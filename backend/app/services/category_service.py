@@ -6,9 +6,10 @@ from sqlalchemy import func, or_, select, update
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
-from app.category_schemas import CategoryResponse
+from app.category_schemas import CategoryResponse as ManagedCategoryResponse
 from app.models.category import Category
 from app.models.transaction import Transaction as TransactionModel
+from app.schemas import CategoryResponse as LegacyCategoryResponse
 from app.schemas import TransactionType
 
 
@@ -38,20 +39,38 @@ def _visible_clause(user_id: UUID):
     return or_(Category.owner_user_id.is_(None), Category.owner_user_id == user_id)
 
 
+def find_active_visible_categories_by_name(
+    db: Session,
+    user_id: UUID,
+    name: str,
+) -> list[Category]:
+    normalized = _normalized_name(name)
+    return list(
+        db.scalars(
+            select(Category)
+            .where(
+                _visible_clause(user_id),
+                Category.archived.is_(False),
+                func.lower(Category.name) == normalized.lower(),
+            )
+            .order_by(Category.transaction_type, Category.id)
+        ).all()
+    )
+
+
 def get_active_visible_category(
     db: Session,
     user_id: UUID,
     name: str,
     transaction_type: TransactionType,
 ) -> Category | None:
-    normalized = _normalized_name(name)
-    return db.scalar(
-        select(Category).where(
-            _visible_clause(user_id),
-            Category.archived.is_(False),
-            Category.transaction_type == transaction_type.value,
-            func.lower(Category.name) == normalized.lower(),
-        )
+    return next(
+        (
+            category
+            for category in find_active_visible_categories_by_name(db, user_id, name)
+            if category.transaction_type == transaction_type.value
+        ),
+        None,
     )
 
 
@@ -94,8 +113,8 @@ def _transaction_counts(db: Session, user_id: UUID) -> dict[UUID, int]:
     return {row[0]: int(row[1]) for row in rows}
 
 
-def _response(category: Category, count: int) -> CategoryResponse:
-    return CategoryResponse(
+def _response(category: Category, count: int) -> ManagedCategoryResponse:
+    return ManagedCategoryResponse(
         id=str(category.id),
         name=category.name,
         transactionType=TransactionType(category.transaction_type),
@@ -105,12 +124,25 @@ def _response(category: Category, count: int) -> CategoryResponse:
     )
 
 
-def list_categories(
+def list_categories(db: Session) -> list[LegacyCategoryResponse]:
+    statement = select(Category).order_by(Category.transaction_type, Category.name)
+    categories = db.scalars(statement).all()
+    return [
+        LegacyCategoryResponse(
+            id=str(category.id),
+            name=category.name,
+            transactionType=TransactionType(category.transaction_type),
+        )
+        for category in categories
+    ]
+
+
+def list_visible_categories(
     db: Session,
     user_id: UUID,
     *,
     include_archived: bool = False,
-) -> list[CategoryResponse]:
+) -> list[ManagedCategoryResponse]:
     conditions = [_visible_clause(user_id)]
     if not include_archived:
         conditions.append(Category.archived.is_(False))
@@ -146,7 +178,7 @@ def create_category(
     user_id: UUID,
     name: str,
     transaction_type: TransactionType,
-) -> CategoryResponse:
+) -> ManagedCategoryResponse:
     normalized = _normalized_name(name)
     if _visible_name_conflict(db, user_id, normalized, transaction_type.value):
         raise CategoryConflictError(
@@ -187,7 +219,7 @@ def rename_category(
     user_id: UUID,
     category_id: str,
     name: str,
-) -> CategoryResponse | None:
+) -> ManagedCategoryResponse | None:
     category = _owned_category(db, user_id, category_id)
     if category is None:
         return None
@@ -222,7 +254,7 @@ def archive_category(
     *,
     mode: str,
     reassign_to_category_id: str | None = None,
-) -> CategoryResponse | None:
+) -> ManagedCategoryResponse | None:
     category = _owned_category(db, user_id, category_id)
     if category is None:
         return None
@@ -252,14 +284,15 @@ def archive_category(
 
     category.archived = True
     db.commit()
-    return _response(category, 0 if mode == "reassign" else _transaction_counts(db, user_id).get(category.id, 0))
+    count = 0 if mode == "reassign" else _transaction_counts(db, user_id).get(category.id, 0)
+    return _response(category, count)
 
 
 def restore_category(
     db: Session,
     user_id: UUID,
     category_id: str,
-) -> CategoryResponse | None:
+) -> ManagedCategoryResponse | None:
     category = _owned_category(db, user_id, category_id)
     if category is None:
         return None
