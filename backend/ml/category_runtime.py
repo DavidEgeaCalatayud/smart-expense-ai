@@ -38,6 +38,17 @@ _RUNTIME_EXAMPLES: tuple[tuple[str, str], ...] = (
 )
 
 
+def runtime_training_examples() -> tuple[tuple[str, str], ...]:
+    """Return the immutable production bootstrap corpus for evaluation slicing.
+
+    Private/independent evaluation uses this only to distinguish descriptors already represented
+    in the runtime bootstrap from naturally unseen merchant keys. It never mutates or retrains
+    the production classifier with evaluation data.
+    """
+
+    return _RUNTIME_EXAMPLES
+
+
 @lru_cache(maxsize=1)
 def get_runtime_classifier() -> CategoryClassifier:
     merchants = [merchant for merchant, _ in _RUNTIME_EXAMPLES]
@@ -59,4 +70,10 @@ def rank_categories(merchant: str, allowed_categories: Iterable[str]) -> list[st
     ]
 
 
-__all__ = ["FEATURE_POLICY", "MODEL_VERSION", "get_runtime_classifier", "rank_categories"]
+__all__ = [
+    "FEATURE_POLICY",
+    "MODEL_VERSION",
+    "get_runtime_classifier",
+    "rank_categories",
+    "runtime_training_examples",
+]
