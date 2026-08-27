@@ -2,6 +2,8 @@
 
 The historical-intelligence evaluation harness separates iterative development from final reporting. This avoids selecting thresholds or design choices on the same observations later presented as final evidence.
 
+The same split discipline now also applies to the local `private-real-data-v1` evaluator used for independent/private labelled transactions. The private path changes the privacy boundary and evidence source; it does not relax the calibration/validation/holdout rules.
+
 ## Temporal split policy
 
 Labelled datasets may define three chronological ranges:
@@ -85,6 +87,48 @@ Holdout mode evaluates only the configured holdout months. It requires the previ
 
 For a real labelled financial dataset, the holdout command should not be part of the ordinary iterative CI loop. The synthetic repository fixture may exercise it in CI solely to prove that the mechanism remains functional; its scores are not product-quality evidence.
 
+## Independent/private labelled data
+
+`private-real-data-v1` provides the same methodological separation without requiring private financial records to be stored in Git or CI.
+
+Local data is placed under ignored `data/private/` and evaluated with:
+
+```bash
+cd backend
+python scripts/evaluate_private_dataset.py \
+  ../data/private \
+  --mode development \
+  --parameters-output ../data/private/historical-parameters.json \
+  --output ../data/private/development-report.json
+```
+
+The private evaluator has several additional constraints:
+
+1. **The deployed category classifier is fixed.** Private transactions are ground truth for independent evaluation; they are not used to refit `tfidf-logreg-v1` before measuring its production generalization.
+2. **Natural unseen merchants are measured against the immutable runtime bootstrap corpus.** This is distinct from the synthetic merchant-group holdout.
+3. **Probability calibrators are fit only on the private calibration range and compared only on private validation.** Raw, Platt and isotonic methods are not all compared again after opening holdout.
+4. **`rules-v2` is evaluated causally.** The engine may use historical context available through the evaluation boundary, while precision/recall/F1/FP-per-100 are scored only on the configured validation or holdout transactions.
+5. **`historical-v2.2` reuses the normal walk-forward runner.** The private harness is an adapter/privacy layer, not a second implementation with different semantics.
+6. **The report is aggregate-only.** Raw merchant strings, transaction IDs, row-level errors, raw transactions and merchant-specific historical slices are omitted.
+7. **Dataset identity is auditable without publishing the dataset.** The report includes a SHA-256 fingerprint of the local source files.
+
+Opening the private holdout is separate and explicit:
+
+```bash
+python scripts/evaluate_private_dataset.py \
+  ../data/private \
+  --mode holdout \
+  --calibration-method platt \
+  --historical-parameters ../data/private/historical-parameters.json \
+  --output ../data/private/holdout-report.json
+```
+
+The calibration method (`raw`, `platt` or `isotonic`) must be chosen from calibration/validation evidence **before** this command is used. If a design is changed because of holdout results, the correct response is a new versioned holdout rather than repeated tuning against the same final set.
+
+CI validates this private-data path with temporary synthetic records only. Therefore a green CI job proves the evaluator mechanism and privacy contract, **not** that `rules-v2`, `historical-v2.2` or the classifier have already been validated on real finances.
+
+See [`private-evaluation.md`](private-evaluation.md) for the full local schema.
+
 ## Confidence intervals
 
 Point metrics without sample-size context are insufficient. Development and holdout reports therefore attach confidence metadata to recurrence, anomaly and occurrence aggregate metrics.
@@ -133,15 +177,19 @@ The numbers above are illustrative only. Repository fixtures are synthetic and m
 A serious result should be reported with at least:
 
 - point estimate;
-- confidence interval;
+- confidence interval where the evaluator supports it;
 - support/sample count;
-- number of temporal blocks;
+- number of temporal blocks for block-bootstrap metrics;
 - evaluation split;
-- analysis version;
-- frozen parameter fingerprint.
+- analysis/model version;
+- frozen parameter fingerprint where applicable;
+- natural unseen-merchant support for category classification;
+- out-of-taxonomy support instead of silently discarding unsupported labels.
 
 If the interval is wide, the correct conclusion is that the dataset is still too small or variable for a precise estimate. More decimal places do not fix inadequate evidence.
 
 ## Current limitation
 
-The protocol foundation is now in place, but real parameter calibration remains intentionally pending until a sufficiently large labelled dataset exists. The project should not optimize a synthetic fixture and then present that fixture's score as model quality.
+The protocol and private-data tooling are now in place, but **actual real-world evidence remains pending** until `private-real-data-v1` is run on a genuinely independent/private labelled dataset. Real parameter calibration must then use calibration data only, validation for design checks and one final holdout opening.
+
+The project must not optimize synthetic fixtures—or one repeatedly inspected private holdout—and then present those results as general model quality.
