@@ -2,6 +2,7 @@ import { fireEvent, render, screen, waitFor, within } from '@testing-library/rea
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { fetchTransactionSummary } from '../services/analyticsApi';
 import { fetchCategories } from '../services/categoriesApi';
+import { previewCategorySuggestion } from '../services/categorySuggestionsApi';
 import {
   createTransaction,
   deleteTransaction,
@@ -18,6 +19,7 @@ import { TransactionsPage } from './TransactionsPage';
 
 vi.mock('../services/analyticsApi', () => ({ fetchTransactionSummary: vi.fn() }));
 vi.mock('../services/categoriesApi', () => ({ fetchCategories: vi.fn() }));
+vi.mock('../services/categorySuggestionsApi', () => ({ previewCategorySuggestion: vi.fn() }));
 vi.mock('../services/transactionsApi', () => ({
   createTransaction: vi.fn(),
   deleteTransaction: vi.fn(),
@@ -27,6 +29,7 @@ vi.mock('../services/transactionsApi', () => ({
 
 const categories: TransactionCategory[] = [
   { id: 'food', name: 'Food', transactionType: 'expense' },
+  { id: 'shopping', name: 'Shopping', transactionType: 'expense' },
   { id: 'salary', name: 'Salary', transactionType: 'income' },
 ];
 
@@ -66,6 +69,13 @@ async function getTransactionCards() {
   return cards;
 }
 
+function getTransactionForm() {
+  const heading = screen.getByRole('heading', { name: 'Add transaction' });
+  const form = heading.closest('form');
+  expect(form).not.toBeNull();
+  return form as HTMLFormElement;
+}
+
 describe('TransactionsPage', () => {
   beforeEach(() => {
     vi.clearAllMocks();
@@ -74,6 +84,13 @@ describe('TransactionsPage', () => {
     vi.mocked(fetchTransactions).mockResolvedValue(pageWith([persistedTransaction]));
     vi.mocked(deleteTransaction).mockResolvedValue();
     vi.mocked(updateTransaction).mockResolvedValue(persistedTransaction);
+    vi.mocked(previewCategorySuggestion).mockResolvedValue({
+      categoryId: 'shopping',
+      categoryName: 'Shopping',
+      source: 'global_model',
+      modelVersion: 'tfidf-logreg-v1',
+      featurePolicy: 'merchant_descriptor_only_v1',
+    });
   });
 
   it('loads a paginated transaction page, categories and server summary', async () => {
@@ -87,6 +104,27 @@ describe('TransactionsPage', () => {
     expect(fetchTransactionSummary).toHaveBeenCalledOnce();
     expect(screen.getAllByRole('option', { name: 'Food' })).toHaveLength(2);
     expect(screen.getByText(/Showing/)).toHaveTextContent('1–1 of 1');
+  });
+
+  it('shows an AI suggestion without applying it until the user accepts', async () => {
+    render(<TransactionsPage />);
+    await getTransactionCards();
+
+    const transactionForm = getTransactionForm();
+    const form = within(transactionForm);
+    const categorySelect = form.getByRole('combobox', { name: 'Category' }) as HTMLSelectElement;
+    expect(categorySelect.value).toBe('Food');
+
+    fireEvent.change(form.getByLabelText('Merchant'), { target: { value: 'Amazon' } });
+    fireEvent.click(form.getByRole('button', { name: 'Suggest category' }));
+
+    await waitFor(() => expect(previewCategorySuggestion).toHaveBeenCalledWith('Amazon', 'expense'));
+    const suggestion = await screen.findByRole('region', { name: 'AI category suggestion' });
+    expect(within(suggestion).getByText('Shopping')).toBeInTheDocument();
+    expect(categorySelect.value).toBe('Food');
+
+    fireEvent.click(within(suggestion).getByRole('button', { name: 'Accept' }));
+    expect(categorySelect.value).toBe('Shopping');
   });
 
   it('sends filters to the API instead of filtering the loaded page in memory', async () => {

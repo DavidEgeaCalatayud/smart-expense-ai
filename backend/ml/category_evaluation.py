@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from collections import Counter
+from collections import Counter, defaultdict
 from dataclasses import dataclass
 import json
 from pathlib import Path
@@ -9,9 +9,15 @@ from typing import Any, Iterable, Sequence
 
 from sklearn.metrics import accuracy_score, classification_report, confusion_matrix, f1_score
 
+from app.services.merchant_canonicalization import build_merchant_identity_map
+from ml.category_calibration import (
+    calibration_metrics,
+    isotonic_calibrate,
+    platt_calibrate,
+)
 from ml.category_classifier import FEATURE_POLICY, MODEL_VERSION, CategoryClassifier
 
-REPORT_VERSION = "category-classifier-evaluation-v1"
+REPORT_VERSION = "category-classifier-evaluation-v2"
 HOLDOUT_START_MONTH = "2025-07"
 HOLDOUT_END_MONTH = "2025-12"
 
@@ -181,6 +187,93 @@ def evaluate_predictions(
     }
 
 
+def _merchant_group_holdout(
+    examples: Sequence[LabelledTransaction],
+) -> dict[str, Any]:
+    identities = build_merchant_identity_map([item.merchant for item in examples])
+    groups: dict[str, list[LabelledTransaction]] = defaultdict(list)
+    for item in examples:
+        groups[identities[item.merchant].canonical].append(item)
+
+    groups_by_category: dict[str, list[str]] = defaultdict(list)
+    for group, values in groups.items():
+        categories = {item.category for item in values}
+        if len(categories) == 1:
+            groups_by_category[next(iter(categories))].append(group)
+
+    evaluation_groups: set[str] = set()
+    for category in sorted(groups_by_category):
+        category_groups = sorted(groups_by_category[category])
+        if len(category_groups) < 2:
+            continue
+        count = max(1, len(category_groups) // 4)
+        evaluation_groups.update(category_groups[-count:])
+
+    train = [item for item in examples if identities[item.merchant].canonical not in evaluation_groups]
+    evaluation = [item for item in examples if identities[item.merchant].canonical in evaluation_groups]
+    if not evaluation:
+        raise ValueError("merchant-group holdout produced no evaluation examples")
+
+    result = evaluate_predictions(train=train, evaluation=evaluation)
+    train_groups = {identities[item.merchant].canonical for item in train}
+    eval_groups = {identities[item.merchant].canonical for item in evaluation}
+    result["trainMerchantGroups"] = len(train_groups)
+    result["evaluationMerchantGroups"] = len(eval_groups)
+    result["merchantGroupOverlap"] = len(train_groups & eval_groups)
+    result["evaluationCategories"] = sorted({item.category for item in evaluation})
+    result["policy"] = "canonical_merchant_group_disjoint_v1"
+    return result
+
+
+def _probability_rows(classifier: CategoryClassifier, items: Sequence[LabelledTransaction]) -> list[dict[str, float]]:
+    return [
+        prediction.probabilities
+        for prediction in classifier.predict_with_probabilities(item.merchant for item in items)
+    ]
+
+
+def _calibration_analysis(
+    *,
+    train: Sequence[LabelledTransaction],
+    calibration: Sequence[LabelledTransaction],
+    evaluation: Sequence[LabelledTransaction],
+) -> dict[str, Any]:
+    classifier = CategoryClassifier().fit(
+        [item.merchant for item in train],
+        [item.category for item in train],
+    )
+    classes = classifier.classes_
+    calibration_rows = _probability_rows(classifier, calibration)
+    evaluation_rows = _probability_rows(classifier, evaluation)
+    calibration_actual = [item.category for item in calibration]
+    evaluation_actual = [item.category for item in evaluation]
+
+    platt_rows = platt_calibrate(
+        calibration_rows,
+        calibration_actual,
+        evaluation_rows,
+        classes,
+    )
+    isotonic_rows = isotonic_calibrate(
+        calibration_rows,
+        calibration_actual,
+        evaluation_rows,
+        classes,
+    )
+    return {
+        "protocol": "fit_history_calibrate_2024_evaluate_2025_h1_v1",
+        "fitSamples": len(train),
+        "calibrationSamples": len(calibration),
+        "evaluationSamples": len(evaluation),
+        "methods": {
+            "raw": calibration_metrics(evaluation_rows, evaluation_actual, classes),
+            "platt": calibration_metrics(platt_rows, evaluation_actual, classes),
+            "isotonic": calibration_metrics(isotonic_rows, evaluation_actual, classes),
+        },
+        "productConfidenceEnabled": False,
+    }
+
+
 def build_category_evaluation_report(dataset_dir: Path) -> dict[str, Any]:
     examples = load_category_examples(dataset_dir)
     parts = _partition(examples)
@@ -192,6 +285,17 @@ def build_category_evaluation_report(dataset_dir: Path) -> dict[str, Any]:
         train=[*parts["history"], *parts["calibration"]],
         evaluation=parts["validation"],
     )
+    development_examples = [
+        *parts["history"],
+        *parts["calibration"],
+        *parts["validation"],
+    ]
+    merchant_group_holdout = _merchant_group_holdout(development_examples)
+    calibration_analysis = _calibration_analysis(
+        train=parts["history"],
+        calibration=parts["calibration"],
+        evaluation=parts["validation"],
+    )
     return {
         "reportVersion": REPORT_VERSION,
         "datasetVersion": "financial-benchmark-v1",
@@ -201,6 +305,7 @@ def build_category_evaluation_report(dataset_dir: Path) -> dict[str, Any]:
             "featurePolicy": FEATURE_POLICY,
             "featureFields": ["merchant"],
             "probabilitySemantics": "uncalibrated_logistic_regression_probability",
+            "productConfidenceEnabled": False,
         },
         "labelCoverage": {
             "total": len(examples),
@@ -209,6 +314,8 @@ def build_category_evaluation_report(dataset_dir: Path) -> dict[str, Any]:
         },
         "calibration": calibration,
         "validation": validation,
+        "merchantGroupHoldout": merchant_group_holdout,
+        "calibrationAnalysis": calibration_analysis,
         "holdout": {
             "status": "sealed",
             "range": {
@@ -221,8 +328,9 @@ def build_category_evaluation_report(dataset_dir: Path) -> dict[str, Any]:
         },
         "limitations": [
             "The benchmark is deterministic curated synthetic data, not real banking data.",
-            "Repeated merchants across time can make temporal validation easier than true merchant cold-start classification.",
-            "The model uses merchant descriptor text only and does not yet incorporate user corrections or personalised category preferences.",
-            "Logistic Regression probabilities are not calibrated confidence estimates.",
+            "The merchant-group benchmark is group-disjoint but remains synthetic and is not a real-user accuracy claim.",
+            "The production suggestion layer can personalize from user feedback, while this global-model benchmark intentionally remains merchant-text-only.",
+            "Raw Logistic Regression probabilities are not exposed as product confidence; calibration diagnostics are development evidence only.",
+            "The 2025 H2 holdout remains sealed and is not used by cold-start or calibration development analysis.",
         ],
     }

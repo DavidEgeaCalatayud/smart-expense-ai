@@ -6,6 +6,7 @@ from sqlalchemy.orm import Session, joinedload
 from app.core.security import hash_password, verify_password
 from app.models.budget import Budget
 from app.models.category import Category
+from app.models.category_suggestion import CategorySuggestion
 from app.models.historical_analysis import HistoricalAnalysisSnapshot
 from app.models.import_batch import ImportBatch
 from app.models.intelligence import IntelligenceFinding, IntelligenceScan
@@ -13,6 +14,7 @@ from app.models.transaction import Transaction
 from app.models.user import User
 from app.privacy_schemas import (
     PrivacyExportBudget,
+    PrivacyExportCategorySuggestion,
     PrivacyExportCustomCategory,
     PrivacyExportImportBatch,
     PrivacyExportResponseWithImports,
@@ -82,6 +84,11 @@ def build_privacy_export(db: Session, user: User) -> PrivacyExportResponseWithIm
         .options(joinedload(Budget.category))
         .where(Budget.user_id == user.id)
         .order_by(Budget.month.asc(), Budget.created_at.asc(), Budget.id.asc())
+    ).all()
+    category_suggestions = db.scalars(
+        select(CategorySuggestion)
+        .where(CategorySuggestion.user_id == user.id)
+        .order_by(CategorySuggestion.created_at.asc(), CategorySuggestion.id.asc())
     ).all()
 
     return PrivacyExportResponseWithImports(
@@ -184,6 +191,32 @@ def build_privacy_export(db: Session, user: User) -> PrivacyExportResponseWithIm
                 updatedAt=budget.updated_at,
             )
             for budget in budgets
+        ],
+        categorySuggestions=[
+            PrivacyExportCategorySuggestion(
+                id=str(suggestion.id),
+                transactionId=str(suggestion.transaction_id),
+                merchantKey=suggestion.merchant_key,
+                transactionType=suggestion.transaction_type,
+                source=suggestion.source,
+                modelVersion=suggestion.model_version,
+                featurePolicy=suggestion.feature_policy,
+                suggestedCategoryId=(
+                    str(suggestion.suggested_category_id)
+                    if suggestion.suggested_category_id
+                    else None
+                ),
+                selectedCategoryId=(
+                    str(suggestion.selected_category_id)
+                    if suggestion.selected_category_id
+                    else None
+                ),
+                accepted=suggestion.accepted,
+                correctedAt=suggestion.corrected_at,
+                createdAt=suggestion.created_at,
+                updatedAt=suggestion.updated_at,
+            )
+            for suggestion in category_suggestions
         ],
     )
 

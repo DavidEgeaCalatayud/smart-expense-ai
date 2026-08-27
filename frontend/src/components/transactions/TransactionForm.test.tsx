@@ -51,6 +51,43 @@ describe('TransactionForm', () => {
     expect(onSubmit).toHaveBeenCalledOnce();
   });
 
+  it('shows a suggestion as an explicit accept-or-change choice without confidence', () => {
+    const onAcceptSuggestion = vi.fn();
+    const onDismissSuggestion = vi.fn();
+
+    render(
+      <TransactionForm
+        categories={categories}
+        values={{ ...values, merchant: 'Amazon' }}
+        suggestion={{
+          categoryId: 'shopping',
+          categoryName: 'Shopping',
+          source: 'global_model',
+          modelVersion: 'tfidf-logreg-v1',
+          featurePolicy: 'merchant_descriptor_only_v1',
+        }}
+        onChange={vi.fn()}
+        onSubmit={vi.fn()}
+        onRequestSuggestion={vi.fn()}
+        onAcceptSuggestion={onAcceptSuggestion}
+        onDismissSuggestion={onDismissSuggestion}
+      />,
+    );
+
+    const suggestion = screen.getByRole('region', { name: 'AI category suggestion' });
+    expect(suggestion).toHaveTextContent('Suggested category');
+    expect(suggestion).toHaveTextContent('Shopping');
+    expect(suggestion).not.toHaveTextContent('%');
+    expect(suggestion).not.toHaveTextContent(/confidence/i);
+
+    fireEvent.click(screen.getByRole('button', { name: 'Accept' }));
+    expect(onAcceptSuggestion).toHaveBeenCalledOnce();
+
+    fireEvent.click(screen.getByRole('button', { name: 'Change' }));
+    expect(onDismissSuggestion).toHaveBeenCalledOnce();
+    expect(screen.getByLabelText('Category')).toHaveFocus();
+  });
+
   it('prevents duplicate submits while a request is in flight', () => {
     const onSubmit = vi.fn();
 

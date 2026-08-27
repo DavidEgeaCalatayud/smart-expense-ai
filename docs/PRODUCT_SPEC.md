@@ -2,9 +2,9 @@
 
 ## Product
 
-Smart Expense AI is a personal-finance application focused on persisted transaction management, explainable financial intelligence and evidence-driven progression toward machine-learning features.
+Smart Expense AI is a personal-finance application focused on persisted transaction management, explainable financial intelligence and evidence-driven machine-learning assistance.
 
-This document separates **implemented product behavior** from roadmap intent. Future capabilities are not presented as current features.
+This document separates **implemented behavior** from roadmap intent. Future capabilities are not presented as current features.
 
 ## Product principles
 
@@ -12,14 +12,9 @@ This document separates **implemented product behavior** from roadmap intent. Fu
 2. Money is handled exactly rather than with floating-point business arithmetic.
 3. Analytical findings expose deterministic evidence rather than fake probability.
 4. Historical diagnostics remain distinct from actionable review-state findings.
-5. ML features enter the product only after reproducible evaluation and an appropriate user-control workflow exist.
-6. Synthetic benchmark performance is regression evidence, not a claim of real banking accuracy.
-
-## Target user
-
-The current product is aimed at people who want to understand and review personal financial activity without manually building spreadsheet analyses.
-
-The long-term audience may include users with subscriptions, variable spending or multiple data sources, but bank integrations and multi-account aggregation are not implemented yet.
+5. ML features enter the product behind explicit user control and reproducible evaluation.
+6. Synthetic benchmark performance is regression/development evidence, not real banking accuracy.
+7. A model suggestion never silently overrides a user's persisted category.
 
 ## Implemented product capabilities
 
@@ -27,33 +22,45 @@ The long-term audience may include users with subscriptions, variable spending o
 
 - registration/login/logout;
 - Argon2 password hashing;
-- HttpOnly JWT session;
-- user-scoped transaction and analytical data;
-- cross-account isolation tests.
+- HttpOnly JWT sessions with server-side session-version revocation;
+- password change with current-session rotation;
+- authenticated privacy export and confirmed account deletion;
+- cross-account isolation across financial, analytical, planning and suggestion-feedback data.
 
 ### Transaction management
 
-Users can create, read, update and delete persisted transactions. The product supports:
+Users can create/read/update/delete persisted transactions with merchant, description, exact amount, date, system or account-owned category, income/expense type, payment method, recurring flag and source metadata.
 
-- merchant and description;
-- exact amount;
-- date;
-- seeded category;
-- income/expense type;
-- payment method;
-- recurring flag;
-- source metadata;
-- server-side pagination, search, filtering and sorting.
+The product also supports server-side pagination/search/filter/sort, responsive transaction presentation, authenticated CSV import, custom category management and persisted monthly budgets.
 
-Custom user-managed category CRUD is not implemented yet.
+### User-controlled category suggestions — `tfidf-logreg-v1`
+
+Users may ask the transaction form for a suggested category. The current resolution order is:
+
+```text
+1. previous compatible category selected by this user for the canonical merchant
+2. global merchant-text tfidf-logreg-v1 suggestion over system categories
+```
+
+Global feature policy:
+
+```text
+merchant_descriptor_only_v1
+```
+
+The suggestion is visible as **Accept** / **Change**. Merely requesting or displaying it does not modify the form's selected category or the persisted transaction.
+
+Manual API v2 transaction writes persist server-computed suggestion provenance together with the category actually selected by the user. Corrections become future per-user merchant labels. Account-owned categories can be learned from that user's history without expanding the global model taxonomy.
+
+The product deliberately does **not** display a confidence percentage or raw probability vector.
 
 ### Dashboard and aggregates
 
-The current dashboard is backed by persisted data and server-side aggregates, including summary balances and monthly spending series.
+The dashboard is backed by persisted data/server aggregates, including balances and monthly spending series.
 
 ### Actionable financial intelligence — `rules-v2`
 
-The product can run explicit scans that persist reviewable findings:
+Explicit scans persist reviewable findings:
 
 ```text
 recurring_pattern
@@ -63,94 +70,92 @@ spending_anomaly
 frequency_anomaly
 ```
 
-Findings expose explainable evidence and support `open`, `dismissed` and `resolved` review states.
-
-The amount anomaly policy is `merchant_mad_plus_extreme_iqr_v1`: it uses only prior history from the same canonical merchant. Category-only history is not accepted as a fallback for merchant-level amount alerts.
+Findings expose explainable evidence and support `open`, `dismissed` and `resolved` states. Amount anomalies use the merchant-only prior-history policy `merchant_mad_plus_extreme_iqr_v1`.
 
 ### Historical diagnostics — `historical-v2.2`
 
-The product persists versioned historical-analysis snapshots containing:
-
-- complete/partial month coverage;
-- spending trend;
-- canonical merchant evidence;
-- recurring profiles and `lifecycle-v1` segmentation metadata;
-- missed expected-occurrence evidence;
-- chronological merchant-specific amount outliers;
-- category spending shifts.
+Versioned historical snapshots contain month completeness, spending trend, canonical merchant evidence, recurring profiles/`lifecycle-v1` segmentation, missed occurrences, chronological merchant-specific amount outliers, category shifts and coverage metadata.
 
 Historical snapshots do not automatically create review-state findings.
 
-### Evaluated automatic category baseline — offline only
+## Category classifier evaluation evidence
 
-The repository contains `tfidf-logreg-v1` with feature policy `merchant_descriptor_only_v1`.
+The deterministic synthetic benchmark contains 2,560 complete labels with chronological 2023 history, 2024 calibration, 2025 H1 validation and a sealed 2025 H2 holdout.
 
-It is evaluated chronologically on the deterministic benchmark and reports macro-F1, per-category metrics, confusion matrix and seen/unseen merchant slices.
+Repeated-merchant chronological validation remains high, so `category-classifier-evaluation-v2` also adds a canonical merchant-group-disjoint slice:
 
-It is **not** currently connected to transaction writes and does not silently replace a user's persisted category. Production categorization still requires independent/real labelled evidence, a correction/personalization workflow and a product decision around suggestion vs automatic assignment.
+```text
+evaluationSamples        382
+evaluationMerchantGroups 9
+merchantGroupOverlap     0
+accuracy                 0.400524
+macroF1                  0.201242
+```
 
-## Evaluation evidence
+This cold-start result is the current product-relevant warning: genuinely unseen merchants remain difficult and automatic assignment is not justified.
 
-The project distinguishes three evidence levels:
+Synthetic calibration diagnostics are:
+
+```text
+raw       Brier 0.018193   ECE 0.082021
+Platt     Brier 0.008871   ECE 0.004624
+isotonic  Brier 0.009156   ECE 0.004711
+```
+
+`productConfidenceEnabled=false` remains explicit. These numbers do not justify confidence display without representative real labelled data.
+
+## Evidence hierarchy
 
 ```text
 small fixture -> regression protection
-financial-benchmark-v1 -> strong synthetic evaluation
+financial-benchmark-v1 -> synthetic development evidence
 independent / real labelled data -> real quality evidence
 ```
 
-The final synthetic holdout remains sealed during development tuning under the documented evaluation protocol.
+The final synthetic holdout remains sealed during development tuning.
 
 ## Not implemented
 
-The following should not be described elsewhere as current product capabilities:
+The following must not be described as current capabilities:
 
 - bank/account aggregation APIs;
 - automatic/background intelligence scheduling;
-- production automatic category assignment;
-- calibrated ML confidence displayed to users;
+- automatic category assignment;
+- user-facing calibrated category confidence;
+- per-user classifier retraining;
 - ML anomaly/fraud classification;
-- end-of-month or category-level spending forecasts;
-- future balance prediction;
+- spending/balance forecasts;
 - MFA;
-- password reset/change;
-- privacy export/account deletion controls;
-- custom category CRUD;
+- verified password-reset email flow;
 - multi-currency business support;
 - paid subscription/billing integration;
 - mobile application.
 
 ## Near-term product direction
 
-Before expanding predictive features, priorities are:
+1. collect/evaluate real category corrections and independent labelled data;
+2. measure real-world cold-start and personalization behavior;
+3. calibrate probabilities on representative real data before displaying confidence;
+4. validate deterministic financial intelligence on independent/real labels;
+5. continue deployment/security hardening;
+6. only then consider optional auto-category thresholds, ML anomaly replacements and Phase 4 prediction.
 
-1. validate deterministic intelligence on sufficiently large independent/real labelled data;
-2. strengthen category-classifier cold-start/unseen-merchant evidence;
-3. introduce user correction/personalization semantics before production categorization;
-4. continue evidence-based false-positive reduction, especially frequency anomalies;
-5. complete account/privacy and deployment hardening;
-6. only then evaluate ML anomaly replacements and Phase 4 prediction features.
-
-The authoritative task sequence is maintained in [`../ROADMAP.md`](../ROADMAP.md).
+The authoritative sequence is maintained in [`../ROADMAP.md`](../ROADMAP.md).
 
 ## Product trust boundaries
 
-Smart Expense AI does not currently claim to:
+Smart Expense AI does not claim to detect fraud with certainty, provide financial advice, infer why a recurring payment disappeared, produce real-world-calibrated category probabilities from synthetic data, or achieve real-world accuracy based solely on benchmark fixtures.
 
-- detect fraud with certainty;
-- provide financial advice;
-- infer why a recurring payment disappeared;
-- produce calibrated probabilities from deterministic scores;
-- achieve real-world accuracy based solely on synthetic benchmarks.
-
-A recurring, missing, duplicate or anomaly finding is evidence for user review, not an assertion of financial wrongdoing.
+Suggestions/findings are evidence for user control and review, not assertions.
 
 ## Technical references
 
-- [`ARCHITECTURE.md`](ARCHITECTURE.md) — implemented architecture.
-- [`DATA_MODEL.md`](DATA_MODEL.md) — implemented persistence model.
-- [`analysis-contracts.md`](analysis-contracts.md) — current engine/model/policy identifiers.
-- [`intelligence.md`](intelligence.md) — actionable rule semantics.
-- [`historical-analysis.md`](historical-analysis.md) — historical diagnostics.
-- [`evaluation-protocol.md`](evaluation-protocol.md) — evaluation split/holdout discipline.
-- [`../ai/category-classifier/README.md`](../ai/category-classifier/README.md) — category model card.
+- [`ARCHITECTURE.md`](ARCHITECTURE.md)
+- [`DATA_MODEL.md`](DATA_MODEL.md)
+- [`analysis-contracts.md`](analysis-contracts.md)
+- [`api.md`](api.md)
+- [`testing.md`](testing.md)
+- [`intelligence.md`](intelligence.md)
+- [`historical-analysis.md`](historical-analysis.md)
+- [`evaluation-protocol.md`](evaluation-protocol.md)
+- [`../ai/category-classifier/README.md`](../ai/category-classifier/README.md)

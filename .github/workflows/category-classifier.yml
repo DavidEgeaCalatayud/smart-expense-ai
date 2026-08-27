@@ -35,7 +35,7 @@ jobs:
         run: python scripts/generate_benchmark_v1.py
       - name: Run category classifier unit tests
         run: pytest tests/unit/test_category_classifier.py
-      - name: Evaluate chronological category classifier
+      - name: Evaluate chronological, cold-start and calibration evidence
         run: |
           python scripts/evaluate_category_classifier.py \
             datasets/benchmark_v1 \
@@ -45,10 +45,11 @@ jobs:
           from pathlib import Path
 
           report = json.loads(Path('/tmp/category-classifier-report.json').read_text())
-          assert report['reportVersion'] == 'category-classifier-evaluation-v1'
+          assert report['reportVersion'] == 'category-classifier-evaluation-v2'
           assert report['datasetVersion'] == 'financial-benchmark-v1'
           assert report['model']['version'] == 'tfidf-logreg-v1'
           assert report['model']['featureFields'] == ['merchant']
+          assert report['model']['productConfidenceEnabled'] is False
           assert report['labelCoverage']['total'] == 2560
           assert set(report['labelCoverage']['byCategory']) == {
               'Food', 'Health', 'Other', 'Salary', 'Shopping', 'Subscriptions', 'Transport'
@@ -62,10 +63,7 @@ jobs:
           assert report['holdout']['usedForFit'] is False
           assert report['holdout']['usedForMetrics'] is False
 
-          # Floors are deliberately below the first measured development run
-          # (calibration macro-F1 0.9931, validation 0.994367). They protect the
-          # baseline from silent regression without pretending this synthetic
-          # benchmark measures real-world accuracy.
+          # Existing chronological regression floors remain unchanged.
           for split_name in ('calibration', 'validation'):
               split = report[split_name]
               metrics = split['metrics']
@@ -84,6 +82,21 @@ jobs:
               assert all(len(row) == len(labels) for row in matrix)
               assert sum(sum(row) for row in matrix) == split['evaluationSamples']
 
+          cold_start = report['merchantGroupHoldout']
+          assert cold_start['policy'] == 'canonical_merchant_group_disjoint_v1'
+          assert cold_start['merchantGroupOverlap'] == 0
+          assert cold_start['evaluationMerchantGroups'] > 0
+          assert cold_start['evaluationSamples'] >= 100
+
+          calibration = report['calibrationAnalysis']
+          assert calibration['productConfidenceEnabled'] is False
+          assert set(calibration['methods']) == {'raw', 'platt', 'isotonic'}
+          for method in calibration['methods'].values():
+              assert method['brierScore'] >= 0
+              assert 0 <= method['expectedCalibrationError'] <= 1
+              assert len(method['reliabilityDiagram']) == 10
+              assert sum(bin_['count'] for bin_ in method['reliabilityDiagram']) == calibration['evaluationSamples']
+
           print('Category classifier development report')
           print('Label coverage:', report['labelCoverage'])
           for split_name in ('calibration', 'validation'):
@@ -92,14 +105,13 @@ jobs:
               print('fitSamples=', split['fitSamples'], 'evaluationSamples=', split['evaluationSamples'])
               print('metrics=', split['metrics'])
               print('merchantCoverage=', split['merchantCoverage'])
-              print('perCategory=')
-              for label, row in split['perCategory'].items():
-                  print(f"  {label:16} P={row['precision']:.4f} R={row['recall']:.4f} F1={row['f1']:.4f} support={row['support']}")
-              print('confusionMatrix labels=', split['confusionMatrix']['labels'])
-              for row in split['confusionMatrix']['matrix']:
-                  print(' ', row)
-              print('errors=')
-              for error in split['errors']:
-                  print(' ', error)
+          print('\n[merchant-group holdout]')
+          print('samples=', cold_start['evaluationSamples'])
+          print('groups=', cold_start['evaluationMerchantGroups'])
+          print('overlap=', cold_start['merchantGroupOverlap'])
+          print('metrics=', cold_start['metrics'])
+          print('\n[probability calibration diagnostics]')
+          for name, metrics in calibration['methods'].items():
+              print(name, 'brier=', metrics['brierScore'], 'ece=', metrics['expectedCalibrationError'])
           print('\nHoldout:', report['holdout'])
           PY

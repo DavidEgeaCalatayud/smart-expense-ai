@@ -16,12 +16,14 @@ from app.schemas import (
     TransactionUpdateV2,
     TransactionV2,
 )
+from app.services.transaction_categorization_service import (
+    create_transaction_with_feedback,
+    update_transaction_with_feedback,
+)
 from app.services.transaction_service import (
     TransactionInputError,
-    create_transaction,
     delete_transaction,
     list_transactions,
-    update_transaction,
 )
 
 
@@ -84,7 +86,9 @@ def post_transaction(
     current_user: User = Depends(get_current_user),
 ) -> TransactionV2:
     try:
-        return _transaction_v2(create_transaction(db, current_user.id, payload))
+        return _transaction_v2(
+            create_transaction_with_feedback(db, current_user.id, payload)
+        )
     except TransactionInputError as exc:
         raise ApiError(
             status.HTTP_422_UNPROCESSABLE_ENTITY,
@@ -101,7 +105,9 @@ def put_transaction(
     current_user: User = Depends(get_current_user),
 ) -> TransactionV2:
     try:
-        transaction = update_transaction(db, current_user.id, transaction_id, payload)
+        transaction = update_transaction_with_feedback(
+            db, current_user.id, transaction_id, payload
+        )
     except TransactionInputError as exc:
         raise ApiError(
             status.HTTP_422_UNPROCESSABLE_ENTITY,
