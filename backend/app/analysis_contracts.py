@@ -12,6 +12,9 @@ UPCOMING_PAYMENTS_VERSION = "recurring-calendar-v1"
 SPENDING_FORECAST_VERSION = "spending-forecast-v1"
 
 AMOUNT_ANOMALY_POLICY = "merchant_mad_plus_extreme_iqr_v1"
+ISOLATION_FOREST_VERSION = "isolation-forest-v1"
+ISOLATION_FOREST_FEATURE_POLICY = "causal-transaction-features-v1"
+ANOMALY_HYBRID_POLICY = "rules-v2-or-isolation-forest-v1"
 
 RECURRENCE_SEGMENTATION_STRATEGY = (
     "canonical_merchant_then_lifecycle_then_price_continuity_then_descriptor_amount_then_temporal_phase"
@@ -25,9 +28,12 @@ CATEGORY_CLASSIFIER_FEATURE_POLICY = "merchant_descriptor_only_v1"
 __all__ = [
     "ACTIONABLE_RULES_VERSION",
     "AMOUNT_ANOMALY_POLICY",
+    "ANOMALY_HYBRID_POLICY",
     "CATEGORY_CLASSIFIER_FEATURE_POLICY",
     "CATEGORY_CLASSIFIER_VERSION",
     "HISTORICAL_ANALYSIS_VERSION",
+    "ISOLATION_FOREST_FEATURE_POLICY",
+    "ISOLATION_FOREST_VERSION",
     "RECURRENCE_SEGMENTATION_STRATEGY",
     "RECURRENCE_SEGMENTATION_VERSION",
     "SPENDING_FORECAST_VERSION",
