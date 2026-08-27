@@ -29,6 +29,7 @@ from app.models.category import Category
 from app.models.import_batch import ImportBatch
 from app.models.transaction import Transaction as TransactionModel
 from app.schemas import PaymentMethod, TransactionType
+from app.services.category_service import build_active_category_lookup
 
 
 MAX_IMPORT_ROWS = 10_000
@@ -370,29 +371,21 @@ def _parse_payment_method(value: str | None, default: PaymentMethod) -> PaymentM
     return parsed
 
 
-def _category_lookup(db: Session) -> dict[str, Category]:
-    return {category.name.lower(): category for category in db.scalars(select(Category)).all()}
-
-
 def _resolve_category(
     raw_category: str | None,
     transaction_type: TransactionType,
-    categories: dict[str, Category],
+    categories: dict[tuple[str, str], Category],
 ) -> Category:
     if raw_category is None or not raw_category.strip():
-        fallback_name = "Other" if transaction_type == TransactionType.expense else "Salary"
-        category = categories.get(fallback_name.lower())
+        name = "Other" if transaction_type == TransactionType.expense else "Salary"
     else:
-        category = categories.get(raw_category.strip().lower())
-        if category is None:
-            raise ValueError(f"unknown category: {raw_category}")
+        name = raw_category.strip()
 
+    category = categories.get((name.lower(), transaction_type.value))
     if category is None:
-        raise ValueError(f"no default category is configured for {transaction_type.value}")
-    if category.transaction_type != transaction_type.value:
-        raise ValueError(
-            f"category {category.name} is not valid for {transaction_type.value} transactions"
-        )
+        if raw_category is None or not raw_category.strip():
+            raise ValueError(f"no default category is configured for {transaction_type.value}")
+        raise ValueError(f"unknown or unavailable category: {raw_category}")
     return category
 
 
@@ -404,7 +397,7 @@ def _prepare_candidate(
     row_number: int,
     row: dict[str, str],
     payload: CsvImportRequest,
-    categories: dict[str, Category],
+    categories: dict[tuple[str, str], Category],
 ) -> _PreparedRow:
     transaction_date = _parse_date(
         _field(row, payload.mapping.date) or "",
@@ -511,7 +504,7 @@ def _prepare_import(
 ) -> _PreparedImport:
     parsed = _parse_csv(payload.content)
     _validate_mapping(payload, parsed.headers)
-    categories = _category_lookup(db)
+    categories = build_active_category_lookup(db, user_id)
 
     candidates: list[_PreparedRow] = []
     invalid_by_row: dict[int, list[str]] = {}

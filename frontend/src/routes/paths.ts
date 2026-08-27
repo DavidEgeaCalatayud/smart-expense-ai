@@ -1,6 +1,8 @@
 export const ROUTES = {
   dashboard: '/',
   transactions: '/transactions',
+  categories: '/categories',
+  budgets: '/budgets',
   imports: '/imports',
   predictions: '/predictions',
   alerts: '/alerts',

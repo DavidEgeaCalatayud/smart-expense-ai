@@ -14,9 +14,10 @@ Stable analytical identifiers are defined centrally in `backend/app/analysis_con
 
 - transaction amounts are decimal strings;
 - aggregate monetary values are decimal strings;
+- budget limits and budget progress monetary values are decimal strings;
 - monetary values inside intelligence evidence are decimal strings;
-- transaction writes must send `amount` as a JSON string;
-- JSON numeric amounts are rejected with HTTP `422`;
+- transaction and budget writes must send monetary fields as JSON strings;
+- JSON numeric monetary values are rejected with HTTP `422`;
 - historical-analysis evidence includes completeness, merchant identity, recurrence segmentation and amount-baseline metadata.
 
 PostgreSQL stores `NUMERIC(12,2)` and Python financial services use `Decimal`. The v1 number conversion is compatibility serialization only.
@@ -71,13 +72,26 @@ transactions
 intelligenceFindings
 intelligenceScans
 historicalAnalysisSnapshots
+importBatches
+customCategories
+budgets
 ```
 
-Every persisted collection is filtered by the authenticated `user_id`. Integration regression coverage seeds all five export areas for two separate users and verifies that no object owned by the second user appears in the first user's export. Password hashes, session-version internals and JWT/session-token material are excluded.
+Every persisted collection is filtered by the authenticated `user_id`. Integration regression coverage seeds separate users and verifies that account-owned financial, intelligence, import, custom-category and budget data never crosses the ownership boundary. Password hashes, session-version internals and JWT/session-token material are excluded.
 
-`DELETE /api/v1/auth/account` requires the current password plus the exact confirmation value `DELETE`. Successful deletion removes the user and database-cascaded user-owned financial/intelligence data and clears the authentication cookie.
+`DELETE /api/v1/auth/account` requires the current password plus the exact confirmation value `DELETE`. Successful deletion removes the user and database-cascaded user-owned financial/intelligence/import/category/budget data and clears the authentication cookie.
 
 Password reset by email is not part of the current contract because the project does not yet provide a verified recovery-token delivery channel.
+
+Authenticated v1 category endpoints:
+
+```text
+GET    /api/v1/categories?includeArchived=false
+POST   /api/v1/categories
+PATCH  /api/v1/categories/{category_id}
+POST   /api/v1/categories/{category_id}/archive
+POST   /api/v1/categories/{category_id}/restore
+```
 
 Authenticated v2 endpoints include:
 
@@ -88,6 +102,14 @@ PUT    /api/v2/transactions/{transaction_id}
 DELETE /api/v2/transactions/{transaction_id}
 GET    /api/v2/analytics/summary
 GET    /api/v2/analytics/monthly-expenses
+POST   /api/v2/imports/csv/detect
+POST   /api/v2/imports/csv/preview
+POST   /api/v2/imports/csv/commit
+GET    /api/v2/imports/batches
+GET    /api/v2/budgets?month=YYYY-MM
+POST   /api/v2/budgets
+PUT    /api/v2/budgets/{budget_id}
+DELETE /api/v2/budgets/{budget_id}
 POST   /api/v2/intelligence/scan
 GET    /api/v2/intelligence/summary
 GET    /api/v2/intelligence/findings
@@ -120,6 +142,18 @@ This is intentionally invalid in v2:
 ```
 
 It returns `422 validation_error`.
+
+Budget writes follow the same rule:
+
+```json
+{
+  "month": "2026-08",
+  "categoryId": null,
+  "limitAmount": "2000.00"
+}
+```
+
+`limitAmount` as a JSON number is intentionally rejected.
 
 Precision invariant:
 
@@ -163,6 +197,45 @@ Supported filters:
 
 `dateFrom > dateTo` returns `invalid_date_range`.
 
+## Categories
+
+Seeded system categories remain global and read-only. Authenticated users can add account-owned categories without changing the legacy system-category contract.
+
+`GET /api/v1/categories` returns active system categories plus categories owned by the authenticated user. `includeArchived=true` also exposes that user's archived categories.
+
+A category response contains:
+
+```json
+{
+  "id": "...",
+  "name": "Gym",
+  "transactionType": "expense",
+  "scope": "user",
+  "archived": false,
+  "transactionCount": 4
+}
+```
+
+Creation requires an explicit `transactionType`. Conflicts are case-insensitive inside the visible category/type namespace, so an account-owned category cannot shadow an already visible category of the same transaction type.
+
+Only account-owned categories may be renamed, archived or restored by the owning user. System categories cannot be mutated through these endpoints.
+
+Archiving is explicit. The request supports:
+
+```json
+{ "mode": "archive", "reassignToCategoryId": null }
+```
+
+or:
+
+```json
+{ "mode": "reassign", "reassignToCategoryId": "..." }
+```
+
+`archive` preserves historical transaction assignments while hiding the category from active selection. `reassign` moves existing assignments to another visible active category of the same transaction type before archiving. Restore reactivates an archived account-owned category when no visible conflict exists.
+
+Manual transaction writes and CSV import resolve active system categories together with the authenticated user's active custom categories. Unknown categories remain distinct from categories that exist but are incompatible with the requested transaction type.
+
 ## Analytics
 
 ### Summary
@@ -185,6 +258,50 @@ Supported filters:
 ### Monthly expenses
 
 `GET /api/v2/analytics/monthly-expenses?months=6` returns a continuous monthly series including zero-value months. `months` accepts 1–24. `through=YYYY-MM-DD` is available for deterministic tests/consumers.
+
+## Budgets
+
+Budgets are authenticated, user-owned planning records. They do not alter transactions and they do not predict future spending.
+
+A user can have at most one overall budget per month and at most one budget per category/month. Database partial unique indexes enforce both invariants:
+
+```text
+UNIQUE (user_id, month)
+WHERE category_id IS NULL
+
+UNIQUE (user_id, month, category_id)
+WHERE category_id IS NOT NULL
+```
+
+The `month` field uses `YYYY-MM` at the HTTP boundary and is persisted as the first day of that month. `limitAmount` must be a positive decimal string.
+
+Category budgets may target only a visible active expense category. Income-category budgets are rejected.
+
+`GET /api/v2/budgets?month=2026-08` returns an optional overall budget plus category budgets with server-calculated progress:
+
+```json
+{
+  "month": "2026-08",
+  "totalBudget": {
+    "id": "...",
+    "month": "2026-08",
+    "categoryId": null,
+    "categoryName": null,
+    "categoryArchived": false,
+    "limitAmount": "2000.00",
+    "spentAmount": "328.00",
+    "remainingAmount": "1672.00",
+    "percentUsed": "16.4",
+    "daysRemaining": 5,
+    "overBudget": false
+  },
+  "categoryBudgets": []
+}
+```
+
+Progress is derived from persisted expense transactions for the requested month. Archived categories retain historical budget visibility through `categoryArchived`; they are not eligible for new category budgets while archived.
+
+`PUT /api/v2/budgets/{budget_id}` updates only the decimal limit. `DELETE` removes the planning record and never deletes transactions.
 
 ## Financial intelligence findings
 
@@ -375,7 +492,7 @@ Validation failures may expose safe field-level `details`. The frontend maps fai
 | `5xx` | `server` |
 | network failure | `network` |
 
-Semantic codes include `invalid_date_range`, `invalid_transaction`, `transaction_not_found`, `intelligence_finding_not_found`, `historical_analysis_not_found`, `validation_error` and `cross_site_request_rejected`.
+Semantic codes include `invalid_date_range`, `invalid_transaction`, `transaction_not_found`, `category_not_found`, `category_conflict`, `invalid_category`, `budget_not_found`, `budget_conflict`, `invalid_budget`, `intelligence_finding_not_found`, `historical_analysis_not_found`, `validation_error` and `cross_site_request_rejected`.
 
 ## Versioning policy
 

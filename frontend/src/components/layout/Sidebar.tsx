@@ -8,7 +8,9 @@ import {
   LogOut,
   ScanSearch,
   ShieldCheck,
+  Tags,
   UserRound,
+  WalletCards,
 } from 'lucide-react';
 import { NavLink, useNavigate } from 'react-router-dom';
 import { useAuth } from '../../auth/useAuth';
@@ -17,6 +19,8 @@ import { ROUTES } from '../../routes/paths';
 const navigationItems = [
   { icon: LayoutDashboard, label: 'Dashboard', to: ROUTES.dashboard },
   { icon: CreditCard, label: 'Transactions', to: ROUTES.transactions },
+  { icon: Tags, label: 'Categories', to: ROUTES.categories },
+  { icon: WalletCards, label: 'Budgets', to: ROUTES.budgets },
   { icon: FileSpreadsheet, label: 'Import CSV', to: ROUTES.imports },
   { icon: LineChart, label: 'Predictions', to: ROUTES.predictions },
   { icon: ScanSearch, label: 'Intelligence', to: ROUTES.alerts },
@@ -90,7 +94,7 @@ export function Sidebar() {
         </div>
         <p className="mb-2 text-sm font-semibold">Account-isolated data</p>
         <p className="text-sm leading-6 text-slate-300">
-          Transaction and intelligence queries are scoped to your authenticated user before financial data leaves the API.
+          Transaction, category, budget and intelligence queries are scoped to your authenticated user before financial data leaves the API.
         </p>
       </div>
     </aside>

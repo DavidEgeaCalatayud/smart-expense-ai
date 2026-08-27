@@ -16,5 +16,25 @@ class PrivacyExportImportBatch(BaseModel):
     createdAt: datetime
 
 
+class PrivacyExportCustomCategory(BaseModel):
+    id: str
+    name: str
+    transactionType: str
+    archived: bool
+    createdAt: datetime
+
+
+class PrivacyExportBudget(BaseModel):
+    id: str
+    month: str
+    categoryId: str | None
+    categoryName: str | None
+    limitAmount: str
+    createdAt: datetime
+    updatedAt: datetime
+
+
 class PrivacyExportResponseWithImports(PrivacyExportResponse):
     importBatches: list[PrivacyExportImportBatch] = Field(default_factory=list)
+    customCategories: list[PrivacyExportCustomCategory] = Field(default_factory=list)
+    budgets: list[PrivacyExportBudget] = Field(default_factory=list)
