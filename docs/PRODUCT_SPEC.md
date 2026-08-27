@@ -17,6 +17,7 @@ This document separates **implemented behavior** from roadmap intent. Future cap
 7. A model suggestion never silently overrides a user's persisted category.
 8. A private-evaluation harness is scientific infrastructure, not proof of real-world quality until it is actually run on independent labelled data.
 9. Future ML forecasting/anomaly systems must beat transparent baselines on the same walk-forward evidence before they can displace simpler methods.
+10. Upcoming-payment states are deterministic schedule evidence, not calibrated probabilities.
 
 ## Implemented product capabilities
 
@@ -79,6 +80,22 @@ Findings expose explainable evidence and support `open`, `dismissed` and `resolv
 Versioned historical snapshots contain month completeness, spending trend, canonical merchant evidence, recurring profiles/`lifecycle-v1` segmentation, missed occurrences, chronological merchant-specific amount outliers, category shifts and coverage metadata.
 
 Historical snapshots do not automatically create review-state findings.
+
+### Upcoming recurring payments — `recurring-calendar-v1`
+
+The **Predictions** workspace now shows a 30-day recurring-payment calendar derived from the same `historical-v2.2` recurrence/lifecycle primitives already used elsewhere in the product.
+
+The backend exposes an authenticated, bounded projection window with exact decimal-string amounts. Future occurrences are labelled `expected`, `likely` or `price_changed`; schedules already beyond their grace window appear separately as `overdue`.
+
+Product safeguards:
+
+- overdue items never contribute to `expectedTotal`;
+- a missing/dormant schedule is not automatically rolled forward until new activity re-establishes it;
+- month-end schedules preserve month-end alignment;
+- price-continuity streams use the latest observed price regime;
+- `patternScore` remains an explainable deterministic index, not confidence.
+
+The calendar does not persist a new authoritative payment table and never modifies source transactions.
 
 ## Category classifier evaluation evidence
 
@@ -144,8 +161,7 @@ The following must not be described as current capabilities:
 - user-facing calibrated category confidence;
 - per-user classifier retraining;
 - ML anomaly/fraud classification;
-- recurring-payments calendar/upcoming-payments product view;
-- spending/balance forecasts;
+- end-of-month spending forecast baselines or ML forecasting;
 - MFA;
 - verified password-reset email flow;
 - multi-currency business support;
@@ -157,7 +173,7 @@ The following must not be described as current capabilities:
 The intended sequence is deliberately evidence-first:
 
 1. **Run the private evaluator on genuinely independent labelled data.** Measure real category accuracy/macro-F1, natural unseen merchants, calibration, `rules-v2` false-positive costs and historical recurrence/anomaly/occurrence quality. Keep raw financial data private.
-2. **Turn existing recurrence evidence into an upcoming-payments calendar.** Reuse cadence, expected occurrence, amount stability, lifecycle and price-continuity semantics. Show states such as `expected`, `likely`, `overdue` and `price_changed` plus an exact expected next-30-days total.
+2. **Recurring-payment calendar — implemented.** `recurring-calendar-v1` now reuses cadence, expected occurrence, amount stability, lifecycle and price-continuity semantics and exposes an exact next-30-days future total plus separate overdue schedules.
 3. **Add transparent month-end forecasting baselines.** Start with three-complete-month mean, current-month run rate, and a recurrence-aware baseline combining projected variable spending with known expected recurring payments.
 4. **Backtest before product claims.** Use walk-forward MAE, sMAPE and bias, expose assumptions and do not present a prediction without historical error evidence.
 5. **Only then test forecasting ML challengers.** Ridge, Random Forest, Gradient Boosting or another model enters the product only if it consistently outperforms the simple baselines on the same walk-forward folds and relevant slices.
@@ -170,7 +186,7 @@ The authoritative sequence is maintained in [`../ROADMAP.md`](../ROADMAP.md).
 
 Smart Expense AI does not claim to detect fraud with certainty, provide financial advice, infer why a recurring payment disappeared, produce real-world-calibrated category probabilities from synthetic data, or achieve real-world accuracy based solely on benchmark fixtures or the existence of a private evaluator.
 
-Suggestions/findings are evidence for user control and review, not assertions. Future forecasts must similarly expose their baseline/evidence and known backtest error.
+Suggestions/findings and recurring-calendar statuses are evidence for user control and planning, not assertions. Future forecasts must similarly expose their baseline/evidence and known backtest error.
 
 ## Technical references
 
@@ -180,6 +196,7 @@ Suggestions/findings are evidence for user control and review, not assertions. F
 - [`api.md`](api.md)
 - [`testing.md`](testing.md)
 - [`private-evaluation.md`](private-evaluation.md)
+- [`upcoming-payments.md`](upcoming-payments.md)
 - [`intelligence.md`](intelligence.md)
 - [`historical-analysis.md`](historical-analysis.md)
 - [`evaluation-protocol.md`](evaluation-protocol.md)
