@@ -1,13 +1,5 @@
-import type { TransactionType } from '../types/transactions';
+import type { CategorySuggestionPreview, TransactionType } from '../types/transactions';
 import { apiFetch } from './apiClient';
-
-export interface CategorySuggestionPreview {
-  categoryId: string;
-  categoryName: string;
-  source: 'user_history' | 'global_model';
-  modelVersion: string;
-  featurePolicy: string;
-}
 
 export function previewCategorySuggestion(
   merchant: string,
