@@ -55,16 +55,17 @@ def test_category_classifier_requires_labelled_multiclass_history() -> None:
         CategoryClassifier().predict(["Unknown"])
 
 
-def test_category_evaluation_report_is_chronological_and_keeps_holdout_sealed(tmp_path) -> None:
+def test_category_evaluation_report_keeps_holdout_sealed_and_adds_cold_start_evidence(tmp_path) -> None:
     dataset = tmp_path / "benchmark"
     write_dataset(dataset)
     report = build_category_evaluation_report(dataset)
     metadata = json.loads((dataset / "metadata.json").read_text(encoding="utf-8"))
 
-    assert report["reportVersion"] == "category-classifier-evaluation-v1"
+    assert report["reportVersion"] == "category-classifier-evaluation-v2"
     assert report["model"]["version"] == MODEL_VERSION
     assert report["model"]["featurePolicy"] == FEATURE_POLICY
     assert report["model"]["featureFields"] == ["merchant"]
+    assert report["model"]["productConfidenceEnabled"] is False
     assert report["labelCoverage"]["total"] == metadata["counts"]["transactions"]
 
     split_counts = report["labelCoverage"]["bySplit"]
@@ -92,6 +93,25 @@ def test_category_evaluation_report_is_chronological_and_keeps_holdout_sealed(tm
     assert all(len(row) == len(labels) for row in matrix)
     assert sum(sum(row) for row in matrix) == validation["evaluationSamples"]
     assert validation["merchantCoverage"]["seen"]["support"] + validation["merchantCoverage"]["unseen"]["support"] == validation["evaluationSamples"]
+
+    cold_start = report["merchantGroupHoldout"]
+    assert cold_start["policy"] == "canonical_merchant_group_disjoint_v1"
+    assert cold_start["merchantGroupOverlap"] == 0
+    assert cold_start["evaluationMerchantGroups"] > 0
+    assert cold_start["evaluationSamples"] >= 100
+    assert cold_start["evaluationCategories"]
+
+    calibration_analysis = report["calibrationAnalysis"]
+    assert calibration_analysis["productConfidenceEnabled"] is False
+    assert calibration_analysis["fitSamples"] == split_counts["history"]
+    assert calibration_analysis["calibrationSamples"] == split_counts["calibration"]
+    assert calibration_analysis["evaluationSamples"] == split_counts["validation"]
+    assert set(calibration_analysis["methods"]) == {"raw", "platt", "isotonic"}
+    for method in calibration_analysis["methods"].values():
+        assert method["brierScore"] >= 0.0
+        assert 0.0 <= method["expectedCalibrationError"] <= 1.0
+        assert len(method["reliabilityDiagram"]) == 10
+        assert sum(bucket["count"] for bucket in method["reliabilityDiagram"]) == split_counts["validation"]
 
     off_diagonal_errors = sum(
         value
