@@ -10,6 +10,7 @@ from sqlalchemy.orm import Session
 from app.core.config import settings
 from app.db.session import engine
 from app.main import app
+from app.models.category_suggestion import CategorySuggestion
 from app.models.historical_analysis import HistoricalAnalysisSnapshot
 from app.models.intelligence import IntelligenceFinding, IntelligenceScan
 from app.models.transaction import Transaction as TransactionModel
@@ -18,6 +19,7 @@ from app.models.user import User
 
 pytestmark = pytest.mark.integration
 API = "/api/v1"
+API_V2 = "/api/v2"
 PASSWORD = "correct-horse-battery-staple"
 NEW_PASSWORD = "new-correct-horse-battery-staple"
 
@@ -61,6 +63,24 @@ def create_transaction(client: TestClient, merchant: str) -> dict[str, object]:
             "category": "Food",
             "amount": 42.50,
             "date": "2026-08-24",
+            "type": "expense",
+            "paymentMethod": "card",
+            "isRecurring": False,
+        },
+    )
+    assert response.status_code == 201
+    return response.json()
+
+
+def create_suggested_transaction(client: TestClient, merchant: str) -> dict[str, object]:
+    response = client.post(
+        f"{API_V2}/transactions",
+        json={
+            "merchant": merchant,
+            "description": "Suggestion privacy fixture",
+            "category": "Food",
+            "amount": "18.25",
+            "date": "2026-08-25",
             "type": "expense",
             "paymentMethod": "card",
             "isRecurring": False,
@@ -207,14 +227,48 @@ def test_privacy_export_is_exactly_scoped_across_every_collection_and_contains_n
     assert "session_version" not in serialized
 
 
+def test_privacy_export_includes_only_owner_category_suggestion_feedback(
+    client: TestClient,
+) -> None:
+    register(client)
+    owner_transaction = create_suggested_transaction(client, "MERCADONA 3921")
+
+    with TestClient(app) as other_client:
+        register(other_client, "suggestion-other@example.com")
+        other_transaction = create_suggested_transaction(other_client, "MERCADONA 7777")
+
+    response = client.get(f"{API}/auth/privacy-export")
+
+    assert response.status_code == 200
+    export = response.json()
+    suggestions = export["categorySuggestions"]
+    assert len(suggestions) == 1
+    suggestion = suggestions[0]
+    assert suggestion["transactionId"] == owner_transaction["id"]
+    assert suggestion["source"] == "global_model"
+    assert suggestion["modelVersion"] == "tfidf-logreg-v1"
+    assert suggestion["featurePolicy"] == "merchant_descriptor_only_v1"
+    assert suggestion["suggestedCategoryId"] is not None
+    assert suggestion["selectedCategoryId"] == suggestion["suggestedCategoryId"]
+    assert suggestion["accepted"] is True
+    assert suggestion["correctedAt"] is None
+    assert other_transaction["id"] not in response.text
+    assert "suggestion-other@example.com" not in response.text
+
+
 def test_account_deletion_requires_confirmation_and_cascades_all_user_data(
     client: TestClient,
 ) -> None:
     registered = register(client)
     user_id = UUID(str(registered["user"]["id"]))
-    create_transaction(client, "Delete Me Market")
+    create_suggested_transaction(client, "MERCADONA DELETE 3921")
 
     with Session(engine) as db:
+        assert db.scalar(
+            select(func.count()).select_from(CategorySuggestion).where(
+                CategorySuggestion.user_id == user_id
+            )
+        ) == 1
         db.add(
             IntelligenceFinding(
                 user_id=user_id,
@@ -275,6 +329,7 @@ def test_account_deletion_requires_confirmation_and_cascades_all_user_data(
     with Session(engine) as db:
         assert db.get(User, user_id) is None
         assert db.scalar(select(func.count()).select_from(TransactionModel).where(TransactionModel.user_id == user_id)) == 0
+        assert db.scalar(select(func.count()).select_from(CategorySuggestion).where(CategorySuggestion.user_id == user_id)) == 0
         assert db.scalar(select(func.count()).select_from(IntelligenceFinding).where(IntelligenceFinding.user_id == user_id)) == 0
         assert db.scalar(select(func.count()).select_from(IntelligenceScan).where(IntelligenceScan.user_id == user_id)) == 0
         assert db.scalar(select(func.count()).select_from(HistoricalAnalysisSnapshot).where(HistoricalAnalysisSnapshot.user_id == user_id)) == 0
