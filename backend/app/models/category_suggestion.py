@@ -42,7 +42,6 @@ class CategorySuggestion(Base):
         ForeignKey("transactions.id", ondelete="CASCADE"),
         nullable=False,
         unique=True,
-        index=True,
     )
     merchant_key: Mapped[str] = mapped_column(String(160), nullable=False)
     transaction_type: Mapped[str] = mapped_column(String(16), nullable=False)
