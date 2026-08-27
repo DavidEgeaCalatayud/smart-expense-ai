@@ -6,6 +6,11 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ### Added
 
+- User-controlled AI category suggestions in the transaction workflow using the existing merchant-text `tfidf-logreg-v1` classifier, with explicit **Accept** / **Change** controls and no automatic category mutation.
+- Persisted `category_suggestions` feedback capturing user, transaction, canonical merchant, suggestion provenance, model/feature contract, suggested category, selected category and acceptance/correction timestamps.
+- Per-user canonical-merchant personalization that reuses an account's latest compatible category choice before falling back to the global classifier, including account-owned custom categories without adding them to the global model taxonomy.
+- Canonical merchant-group cold-start evaluation with zero train/evaluation merchant-group overlap, plus Brier score, Expected Calibration Error and reliability-bin diagnostics comparing raw, Platt-scaled and isotonic probabilities on separate development splits while keeping the final holdout sealed.
+- Backend, component and Playwright regression coverage for explicit suggestion acceptance/correction, personalized reuse and cross-account isolation.
 - Account-owned custom categories with case-insensitive conflict protection, explicit transaction type, archive/reassign/restore lifecycle and system-category coexistence.
 - Authenticated monthly budgets for overall spending and individual expense categories, persisted with decimal monetary contracts and server-calculated progress.
 - Protected Categories and Budgets frontend workspaces plus component and Playwright regression coverage for category creation and monthly category budgets.
@@ -33,6 +38,10 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ### Changed
 
+- API v2 transaction creation/update now computes suggestion provenance server-side and persists the transaction plus category-feedback record atomically; clients cannot supply or spoof model version, feature policy or suggested category metadata.
+- `scikit-learn` is now a runtime backend dependency because the API serves the category suggestion baseline instead of using the classifier only in development tooling.
+- `privacy-export-v1` now includes account-owned category-suggestion feedback in addition to CSV import batches, custom categories and budgets; account deletion removes the same feedback through database ownership cascades.
+- The category-classifier model card and roadmap now distinguish implemented user-controlled suggestions, synthetic cold-start/calibration diagnostics and still-pending real-world validation before any automatic categorization or confidence display.
 - Category lookup now adds authenticated user-aware resolution alongside the legacy category contracts, preserving existing `list_categories()` / `_get_category()` behavior and legacy unknown-vs-incompatible error semantics.
 - Transaction creation, update and CSV import can resolve active system categories together with the authenticated user's active custom categories.
 - `privacy-export-v1` now includes account-owned custom categories and budgets in addition to CSV import-batch metadata.
