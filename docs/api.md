@@ -1,6 +1,6 @@
 # API contracts
 
-Smart Expense AI exposes versioned application contracts under `/api/v1` and `/api/v2`. `/health` is an infrastructure probe and unversioned `/api/*` application routes are unsupported.
+Smart Expense AI exposes versioned application contracts under `/api/v1` and `/api/v2`. `/health` is an infrastructure probe; unversioned `/api/*` application routes are unsupported.
 
 Stable analytical identifiers are defined in `backend/app/analysis_contracts.py`; see [`analysis-contracts.md`](analysis-contracts.md).
 
@@ -8,10 +8,10 @@ Stable analytical identifiers are defined in `backend/app/analysis_contracts.py`
 
 `/api/v1` remains the compatibility contract. `/api/v2` is the strict financial/product contract used by the web application:
 
-- transaction and budget monetary writes are JSON decimal strings;
+- transaction, budget and forecast money uses decimal strings;
 - financial calculations remain PostgreSQL `NUMERIC` / Python `Decimal`;
 - category suggestions are explicit user-controlled assistance;
-- intelligence, historical evidence and recurring-payment projections remain versioned and explainable.
+- intelligence, historical evidence, recurring-payment projections and month-end forecasts remain versioned and explainable.
 
 Current analytical/model identifiers include:
 
@@ -19,17 +19,14 @@ Current analytical/model identifiers include:
 rules-v2
 historical-v2.2
 recurring-calendar-v1
+spending-forecast-v1
 merchant_mad_plus_extreme_iqr_v1
 lifecycle-v1
 tfidf-logreg-v1
 merchant_descriptor_only_v1
 ```
 
-`tfidf-logreg-v1` is a production **suggestion** model. It is not an automatic categorization contract.
-
 ## Authentication and account controls
-
-Browser sessions use an HttpOnly JWT cookie with issuer/audience/expiry/session-version validation.
 
 Public endpoints:
 
@@ -49,29 +46,11 @@ GET    /api/v1/auth/privacy-export
 DELETE /api/v1/auth/account
 ```
 
-Password changes require the current password, increment the persisted session version and rotate the successful caller's cookie while invalidating older tokens.
+Browser sessions use an HttpOnly JWT cookie with issuer/audience/expiry/session-version validation. Password changes rotate the successful caller's current session and invalidate older session versions.
 
-`GET /api/v1/auth/privacy-export` returns `privacy-export-v1`, scoped to the authenticated user. Persisted collections include:
-
-```text
-account
-transactions
-intelligenceFindings
-intelligenceScans
-historicalAnalysisSnapshots
-importBatches
-customCategories
-budgets
-categorySuggestions
-```
-
-`categorySuggestions` exports the user's persisted suggestion provenance/corrections, including transaction ID, canonical merchant key, source, model/feature contract, suggested/selected category IDs and acceptance/correction timestamps. Cross-account regression tests verify that another user's feedback does not appear in the export.
-
-`DELETE /api/v1/auth/account` requires the current password and exact confirmation `DELETE`. User-owned transactions, imports, categories, budgets, category suggestion feedback and analytical records are removed through their database lifecycle rules, then the authentication cookie is cleared.
+`privacy-export-v1` is scoped to the authenticated user and includes account data, transactions, intelligence findings/scans, historical snapshots, import batches, custom categories, budgets and `categorySuggestions`. Account deletion removes the same user-owned data through database lifecycle rules.
 
 ## Categories
-
-Authenticated v1 category endpoints:
 
 ```text
 GET    /api/v1/categories?includeArchived=false
@@ -81,11 +60,7 @@ POST   /api/v1/categories/{category_id}/archive
 POST   /api/v1/categories/{category_id}/restore
 ```
 
-Seeded system categories are global/read-only. Authenticated users may add account-owned categories. Conflicts are case-insensitive inside the visible category/type namespace.
-
-Archiving supports either preserving historical assignments or reassigning them first to another active visible category of the same transaction type. Archived categories are unavailable for new transaction/category-budget selection until restored.
-
-Legacy category service contracts remain preserved while authenticated transaction/import flows resolve active system + user categories.
+Seeded system categories are global/read-only. Authenticated users may add account-owned categories. Conflicts are case-insensitive inside the visible category/type namespace. Archive/reassign/restore preserves historical integrity and only active visible compatible categories can be selected for new transactions/budgets/imports.
 
 ## API v2 endpoint overview
 
@@ -99,6 +74,7 @@ POST   /api/v2/category-suggestions/preview
 
 GET    /api/v2/analytics/summary
 GET    /api/v2/analytics/monthly-expenses
+GET    /api/v2/analytics/spending-forecast?asOf=YYYY-MM-DD
 
 POST   /api/v2/imports/csv/detect
 POST   /api/v2/imports/csv/preview
@@ -116,12 +92,12 @@ GET    /api/v2/intelligence/findings
 PATCH  /api/v2/intelligence/findings/{finding_id}
 POST   /api/v2/intelligence/historical-analysis?months=12
 GET    /api/v2/intelligence/historical-analysis/latest
-GET    /api/v2/intelligence/upcoming-payments?days=30
+GET    /api/v2/intelligence/upcoming-payments?days=30&asOf=YYYY-MM-DD
 ```
 
 ## Monetary contract
 
-A v2 transaction write uses a decimal string:
+V2 money is a JSON decimal string. A transaction example:
 
 ```json
 {
@@ -139,29 +115,25 @@ A v2 transaction write uses a decimal string:
 `{"amount": 0.1}` is intentionally rejected with `422 validation_error`. Budget writes follow the same rule for `limitAmount`.
 
 ```text
-PostgreSQL NUMERIC(12,2)
+PostgreSQL NUMERIC
         <-> Python Decimal
         <-> API v2 decimal string
-        <-> frontend integer cents
+        <-> frontend integer cents / decimal-string display
 ```
 
 ## Transactions
 
-Transaction GET endpoints are paginated. Defaults are `page=1`, `pageSize=20`, `sort=newest`; `pageSize` is capped at 100.
+GET endpoints are paginated. Defaults are `page=1`, `pageSize=20`, `sort=newest`; `pageSize` is capped at 100. Supported server filters include search, category, status, type, recurring, `dateFrom`, `dateTo` and sort. `dateFrom > dateTo` returns `invalid_date_range`.
 
-Supported server filters include search, category, status, type, recurring, `dateFrom`, `dateTo` and sort. `dateFrom > dateTo` returns `invalid_date_range`.
+Manual v2 create/update preserves the user's explicit category selection. A model suggestion never independently changes `transactions.category_id`.
 
-Manual v2 create/update preserves the user's explicit category selection. A model suggestion never independently modifies `transactions.category_id`.
-
-## Category suggestion and feedback contract
-
-### Preview
+## Category suggestions and feedback
 
 ```text
 POST /api/v2/category-suggestions/preview
 ```
 
-Request:
+Example request:
 
 ```json
 {
@@ -170,78 +142,64 @@ Request:
 }
 ```
 
-Example global response:
+A global response returns category ID/name plus `source=global_model`, `modelVersion=tfidf-logreg-v1` and `featurePolicy=merchant_descriptor_only_v1`. Personalized responses can use prior canonical-merchant feedback from the authenticated user.
 
-```json
-{
-  "categoryId": "...",
-  "categoryName": "Food",
-  "source": "global_model",
-  "modelVersion": "tfidf-logreg-v1",
-  "featurePolicy": "merchant_descriptor_only_v1"
-}
-```
-
-A personalized response uses `source=user_history`, `modelVersion=user-merchant-history-v1` and `featurePolicy=canonical_merchant_feedback_v1`.
-
-The response deliberately contains **no** `confidence`, probability vector or auto-assignment instruction.
-
-### Resolution order
-
-For the authenticated user:
-
-1. normalize/canonicalize merchant identity;
-2. look for the latest prior feedback for the same canonical merchant + transaction type;
-3. reuse the selected category only if it remains active, visible and type-compatible;
-4. otherwise run the global `tfidf-logreg-v1` classifier and choose from active compatible system categories.
-
-The global classifier uses merchant descriptor text only. User-owned categories are learned only through the current user's feedback history, never by mutating the global taxonomy.
-
-### Feedback persistence
-
-The client does not submit authoritative model provenance when a transaction is saved. For a v2 manual create/update, the backend recomputes the applicable suggestion and persists transaction + feedback in the same database transaction.
-
-Persisted feedback includes:
-
-```text
-user_id
-transaction_id
-merchant_key
-transaction_type
-source
-model_version
-feature_policy
-suggested_category_id
-selected_category_id
-accepted
-corrected_at
-created_at
-updated_at
-```
-
-If selected category equals suggested category, `accepted=true` and `corrected_at=null`. Otherwise the selected category becomes a real user correction label for future merchant-history personalization.
-
-Transaction deletion cascades its suggestion feedback. Category references use `SET NULL` so historical feedback does not block category lifecycle operations. Account deletion cascades all user-owned feedback.
-
-### Confidence policy
-
-`CategoryClassifier.predict_with_probabilities()` remains available internally for evaluation/ranking. Raw probabilities are not product confidence.
-
-Current synthetic diagnostics:
-
-```text
-raw       Brier 0.018193   ECE 0.082021
-Platt     Brier 0.008871   ECE 0.004624
-isotonic  Brier 0.009156   ECE 0.004711
-```
-
-These are development diagnostics only. `productConfidenceEnabled=false` remains explicit until representative real labelled data supports a calibration policy.
-
-The canonical merchant-group-disjoint synthetic cold-start evaluation has 382 rows across nine held-out groups with zero group overlap, accuracy `0.400524` and macro-F1 `0.201242`. This is evidence against enabling automatic categorization now, not a production accuracy claim. The 2025 H2 benchmark holdout remains sealed.
+The response contains no confidence or probability vector. Transaction writes recompute suggestion provenance server-side and persist transaction + feedback atomically. `productConfidenceEnabled=false` remains the product policy until representative real labelled calibration exists.
 
 ## Analytics
 
+### Summary and monthly series
+
 `GET /api/v2/analytics/summary` returns exact decimal-string aggregates. `GET /api/v2/analytics/monthly-expenses?months=6` returns a continuous monthly series including zero-value months.
+
+### Month-end spending forecast — `spending-forecast-v1`
+
+```text
+GET /api/v2/analytics/spending-forecast?asOf=YYYY-MM-DD
+```
+
+`asOf` is optional and exists for reproducible evaluation/testing; normal product requests use the server date. Transactions after `asOf` are excluded before any forecast component is calculated.
+
+The response contains:
+
+```text
+forecastVersion
+asOf
+month
+daysInMonth
+elapsedDays
+remainingDays
+spentSoFar
+historicalThreeMonthMean
+backtestCutoffDay
+backtestMonths
+baselines[]
+```
+
+Each baseline contains:
+
+```text
+baseline
+label
+available
+projectedMonthEnd
+differenceFromThreeMonthMean
+assumptions[]
+evidence
+backtest {
+  support
+  cutoffDay
+  mae
+  smapePercent
+  bias
+}
+```
+
+Implemented baselines are `three_month_mean`, `run_rate` and `recurrence_aware`. All monetary fields remain decimal strings. Insufficient history is represented with `available=false` / null estimate rather than future or partial-month backfilling.
+
+Backtesting uses a fixed day-15 chronological cutoff and identical fold support for all baselines. MAE/sMAPE/bias are historical errors, not calibrated confidence. The recurrence-aware baseline reuses qualified `historical-v2.2` / `lifecycle-v1` streams plus `recurring-calendar-v1`, excluding recurring spend already observed from its variable run-rate numerator so charges are counted once.
+
+See [`spending-forecast.md`](spending-forecast.md).
 
 ## Budgets
 
@@ -257,13 +215,11 @@ UNIQUE (user_id, month, category_id)
 WHERE category_id IS NOT NULL
 ```
 
-`month` is `YYYY-MM` at the API boundary and persists as the first day of that month. `limitAmount` must be a positive decimal string. Category budgets may target only visible active expense categories.
-
-Budget progress is calculated from persisted expense transactions. Archived categories retain historical budget visibility but cannot receive new budgets while archived.
+`month` is `YYYY-MM` at the API boundary. `limitAmount` must be a positive decimal string. Category budgets target only visible active expense categories; archived categories retain historical visibility but cannot receive new budgets.
 
 ## Financial intelligence findings
 
-The current persisted actionable engine is `rules-v2`.
+The current persisted actionable engine is `rules-v2`:
 
 ```text
 recurring_pattern
@@ -273,19 +229,11 @@ spending_anomaly
 frequency_anomaly
 ```
 
-Findings are user-scoped and idempotent by stable fingerprint. Review states are `open`, `dismissed` and `resolved`.
-
-`rules-v2` recurrence uses canonical merchant identity and shared recurrence segmentation under `lifecycle-v1`. Amount anomalies use prior-only merchant history with `merchant_mad_plus_extreme_iqr_v1`; category-only history is insufficient for a merchant amount alert. Frequency anomalies compare current counts against prior active-month evidence and rolling seven-day bursts.
+Findings are user-scoped and idempotent by stable fingerprint. Review states are `open`, `dismissed` and `resolved`. Amount anomalies use prior-only canonical-merchant history with `merchant_mad_plus_extreme_iqr_v1`; category-only history is insufficient for a merchant amount alert.
 
 ## Historical analysis
 
-Current new-run diagnostic engine:
-
-```text
-historical-v2.2
-```
-
-Historical analysis is separate from review-state findings and never rewrites transactions. It provides month completeness, complete-month trend, canonical merchant evidence, recurrence segmentation, missed expected payments, prior-only merchant amount outliers, category shifts and coverage metadata. Older persisted snapshot versions remain readable.
+Current new-run diagnostic engine: `historical-v2.2`. Historical analysis is separate from review-state findings and never rewrites transactions. It provides month completeness, complete-month trend, canonical merchant evidence, `lifecycle-v1` recurrence segmentation, missed expected payments, prior-only merchant amount outliers, category shifts and coverage metadata.
 
 ## Upcoming recurring payments
 
@@ -293,33 +241,13 @@ Historical analysis is separate from review-state findings and never rewrites tr
 GET /api/v2/intelligence/upcoming-payments?days=30&asOf=YYYY-MM-DD
 ```
 
-The projection contract is `recurring-calendar-v1`. `days` defaults to 30 and is bounded to 1–90. `asOf` is optional and exists primarily for reproducible evaluation/testing; normal product requests use the server date.
+The projection contract is `recurring-calendar-v1`. `days` defaults to 30 and is bounded to 1–90. All monetary fields are decimal strings. `expectedTotal` sums only future occurrences inside the requested product window; overdue schedules are returned separately.
 
-The response includes:
+Statuses `expected`, `likely`, `price_changed` and `overdue` are deterministic evidence labels, not probabilities. Missing/dormant streams are not automatically rolled forward, while price-continuity streams use the latest observed price regime.
 
-```text
-projectionVersion
-analysisVersion
-asOf
-windowStart
-windowEnd
-days
-expectedTotal
-upcomingCount
-overdueCount
-upcomingPayments[]
-overduePayments[]
-```
+The internal projection primitive also accepts a projection-window start separate from its historical `asOf` cutoff. `spending-forecast-v1` uses that separation to freeze recurrence evidence at the forecast cutoff and project only subsequent dates without same-day double counting.
 
-All monetary fields remain decimal strings. `expectedTotal` sums only future occurrences inside the requested window. Overdue schedules are returned separately and cannot inflate the future total.
-
-Each item exposes expected date/amount, canonical/stream identity, cadence, deterministic status, pattern score, amount stability, history depth, occurrence support, missing-occurrence count, stream basis, price-regime count and lifecycle-reactivation evidence.
-
-Statuses are `expected`, `likely`, `price_changed` and `overdue`. They are deterministic evidence labels, not calibrated probabilities. A missing/dormant stream is never automatically advanced into another future occurrence; new observed activity must re-establish its current schedule. Price-continuity streams use the latest observed price regime for the projected amount.
-
-See [`upcoming-payments.md`](upcoming-payments.md) for projection semantics.
-
-See [`historical-analysis.md`](historical-analysis.md), [`analysis-contracts.md`](analysis-contracts.md), [`evaluation-protocol.md`](evaluation-protocol.md) and [`occurrence-evaluation.md`](occurrence-evaluation.md).
+See [`upcoming-payments.md`](upcoming-payments.md).
 
 ## Error contract
 
