@@ -1,15 +1,22 @@
 from datetime import datetime, timezone
 
 from sqlalchemy import select
-from sqlalchemy.orm import Session
+from sqlalchemy.orm import Session, joinedload
 
 from app.core.security import hash_password, verify_password
+from app.models.budget import Budget
+from app.models.category import Category
 from app.models.historical_analysis import HistoricalAnalysisSnapshot
 from app.models.import_batch import ImportBatch
 from app.models.intelligence import IntelligenceFinding, IntelligenceScan
 from app.models.transaction import Transaction
 from app.models.user import User
-from app.privacy_schemas import PrivacyExportImportBatch, PrivacyExportResponseWithImports
+from app.privacy_schemas import (
+    PrivacyExportBudget,
+    PrivacyExportCustomCategory,
+    PrivacyExportImportBatch,
+    PrivacyExportResponseWithImports,
+)
 from app.schemas import (
     PrivacyExportAccount,
     PrivacyExportFinding,
@@ -64,6 +71,17 @@ def build_privacy_export(db: Session, user: User) -> PrivacyExportResponseWithIm
         select(ImportBatch)
         .where(ImportBatch.user_id == user.id)
         .order_by(ImportBatch.created_at.asc(), ImportBatch.id.asc())
+    ).all()
+    custom_categories = db.scalars(
+        select(Category)
+        .where(Category.owner_user_id == user.id)
+        .order_by(Category.created_at.asc(), Category.id.asc())
+    ).all()
+    budgets = db.scalars(
+        select(Budget)
+        .options(joinedload(Budget.category))
+        .where(Budget.user_id == user.id)
+        .order_by(Budget.month.asc(), Budget.created_at.asc(), Budget.id.asc())
     ).all()
 
     return PrivacyExportResponseWithImports(
@@ -144,6 +162,28 @@ def build_privacy_export(db: Session, user: User) -> PrivacyExportResponseWithIm
                 createdAt=batch.created_at,
             )
             for batch in import_batches
+        ],
+        customCategories=[
+            PrivacyExportCustomCategory(
+                id=str(category.id),
+                name=category.name,
+                transactionType=category.transaction_type,
+                archived=category.archived,
+                createdAt=category.created_at,
+            )
+            for category in custom_categories
+        ],
+        budgets=[
+            PrivacyExportBudget(
+                id=str(budget.id),
+                month=budget.month.strftime("%Y-%m"),
+                categoryId=str(budget.category_id) if budget.category_id else None,
+                categoryName=budget.category.name if budget.category else None,
+                limitAmount=f"{budget.limit_amount:.2f}",
+                createdAt=budget.created_at,
+                updatedAt=budget.updated_at,
+            )
+            for budget in budgets
         ],
     )
 

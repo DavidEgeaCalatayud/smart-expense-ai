@@ -22,6 +22,7 @@ from app.schemas import (
     TransactionType,
     TransactionUpdate,
 )
+from app.services.category_service import find_active_visible_categories_by_name
 
 
 MONEY_CENT = Decimal("0.01")
@@ -69,6 +70,32 @@ def _get_category(
         )
 
     return category
+
+
+def _get_visible_category(
+    db: Session,
+    user_id: UUID,
+    category_name: str,
+    transaction_type: TransactionType,
+) -> Category:
+    candidates = find_active_visible_categories_by_name(db, user_id, category_name)
+    if not candidates:
+        raise TransactionInputError(f"Unknown category: {category_name}")
+
+    matching = next(
+        (
+            category
+            for category in candidates
+            if category.transaction_type == transaction_type.value
+        ),
+        None,
+    )
+    if matching is None:
+        raise TransactionInputError(
+            f"Category {category_name} is not valid for {transaction_type.value} transactions"
+        )
+
+    return matching
 
 
 def _as_decimal(value: object) -> Decimal:
@@ -217,11 +244,27 @@ def summarize_transactions(
     row = db.execute(
         select(
             func.coalesce(
-                func.sum(case((TransactionModel.transaction_type == "income", TransactionModel.amount), else_=0)),
+                func.sum(
+                    case(
+                        (
+                            TransactionModel.transaction_type == "income",
+                            TransactionModel.amount,
+                        ),
+                        else_=0,
+                    )
+                ),
                 0,
             ),
             func.coalesce(
-                func.sum(case((TransactionModel.transaction_type == "expense", TransactionModel.amount), else_=0)),
+                func.sum(
+                    case(
+                        (
+                            TransactionModel.transaction_type == "expense",
+                            TransactionModel.amount,
+                        ),
+                        else_=0,
+                    )
+                ),
                 0,
             ),
             func.sum(case((TransactionModel.is_recurring.is_(True), 1), else_=0)),
@@ -257,7 +300,9 @@ def monthly_expenses(
         year -= 1
     start_month = date(year, month, 1)
 
-    month_key = func.to_char(func.date_trunc("month", TransactionModel.transaction_date), "YYYY-MM")
+    month_key = func.to_char(
+        func.date_trunc("month", TransactionModel.transaction_date), "YYYY-MM"
+    )
     rows = db.execute(
         select(month_key, func.sum(TransactionModel.amount))
         .where(
@@ -284,7 +329,7 @@ def monthly_expenses(
 
 
 def create_transaction(db: Session, user_id: UUID, payload: TransactionCreate) -> Transaction:
-    category = _get_category(db, payload.category, payload.type)
+    category = _get_visible_category(db, user_id, payload.category, payload.type)
     transaction = TransactionModel(
         user_id=user_id,
         category=category,
@@ -326,7 +371,12 @@ def update_transaction(
     if transaction is None:
         return None
 
-    transaction.category = _get_category(db, payload.category, payload.type)
+    transaction.category = _get_visible_category(
+        db,
+        user_id,
+        payload.category,
+        payload.type,
+    )
     transaction.merchant = payload.merchant
     transaction.description = payload.description
     transaction.amount = payload.amount

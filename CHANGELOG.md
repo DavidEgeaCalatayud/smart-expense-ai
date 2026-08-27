@@ -6,6 +6,10 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ### Added
 
+- Account-owned custom categories with case-insensitive conflict protection, explicit transaction type, archive/reassign/restore lifecycle and system-category coexistence.
+- Authenticated monthly budgets for overall spending and individual expense categories, persisted with decimal monetary contracts and server-calculated progress.
+- Protected Categories and Budgets frontend workspaces plus component and Playwright regression coverage for category creation and monthly category budgets.
+- Privacy export coverage for custom categories and budgets so newly persisted account-owned planning data remains portable and isolated.
 - Central analysis/model contract registry in `backend/app/analysis_contracts.py` for current engine versions and named strategy identifiers.
 - Documentation consistency coverage that prevents current analysis contracts from silently drifting away from implementation.
 - MIT license granting explicit reuse, modification and distribution rights.
@@ -29,6 +33,9 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ### Changed
 
+- Category lookup now adds authenticated user-aware resolution alongside the legacy category contracts, preserving existing `list_categories()` / `_get_category()` behavior and legacy unknown-vs-incompatible error semantics.
+- Transaction creation, update and CSV import can resolve active system categories together with the authenticated user's active custom categories.
+- `privacy-export-v1` now includes account-owned custom categories and budgets in addition to CSV import-batch metadata.
 - `README.md`, `ROADMAP.md`, API, testing and engine documentation now share the same current analytical identifiers.
 - Historical-analysis documentation now treats `historical-v2.2` as the current persisted diagnostic engine and `lifecycle-v1` as the current recurrence segmentation contract.
 - Actionable, historical and API amount-anomaly documentation now reflects the shared `merchant_mad_plus_extreme_iqr_v1` merchant-only baseline introduced by PR #42.
