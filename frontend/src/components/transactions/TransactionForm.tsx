@@ -1,32 +1,53 @@
-import { Check, LoaderCircle, Plus, X } from 'lucide-react';
-import type { FormEvent } from 'react';
-import type { TransactionCategory, TransactionFormValues } from '../../types/transactions';
+import { Check, LoaderCircle, Plus, Sparkles, X } from 'lucide-react';
+import { useRef, type FormEvent } from 'react';
+import type {
+  CategorySuggestionPreview,
+  TransactionCategory,
+  TransactionFormValues,
+} from '../../types/transactions';
 
 interface TransactionFormProps {
   categories: TransactionCategory[];
   values: TransactionFormValues;
+  suggestion?: CategorySuggestionPreview | null;
   isEditing?: boolean;
   isSubmitting?: boolean;
+  isSuggesting?: boolean;
   onChange: (values: TransactionFormValues) => void;
   onSubmit: () => void;
+  onRequestSuggestion?: () => void;
+  onAcceptSuggestion?: () => void;
+  onDismissSuggestion?: () => void;
   onCancelEdit?: () => void;
 }
 
 export function TransactionForm({
   categories,
   values,
+  suggestion = null,
   isEditing = false,
   isSubmitting = false,
+  isSuggesting = false,
   onChange,
   onSubmit,
+  onRequestSuggestion,
+  onAcceptSuggestion,
+  onDismissSuggestion,
   onCancelEdit,
 }: TransactionFormProps) {
+  const categorySelectRef = useRef<HTMLSelectElement>(null);
+
   const handleSubmit = (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
 
     if (!isSubmitting) {
       onSubmit();
     }
+  };
+
+  const chooseAnotherCategory = () => {
+    onDismissSuggestion?.();
+    categorySelectRef.current?.focus();
   };
 
   return (
@@ -80,6 +101,58 @@ export function TransactionForm({
           />
         </label>
 
+        {!isEditing && onRequestSuggestion && (
+          <div className="md:col-span-2">
+            {suggestion ? (
+              <section
+                aria-label="AI category suggestion"
+                className="rounded-2xl border border-brand-100 bg-brand-50 p-4"
+              >
+                <div className="flex items-start gap-3">
+                  <Sparkles size={18} className="mt-0.5 shrink-0 text-brand-600" />
+                  <div className="min-w-0 flex-1">
+                    <p className="text-xs font-semibold uppercase tracking-wide text-brand-700">
+                      Suggested category
+                    </p>
+                    <p className="mt-1 text-base font-bold text-slate-950">{suggestion.categoryName}</p>
+                    <p className="mt-1 text-xs text-slate-600">
+                      {suggestion.source === 'user_history'
+                        ? 'Based on how you categorized this merchant before.'
+                        : 'AI suggestion based on the merchant text.'}
+                    </p>
+                    <div className="mt-3 flex flex-wrap gap-2">
+                      <button
+                        type="button"
+                        onClick={onAcceptSuggestion}
+                        className="rounded-xl bg-slate-950 px-3 py-2 text-xs font-semibold text-white hover:bg-slate-800"
+                      >
+                        Accept
+                      </button>
+                      <button
+                        type="button"
+                        onClick={chooseAnotherCategory}
+                        className="rounded-xl border border-slate-200 bg-white px-3 py-2 text-xs font-semibold text-slate-700 hover:bg-slate-50"
+                      >
+                        Change
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              </section>
+            ) : (
+              <button
+                type="button"
+                onClick={onRequestSuggestion}
+                disabled={isSuggesting || values.merchant.trim().length === 0}
+                className="inline-flex items-center gap-2 rounded-2xl border border-brand-100 bg-brand-50 px-4 py-2.5 text-sm font-semibold text-brand-700 transition hover:bg-brand-100 disabled:cursor-not-allowed disabled:opacity-50"
+              >
+                {isSuggesting ? <LoaderCircle size={16} className="animate-spin" /> : <Sparkles size={16} />}
+                {isSuggesting ? 'Finding suggestion...' : 'Suggest category'}
+              </button>
+            )}
+          </div>
+        )}
+
         <label className="space-y-2 md:col-span-2">
           <span className="text-sm font-semibold text-slate-700">Description</span>
           <input
@@ -93,6 +166,7 @@ export function TransactionForm({
         <label className="space-y-2">
           <span className="text-sm font-semibold text-slate-700">Category</span>
           <select
+            ref={categorySelectRef}
             value={values.category}
             onChange={(event) => onChange({ ...values, category: event.target.value })}
             className="w-full rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm outline-none transition focus:border-brand-500 focus:ring-4 focus:ring-brand-50"

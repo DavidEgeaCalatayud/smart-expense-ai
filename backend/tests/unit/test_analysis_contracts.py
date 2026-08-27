@@ -46,6 +46,7 @@ def test_current_technical_documentation_matches_contract_registry() -> None:
         "architecture": _read("docs/ARCHITECTURE.md"),
         "data_model": _read("docs/DATA_MODEL.md"),
         "product": _read("docs/PRODUCT_SPEC.md"),
+        "classifier": _read("ai/category-classifier/README.md"),
     }
 
     for value in (
@@ -65,14 +66,21 @@ def test_current_technical_documentation_matches_contract_registry() -> None:
     assert AMOUNT_ANOMALY_POLICY in documents["intelligence"]
     assert HISTORICAL_ANALYSIS_VERSION in documents["api"]
     assert AMOUNT_ANOMALY_POLICY in documents["api"]
+    assert CATEGORY_CLASSIFIER_VERSION in documents["api"]
+    assert "category-suggestions/preview" in documents["api"]
+    assert "categorySuggestions" in documents["api"]
     assert ACTIONABLE_RULES_VERSION in documents["testing"]
     assert HISTORICAL_ANALYSIS_VERSION in documents["testing"]
+    assert "merchant-group" in documents["testing"]
     assert HISTORICAL_ANALYSIS_VERSION in documents["architecture"]
     assert ACTIONABLE_RULES_VERSION in documents["architecture"]
-    assert "intelligence_findings" in documents["data_model"]
-    assert "historical_analysis_snapshots" in documents["data_model"]
+    assert "category suggestion" in documents["architecture"].lower()
+    assert "category_suggestions" in documents["data_model"]
+    assert "budgets" in documents["data_model"]
     assert ACTIONABLE_RULES_VERSION in documents["product"]
     assert HISTORICAL_ANALYSIS_VERSION in documents["product"]
+    assert "user-controlled category suggestions" in documents["product"].lower()
+    assert "productConfidenceEnabled=false" in documents["classifier"]
 
     stale_claims = (
         "new runs create `historical-v2.1` snapshots",
@@ -83,10 +91,15 @@ def test_current_technical_documentation_matches_contract_registry() -> None:
         "category fallback can compare heterogeneous purchases",
         "category history is used only when canonical merchant history is insufficient",
         "chronological robust outliers with merchant/category baselines",
+        "currently an offline evaluated model",
+        "offline evaluated model and is **not** loaded",
+        "offline category classifier boundary",
+        "custom user-managed category crud is not implemented yet",
+        "the offline `tfidf-logreg-v1` category classifier",
     )
-    combined = "\n".join(documents.values())
+    combined = "\n".join(documents.values()).lower()
     for claim in stale_claims:
-        assert claim not in combined
+        assert claim.lower() not in combined
 
     assert "Suggested fields" not in documents["data_model"]
     assert "Simple prediction based on historical average" not in documents["product"]
@@ -101,6 +114,9 @@ def test_repository_metadata_and_primary_docs_reference_project_governance_files
     assert "docs/analysis-contracts.md" in readme
     assert "CHANGELOG.md" in readme
     assert "LICENSE" in readme
+    assert "category-suggestions/preview" in readme
+    assert "productConfidenceEnabled=false" in readme
     assert "analysis_contracts.py" in roadmap
+    assert "category-suggestion feedback" in roadmap
     assert "CHANGELOG.md" in roadmap
     assert "LICENSE" in roadmap
