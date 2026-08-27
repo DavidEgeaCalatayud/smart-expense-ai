@@ -69,6 +69,13 @@ async function getTransactionCards() {
   return cards;
 }
 
+function getTransactionForm() {
+  const heading = screen.getByRole('heading', { name: 'Add transaction' });
+  const form = heading.closest('form');
+  expect(form).not.toBeNull();
+  return form as HTMLFormElement;
+}
+
 describe('TransactionsPage', () => {
   beforeEach(() => {
     vi.clearAllMocks();
@@ -103,11 +110,13 @@ describe('TransactionsPage', () => {
     render(<TransactionsPage />);
     await getTransactionCards();
 
-    const categorySelect = screen.getByLabelText('Category') as HTMLSelectElement;
+    const transactionForm = getTransactionForm();
+    const form = within(transactionForm);
+    const categorySelect = form.getByRole('combobox', { name: 'Category' }) as HTMLSelectElement;
     expect(categorySelect.value).toBe('Food');
 
-    fireEvent.change(screen.getByLabelText('Merchant'), { target: { value: 'Amazon' } });
-    fireEvent.click(screen.getByRole('button', { name: 'Suggest category' }));
+    fireEvent.change(form.getByLabelText('Merchant'), { target: { value: 'Amazon' } });
+    fireEvent.click(form.getByRole('button', { name: 'Suggest category' }));
 
     await waitFor(() => expect(previewCategorySuggestion).toHaveBeenCalledWith('Amazon', 'expense'));
     const suggestion = await screen.findByRole('region', { name: 'AI category suggestion' });
