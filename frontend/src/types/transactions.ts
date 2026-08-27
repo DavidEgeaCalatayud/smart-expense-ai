@@ -13,6 +13,14 @@ export interface TransactionCategory {
   transactionCount?: number;
 }
 
+export interface CategorySuggestionPreview {
+  categoryId: string;
+  categoryName: string;
+  source: 'user_history' | 'global_model';
+  modelVersion: string;
+  featurePolicy: string;
+}
+
 export interface DetailedTransaction {
   id: string;
   merchant: string;
