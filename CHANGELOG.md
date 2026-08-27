@@ -6,10 +6,11 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ### Added
 
-- User-controlled AI category suggestions in the transaction workflow using the existing merchant-text `tfidf-logreg-v1` classifier, with explicit **Accept** / **Change** controls and no automatic category mutation.
+- User-controlled AI category suggestions in the transaction workflow using `tfidf-logreg-v1`, with explicit **Accept** / **Change** controls and no automatic category mutation.
 - Persisted `category_suggestions` feedback capturing user, transaction, canonical merchant, suggestion provenance, model/feature contract, suggested category, selected category and acceptance/correction timestamps.
 - Per-user canonical-merchant personalization that reuses an account's latest compatible category choice before falling back to the global classifier, including account-owned custom categories without adding them to the global model taxonomy.
 - Canonical merchant-group cold-start evaluation with zero train/evaluation merchant-group overlap, plus Brier score, Expected Calibration Error and reliability-bin diagnostics comparing raw, Platt-scaled and isotonic probabilities on separate development splits while keeping the final holdout sealed.
+- Explicit privacy/account-lifecycle regressions proving `categorySuggestions` is exported only for the owning account and removed by account deletion.
 - Backend, component and Playwright regression coverage for explicit suggestion acceptance/correction, personalized reuse and cross-account isolation.
 - Account-owned custom categories with case-insensitive conflict protection, explicit transaction type, archive/reassign/restore lifecycle and system-category coexistence.
 - Authenticated monthly budgets for overall spending and individual expense categories, persisted with decimal monetary contracts and server-calculated progress.
@@ -39,27 +40,24 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 ### Changed
 
 - API v2 transaction creation/update now computes suggestion provenance server-side and persists the transaction plus category-feedback record atomically; clients cannot supply or spoof model version, feature policy or suggested category metadata.
-- `scikit-learn` is now a runtime backend dependency because the API serves the category suggestion baseline instead of using the classifier only in development tooling.
+- `scikit-learn` is now a runtime backend dependency and `backend/ml` is packaged in the backend Docker image because FastAPI serves the category suggestion baseline.
 - `privacy-export-v1` now includes account-owned category-suggestion feedback in addition to CSV import batches, custom categories and budgets; account deletion removes the same feedback through database ownership cascades.
-- The category-classifier model card and roadmap now distinguish implemented user-controlled suggestions, synthetic cold-start/calibration diagnostics and still-pending real-world validation before any automatic categorization or confidence display.
-- Category lookup now adds authenticated user-aware resolution alongside the legacy category contracts, preserving existing `list_categories()` / `_get_category()` behavior and legacy unknown-vs-incompatible error semantics.
+- Category-classifier evaluation is now `category-classifier-evaluation-v2`, adding a 382-row / nine-group canonical merchant cold-start slice with zero group overlap and raw/Platt/isotonic calibration diagnostics while retaining the sealed 2025 H2 holdout.
+- The model card, README, architecture, API, data-model, testing and roadmap documentation now describe the implemented suggestion/feedback runtime rather than an offline-only classifier.
+- Category lookup adds authenticated user-aware resolution alongside the legacy category contracts, preserving existing `list_categories()` / `_get_category()` behavior and legacy unknown-vs-incompatible error semantics.
 - Transaction creation, update and CSV import can resolve active system categories together with the authenticated user's active custom categories.
-- `privacy-export-v1` now includes account-owned custom categories and budgets in addition to CSV import-batch metadata.
-- `README.md`, `ROADMAP.md`, API, testing and engine documentation now share the same current analytical identifiers.
-- Historical-analysis documentation now treats `historical-v2.2` as the current persisted diagnostic engine and `lifecycle-v1` as the current recurrence segmentation contract.
-- Actionable, historical and API amount-anomaly documentation now reflects the shared `merchant_mad_plus_extreme_iqr_v1` merchant-only baseline introduced by PR #42.
-- Architecture documentation now describes the implemented React/FastAPI/PostgreSQL/`rules-v2`/`historical-v2.2`/offline-ML system instead of the original proposed MVP architecture.
-- Data-model documentation now describes the actual persisted `users`, `categories`, `transactions`, `intelligence_findings`, `intelligence_scans` and `historical_analysis_snapshots` schema rather than speculative future entities.
-- Product documentation now distinguishes implemented behavior from future roadmap capabilities such as forecasting, bank integrations and production automatic categorization.
+- `privacy-export-v1` includes account-owned custom categories and budgets in addition to CSV import-batch metadata.
+- Historical-analysis documentation treats `historical-v2.2` as the current persisted diagnostic engine and `lifecycle-v1` as the current recurrence segmentation contract.
+- Actionable, historical and API amount-anomaly documentation reflects the shared `merchant_mad_plus_extreme_iqr_v1` merchant-only baseline.
 - Current strategy identifiers are consumed from the central registry by their owning implementations.
-- The FastAPI application version is centralized in `backend/app/version.py`; the application and CI import smoke check consume the same `APP_VERSION` instead of maintaining independent version literals.
-- The transaction list now switches at the desktop breakpoint from cards to the existing dense table without changing server-side filters, pagination or mutation handlers.
-- Production-readiness tracking now distinguishes completed application dependency SBOM generation from pending container image scanning/image-level SBOM work.
-- `privacy-export-v1` now includes account-owned CSV import batch metadata so ingestion history follows the same portability/isolation guarantees as other persisted user data.
-- README and roadmap now present CSV historical import as an implemented product capability while keeping direct bank APIs and multi-currency/FX accounting explicitly future work.
+- The FastAPI application version is centralized in `backend/app/version.py`; the application and CI import smoke check consume the same `APP_VERSION`.
+- The transaction list switches at the desktop breakpoint from cards to the existing dense table without changing server-side filters, pagination or mutation handlers.
+- Production-readiness tracking distinguishes completed application dependency SBOM generation from pending container image scanning/image-level SBOM work.
+- README and roadmap present CSV historical import as implemented while keeping direct bank APIs and multi-currency/FX accounting future work.
 
 ### Removed
 
+- Obsolete documentation that described `tfidf-logreg-v1` as offline-only or unavailable to the production Compose/API runtime.
 - Obsolete documentation claiming that `rules-v2` or `historical-v2.2` falls back to category history when merchant history is insufficient for amount-anomaly detection.
 - Obsolete wording that presented `historical-v2.1` as the current historical engine.
 - Proposed `Merchant`, `RecurringExpense`, `Alert` and `Insight` persistence models from the current-data-model document; those concepts are not standalone current tables.
