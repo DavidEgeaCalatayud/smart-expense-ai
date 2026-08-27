@@ -1,0 +1,62 @@
+name: Spending forecast benchmark
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: spending-forecast-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  forecast-benchmark:
+    name: Deterministic forecast benchmark
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: backend
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
+        with:
+          python-version: '3.12'
+          cache: pip
+          cache-dependency-path: |
+            backend/requirements.txt
+            backend/requirements-dev.txt
+      - name: Install backend dependencies
+        run: pip install -r requirements.txt -r requirements-dev.txt
+      - name: Run deterministic spending forecast benchmark
+        run: python scripts/evaluate_spending_forecast.py --output /tmp/spending-forecast.json > /dev/null
+      - name: Verify benchmark contract
+        run: |
+          python - <<'PY'
+          import json
+          from decimal import Decimal
+          from pathlib import Path
+
+          report = json.loads(Path('/tmp/spending-forecast.json').read_text())
+          assert report['reportVersion'] == 'spending-forecast-benchmark-v1'
+          assert report['forecastVersion'] == 'spending-forecast-v1'
+          assert report['cutoffDay'] == 15
+          assert report['commonSupport'] >= 12
+          assert set(report['metrics']) == {
+              'three_month_mean',
+              'run_rate',
+              'recurrence_aware',
+          }
+          supports = {row['support'] for row in report['metrics'].values()}
+          assert supports == {report['commonSupport']}
+          assert Decimal(report['metrics']['three_month_mean']['mae']) == Decimal('0.00')
+          assert (
+              Decimal(report['metrics']['recurrence_aware']['mae'])
+              < Decimal(report['metrics']['run_rate']['mae'])
+          )
+          assert report['promotionGate']['sameFoldSupportRequired'] is True
+          print(json.dumps(report, indent=2, sort_keys=True))
+          PY
