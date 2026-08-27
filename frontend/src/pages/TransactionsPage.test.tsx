@@ -70,10 +70,7 @@ async function getTransactionCards() {
 }
 
 function getTransactionForm() {
-  const heading = screen.getByRole('heading', { name: 'Add transaction' });
-  const form = heading.closest('form');
-  expect(form).not.toBeNull();
-  return form as HTMLFormElement;
+  return screen.getByRole('form', { name: 'Add transaction form' });
 }
 
 describe('TransactionsPage', () => {
@@ -104,6 +101,35 @@ describe('TransactionsPage', () => {
     expect(fetchTransactionSummary).toHaveBeenCalledOnce();
     expect(screen.getAllByRole('option', { name: 'Food' })).toHaveLength(2);
     expect(screen.getByText(/Showing/)).toHaveTextContent('1–1 of 1');
+  });
+
+  it('preserves in-progress input when category initialization resolves late', async () => {
+    let resolveCategories!: (value: TransactionCategory[]) => void;
+    vi.mocked(fetchCategories).mockReturnValue(
+      new Promise<TransactionCategory[]>((resolve) => {
+        resolveCategories = resolve;
+      }),
+    );
+
+    render(<TransactionsPage />);
+    await getTransactionCards();
+
+    const form = within(getTransactionForm());
+    const merchantInput = form.getByLabelText('Merchant') as HTMLInputElement;
+    const amountInput = form.getByRole('spinbutton', { name: 'Amount' }) as HTMLInputElement;
+
+    fireEvent.change(merchantInput, { target: { value: 'Early merchant input' } });
+    fireEvent.change(amountInput, { target: { value: '19.95' } });
+    expect(merchantInput.value).toBe('Early merchant input');
+    expect(amountInput.value).toBe('19.95');
+
+    resolveCategories(categories);
+
+    await waitFor(() =>
+      expect(form.getByRole('combobox', { name: 'Category' })).toHaveValue('Food'),
+    );
+    expect(merchantInput.value).toBe('Early merchant input');
+    expect(amountInput.value).toBe('19.95');
   });
 
   it('shows an AI suggestion without applying it until the user accepts', async () => {
