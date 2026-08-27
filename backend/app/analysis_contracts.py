@@ -9,6 +9,7 @@ so they cannot silently diverge between engines.
 ACTIONABLE_RULES_VERSION = "rules-v2"
 HISTORICAL_ANALYSIS_VERSION = "historical-v2.2"
 UPCOMING_PAYMENTS_VERSION = "recurring-calendar-v1"
+SPENDING_FORECAST_VERSION = "spending-forecast-v1"
 
 AMOUNT_ANOMALY_POLICY = "merchant_mad_plus_extreme_iqr_v1"
 
@@ -29,5 +30,6 @@ __all__ = [
     "HISTORICAL_ANALYSIS_VERSION",
     "RECURRENCE_SEGMENTATION_STRATEGY",
     "RECURRENCE_SEGMENTATION_VERSION",
+    "SPENDING_FORECAST_VERSION",
     "UPCOMING_PAYMENTS_VERSION",
 ]

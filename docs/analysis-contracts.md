@@ -15,6 +15,7 @@ Documentation explains identifiers but must not invent different current values.
 | Actionable findings engine | `rules-v2` | `backend/app/services/intelligence_rules_v2.py` |
 | Historical analysis engine | `historical-v2.2` | `backend/app/services/historical_analysis_v2_2.py` |
 | Upcoming recurring-payment projection | `recurring-calendar-v1` | `backend/app/services/upcoming_payments.py`, Predictions workspace |
+| Month-end spending forecast | `spending-forecast-v1` | `backend/app/services/spending_forecast.py`, Predictions workspace, forecast benchmark |
 | Amount anomaly baseline | `merchant_mad_plus_extreme_iqr_v1` | shared amount-anomaly service |
 | Recurrence segmentation strategy | `canonical_merchant_then_lifecycle_then_price_continuity_then_descriptor_amount_then_temporal_phase` | `historical-v2.2` recurrence metadata |
 | Recurrence segmentation version | `lifecycle-v1` | `historical-v2.2` recurrence metadata |
@@ -64,6 +65,22 @@ Future statuses are deterministic evidence categories (`expected`, `likely`, `pr
 
 Price-continuity streams use the latest observed price regime for their next expected amount. Monthly/quarterly/yearly projection preserves month-end schedules; weekly/biweekly schedules preserve the learned day cadence.
 
+## Spending forecast contract
+
+`spending-forecast-v1` is the deterministic overall month-end expense forecast contract. It exposes three transparent baselines rather than one opaque prediction:
+
+```text
+previous three complete months mean
+current-month calendar-day run rate
+recurrence-aware variable run rate + recurring-calendar-v1 future occurrences
+```
+
+All forecast money uses `Decimal` and v2 decimal strings. Transactions after the requested `asOf` date are excluded from every calculation. The recurrence-aware path identifies already-observed recurring transactions through qualified `historical-v2.2` / `lifecycle-v1` streams, removes them from the variable numerator, and adds future occurrences through `recurring-calendar-v1` only once.
+
+Walk-forward backtesting uses a fixed day-15 cutoff and scores all baselines on identical chronological folds/support with MAE, sMAPE and signed bias. These error metrics are historical diagnostics, not probabilities or calibrated confidence.
+
+A future forecasting ML challenger is eligible for product promotion only after causal evaluation on the same folds/support demonstrates consistent improvement over transparent baselines. See [`spending-forecast.md`](spending-forecast.md).
+
 ## Category classifier contract
 
 Current supervised classifier:
@@ -98,6 +115,7 @@ A version identifier changes when externally meaningful behavior/evidence change
 - actionable finding semantics -> new `rules-*`;
 - historical output/segmentation semantics -> new `historical-*`;
 - recurring-payment projection semantics -> new `recurring-calendar-*`;
+- month-end forecast baseline/backtest semantics -> new `spending-forecast-*`;
 - material amount-anomaly policy changes -> new policy identifier;
 - category model pipeline/features -> new model and/or feature-policy identifier.
 
@@ -111,7 +129,7 @@ When a current contract changes:
 2. update owning implementation/tests;
 3. update this document plus relevant engine/model documentation;
 4. align `README.md` / `ROADMAP.md` / `CHANGELOG.md` when product state changes;
-5. run applicable financial/category benchmarks with holdout discipline preserved;
+5. run applicable financial/category/forecast benchmarks with holdout/causality discipline preserved;
 6. merge only after full CI is green.
 
 `backend/tests/unit/test_analysis_contracts.py` protects aliases and key documentation assertions so critical version/policy drift fails CI.

@@ -24,6 +24,7 @@ FastAPI
   +---------------- rules-v2 actionable findings
   +---------------- historical-v2.2 persisted diagnostics
   +---------------- recurring-calendar-v1 upcoming-payment projection
+  +---------------- spending-forecast-v1 deterministic month-end projection
   |
   v
 SQLAlchemy 2
@@ -34,15 +35,15 @@ PostgreSQL 16
 Evaluation / ML evidence
   |
   +---------------- financial-benchmark-v1
+  +---------------- spending-forecast-benchmark-v1
   +---------------- chronological evaluation harnesses
-  +---------------- merchant-group cold-start evaluation
-  +---------------- probability calibration diagnostics
+  +---------------- merchant-group cold-start / calibration diagnostics
   +---------------- private-real-data-v1 local aggregate evaluator
 ```
 
-The `tfidf-logreg-v1` classifier is loaded by the production backend as a **suggestion** layer. It never silently assigns a category and it does not expose an uncalibrated confidence score to the product.
+The `tfidf-logreg-v1` classifier is loaded by the production backend as a **suggestion** layer. It never silently assigns a category and does not expose uncalibrated confidence.
 
-The private real-data evaluator is **not** part of the production request path. It is a local/offline evaluation tool that reuses production classifier/rule/historical implementations while keeping private financial files outside Git and CI.
+The private real-data evaluator and forecast benchmark are evaluation paths, not additional financial sources of truth.
 
 ## Repository layout
 
@@ -55,33 +56,38 @@ smart-expense-ai/
 │   ├── app/
 │   │   ├── models/             # SQLAlchemy models
 │   │   ├── routers/            # FastAPI routes
-│   │   ├── services/           # business, projection, suggestion and intelligence services
+│   │   ├── services/           # business/projection/intelligence services
 │   │   ├── analysis_contracts.py
 │   │   └── main.py
 │   ├── ml/                     # runtime classifier + evaluation helpers
 │   ├── benchmark/              # deterministic benchmark generation
 │   ├── datasets/
-│   ├── scripts/
-│   ├── private_evaluation.py   # aggregate-only local/private evaluator
+│   ├── scripts/                # historical/private/forecast evaluators
 │   └── tests/
-├── data/private/               # ignored local financial evaluation data; README only tracked
+├── data/private/               # ignored local financial evaluation data
 ├── ai/                         # model cards / ML evidence documentation
 ├── docs/
+├── .github/workflows/
 ├── compose.yaml
-├── SECURITY.md
 ├── ROADMAP.md
 ├── CHANGELOG.md
+├── SECURITY.md
 ├── LICENSE
 └── README.md
 ```
 
 ## Frontend
 
-The React/TypeScript frontend is served by Nginx. Responsibilities include authentication/session UX, transaction/category/budget/import workflows, category suggestion controls, Financial Intelligence review, Historical Analysis visualization, recurring-payment/calendar presentation, typed API errors and fixed-point monetary presentation.
+The React/TypeScript frontend is served by Nginx. Responsibilities include authentication/session UX, transaction/category/budget/import workflows, category suggestion controls, Financial Intelligence review, Historical Analysis visualization, Predictions and typed API/error presentation.
 
-Category suggestions are explicit user controls. The form can request a suggestion and show `Accept` / `Change`, but the selected category is not changed until the user acts.
+The **Predictions** workspace consumes two server-authoritative projections:
 
-The **Predictions** workspace consumes `recurring-calendar-v1` from the backend. It does not reproduce recurrence rules in the browser; grouping/formatting is client-side while schedule generation, status and amounts remain server-authoritative.
+```text
+recurring-calendar-v1 -> upcoming recurring charges / overdue schedules
+spending-forecast-v1  -> month-end baselines + walk-forward error evidence
+```
+
+The browser groups/formats results but does not reproduce recurrence detection, forecast arithmetic or backtesting logic. Forecast cards expose assumptions and MAE/sMAPE/bias rather than a bare number or fake confidence.
 
 ## Edge / reverse proxy
 
@@ -99,6 +105,7 @@ Key responsibilities:
 - persisted budgets and CSV imports;
 - category suggestion preview and feedback persistence;
 - aggregate analytics;
+- `spending-forecast-v1` month-end forecast/backtest response;
 - explicit Financial Intelligence scans/findings;
 - persisted historical-analysis snapshots;
 - deterministic upcoming-payment projection;
@@ -106,68 +113,25 @@ Key responsibilities:
 
 API v2 is the preferred strict monetary contract and uses decimal strings for financial amounts.
 
-## Category suggestion architecture
-
-The global classifier contract remains:
-
-```text
-modelVersion  = tfidf-logreg-v1
-featurePolicy = merchant_descriptor_only_v1
-```
-
-Runtime resolution is deliberately layered:
-
-```text
-merchant descriptor + authenticated user
-        |
-        v
-canonical merchant identity
-        |
-        +--> latest compatible category from this user's prior feedback?
-        |          |
-        |          +--> yes: source=user_history
-        |
-        +--> no: tfidf-logreg-v1
-                   |
-                   +--> active compatible system category
-```
-
-The global model uses only merchant text. Account-owned categories are not added to its taxonomy; they become suggestions only through that account's prior accepted/corrected history.
-
-`POST /api/v2/category-suggestions/preview` returns the suggested category plus source/model/feature provenance. It intentionally omits probabilities and does not mutate a transaction.
-
-For v2 manual transaction writes, the backend recomputes the applicable suggestion, resolves the user-selected category, flushes the transaction, persists the corresponding `category_suggestions` record and commits both atomically. This prevents the client from forging suggestion provenance.
-
 ## Persistence and ownership
 
-PostgreSQL is the source of truth. Important persisted concepts include:
+PostgreSQL is the source of truth. Important persisted concepts include users, categories, transactions, budgets, import batches, category suggestions/feedback, intelligence findings/scans and historical-analysis snapshots.
 
-- users;
-- categories;
-- transactions;
-- budgets;
-- import batches;
-- category suggestions/feedback;
-- intelligence findings/scans;
-- historical-analysis snapshots.
+Every private record is scoped by authenticated ownership. Seeded system categories are global/read-only; custom categories are account-owned.
 
-Every private record is scoped by authenticated ownership. Seeded system categories are global/read-only; custom categories are account-owned. Suggestion history is user-scoped and cannot influence another account.
-
-`recurring-calendar-v1` is derived at request time from the authenticated user's transaction history. It does not add a second source-of-truth table and never mutates source transactions.
-
-`data/private/` is intentionally outside this persistence model. It is local evaluation input, git-ignored by default and never read by the production API.
+`recurring-calendar-v1` and `spending-forecast-v1` are derived on request from the authenticated user's persisted transactions. Neither introduces another authoritative table or mutates source transactions.
 
 ## Financial arithmetic
 
-Money is stored as PostgreSQL `NUMERIC` and processed with Python `Decimal`. API v2 serializes money as decimal strings; the frontend uses integer cents for client-side financial arithmetic.
+Money is stored as PostgreSQL `NUMERIC` and processed with Python `Decimal`. API v2 serializes money as decimal strings; the frontend avoids floating-point financial business arithmetic.
 
-Upcoming-payment totals are accumulated as `Decimal` and serialized as decimal strings. Floating point is allowed for non-monetary ML/evaluation quantities, but raw classifier probabilities are not exposed as product confidence.
+Recurring totals, three-month means, run-rate projections, recurrence-aware projections, MAE and signed monetary bias remain `Decimal` through the backend. sMAPE is dimensionless and serialized separately.
 
 ## Actionable intelligence: `rules-v2`
 
-`rules-v2` creates persisted findings that users can review, dismiss, resolve and reopen. It uses canonical merchant identity, recurring-stream segmentation, calendar/lifecycle evidence, `merchant_mad_plus_extreme_iqr_v1`, chronological frequency baselines and stable fingerprints.
+`rules-v2` creates persisted reviewable findings using canonical merchant identity, recurring-stream segmentation, calendar/lifecycle evidence, `merchant_mad_plus_extreme_iqr_v1`, chronological frequency baselines and stable fingerprints.
 
-Current finding types:
+Current types:
 
 ```text
 recurring_pattern
@@ -185,31 +149,81 @@ It provides month completeness, trend, canonical merchant evidence, lifecycle/ca
 
 ## Upcoming recurring payments: `recurring-calendar-v1`
 
-The calendar deliberately reuses the historical recurrence primitive instead of creating a competing prediction model:
-
 ```text
 authenticated expense history
         |
         v
-historical-v2.2 recurrence / lifecycle-v1
+historical-v2.2 / lifecycle-v1
         |
-        +--> nextExpectedDate
-        +--> cadence / calendar position
-        +--> median + latest amount
-        +--> lifecycle activity
-        +--> sequential price regimes
-        +--> missing-occurrence evidence
+        +--> next expected date / cadence
+        +--> amount / price regime
+        +--> lifecycle and missing evidence
         |
         v
 recurring-calendar-v1
         |
-        +--> future window: expected / likely / price_changed
+        +--> future expected / likely / price_changed
         +--> separate overdue schedules
 ```
 
-Monthly/quarterly/yearly projection preserves month-end schedules. Weekly and biweekly streams advance through their established day cadence. A missing stream is never automatically rolled forward to a new future date; new observed activity must first re-establish current activity. This prevents old subscriptions from inflating expected totals.
+Monthly/quarterly/yearly projection preserves calendar alignment. Missing/dormant streams are not automatically rolled forward. Price-continuity streams project the latest observed price regime.
 
-Price-continuity streams project the latest observed price regime. `patternScore` remains a deterministic feature index rather than a probability.
+For normal product calendar requests the window begins at `asOf`. The internal projection primitive also permits a later `window_start` while keeping recurrence evidence frozen at `asOf`; `spending-forecast-v1` uses this causal boundary to project from the next day without same-day double counting.
+
+## Month-end forecast: `spending-forecast-v1`
+
+The forecast service loads the authenticated user's expense history and discards every row after the requested `asOf` before building any component.
+
+```text
+eligible transactions through asOf
+        |
+        +--> previous 3 complete months -> mean baseline
+        |
+        +--> current spend / elapsed calendar days -> run-rate baseline
+        |
+        +--> historical-v2.2 qualified recurring stream IDs
+                  |
+                  +--> recurring spend already observed
+                  +--> non-recurring/variable spend numerator
+                  |
+                  +--> recurring-calendar-v1 future occurrences
+        |
+        v
+recurrence-aware month-end baseline
+```
+
+The recurrence-aware formula is:
+
+```text
+spent_so_far
++ projected_remaining_variable_spend
++ future_qualified_recurring_spend
+```
+
+Already-observed recurring charges remain inside `spent_so_far` exactly once and are excluded from the variable numerator.
+
+### Walk-forward evaluation
+
+For each eligible complete historical month, the evaluator freezes data at day 15 and predicts that month's final total. A fold is accepted only when all three baselines are available, guaranteeing identical support. It reports:
+
+- MAE;
+- sMAPE;
+- signed bias.
+
+The dedicated `Spending forecast benchmark` workflow uses a deterministic fixture and blocks regressions in causal/support/metric behavior. A future ML forecasting challenger must beat these baselines on the same chronological folds/support before product promotion. See [`spending-forecast.md`](spending-forecast.md).
+
+## Category suggestion architecture
+
+Global contract:
+
+```text
+modelVersion  = tfidf-logreg-v1
+featurePolicy = merchant_descriptor_only_v1
+```
+
+Runtime resolution is layered: latest compatible category from the authenticated user's canonical-merchant feedback first, otherwise the global classifier over active compatible system categories. Account-owned categories are never injected into the global taxonomy.
+
+Preview does not mutate transactions or expose raw probabilities. V2 transaction writes recompute suggestion provenance and persist transaction + feedback atomically.
 
 ## Shared analysis contracts
 
@@ -219,6 +233,7 @@ Stable identifiers crossing implementation/documentation boundaries are defined 
 rules-v2
 historical-v2.2
 recurring-calendar-v1
+spending-forecast-v1
 merchant_mad_plus_extreme_iqr_v1
 lifecycle-v1
 tfidf-logreg-v1
@@ -227,76 +242,29 @@ merchant_descriptor_only_v1
 
 Algorithm-specific thresholds remain next to their owning implementation.
 
-## Classifier evaluation architecture
-
-The product suggestion path and evaluation evidence are intentionally separated. The production model uses its explicit deterministic bootstrap corpus; `financial-benchmark-v1` remains synthetic evaluation data rather than hidden product training data.
-
-The category evaluator covers:
-
-1. chronological 2023 history -> 2024 calibration -> 2025 H1 validation;
-2. sealed 2025 H2 holdout;
-3. canonical merchant-group-disjoint cold-start evaluation;
-4. raw/Platt/isotonic multiclass Brier score, ECE and ten-bin reliability data.
-
-Measured synthetic merchant-group holdout evidence is 382 transactions across nine held-out merchant groups with zero train/evaluation group overlap, accuracy `0.400524` and macro-F1 `0.201242`. This is intentionally treated as evidence that cold start remains difficult.
-
-Calibration diagnostics improve substantially on the synthetic chronological development split (raw Brier/ECE `0.018193/0.082021`, Platt `0.008871/0.004624`, isotonic `0.009156/0.004711`), but `productConfidenceEnabled=false` remains the contract until representative real data supports a product confidence policy.
-
-## Private evaluation architecture — `private-real-data-v1`
-
-The private harness is an **adapter around existing implementations**, not a parallel analytical system:
-
-```text
-ignored data/private/*.jsonl
-        |
-        v
-private_evaluation.py
-        |
-        +--> fixed production tfidf-logreg-v1
-        +--> rules-v2
-        +--> historical-v2.2 development/holdout runner
-        |
-        v
-aggregate-only JSON report
-```
-
-Key properties:
-
-- complete category labels are joined to private transactions by local transaction ID;
-- complete anomaly labels are required for expense rows;
-- calibration, validation and holdout ranges are explicit and non-overlapping;
-- the production category classifier is **not retrained** on the private evaluation set;
-- natural seen/unseen merchant support is measured relative to the immutable runtime bootstrap corpus;
-- Platt/isotonic calibrators may be fit on the private calibration range and compared on private validation only;
-- holdout requires frozen historical parameters plus one preselected category calibration method;
-- `rules-v2` sees only historical context available through the scored split boundary;
-- `historical-v2.2` reuses the normal walk-forward/bootstrap code path;
-- sanitization removes raw merchants, transaction IDs, row-level prediction errors and merchant-specific historical slices;
-- a SHA-256 fingerprint identifies the exact private source material without publishing it.
-
-CI constructs a synthetic private-format dataset under a temporary directory solely to validate this mechanism/privacy boundary. Therefore CI never requires private financial records and a green private-evaluator test is **not** a real-world model-quality claim.
-
-## Deployment architecture
-
-The backend Docker image copies both `app/` and `ml/` and installs `scikit-learn` from runtime requirements because suggestion serving is now part of the API process.
-
-```text
-Browser -> Nginx -> FastAPI + ML suggestion runtime -> PostgreSQL
-                         |
-                         +--> recurring-calendar-v1 from user transaction history
-```
-
-The classifier does not run in the browser and no external ML service is required for the current baseline. The `data/private/` evaluator path is not mounted or invoked by production Compose.
-
 ## Evaluation boundary
 
-The evidence hierarchy is now:
+The evidence hierarchy is:
 
 ```text
 unit/integration fixtures -> regression protection
-financial-benchmark-v1 -> synthetic development evidence
+financial-benchmark-v1 -> synthetic financial-development evidence
+spending-forecast-benchmark-v1 -> deterministic forecast regression evidence
 private-real-data-v1 harness -> mechanism for private/independent evaluation
 independent/real labelled results -> production-quality evidence
 ```
 
-No synthetic metric is represented as real banking accuracy, and the presence of the private harness is not itself claimed as real validation. Automatic categorization, a confidence threshold and per-user model retraining remain future decisions requiring representative real-world evidence.
+No synthetic metric is represented as real banking accuracy. Forecast error displayed by the product comes from the user's own available historical folds, while benchmark metrics exist only to protect implementation behavior.
+
+## Deployment architecture
+
+```text
+Browser -> Nginx -> FastAPI + suggestion runtime -> PostgreSQL
+                         |
+                         +--> rules-v2
+                         +--> historical-v2.2
+                         +--> recurring-calendar-v1
+                         +--> spending-forecast-v1
+```
+
+No external ML service is required for current product baselines. The private evaluator is not mounted or invoked by production Compose.

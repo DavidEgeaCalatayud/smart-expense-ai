@@ -128,17 +128,28 @@ def project_upcoming_payments(
     *,
     as_of: date,
     days: int = 30,
+    window_start: date | None = None,
 ) -> UpcomingPaymentsResponse:
+    """Project qualified recurring occurrences without using transactions after ``as_of``.
+
+    ``window_start`` is intentionally separate from the history cutoff. Product calendar
+    calls leave it unset and retain the existing ``as_of``-inclusive contract. Forecast
+    backtests can start projection on the following day while keeping recurrence evidence
+    frozen at the historical cutoff, preventing future leakage and same-day double counting.
+    """
     if days < 1 or days > 90:
         raise ValueError("days must be between 1 and 90")
-    window_end = as_of + timedelta(days=days - 1)
+    effective_start = window_start or as_of
+    if effective_start < as_of:
+        raise ValueError("window_start must be on or after as_of")
+    window_end = effective_start + timedelta(days=days - 1)
     eligible = [item for item in transactions if item.transaction_date <= as_of]
     if not eligible:
         return UpcomingPaymentsResponse(
             projectionVersion=UPCOMING_PAYMENTS_VERSION,
             analysisVersion=HISTORICAL_ANALYSIS_VERSION,
             asOf=as_of.isoformat(),
-            windowStart=as_of.isoformat(),
+            windowStart=effective_start.isoformat(),
             windowEnd=window_end.isoformat(),
             days=days,
             expectedTotal="0.00",
@@ -179,6 +190,12 @@ def project_upcoming_payments(
         status = _future_status(profile)
         month_end = Decimal(str(profile.get("monthEndFit", "0"))) >= Decimal("0.60")
         occurrence_date = next_expected
+        while occurrence_date < effective_start:
+            occurrence_date = _advance_expected_date(
+                occurrence_date,
+                str(profile.get("cadence") or ""),
+                month_end=month_end,
+            )
         while occurrence_date <= window_end:
             upcoming.append(_item(profile, occurrence_date, amount, status))
             expected_total += amount
@@ -194,7 +211,7 @@ def project_upcoming_payments(
         projectionVersion=UPCOMING_PAYMENTS_VERSION,
         analysisVersion=HISTORICAL_ANALYSIS_VERSION,
         asOf=as_of.isoformat(),
-        windowStart=as_of.isoformat(),
+        windowStart=effective_start.isoformat(),
         windowEnd=window_end.isoformat(),
         days=days,
         expectedTotal=_money(expected_total),

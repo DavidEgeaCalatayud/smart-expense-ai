@@ -21,151 +21,102 @@ Goal: prepare the repository and define the product direction.
 Goal: make the first usable version persist real financial data.
 
 - [x] Define transaction and category models.
-- [x] Add PostgreSQL persistence with SQLAlchemy 2.
-- [x] Add Alembic migrations.
-- [x] Seed initial categories.
-- [x] Create transaction CRUD endpoints.
-- [x] Connect Transactions page to the REST API.
-- [x] Load categories from the backend.
+- [x] Add PostgreSQL persistence with SQLAlchemy 2 and Alembic migrations.
+- [x] Seed initial categories and support system/account-owned category lifecycle.
+- [x] Create authenticated transaction CRUD endpoints and connect the Transactions page.
 - [x] Validate category/type compatibility.
-- [x] Remove transaction/category frontend mocks.
-- [x] Build dashboard metrics from persisted transactions.
-- [x] Build six-month expense chart from persisted transactions.
-- [x] Show recent persisted transactions.
-- [x] Add transparent rule-based review for high-value expenses.
-- [x] Add server-side transaction pagination.
-- [x] Add server-side search, category, status, type, recurring, date and sort filters.
-- [x] Add aggregate summary and monthly-expense endpoints.
-- [x] Add normalized API errors with semantic codes and request IDs.
-- [x] Add typed frontend API errors for validation, authentication, authorization, conflicts, server and network failures.
-- [x] Preserve safe backend error messages, request IDs and validation details in frontend UX.
-- [x] Version the supported application API under `/api/v1`.
-- [x] Add backward-compatible `/api/v2` financial endpoints with decimal-string monetary contracts.
-- [x] Keep money as PostgreSQL `NUMERIC` / Python `Decimal` through financial services and rules.
-- [x] Use decimal strings plus integer cents in the frontend instead of floating-point money arithmetic.
-- [x] Add responsive transaction cards for mobile/tablet while preserving the dense desktop table, filters, pagination and edit/delete actions.
-- [x] Add authenticated transactional CSV historical-data import with delimiter/header detection, reviewed column mapping, normalization, preview validation and atomic commit.
-- [x] Add per-user import fingerprints, duplicate suppression, persisted `import_batches` audit history and transaction import lineage.
-- [x] Add delete confirmation and operation feedback.
-- [x] Add distinct loading, refreshing, retry and mutation states in transaction UX.
-- [x] Add user-managed custom categories with system/user ownership, case-insensitive conflict protection, rename, archive/reassign and restore semantics.
+- [x] Build dashboard metrics, six-month expense series and recent persisted transactions.
+- [x] Add server-side pagination, search, category/status/type/recurring/date filters and sorting.
+- [x] Add aggregate summary/monthly-expense endpoints.
+- [x] Add normalized API errors with semantic codes/request IDs and typed frontend handling.
+- [x] Version the supported application API under `/api/v1` and add `/api/v2` decimal-string financial contracts.
+- [x] Keep money as PostgreSQL `NUMERIC` / Python `Decimal` through financial services and use fixed-point frontend arithmetic.
+- [x] Add responsive transaction cards while preserving the dense desktop table.
+- [x] Add authenticated transactional CSV import with detection, mapping, preview, normalization, atomic commit, duplicate fingerprints and import lineage.
+- [x] Add delete confirmation, operation feedback and distinct loading/refresh/retry/mutation states.
+- [x] Add user-managed custom categories with case-insensitive conflicts, rename, archive/reassign and restore semantics.
 - [x] Add persisted monthly overall and per-expense-category budgets with Decimal limits and server-calculated progress.
 
 ## Phase 2 - Accounts and Data Ownership
 
 Goal: isolate financial data by user before adding sensitive integrations.
 
-- [x] User registration.
-- [x] User login and logout.
+- [x] User registration, login and logout.
 - [x] Signed JWT session stored in an HttpOnly cookie.
 - [x] Argon2 password hashing.
-- [x] Add mandatory user ownership to transactions.
-- [x] Scope transaction list/update/delete operations by authenticated user ID.
+- [x] Add mandatory user ownership to transactions and scope reads/writes by authenticated user ID.
 - [x] Require authentication for financial/category API reads.
-- [x] Keep seeded categories global and read-only while allowing authenticated account-owned custom categories.
+- [x] Keep seeded categories global/read-only while allowing account-owned custom categories.
 - [x] Add authenticated session visibility in the Security page.
 - [x] Cover cross-account transaction isolation in integration and E2E tests.
-- [x] Harden authentication errors, password policy and JWT claim validation.
-- [x] Add trusted-host, origin and CORS protections.
+- [x] Harden authentication errors, password policy, JWT claims, trusted hosts, CORS and cross-site mutation protection.
 - [x] Add authentication rate limiting at the trusted edge.
 - [x] Add password change with server-side session-version revocation and current-session rotation.
 - [ ] Add verified password reset/recovery after an email delivery channel exists.
 - [x] Add account deletion and authenticated `privacy-export-v1` controls.
-- [x] Regression-test privacy export isolation across transactions, findings, scans, historical-analysis snapshots, CSV import batches, custom categories, budgets and category-suggestion feedback.
+- [x] Regression-test privacy export isolation across transactions, findings, scans, historical snapshots, imports, categories, budgets and category-suggestion feedback.
 - [ ] MFA if required for Internet-facing production use.
 
 ## Phase 3 - Financial Intelligence
 
 Goal: implement real analysis and evaluated ML baselines without simulated AI outputs.
 
-- [x] Detect recurring transactions from historical data.
-- [x] Detect possible duplicated subscriptions from repeated near-duplicate billing patterns.
-- [x] Detect abnormal transaction amounts against merchant-specific historical baselines.
-- [x] Add persisted intelligence findings, scan history and review workflow.
-- [x] Add finding severity levels.
-- [x] Generate explainable evidence for every finding.
-- [x] Make rescans idempotent through stable per-user fingerprints.
-- [x] Keep intelligence findings isolated by authenticated user ownership.
-- [x] Add Financial Intelligence frontend workspace for scan/review/dismiss/resolve/reopen flows.
-- [x] Remove floating-point money calculations from the intelligence rules and evidence pipeline.
-- [x] Add versioned persisted historical-analysis snapshots (`historical-v1`).
-- [x] Add least-squares monthly spending trend analysis with slope and R² evidence.
-- [x] Add deterministic recurring-behavior scoring from cadence fit, interval regularity, amount stability and history depth.
-- [x] Add chronological robust outlier analysis that avoids future-data leakage.
-- [x] Replace heterogeneous category-only amount baselines with shared merchant-specific median/MAD plus extreme-IQR evidence (`merchant_mad_plus_extreme_iqr_v1`).
-- [x] Add three-month vs three-month category-spend shift analysis.
-- [x] Add Historical Analysis UI with coverage, trend, recurrence scores, outliers and category shifts.
-- [x] Persist and isolate historical-analysis snapshots by authenticated user.
-- [x] Add `historical-v2` month-completeness handling that excludes partial cutoff months from trend and category-shift calculations without forecasting them.
-- [x] Add auditable merchant canonicalization with raw descriptor preservation, reference/legal-token cleanup, explicit aliases and conservative fuzzy clustering.
+- [x] Detect recurring transactions, duplicate subscriptions and abnormal transaction amounts from historical data.
+- [x] Add persisted intelligence findings/scan history, severity, explainable evidence, review workflow and stable idempotent fingerprints.
+- [x] Keep findings isolated by authenticated user ownership and expose the Financial Intelligence workspace.
+- [x] Remove floating-point money calculations from intelligence evidence.
+- [x] Add versioned persisted historical-analysis snapshots and complete-month trend/category-shift analysis.
+- [x] Add auditable merchant canonicalization and merchant-specific prior-only amount anomaly evidence (`merchant_mad_plus_extreme_iqr_v1`).
 - [x] Make recurrence calendar-aware with day-of-month/month-end/day-of-week stability, amount MAD/CV, consecutive periods and missed expected occurrences.
-- [x] Detect overdue expected recurring payments from learned calendar schedules.
-- [x] Add a labelled evaluation dataset format and monthly walk-forward validation harness (no random time-series split).
-- [x] Report precision, recall, F1, false positives per 100 transactions, false negatives and performance slices by history length/merchant/category.
-- [x] Run the historical-v2 evaluation fixture in CI as a reproducibility gate.
-- [x] Add `historical-v2.1` with fold-local merchant identity so evaluation never canonicalizes using future descriptors.
-- [x] Make recurrence ground truth temporal with active ranges and/or explicit expected occurrences instead of global merchant labels.
-- [x] Segment canonical merchants into multiple descriptor/amount recurring streams so subscriptions and ad-hoc charges are not collapsed together.
-- [x] Expose stream keys/descriptors and recurring-stream segmentation evidence through API/UI while keeping older snapshots readable.
-- [x] Add regressions for future-identity leakage, cancellation/reactivation labels and multi-stream merchants such as Apple.
-- [x] Add `historical-v2.2` temporal-phase clustering for equal-merchant/equal-amount streams with no descriptor evidence.
-- [x] Require repeated concurrent calendar evidence before splitting monthly/weekly phases, preventing billing-day drift from becoming a false second stream.
-- [x] Expose stream basis/calendar signatures and temporal-phase coverage in persisted snapshots and API responses.
-- [x] Extend temporal ground-truth labels with `calendarSignature` and evaluate v2.2 in the fold-local walk-forward harness.
-- [x] Add positive and negative regressions for equal-amount monthly/weekly streams and non-concurrent billing-day drift.
-- [x] Preserve recurring stream identity across qualified price changes without merging concurrent schedules.
-- [x] Model cancellation/dormancy/reactivation as lifecycle episodes instead of uninterrupted recurrence.
+- [x] Add labelled chronological walk-forward evaluation with precision, recall, F1, false positives per 100, false negatives and performance slices.
+- [x] Add `historical-v2.1` fold-local merchant identity so future descriptors never leak into evaluation.
+- [x] Add temporal recurrence ground truth, descriptor/amount multi-stream segmentation and compatibility-readable stream evidence.
+- [x] Add `historical-v2.2` temporal-phase clustering for equal-merchant/equal-amount streams with repeated concurrent-calendar evidence requirements.
+- [x] Preserve recurring stream identity across qualified price changes and model cancellation/dormancy/reactivation as lifecycle episodes.
 - [x] Expose recurrence segmentation as `lifecycle-v1` with lifecycle, price-continuity, descriptor/amount and temporal-phase evidence.
 - [x] Replace order-dependent recurring-label matching with deterministic optimal bipartite assignment and permutation-invariance regressions.
-- [x] Add prospective occurrence-level evaluation using only the prior-month baseline for each expected charge.
-- [x] Measure occurrence precision/recall/F1, missed charges, extra predictions, date MAE/bias and decimal amount MAE/MAPE.
-- [x] Support explicit `{date, amount}` expected-occurrence ground truth while keeping date-only labels backward-compatible.
-- [x] Keep unlabelled occurrence months out of occurrence false-positive metrics unless the dataset explicitly declares complete coverage.
-- [x] Add chronological calibration, validation and final holdout ranges to labelled evaluation datasets.
-- [x] Keep final holdout rows physically out of development evaluator payloads and report calibration/validation separately.
-- [x] Require a SHA-256-fingerprinted frozen parameter manifest before final holdout evaluation.
-- [x] Add 95% month-block bootstrap confidence intervals with support/block counts for recurrence, anomaly and occurrence metrics.
-- [x] Add regressions for split overlap, holdout sealing, parameter tampering and deterministic bootstrap output.
-- [x] Upgrade actionable findings to `rules-v2` using canonical merchants and shared recurring-stream primitives.
-- [x] Persist a separate `recurring_payment_missing` finding with stronger schedule/history requirements and same-period collision suppression.
-- [x] Upgrade actionable amount anomalies to the shared prior-only `merchant_mad_plus_extreme_iqr_v1` merchant baseline.
-- [x] Add `frequency_anomaly` findings from merchant monthly-count baselines and rolling seven-day burst evidence.
-- [x] Split intelligence summary metrics into recurring, missing-recurring, duplicate, amount-anomaly and frequency-anomaly counts.
-- [x] Add migration/API/UI/test coverage for the new `rules-v2` finding types and rule-version defaults.
-- [x] Add reusable `tfidf-logreg-v1` category classification over merchant descriptor text and serve it as an explicit user-controlled suggestion rather than automatic assignment.
-- [x] Evaluate category classification chronologically with 2023 history, 2024 calibration, 2025 H1 validation and sealed 2025 H2 holdout.
-- [x] Report category macro-F1, accuracy, per-category precision/recall/F1/support, confusion matrix and seen-vs-unseen merchant slices.
-- [x] Persist suggestion acceptance/correction labels with model/feature provenance and make transaction + feedback writes atomic.
-- [x] Add per-user canonical-merchant personalization ahead of the global classifier, including account-owned categories learned only from that user's feedback history.
-- [x] Add a canonical merchant-group-disjoint cold-start benchmark with zero train/evaluation group overlap and meaningful synthetic support.
-- [x] Measure raw, Platt and isotonic probability calibration with multiclass Brier score, Expected Calibration Error and reliability bins while keeping product confidence disabled.
-- [x] Gate chronological, cold-start, calibration and sealed-holdout category-classifier contracts in CI and document their synthetic-data limitations in the model card.
-- [x] Add `private-real-data-v1`: a git-ignored private dataset contract and aggregate-only local evaluator for the deployed category classifier, natural unseen merchants, calibration diagnostics, transaction-level `rules-v2` anomaly metrics and `historical-v2.2` development/holdout evaluation.
-- [x] Regression-test the private evaluator with temporary synthetic data so CI proves holdout sealing and verifies that reports omit raw merchants, transaction IDs and row-level errors without ever requiring private financial records.
+- [x] Add prospective occurrence-level evaluation with prior-only baselines, occurrence precision/recall/F1, missed/extra predictions, date MAE/bias and Decimal amount MAE/MAPE.
+- [x] Add explicit date/amount occurrence ground truth while keeping date-only labels backward-compatible.
+- [x] Add calibration/validation/final-holdout ranges, physically sealed holdout rows and SHA-256-fingerprinted frozen parameters.
+- [x] Add 95% month-block bootstrap confidence intervals with support/block counts and tampering/split/determinism regressions.
+- [x] Upgrade actionable findings to `rules-v2` using canonical merchants and shared recurrence primitives.
+- [x] Add separate `recurring_payment_missing`, merchant-only amount anomaly and `frequency_anomaly` findings plus summary/API/UI/test coverage.
+- [x] Add reusable `tfidf-logreg-v1` merchant-text category classification as an explicit user-controlled suggestion rather than automatic assignment.
+- [x] Evaluate category classification chronologically with calibration/validation/sealed holdout metrics and per-category/confusion/seen-vs-unseen slices.
+- [x] Persist suggestion acceptance/correction labels atomically with model/feature provenance.
+- [x] Add per-user canonical-merchant personalization, including account-owned categories learned only from that user's feedback history.
+- [x] Add canonical merchant-group-disjoint cold-start evaluation with zero train/evaluation group overlap.
+- [x] Measure raw, Platt and isotonic probability calibration with multiclass Brier score, ECE and reliability bins while keeping product confidence disabled.
+- [x] Gate chronological, cold-start, calibration and sealed-holdout classifier contracts in CI and document synthetic-data limitations.
+- [x] Add `private-real-data-v1`: git-ignored private dataset contract and aggregate-only local evaluator for classifier, `rules-v2` and `historical-v2.2`.
+- [x] Regression-test the private evaluator with temporary synthetic data so CI proves holdout sealing and report sanitization without private records.
 - [ ] Run `private-real-data-v1` against a genuinely independent/private labelled transaction dataset and retain only aggregate evidence outside the ignored private directory.
 - [ ] Validate `rules-v2` and historical algorithms against labelled real-world data and measure real-world precision/recall/false-positive rates.
-- [ ] Validate category classification and probability calibration against independent/real labelled transactions with meaningful natural unseen-merchant support before showing confidence or enabling optional automatic assignment.
+- [ ] Validate category classification and probability calibration against independent/real labelled transactions with meaningful natural unseen-merchant support before confidence or optional automatic assignment.
 - [ ] Tune recurring-score weights/cutoffs, stream-clustering tolerances and anomaly thresholds only on labelled calibration data, use validation for design checks, then open holdout once for final reporting.
 - [ ] Reassess amount-anomaly distribution fences and frequency-anomaly policy from real-world false-positive cost before loosening them.
 - [ ] Add automatic/background analysis when deployment scheduling is available.
-- [ ] Evaluate an `IsolationForest-v1` anomaly challenger only after deterministic baselines have measurable real-world evaluation results, using prior-only features such as amount/merchant median, robust deviation, time since previous purchase, merchant frequency, rolling counts and amount CV.
+- [ ] Evaluate an `IsolationForest-v1` anomaly challenger with causal/prior-only features and explicit evidence limitations; keep it outside the product-authoritative path until evaluation requirements are met.
 - [ ] Compare `rules-v2`, the ML challenger and any hybrid on the same labelled walk-forward evidence with precision, recall, F1 and false positives per 100; never replace the deterministic engine merely because the ML model is more complex.
 
 ## Phase 4 - Prediction and Upcoming Payments
 
-Goal: turn existing recurrence evidence into visible product value, then forecast spending with baselines before introducing predictive ML.
+Goal: turn existing recurrence evidence into visible product value and establish transparent month-end forecasting baselines before predictive ML.
 
-- [x] Add `recurring-calendar-v1`, an upcoming recurring-payments calendar using existing cadence, expected occurrence, amount stability, lifecycle and price-continuity evidence rather than inventing a new model.
-- [x] Show upcoming-payment states `expected`, `likely`, `overdue` and `price_changed`, plus an exact future-only expected-total amount for the next 30 days; keep overdue/dormant schedules separate until activity resumes.
-- [ ] Add a three-complete-month mean baseline for estimated month-end spending.
-- [ ] Add a current-month run-rate baseline: `spent_so_far / elapsed_days * days_in_month` with explicit partial-month assumptions.
-- [ ] Add a recurrence-aware baseline: projected variable spending plus known expected recurring payments.
-- [ ] Walk-forward backtest every forecasting baseline with MAE, sMAPE and bias before exposing it as a prediction.
-- [ ] Compare forecasted spending with historical averages and expose evidence/assumptions rather than a bare number.
-- [ ] Add warning thresholds only after backtested forecast error is understood.
-- [ ] Add category-level spending forecasts after the overall baseline contract is stable.
-- [ ] Evaluate Ridge/Random Forest/Gradient Boosting or other forecasting challengers only after simple baselines exist.
-- [ ] Allow an ML forecasting model into the product only if it consistently beats the simple baselines on the same walk-forward folds and remains robust across meaningful slices.
+- [x] Add `recurring-calendar-v1`, reusing cadence, expected occurrence, amount stability, lifecycle and price-continuity evidence rather than inventing a new model.
+- [x] Show `expected`, `likely`, `overdue` and `price_changed` states plus exact future-only totals; keep overdue/dormant schedules separate until activity resumes.
+- [x] Add `spending-forecast-v1` as the versioned overall month-end forecast contract.
+- [x] Add a three-complete-month mean baseline for estimated month-end spending.
+- [x] Add a current-month run-rate baseline: `spent_so_far / elapsed_days * days_in_month` with explicit calendar-day/partial-month assumptions.
+- [x] Add a recurrence-aware baseline that keeps observed spend once, projects remaining variable spend and adds qualified future recurring payments.
+- [x] Prevent forecast leakage by discarding transactions after `asOf` and separating recurring-history cutoff from the future projection-window start.
+- [x] Walk-forward backtest all forecasting baselines on identical fixed day-15 chronological folds with MAE, sMAPE and signed bias.
+- [x] Compare forecasted spending with the previous-three-month mean and expose assumptions/evidence/backtest error rather than a bare number.
+- [x] Add a dedicated reproducible `spending-forecast-benchmark-v1` workflow plus backend/API/component/persisted Playwright coverage.
+- [x] Establish the ML promotion gate: any future forecasting challenger must consistently beat transparent baselines on the same chronological folds/support before product use.
+- [ ] Add warning thresholds only after backtested forecast error is understood from representative user/real-world evidence.
+- [ ] Add category-level spending forecasts after the overall baseline contract is stable on representative data.
+- [ ] Evaluate Ridge/Random Forest/Gradient Boosting or other forecasting challengers on the established causal protocol.
 - [ ] Do not display probabilistic forecast confidence until it has a separately evaluated calibration contract.
 
 ## Phase 5 - Premium SaaS Preparation
@@ -183,37 +134,22 @@ Goal: prepare the project for a subscription-based model.
 
 Goal: prepare the project for real deployment.
 
-- [x] Add backend automated tests.
-- [x] Add frontend automated tests.
-- [x] Add GitHub Actions CI.
-- [x] Run frontend tests, type checking, build and lint in CI.
+- [x] Add backend and frontend automated tests.
+- [x] Add GitHub Actions CI and require the frontend chain `Vitest -> TypeScript -> ESLint -> build` inside CI.
 - [x] Validate Alembic migrations against PostgreSQL in CI.
-- [x] Add critical Playwright end-to-end coverage.
-- [x] Add a focused Security E2E for password rotation, current-session continuity and old-credential rejection.
-- [x] Add Docker Compose.
-- [x] Validate the full Docker Compose stack in CI.
-- [x] Add `SECURITY.md` vulnerability reporting policy.
-- [x] Add Dependabot for pip, npm and GitHub Actions.
-- [x] Add Python and npm dependency vulnerability audits to the Quality gate.
-- [x] Pin GitHub Actions to immutable commit SHAs.
-- [x] Add HTTP security headers and reduced sensitive logging.
-- [x] Complete a baseline OWASP Top 10:2025 review.
-- [x] Add API v1 contract documentation and CI smoke coverage.
-- [x] Add API v2 decimal-money contract tests and Docker smoke coverage.
-- [x] Validate historical-analysis API through backend/Docker CI.
-- [x] Run the labelled historical evaluation command in CI.
-- [x] Gate historical-v2.1 fold-local identity and temporal stream-label evaluation in CI.
-- [x] Gate historical-v2.2 equal-amount temporal-phase clustering and calendar-signature evaluation in CI.
-- [x] Gate optimal recurring matching and prospective occurrence-level evaluation in backend CI.
-- [x] Gate sealed split/fingerprint/bootstrap evaluation behavior in backend tests.
-- [x] Gate `rules-v2` migration, empty-summary contract and finding behavior in PostgreSQL/Docker CI.
-- [x] Gate `tfidf-logreg-v1` category suggestions with chronological metrics, merchant-group cold-start, raw/Platt/isotonic calibration diagnostics and a sealed synthetic holdout.
-- [x] Gate the `private-real-data-v1` loader/evaluator contract with temporary synthetic data while ensuring private financial files are excluded from Git and CI.
-- [x] Gate `recurring-calendar-v1` with backend month-end/dormancy/price regressions, component coverage and a persisted recurring-history Playwright flow.
+- [x] Add critical Playwright end-to-end coverage, including password/session rotation, category/budget/import/suggestion flows, recurring calendar and month-end forecast.
+- [x] Add Docker Compose and validate the full stack in CI.
+- [x] Add `SECURITY.md`, Dependabot, Python/npm vulnerability audits, immutable Action SHAs, HTTP security headers and baseline OWASP Top 10:2025 review.
+- [x] Add API v1/v2 contract documentation and decimal-money/Docker smoke coverage.
+- [x] Gate historical-v2.2, lifecycle/occurrence evaluation, sealed splits/fingerprints/bootstrap and `rules-v2` behavior.
+- [x] Gate `tfidf-logreg-v1` with chronological, merchant-group cold-start, calibration and sealed synthetic-holdout evidence.
+- [x] Gate the `private-real-data-v1` loader/evaluator privacy contract with temporary synthetic data.
+- [x] Gate `recurring-calendar-v1` with backend, component and persisted Playwright coverage.
+- [x] Gate `spending-forecast-v1` with backend unit/integration tests, Predictions component/E2E coverage and a dedicated deterministic forecast benchmark workflow.
 - [x] Gate current analysis/model contract aliases and critical documentation consistency in backend tests.
 - [x] Add privacy/data-handling policy draft with production placeholders.
-- [x] Generate reproducible, validated backend/frontend CycloneDX dependency SBOMs in CI and retain them as a GitHub Actions artifact.
-- [ ] Configure `Quality gate` as a required check for `main`.
+- [x] Generate reproducible, validated backend/frontend CycloneDX dependency SBOMs and retain the artifact in CI.
+- [ ] Configure `Quality gate` as a required branch-protection check for `main`.
 - [ ] Declare the first semantic-version tag/GitHub Release when the project intentionally reaches a stable release boundary.
 - [ ] Add staging deployment.
 - [ ] Add production TLS/domain/secrets configuration.

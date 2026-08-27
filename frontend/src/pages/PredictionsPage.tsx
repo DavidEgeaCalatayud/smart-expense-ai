@@ -1,8 +1,17 @@
-import { AlertTriangle, CalendarClock, CircleDollarSign, RefreshCw, Repeat } from 'lucide-react';
+import {
+  AlertTriangle,
+  CalendarClock,
+  CircleDollarSign,
+  RefreshCw,
+  Repeat,
+  TrendingUp,
+} from 'lucide-react';
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { PageHeader } from '../components/layout/PageHeader';
 import { EmptyStateCard } from '../components/ui/EmptyStateCard';
+import { fetchSpendingForecast } from '../services/spendingForecastApi';
 import { fetchUpcomingPayments } from '../services/upcomingPaymentsApi';
+import type { SpendingForecastBaseline, SpendingForecastResponse } from '../types/spendingForecast';
 import type { UpcomingPaymentItem, UpcomingPaymentsResponse } from '../types/upcomingPayments';
 import { formatCurrencyWithDecimals } from '../utils/formatters';
 
@@ -57,8 +66,55 @@ function PaymentCard({ item }: { item: UpcomingPaymentItem }) {
   );
 }
 
+function ForecastCard({ baseline }: { baseline: SpendingForecastBaseline }) {
+  const backtest = baseline.backtest;
+  return (
+    <article className="rounded-3xl border border-slate-200 bg-white p-5 shadow-soft">
+      <div className="flex items-start justify-between gap-3">
+        <div>
+          <p className="text-xs font-semibold uppercase tracking-[0.16em] text-brand-700">{baseline.baseline}</p>
+          <h3 className="mt-1 font-bold text-slate-950">{baseline.label}</h3>
+        </div>
+        <TrendingUp size={20} className="text-brand-700" />
+      </div>
+      <p className="mt-5 text-3xl font-bold tracking-tight text-slate-950">
+        {baseline.projectedMonthEnd ? formatCurrencyWithDecimals(baseline.projectedMonthEnd) : 'Insufficient history'}
+      </p>
+      {baseline.differenceFromThreeMonthMean ? (
+        <p className="mt-1 text-xs text-slate-500">
+          {Number(baseline.differenceFromThreeMonthMean) >= 0 ? '+' : ''}
+          {formatCurrencyWithDecimals(baseline.differenceFromThreeMonthMean)} vs 3-month mean
+        </p>
+      ) : null}
+      <ul className="mt-4 space-y-1 text-xs leading-5 text-slate-500">
+        {baseline.assumptions.slice(0, 2).map((assumption) => (
+          <li key={assumption}>• {assumption}</li>
+        ))}
+      </ul>
+      <div className="mt-5 grid grid-cols-3 gap-2 border-t border-slate-100 pt-4 text-xs">
+        <div>
+          <p className="font-semibold text-slate-950">{backtest.mae ? formatCurrencyWithDecimals(backtest.mae) : '—'}</p>
+          <p className="text-slate-500">MAE</p>
+        </div>
+        <div>
+          <p className="font-semibold text-slate-950">{backtest.smapePercent ? `${backtest.smapePercent}%` : '—'}</p>
+          <p className="text-slate-500">sMAPE</p>
+        </div>
+        <div>
+          <p className="font-semibold text-slate-950">{backtest.bias ? formatCurrencyWithDecimals(backtest.bias) : '—'}</p>
+          <p className="text-slate-500">Bias</p>
+        </div>
+      </div>
+      <p className="mt-3 text-[11px] text-slate-400">
+        {backtest.support} walk-forward month{backtest.support === 1 ? '' : 's'} · day {backtest.cutoffDay} cutoff
+      </p>
+    </article>
+  );
+}
+
 export function PredictionsPage() {
   const [report, setReport] = useState<UpcomingPaymentsResponse | null>(null);
+  const [forecast, setForecast] = useState<SpendingForecastResponse | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
@@ -66,9 +122,14 @@ export function PredictionsPage() {
     setIsLoading(true);
     setError(null);
     try {
-      setReport(await fetchUpcomingPayments(30));
+      const [payments, spendingForecast] = await Promise.all([
+        fetchUpcomingPayments(30),
+        fetchSpendingForecast(),
+      ]);
+      setReport(payments);
+      setForecast(spendingForecast);
     } catch (caught) {
-      setError(caught instanceof Error ? caught.message : 'Unable to load recurring payments.');
+      setError(caught instanceof Error ? caught.message : 'Unable to load predictions.');
     } finally {
       setIsLoading(false);
     }
@@ -92,7 +153,7 @@ export function PredictionsPage() {
       <PageHeader
         eyebrow="Deterministic projection"
         title="Predictions"
-        description="Upcoming recurring payments are projected from historical-v2.2 cadence, lifecycle and price-continuity evidence. Pattern scores are explainable indices, not probabilities."
+        description="Month-end spending baselines and recurring payments use only evidence available at the forecast date. Backtest error is shown alongside each estimate; no probability or calibrated confidence is implied."
         action={(
           <button
             type="button"
@@ -111,6 +172,35 @@ export function PredictionsPage() {
           {error}
         </div>
       ) : null}
+
+      <section className="mb-10" aria-label="Month-end spending forecast">
+        <div className="mb-4 flex flex-wrap items-end justify-between gap-3">
+          <div>
+            <p className="text-xs font-semibold uppercase tracking-[0.18em] text-brand-700">spending-forecast-v1</p>
+            <h2 className="mt-1 text-xl font-bold text-slate-950">Estimated month-end spending</h2>
+            <p className="mt-1 text-sm text-slate-500">
+              {forecast
+                ? `${formatCurrencyWithDecimals(forecast.spentSoFar)} spent through ${formatDate(forecast.asOf)} · ${forecast.remainingDays} days remaining`
+                : 'Loading causal forecasting baselines…'}
+            </p>
+          </div>
+          {forecast?.historicalThreeMonthMean ? (
+            <p className="text-sm text-slate-500">
+              Previous 3-month mean: <strong className="text-slate-900">{formatCurrencyWithDecimals(forecast.historicalThreeMonthMean)}</strong>
+            </p>
+          ) : null}
+        </div>
+        <div className="grid gap-4 xl:grid-cols-3">
+          {forecast?.baselines.map((baseline) => (
+            <ForecastCard key={baseline.baseline} baseline={baseline} />
+          ))}
+        </div>
+        {forecast ? (
+          <p className="mt-3 text-xs text-slate-500">
+            Backtest uses the same day-{forecast.backtestCutoffDay} chronological folds for all baselines ({forecast.backtestMonths} comparable complete months). Lower MAE/sMAPE is better; signed bias reveals systematic over/under-estimation.
+          </p>
+        ) : null}
+      </section>
 
       <section className="grid gap-5 md:grid-cols-3">
         <article className="rounded-3xl border border-slate-200 bg-white p-5 shadow-soft">
