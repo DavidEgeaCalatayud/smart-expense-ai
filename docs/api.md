@@ -11,13 +11,14 @@ Stable analytical identifiers are defined in `backend/app/analysis_contracts.py`
 - transaction and budget monetary writes are JSON decimal strings;
 - financial calculations remain PostgreSQL `NUMERIC` / Python `Decimal`;
 - category suggestions are explicit user-controlled assistance;
-- intelligence and historical evidence remain versioned and explainable.
+- intelligence, historical evidence and recurring-payment projections remain versioned and explainable.
 
 Current analytical/model identifiers include:
 
 ```text
 rules-v2
 historical-v2.2
+recurring-calendar-v1
 merchant_mad_plus_extreme_iqr_v1
 lifecycle-v1
 tfidf-logreg-v1
@@ -115,6 +116,7 @@ GET    /api/v2/intelligence/findings
 PATCH  /api/v2/intelligence/findings/{finding_id}
 POST   /api/v2/intelligence/historical-analysis?months=12
 GET    /api/v2/intelligence/historical-analysis/latest
+GET    /api/v2/intelligence/upcoming-payments?days=30
 ```
 
 ## Monetary contract
@@ -284,6 +286,38 @@ historical-v2.2
 ```
 
 Historical analysis is separate from review-state findings and never rewrites transactions. It provides month completeness, complete-month trend, canonical merchant evidence, recurrence segmentation, missed expected payments, prior-only merchant amount outliers, category shifts and coverage metadata. Older persisted snapshot versions remain readable.
+
+## Upcoming recurring payments
+
+```text
+GET /api/v2/intelligence/upcoming-payments?days=30&asOf=YYYY-MM-DD
+```
+
+The projection contract is `recurring-calendar-v1`. `days` defaults to 30 and is bounded to 1–90. `asOf` is optional and exists primarily for reproducible evaluation/testing; normal product requests use the server date.
+
+The response includes:
+
+```text
+projectionVersion
+analysisVersion
+asOf
+windowStart
+windowEnd
+days
+expectedTotal
+upcomingCount
+overdueCount
+upcomingPayments[]
+overduePayments[]
+```
+
+All monetary fields remain decimal strings. `expectedTotal` sums only future occurrences inside the requested window. Overdue schedules are returned separately and cannot inflate the future total.
+
+Each item exposes expected date/amount, canonical/stream identity, cadence, deterministic status, pattern score, amount stability, history depth, occurrence support, missing-occurrence count, stream basis, price-regime count and lifecycle-reactivation evidence.
+
+Statuses are `expected`, `likely`, `price_changed` and `overdue`. They are deterministic evidence labels, not calibrated probabilities. A missing/dormant stream is never automatically advanced into another future occurrence; new observed activity must re-establish its current schedule. Price-continuity streams use the latest observed price regime for the projected amount.
+
+See [`upcoming-payments.md`](upcoming-payments.md) for projection semantics.
 
 See [`historical-analysis.md`](historical-analysis.md), [`analysis-contracts.md`](analysis-contracts.md), [`evaluation-protocol.md`](evaluation-protocol.md) and [`occurrence-evaluation.md`](occurrence-evaluation.md).
 

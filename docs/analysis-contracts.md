@@ -14,6 +14,7 @@ Documentation explains identifiers but must not invent different current values.
 | --- | --- | --- |
 | Actionable findings engine | `rules-v2` | `backend/app/services/intelligence_rules_v2.py` |
 | Historical analysis engine | `historical-v2.2` | `backend/app/services/historical_analysis_v2_2.py` |
+| Upcoming recurring-payment projection | `recurring-calendar-v1` | `backend/app/services/upcoming_payments.py`, Predictions workspace |
 | Amount anomaly baseline | `merchant_mad_plus_extreme_iqr_v1` | shared amount-anomaly service |
 | Recurrence segmentation strategy | `canonical_merchant_then_lifecycle_then_price_continuity_then_descriptor_amount_then_temporal_phase` | `historical-v2.2` recurrence metadata |
 | Recurrence segmentation version | `lifecycle-v1` | `historical-v2.2` recurrence metadata |
@@ -48,6 +49,21 @@ raw transaction
 
 One canonical merchant may contain multiple streams; calendar evidence prevents naïve fixed-day recurrence; bounded price changes can preserve identity; dormant gaps are not bridged as uninterrupted schedules; reactivation requires qualified historical/current evidence. `patternScore` is deterministic evidence, not calibrated probability.
 
+## Upcoming-payment projection contract
+
+`recurring-calendar-v1` is a product projection over the recurrence evidence above. It does **not** introduce a second recurrence model.
+
+```text
+historical-v2.2 recurring profile
+        -> nextExpectedDate / cadence / lifecycle / price evidence
+        -> recurring-calendar-v1
+        -> upcoming + overdue product view
+```
+
+Future statuses are deterministic evidence categories (`expected`, `likely`, `price_changed`). `overdue` remains separate from the future window and is not included in `expectedTotal`. A missing stream is never rolled forward automatically until a new observed occurrence re-establishes activity, which prevents dormant/cancelled subscriptions from inflating future projections.
+
+Price-continuity streams use the latest observed price regime for their next expected amount. Monthly/quarterly/yearly projection preserves month-end schedules; weekly/biweekly schedules preserve the learned day cadence.
+
 ## Category classifier contract
 
 Current supervised classifier:
@@ -81,6 +97,7 @@ A version identifier changes when externally meaningful behavior/evidence change
 
 - actionable finding semantics -> new `rules-*`;
 - historical output/segmentation semantics -> new `historical-*`;
+- recurring-payment projection semantics -> new `recurring-calendar-*`;
 - material amount-anomaly policy changes -> new policy identifier;
 - category model pipeline/features -> new model and/or feature-policy identifier.
 

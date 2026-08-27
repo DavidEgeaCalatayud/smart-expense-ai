@@ -2,7 +2,7 @@
 
 Smart Expense AI is a personal-finance application built around persisted transaction data, account isolation, exact monetary arithmetic and explainable analysis. Machine-learning output is introduced as user-controlled assistance rather than silently rewriting financial records.
 
-The product does **not** simulate AI results. Transactions, budgets, dashboard metrics, actionable findings, historical snapshots and category-suggestion feedback come from PostgreSQL-backed workflows and reproducible algorithms.
+The product does **not** simulate AI results. Transactions, budgets, dashboard metrics, actionable findings, historical snapshots, recurring-payment projections and category-suggestion feedback come from PostgreSQL-backed workflows and reproducible algorithms.
 
 ## Current capabilities
 
@@ -52,6 +52,23 @@ Highlights include lifecycle/calendar-aware recurrence, missed-payment evidence,
 ### Historical analysis — `historical-v2.2`
 
 Historical analysis is a separate persisted diagnostic layer. It includes complete-month trend analysis, partial-month handling, auditable merchant canonicalization, recurrence segmentation under `lifecycle-v1`, missed expected occurrences, chronological merchant amount outliers, category shifts and versioned snapshots.
+
+### Upcoming recurring payments — `recurring-calendar-v1`
+
+The protected **Predictions** workspace now turns established `historical-v2.2` recurrence evidence into a visible upcoming-payment calendar. No additional ML model is introduced.
+
+```text
+historical-v2.2 recurring profile
+        -> next expected date / cadence / lifecycle / price evidence
+        -> recurring-calendar-v1
+        -> upcoming payments + overdue schedules
+```
+
+The API returns exact decimal-string amounts for a bounded future window, defaulting to 30 days. Future items are classified as deterministic `expected`, `likely` or `price_changed` evidence states; overdue schedules are shown separately and excluded from `expectedTotal`.
+
+Missing/dormant streams are deliberately not rolled forward into future months until a new transaction confirms activity. Price-continuity streams project the latest observed price regime rather than a stale historical median. Month-end monthly/quarterly/yearly schedules remain month-end aligned.
+
+See [`docs/upcoming-payments.md`](docs/upcoming-payments.md).
 
 ### User-controlled category suggestions — `tfidf-logreg-v1`
 
@@ -120,7 +137,7 @@ See [`ai/category-classifier/README.md`](ai/category-classifier/README.md).
 
 ### Privacy-safe independent/private evaluation
 
-The repository now includes a `private-real-data-v1` evaluation harness for running the deployed category classifier, `rules-v2` and `historical-v2.2` against independently labelled transactions without committing financial records.
+The repository includes a `private-real-data-v1` evaluation harness for running the deployed category classifier, `rules-v2` and `historical-v2.2` against independently labelled transactions without committing financial records.
 
 Local data lives under ignored `data/private/`. The evaluator emits only aggregate support/metrics and a SHA-256 dataset fingerprint; raw merchants, transaction IDs, row-level prediction errors and merchant-specific historical slices are deliberately omitted.
 
@@ -168,6 +185,7 @@ Current contracts include:
 ```text
 rules-v2
 historical-v2.2
+recurring-calendar-v1
 merchant_mad_plus_extreme_iqr_v1
 lifecycle-v1
 tfidf-logreg-v1
@@ -187,8 +205,7 @@ Ownership and change rules are documented in [`docs/analysis-contracts.md`](docs
 - Multi-currency/FX accounting and foreign-currency CSV import.
 - Probabilistic fraud detection.
 - Actual real-world validation/calibration results for classifier, `rules-v2` and `historical-v2.2`; the private harness exists but no private financial dataset is committed or claimed as evaluated evidence.
-- Recurring-payment calendar / upcoming-payment product view.
-- Spending forecasts / Phase 4 prediction.
+- End-of-month spending forecasts / Phase 4 forecasting baselines.
 - Production staging/TLS/centralized monitoring.
 - Container-image vulnerability scanning and image-level SBOM/provenance generation.
 
@@ -218,6 +235,7 @@ FastAPI :8000 (internal)
   |  category suggestion + persisted feedback
   |  rules-v2 findings
   |  historical-v2.2 diagnostics
+  |  recurring-calendar-v1 upcoming payments
   v
 PostgreSQL 16 :5432 (internal)
 ```
@@ -241,6 +259,7 @@ FastAPI /api/v1 + /api/v2
         +--> category suggestions -> user feedback history / tfidf-logreg-v1
         +--> rules-v2 findings
         +--> historical-v2.2
+        +--> recurring-calendar-v1
         |
         v
 SQLAlchemy 2 -> PostgreSQL NUMERIC
@@ -313,9 +332,9 @@ npm run lint
 npm run build
 ```
 
-GitHub Actions additionally gates PostgreSQL migrations, critical Playwright E2E, Docker Compose, dependency security audits, the financial benchmark, lifecycle diagnostics, category classifier evaluation/calibration and CycloneDX SBOM generation. Backend unit coverage also generates a temporary synthetic private dataset and asserts that the aggregate-only report does not leak merchant strings or transaction IDs.
+GitHub Actions additionally gates PostgreSQL migrations, critical Playwright E2E, Docker Compose, dependency security audits, the financial benchmark, lifecycle diagnostics, category classifier evaluation/calibration and CycloneDX SBOM generation. Backend unit coverage also generates a temporary synthetic private dataset and asserts that the aggregate-only report does not leak merchant strings or transaction IDs. Critical browser coverage now includes persisted recurring-history → upcoming-calendar projection.
 
-See [`docs/testing.md`](docs/testing.md) and [`docs/private-evaluation.md`](docs/private-evaluation.md).
+See [`docs/testing.md`](docs/testing.md), [`docs/private-evaluation.md`](docs/private-evaluation.md) and [`docs/upcoming-payments.md`](docs/upcoming-payments.md).
 
 ## Documentation and governance
 
@@ -323,6 +342,7 @@ See [`docs/testing.md`](docs/testing.md) and [`docs/private-evaluation.md`](docs
 - [`CHANGELOG.md`](CHANGELOG.md) — Unreleased change log.
 - [`docs/analysis-contracts.md`](docs/analysis-contracts.md) — analytical identifiers and ownership.
 - [`docs/private-evaluation.md`](docs/private-evaluation.md) — local independent/private evaluation contract and privacy boundary.
+- [`docs/upcoming-payments.md`](docs/upcoming-payments.md) — recurring calendar projection semantics.
 - [`docs/api.md`](docs/api.md) — HTTP contracts.
 - [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md) — implemented architecture.
 - [`docs/DATA_MODEL.md`](docs/DATA_MODEL.md) — persistence model.
