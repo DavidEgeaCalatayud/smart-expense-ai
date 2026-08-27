@@ -6,6 +6,14 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ### Added
 
+- `spending-forecast-v1`, an authenticated overall month-end expense forecast contract with previous-three-complete-month mean, current-month run-rate and recurrence-aware baselines using exact Decimal money.
+- `GET /api/v2/analytics/spending-forecast` with optional reproducible `asOf`, explicit assumptions/evidence, historical comparison and per-baseline walk-forward MAE, sMAPE and signed bias.
+- Causal fixed day-15 walk-forward forecasting evaluation that admits a month only when all baselines are available, guaranteeing identical chronological fold support.
+- Recurrence-aware forecast composition that removes qualified recurring transactions already observed from the variable run-rate numerator and adds only future `recurring-calendar-v1` occurrences, preventing double counting.
+- Protected **Predictions** month-end forecast cards showing the three deterministic estimates, assumptions, historical comparison and historical error evidence without presenting probability/confidence.
+- Reproducible `spending-forecast-benchmark-v1` evaluator and dedicated **Spending forecast benchmark** GitHub Actions workflow enforcing cutoff, common support, metric completeness and ML-promotion-gate semantics.
+- Backend unit/integration, frontend component and persisted Playwright regression coverage for `spending-forecast-v1`.
+- `docs/spending-forecast.md` as the source of truth for forecast formulas, causal boundaries, walk-forward evaluation, benchmark semantics and the future ML promotion gate.
 - `recurring-calendar-v1`, an authenticated API/product projection that converts existing `historical-v2.2` / `lifecycle-v1` recurrence evidence into upcoming recurring charges without introducing another prediction model.
 - Protected **Predictions** recurring-payment calendar with exact next-30-days future total, month-grouped charges, deterministic `expected` / `likely` / `price_changed` states and a separate overdue-schedule section.
 - `GET /api/v2/intelligence/upcoming-payments` with a bounded 1–90 day window, optional reproducible `asOf` date, decimal-string amounts and explicit recurrence/lifecycle/price evidence for every item.
@@ -50,19 +58,19 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ### Changed
 
-- Recurring profiles now expose the latest observed stream amount in addition to the median so downstream price-continuity projections can represent the current sequential price regime without changing historical recurrence scoring.
+- `recurring-calendar-v1` can separate its historical evidence cutoff from a later projection-window start; normal product behavior remains unchanged while `spending-forecast-v1` uses the boundary to avoid future leakage and same-day double counting.
+- Recurring profiles expose the latest observed stream amount in addition to the median so downstream price-continuity projections can represent the current sequential price regime without changing historical recurrence scoring.
 - Missing/overdue recurring schedules are not automatically rolled into future expected totals; new observed activity must re-establish the stream before future projection resumes.
-- The roadmap now separates the implemented private-evaluation **mechanism** from still-pending real-data evidence, marks `recurring-calendar-v1` as implemented, and keeps forecasting baselines/backtesting and ML challengers explicitly subsequent work.
-- Future forecasting has an explicit gate: Ridge/Random Forest/Gradient Boosting or other ML approaches must consistently beat simple walk-forward baselines measured with MAE, sMAPE and bias before entering the product.
+- The roadmap now marks recurring calendar plus deterministic month-end baselines/backtesting as implemented while keeping category forecasts, warning thresholds and forecasting ML challengers future work.
+- Forecasting ML has an explicit promotion gate: Ridge/Random Forest/Gradient Boosting or other approaches must consistently beat transparent baselines on identical causal walk-forward folds/support before entering the product.
 - Future anomaly ML is explicitly a challenger to `rules-v2`; an `IsolationForest-v1` path must use causal/prior-only features and be compared on the same labelled evidence rather than automatically replacing the deterministic engine.
-- API v2 transaction creation/update now computes suggestion provenance server-side and persists the transaction plus category-feedback record atomically; clients cannot supply or spoof model version, feature policy or suggested category metadata.
-- `scikit-learn` is now a runtime backend dependency and `backend/ml` is packaged in the backend Docker image because FastAPI serves the category suggestion baseline.
-- `privacy-export-v1` now includes account-owned category-suggestion feedback in addition to CSV import batches, custom categories and budgets; account deletion removes the same feedback through database ownership cascades.
-- Category-classifier evaluation is now `category-classifier-evaluation-v2`, adding a 382-row / nine-group canonical merchant cold-start slice with zero group overlap and raw/Platt/isotonic calibration diagnostics while retaining the sealed 2025 H2 holdout.
-- The model card, README, architecture, API, data-model, testing and roadmap documentation now describe the implemented suggestion/feedback runtime rather than an offline-only classifier.
-- Category lookup adds authenticated user-aware resolution alongside the legacy category contracts, preserving existing `list_categories()` / `_get_category()` behavior and legacy unknown-vs-incompatible error semantics.
+- API v2 transaction creation/update computes suggestion provenance server-side and persists the transaction plus category-feedback record atomically; clients cannot supply or spoof model version, feature policy or suggested category metadata.
+- `scikit-learn` is a runtime backend dependency and `backend/ml` is packaged in the backend Docker image because FastAPI serves the category suggestion baseline.
+- `privacy-export-v1` includes account-owned category-suggestion feedback in addition to CSV import batches, custom categories and budgets; account deletion removes the same feedback through database ownership cascades.
+- Category-classifier evaluation is `category-classifier-evaluation-v2`, adding a 382-row / nine-group canonical merchant cold-start slice with zero group overlap and raw/Platt/isotonic calibration diagnostics while retaining the sealed 2025 H2 holdout.
+- The model card, README, architecture, API, product, testing and roadmap documentation describe current suggestion, recurring-calendar and deterministic forecast behavior rather than stale placeholders.
+- Category lookup adds authenticated user-aware resolution alongside legacy category contracts, preserving existing `list_categories()` / `_get_category()` behavior and legacy unknown-vs-incompatible error semantics.
 - Transaction creation, update and CSV import can resolve active system categories together with the authenticated user's active custom categories.
-- `privacy-export-v1` includes account-owned custom categories and budgets in addition to CSV import-batch metadata.
 - Historical-analysis documentation treats `historical-v2.2` as the current persisted diagnostic engine and `lifecycle-v1` as the current recurrence segmentation contract.
 - Actionable, historical and API amount-anomaly documentation reflects the shared `merchant_mad_plus_extreme_iqr_v1` merchant-only baseline.
 - Current strategy identifiers are consumed from the central registry by their owning implementations.
@@ -71,9 +79,14 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 - Production-readiness tracking distinguishes completed application dependency SBOM generation from pending container image scanning/image-level SBOM work.
 - README and roadmap present CSV historical import as implemented while keeping direct bank APIs and multi-currency/FX accounting future work.
 
+### Fixed
+
+- Asynchronous category loading no longer rebuilds and clears merchant/amount/date/type/payment/recurring input that a user started entering before `fetchCategories()` completed; only a blank or incompatible category is initialized/repaired.
+- Critical category-suggestion and recurring-calendar Playwright flows now wait on semantic form readiness/successful reset rather than incidental timing or transaction-table row counts.
+
 ### Removed
 
-- Obsolete Predictions placeholder that claimed no predictive/product projection backend existed; the workspace now serves the deterministic recurring-payment calendar while month-end forecasting remains pending.
+- Obsolete Predictions placeholder/state that treated recurring-payment projection or deterministic overall month-end baseline forecasting as unimplemented; Predictions now contains both `recurring-calendar-v1` and `spending-forecast-v1` while forecasting ML remains future work.
 - Obsolete documentation that described `tfidf-logreg-v1` as offline-only or unavailable to the production Compose/API runtime.
 - Obsolete documentation claiming that `rules-v2` or `historical-v2.2` falls back to category history when merchant history is insufficient for amount-anomaly detection.
 - Obsolete wording that presented `historical-v2.1` as the current historical engine.
