@@ -21,25 +21,30 @@ test('user can correct an AI suggestion and reuse that merchant preference', asy
   await expect(page.getByRole('status')).toContainText('Category created.');
 
   await page.getByRole('link', { name: 'Transactions' }).click();
-  await page.getByLabel('Merchant').fill('MERCADONA 3921');
-  await page.getByRole('button', { name: 'Suggest category' }).click();
+  const transactionForm = page.locator('form').filter({
+    has: page.getByRole('heading', { name: 'Add transaction' }),
+  });
+  await expect(transactionForm).toBeVisible();
 
-  let suggestion = page.getByRole('region', { name: 'AI category suggestion' });
+  await transactionForm.getByLabel('Merchant').fill('MERCADONA 3921');
+  await transactionForm.getByRole('button', { name: 'Suggest category' }).click();
+
+  let suggestion = transactionForm.getByRole('region', { name: 'AI category suggestion' });
   await expect(suggestion).toContainText('Food');
   await expect(suggestion).not.toContainText(/confidence/i);
   await suggestion.getByRole('button', { name: 'Change' }).click();
-  await page.getByLabel('Category').selectOption({ label: customCategory });
-  await page.getByRole('spinbutton', { name: 'Amount' }).fill('25.00');
-  await page.getByRole('button', { name: 'Add transaction' }).click();
+  await transactionForm.getByLabel('Category').selectOption({ label: customCategory });
+  await transactionForm.getByRole('spinbutton', { name: 'Amount' }).fill('25.00');
+  await transactionForm.getByRole('button', { name: 'Add transaction' }).click();
   await expect(page.getByRole('status')).toContainText('Transaction created successfully.');
 
-  await page.getByLabel('Merchant').fill('Mercadona 9999');
-  await page.getByRole('button', { name: 'Suggest category' }).click();
-  suggestion = page.getByRole('region', { name: 'AI category suggestion' });
+  await transactionForm.getByLabel('Merchant').fill('Mercadona 9999');
+  await transactionForm.getByRole('button', { name: 'Suggest category' }).click();
+  suggestion = transactionForm.getByRole('region', { name: 'AI category suggestion' });
   await expect(suggestion).toContainText(customCategory);
   await expect(suggestion).toContainText('Based on how you categorized this merchant before.');
-  await expect(page.getByLabel('Category')).toHaveValue('Food');
+  await expect(transactionForm.getByLabel('Category')).toHaveValue('Food');
 
   await suggestion.getByRole('button', { name: 'Accept' }).click();
-  await expect(page.getByLabel('Category')).toHaveValue(customCategory);
+  await expect(transactionForm.getByLabel('Category')).toHaveValue(customCategory);
 });
