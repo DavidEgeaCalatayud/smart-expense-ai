@@ -1,4 +1,4 @@
-import { fireEvent, render, screen, waitFor } from '@testing-library/react';
+import { fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { createBudget, deleteBudget, fetchBudgets, updateBudget } from '../services/budgetsApi';
 import { fetchCategories } from '../services/categoriesApi';
@@ -69,15 +69,22 @@ describe('BudgetsPage', () => {
   it('renders persisted overall and category budget progress', async () => {
     render(<BudgetsPage />);
 
-    expect(await screen.findByText('Overall spending')).toBeInTheDocument();
-    expect(screen.getByText('Gym')).toBeInTheDocument();
-    expect(screen.getByText('82.0% used · 5 days left')).toBeInTheDocument();
-    expect(screen.getByText('€72.00 remaining')).toBeInTheDocument();
+    const overallEditButton = await screen.findByRole('button', { name: 'Edit overall budget' });
+    const overallCard = overallEditButton.closest('article');
+    expect(overallCard).not.toBeNull();
+    expect(within(overallCard as HTMLElement).getByText('Overall spending')).toBeInTheDocument();
+
+    const gymEditButton = screen.getByRole('button', { name: 'Edit Gym budget' });
+    const gymCard = gymEditButton.closest('article');
+    expect(gymCard).not.toBeNull();
+    expect(within(gymCard as HTMLElement).getByText('Gym')).toBeInTheDocument();
+    expect(within(gymCard as HTMLElement).getByText('82.0% used · 5 days left')).toBeInTheDocument();
+    expect(within(gymCard as HTMLElement).getByText('€72.00 remaining')).toBeInTheDocument();
   });
 
   it('normalizes a category budget amount before submitting it', async () => {
     render(<BudgetsPage />);
-    expect(await screen.findByText('Gym')).toBeInTheDocument();
+    await screen.findByRole('option', { name: 'Gym' });
 
     fireEvent.change(screen.getByLabelText('Budget scope'), { target: { value: 'gym-category' } });
     fireEvent.change(screen.getByLabelText('Budget limit'), { target: { value: '500' } });
