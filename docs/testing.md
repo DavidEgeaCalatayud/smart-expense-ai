@@ -1,6 +1,6 @@
 # Testing and CI
 
-Smart Expense AI uses layered automated verification for persistence, authentication, security controls, versioned API contracts, monetary precision, deterministic financial intelligence, historical analysis, category suggestions/personalization, ML evaluation, privacy-safe private-evaluation tooling, responsive UX, supply-chain inventory and critical browser flows.
+Smart Expense AI uses layered automated verification for persistence, authentication, security controls, versioned API contracts, monetary precision, deterministic financial intelligence, historical analysis, recurring-payment projection, category suggestions/personalization, ML evaluation, privacy-safe private-evaluation tooling, responsive UX, supply-chain inventory and critical browser flows.
 
 Current analytical identifiers come from `backend/app/analysis_contracts.py`; see [`analysis-contracts.md`](analysis-contracts.md). Tests explicitly prevent key implementation/documentation contracts from silently drifting.
 
@@ -23,6 +23,19 @@ Coverage includes canonical merchant identity, multi-stream recurrence, calendar
 ## Historical analysis — `historical-v2.2`
 
 Tests cover month completeness, fold-local merchant identity, recurrence calendars/lifecycle, temporal stream segmentation, price continuity, cancellation/reactivation, missed occurrences, prior-only merchant amount outliers, category shifts, snapshot versioning and compatibility. The current recurrence segmentation contract is `lifecycle-v1`.
+
+## Upcoming recurring payments — `recurring-calendar-v1`
+
+Backend unit coverage verifies that the product projection reuses current recurrence evidence rather than introducing a second recurrence algorithm. Regressions include:
+
+- month-end schedules remain month-end across variable calendar lengths;
+- repeated weekly/biweekly occurrences are expanded only inside the requested bounded window;
+- `expectedTotal` uses exact `Decimal` arithmetic and contains future charges only;
+- overdue/missing streams are returned separately and are not rolled forward into future totals;
+- price-continuity streams use the latest observed price regime rather than the older median;
+- deterministic `expected`, `likely`, `price_changed` and `overdue` labels never claim calibrated probability.
+
+Frontend component coverage mocks the API contract and verifies that future totals/upcoming cards remain separate from overdue schedules. Critical Playwright coverage persists four real weekly transactions through the UI, navigates to **Predictions**, and verifies the generated 30-day recurring calendar and exact total against the PostgreSQL-backed API.
 
 ## Category suggestion/product contract
 
@@ -62,6 +75,7 @@ Mercadona 9999
 ```text
 rules-v2
 historical-v2.2
+recurring-calendar-v1
 merchant_mad_plus_extreme_iqr_v1
 lifecycle-v1
 tfidf-logreg-v1
@@ -183,7 +197,7 @@ alembic upgrade head
 pytest
 ```
 
-Backend integration coverage includes v1 compatibility, v2 decimal money, pagination/filtering, categories/budgets/imports, category suggestions/feedback, intelligence, historical snapshots, authentication/session rotation, privacy export isolation and account deletion.
+Backend integration coverage includes v1 compatibility, v2 decimal money, pagination/filtering, categories/budgets/imports, category suggestions/feedback, intelligence, historical snapshots, authenticated upcoming-payment projections, authentication/session rotation, privacy export isolation and account deletion.
 
 ## Frontend quality chain
 
@@ -209,7 +223,8 @@ Playwright exercises critical authenticated flows against PostgreSQL/FastAPI/Vit
 - custom category + budget flow;
 - CSV import/re-import safety;
 - password/session rotation;
-- category suggestion correction + personalized reuse.
+- category suggestion correction + personalized reuse;
+- persisted recurring-history -> `recurring-calendar-v1` upcoming-payment projection.
 
 Algorithm depth remains tested at service/integration/evaluation layers rather than duplicating every semantic through the browser.
 
@@ -231,10 +246,10 @@ The blocking security audit runs `pip-audit` and `npm audit --audit-level=high`.
 
 Functional gates:
 
-- **Backend tests** — clean PostgreSQL migration, FastAPI import, pytest, protected evaluation checks and the synthetic private-evaluator privacy regression.
+- **Backend tests** — clean PostgreSQL migration, FastAPI import, pytest, protected evaluation checks, recurring-calendar regressions and the synthetic private-evaluator privacy regression.
 - **Frontend quality** — Vitest -> TypeScript -> ESLint -> production build.
 - **Dependency security audit** — Python and npm audits.
-- **Critical E2E** — PostgreSQL/FastAPI/Vite/Chromium flows.
+- **Critical E2E** — PostgreSQL/FastAPI/Vite/Chromium flows including recurring-calendar projection.
 - **Docker Compose smoke test** — deployment-style image/proxy/API contract.
 - **Quality gate** — fails unless every functional gate succeeds.
 
