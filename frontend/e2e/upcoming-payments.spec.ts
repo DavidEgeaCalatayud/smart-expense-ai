@@ -27,15 +27,18 @@ test('recurring transaction history becomes an explainable upcoming-payments cal
 
   await page.getByRole('link', { name: 'Transactions' }).click();
   await expect(page.getByRole('heading', { name: 'Transactions' })).toBeVisible();
+  const form = page.getByRole('form', { name: 'Add transaction form' });
 
-  for (const daysAgo of [28, 21, 14, 7]) {
-    await page.getByLabel('Merchant').fill(merchant);
-    await page.getByRole('spinbutton', { name: 'Amount' }).fill('10.99');
-    await page.getByLabel('Description').fill('Recurring calendar critical E2E');
-    await page.getByLabel('Date').fill(localDateDaysAgo(daysAgo));
-    await page.getByLabel('Category').first().selectOption({ label: 'Subscriptions' });
-    await page.getByRole('button', { name: 'Add transaction' }).click();
-    await expect(page.getByRole('status')).toContainText('Transaction created successfully.');
+  for (const [index, daysAgo] of [28, 21, 14, 7].entries()) {
+    await form.getByLabel('Merchant').fill(merchant);
+    await form.getByRole('spinbutton', { name: 'Amount' }).fill('10.99');
+    await form.getByLabel('Description').fill(`Recurring calendar occurrence ${daysAgo}`);
+    await form.getByLabel('Date').fill(localDateDaysAgo(daysAgo));
+    await form.getByLabel('Category').selectOption({ label: 'Subscriptions' });
+    await form.getByRole('button', { name: 'Add transaction' }).click();
+
+    const persistedRows = page.getByRole('row').filter({ hasText: merchant });
+    await expect(persistedRows).toHaveCount(index + 1);
   }
 
   await page.getByRole('link', { name: 'Predictions' }).click();
