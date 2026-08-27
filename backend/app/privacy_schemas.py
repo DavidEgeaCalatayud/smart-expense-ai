@@ -34,7 +34,24 @@ class PrivacyExportBudget(BaseModel):
     updatedAt: datetime
 
 
+class PrivacyExportCategorySuggestion(BaseModel):
+    id: str
+    transactionId: str
+    merchantKey: str
+    transactionType: str
+    source: str
+    modelVersion: str
+    featurePolicy: str
+    suggestedCategoryId: str | None
+    selectedCategoryId: str | None
+    accepted: bool
+    correctedAt: datetime | None
+    createdAt: datetime
+    updatedAt: datetime
+
+
 class PrivacyExportResponseWithImports(PrivacyExportResponse):
     importBatches: list[PrivacyExportImportBatch] = Field(default_factory=list)
     customCategories: list[PrivacyExportCustomCategory] = Field(default_factory=list)
     budgets: list[PrivacyExportBudget] = Field(default_factory=list)
+    categorySuggestions: list[PrivacyExportCategorySuggestion] = Field(default_factory=list)
