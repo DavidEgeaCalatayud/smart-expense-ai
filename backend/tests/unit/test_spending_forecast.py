@@ -47,20 +47,20 @@ def test_three_month_mean_and_run_rate_are_exact_and_causal() -> None:
 def test_recurrence_aware_baseline_does_not_double_count_a_charge_already_paid() -> None:
     transactions = [
         _tx("s1", "Cloud Plan", "10.00", date(2026, 1, 5)),
-        _tx("v1", "Variable Shop", "100.00", date(2026, 1, 10)),
+        _tx("v1", "Variable January", "100.00", date(2026, 1, 10)),
         _tx("s2", "Cloud Plan", "10.00", date(2026, 2, 5)),
-        _tx("v2", "Variable Shop", "100.00", date(2026, 2, 10)),
+        _tx("v2", "Variable February", "100.00", date(2026, 2, 10)),
         _tx("s3", "Cloud Plan", "10.00", date(2026, 3, 5)),
-        _tx("v3", "Variable Shop", "100.00", date(2026, 3, 10)),
+        _tx("v3", "Variable March", "100.00", date(2026, 3, 10)),
         _tx("s4", "Cloud Plan", "10.00", date(2026, 4, 5)),
-        _tx("v4", "Variable Shop", "100.00", date(2026, 4, 10)),
+        _tx("v4", "Variable April", "100.00", date(2026, 4, 10)),
     ]
 
     report = build_spending_forecast(transactions, as_of=date(2026, 4, 10))
     recurrence = _baseline(report, "recurrence_aware")
 
     assert report.spentSoFar == "110.00"
-    assert recurrence.projectedMonthEnd == "320.00"
+    assert recurrence.projectedMonthEnd == "310.00"
     assert recurrence.evidence["recurringSpentSoFar"] == "10.00"
     assert recurrence.evidence["variableSpentSoFar"] == "100.00"
     assert recurrence.evidence["projectedVariableRemaining"] == "200.00"
