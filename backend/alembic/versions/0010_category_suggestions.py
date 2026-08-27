@@ -73,12 +73,6 @@ def upgrade() -> None:
         unique=False,
     )
     op.create_index(
-        "ix_category_suggestions_transaction_id",
-        "category_suggestions",
-        ["transaction_id"],
-        unique=True,
-    )
-    op.create_index(
         "ix_category_suggestions_user_merchant_type_created",
         "category_suggestions",
         ["user_id", "merchant_key", "transaction_type", "created_at"],
@@ -91,6 +85,5 @@ def downgrade() -> None:
         "ix_category_suggestions_user_merchant_type_created",
         table_name="category_suggestions",
     )
-    op.drop_index("ix_category_suggestions_transaction_id", table_name="category_suggestions")
     op.drop_index("ix_category_suggestions_user_id", table_name="category_suggestions")
     op.drop_table("category_suggestions")
