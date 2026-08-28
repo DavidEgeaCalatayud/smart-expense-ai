@@ -28,6 +28,17 @@ def _commit(db: Session) -> None:
         raise
 
 
+def _scan_lock_key(user_id: UUID) -> int:
+    """Map a UUID to PostgreSQL's signed bigint advisory-lock key space."""
+    key = user_id.int & ((1 << 64) - 1)
+    return key if key < (1 << 63) else key - (1 << 64)
+
+
+def _lock_user_scan(db: Session, user_id: UUID) -> None:
+    """Serialize financial-intelligence scans for one user until transaction end."""
+    db.execute(select(func.pg_advisory_xact_lock(_scan_lock_key(user_id)))).one()
+
+
 def _load_expense_snapshots(db: Session, user_id: UUID) -> list[TransactionSnapshot]:
     transactions = db.scalars(
         select(TransactionModel)
@@ -36,7 +47,11 @@ def _load_expense_snapshots(db: Session, user_id: UUID) -> list[TransactionSnaps
             TransactionModel.user_id == user_id,
             TransactionModel.transaction_type == "expense",
         )
-        .order_by(TransactionModel.transaction_date.asc(), TransactionModel.created_at.asc())
+        .order_by(
+            TransactionModel.transaction_date.asc(),
+            TransactionModel.created_at.asc(),
+            TransactionModel.id.asc(),
+        )
     ).all()
 
     return [
@@ -85,6 +100,7 @@ def _apply_candidate(
 
 
 def scan_financial_intelligence(db: Session, user_id: UUID) -> IntelligenceScanResponse:
+    _lock_user_scan(db, user_id)
     snapshots = _load_expense_snapshots(db, user_id)
     candidates = run_financial_intelligence_rules_v2(snapshots, analysis_date=date.today())
     detected_at = datetime.now(timezone.utc)
