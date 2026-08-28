@@ -111,8 +111,10 @@ def test_current_technical_documentation_matches_contract_registry() -> None:
     assert UPCOMING_PAYMENTS_VERSION in documents["testing"]
     assert SPENDING_FORECAST_VERSION in documents["testing"]
     assert ISOLATION_FOREST_VERSION in documents["testing"]
+    assert BERKA_REAL_DATA_VERSION in documents["testing"]
     assert "merchant-group" in documents["testing"]
     assert "private-real-data-v1" in documents["testing"]
+    assert "real_public_historical" in documents["testing"]
     assert "financial assistant" in documents["testing"].lower()
     assert "invented evidence" in documents["testing"].lower()
     assert HISTORICAL_ANALYSIS_VERSION in documents["architecture"]
@@ -195,6 +197,8 @@ def test_repository_metadata_and_primary_docs_reference_project_governance_files
     roadmap = _read("ROADMAP.md")
     assert "docs/analysis-contracts.md" in readme
     assert "docs/private-evaluation.md" in readme
+    assert "docs/REAL_WORLD_EVIDENCE.md" in readme
+    assert "docs/evidence/berka-real-data-v1.json" in readme
     assert "docs/upcoming-payments.md" in readme
     assert "docs/spending-forecast.md" in readme
     assert "docs/isolation-forest-challenger.md" in readme
@@ -205,12 +209,17 @@ def test_repository_metadata_and_primary_docs_reference_project_governance_files
     assert "/api/v2/assistant/query" in readme
     assert "productConfidenceEnabled=false" in readme
     assert "private-real-data-v1" in readme
+    assert BERKA_REAL_DATA_VERSION in readme
+    assert "171,826" in readme
     assert UPCOMING_PAYMENTS_VERSION in readme
     assert SPENDING_FORECAST_VERSION in readme
     assert ISOLATION_FOREST_VERSION in readme
     assert "analysis_contracts.py" in roadmap
     assert "category-suggestion feedback" in roadmap
     assert "private-real-data-v1" in roadmap
+    assert BERKA_REAL_DATA_VERSION in roadmap
+    assert "171,826" in roadmap
+    assert "5,788" in roadmap
     assert UPCOMING_PAYMENTS_VERSION in roadmap
     assert SPENDING_FORECAST_VERSION in roadmap
     assert ISOLATION_FOREST_VERSION in roadmap
