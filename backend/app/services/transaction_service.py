@@ -55,23 +55,6 @@ def _parse_transaction_date(value: str) -> date:
         raise TransactionInputError("Transaction date must use YYYY-MM-DD format") from exc
 
 
-def _get_category(
-    db: Session,
-    category_name: str,
-    transaction_type: TransactionType,
-) -> Category:
-    category = db.scalar(select(Category).where(Category.name == category_name))
-    if category is None:
-        raise TransactionInputError(f"Unknown category: {category_name}")
-
-    if category.transaction_type != transaction_type.value:
-        raise TransactionInputError(
-            f"Category {category_name} is not valid for {transaction_type.value} transactions"
-        )
-
-    return category
-
-
 def _get_visible_category(
     db: Session,
     user_id: UUID,
@@ -213,7 +196,11 @@ def list_transactions(
         select(TransactionModel)
         .options(joinedload(TransactionModel.category))
         .where(*conditions)
-        .order_by(sort_expression, TransactionModel.created_at.desc())
+        .order_by(
+            sort_expression,
+            TransactionModel.created_at.desc(),
+            TransactionModel.id.desc(),
+        )
         .offset((page - 1) * page_size)
         .limit(page_size)
     )
@@ -309,6 +296,7 @@ def monthly_expenses(
             TransactionModel.user_id == user_id,
             TransactionModel.transaction_type == TransactionType.expense.value,
             TransactionModel.transaction_date >= start_month,
+            TransactionModel.transaction_date <= through,
         )
         .group_by(month_key)
         .order_by(month_key)
