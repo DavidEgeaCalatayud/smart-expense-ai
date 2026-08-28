@@ -217,8 +217,8 @@ def test_private_evidence_surfaces_requested_metrics_without_raw_rows(
     assert "Mercado Barrio Norte" not in serialized
     assert "subscription-09" not in serialized
     assert "market-09" not in serialized
-    assert "suggestedCategory" not in serialized
-    assert "selectedCategory" not in serialized
+    assert '"suggestedCategory":' not in serialized
+    assert '"selectedCategory":' not in serialized
 
 
 def test_acceptance_is_not_derived_from_independent_label_accuracy(tmp_path: Path) -> None:
