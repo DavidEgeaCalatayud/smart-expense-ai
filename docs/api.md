@@ -2,7 +2,7 @@
 
 Smart Expense AI exposes versioned application contracts under `/api/v1` and `/api/v2`. `/health` is an infrastructure probe; unversioned `/api/*` application routes are unsupported.
 
-Stable analytical identifiers are defined in `backend/app/analysis_contracts.py`; see [`analysis-contracts.md`](analysis-contracts.md).
+Stable analytical identifiers are defined in `backend/app/analysis_contracts.py`; see [`analysis-contracts.md`](analysis-contracts.md). The Financial Assistant is a product orchestration layer rather than a replacement analytical engine; see [`financial-assistant.md`](financial-assistant.md).
 
 ## Version overview
 
@@ -11,7 +11,8 @@ Stable analytical identifiers are defined in `backend/app/analysis_contracts.py`
 - transaction, budget and forecast money uses decimal strings;
 - financial calculations remain PostgreSQL `NUMERIC` / Python `Decimal`;
 - category suggestions are explicit user-controlled assistance;
-- intelligence, historical evidence, recurring-payment projections and month-end forecasts remain versioned and explainable.
+- intelligence, historical evidence, recurring-payment projections and month-end forecasts remain versioned and explainable;
+- Financial Assistant answers are grounded in authenticated backend tool output rather than model-authored financial calculations.
 
 Current analytical/model identifiers include:
 
@@ -21,6 +22,9 @@ historical-v2.2
 recurring-calendar-v1
 spending-forecast-v1
 merchant_mad_plus_extreme_iqr_v1
+isolation-forest-v1
+causal-transaction-features-v1
+rules-v2-or-isolation-forest-v1
 lifecycle-v1
 tfidf-logreg-v1
 merchant_descriptor_only_v1
@@ -48,7 +52,7 @@ DELETE /api/v1/auth/account
 
 Browser sessions use an HttpOnly JWT cookie with issuer/audience/expiry/session-version validation. Password changes rotate the successful caller's current session and invalidate older session versions.
 
-`privacy-export-v1` is scoped to the authenticated user and includes account data, transactions, intelligence findings/scans, historical snapshots, import batches, custom categories, budgets and `categorySuggestions`. Account deletion removes the same user-owned data through database lifecycle rules.
+`privacy-export-v1` is scoped to the authenticated user and includes account data, transactions, intelligence findings/scans, historical snapshots, import batches, custom categories, budgets and `categorySuggestions`. Financial Assistant v1 stores no chat/question/tool-call records in PostgreSQL, so it adds no new persistent privacy-export entity.
 
 ## Categories
 
@@ -93,6 +97,8 @@ PATCH  /api/v2/intelligence/findings/{finding_id}
 POST   /api/v2/intelligence/historical-analysis?months=12
 GET    /api/v2/intelligence/historical-analysis/latest
 GET    /api/v2/intelligence/upcoming-payments?days=30&asOf=YYYY-MM-DD
+
+POST   /api/v2/assistant/query
 ```
 
 ## Monetary contract
@@ -120,6 +126,8 @@ PostgreSQL NUMERIC
         <-> API v2 decimal string
         <-> frontend integer cents / decimal-string display
 ```
+
+Financial Assistant tool outputs follow the same exact-money principle. Period deltas and percentages are computed by backend services before being supplied to the language model.
 
 ## Transactions
 
@@ -160,40 +168,7 @@ GET /api/v2/analytics/spending-forecast?asOf=YYYY-MM-DD
 
 `asOf` is optional and exists for reproducible evaluation/testing; normal product requests use the server date. Transactions after `asOf` are excluded before any forecast component is calculated.
 
-The response contains:
-
-```text
-forecastVersion
-asOf
-month
-daysInMonth
-elapsedDays
-remainingDays
-spentSoFar
-historicalThreeMonthMean
-backtestCutoffDay
-backtestMonths
-baselines[]
-```
-
-Each baseline contains:
-
-```text
-baseline
-label
-available
-projectedMonthEnd
-differenceFromThreeMonthMean
-assumptions[]
-evidence
-backtest {
-  support
-  cutoffDay
-  mae
-  smapePercent
-  bias
-}
-```
+The response contains forecast version, date/month metadata, spent-so-far, historical mean, backtest metadata and three baselines. Each baseline exposes availability, projected month-end amount, difference from the historical mean, assumptions, evidence and walk-forward MAE/sMAPE/bias.
 
 Implemented baselines are `three_month_mean`, `run_rate` and `recurrence_aware`. All monetary fields remain decimal strings. Insufficient history is represented with `available=false` / null estimate rather than future or partial-month backfilling.
 
@@ -248,6 +223,73 @@ Statuses `expected`, `likely`, `price_changed` and `overdue` are deterministic e
 The internal projection primitive also accepts a projection-window start separate from its historical `asOf` cutoff. `spending-forecast-v1` uses that separation to freeze recurrence evidence at the forecast cutoff and project only subsequent dates without same-day double counting.
 
 See [`upcoming-payments.md`](upcoming-payments.md).
+
+## Financial Assistant v1
+
+```text
+POST /api/v2/assistant/query
+```
+
+Request:
+
+```json
+{
+  "question": "Why did I spend more this month?"
+}
+```
+
+The request model uses `extra=forbid`; clients cannot send `userId`. Authentication scope always comes from `current_user.id` in FastAPI.
+
+Response:
+
+```json
+{
+  "answer": "Your spending increased mainly because...",
+  "evidence": [
+    {
+      "source": "period_comparison",
+      "reference": "2026-07_vs_2026-08",
+      "label": "2026-07 vs 2026-08 expense comparison"
+    }
+  ],
+  "limitations": [],
+  "requestId": "..."
+}
+```
+
+The assistant exposes six provider-callable tools but none directly as public HTTP endpoints:
+
+```text
+get_financial_summary
+compare_periods
+get_budget_progress
+get_financial_findings
+get_historical_insights
+search_transactions
+```
+
+Important semantics:
+
+- tool schemas are strict and contain no user identity;
+- backend tool execution receives the authenticated user ID outside model arguments;
+- `compare_periods` performs exact Decimal month/category arithmetic server-side;
+- `get_financial_findings` reads persisted `rules-v2` data and does **not** trigger a scan;
+- `get_historical_insights` reads the latest persisted `historical-v2.2` snapshot and does **not** create one;
+- transaction search is bounded to 50 returned rows;
+- final evidence is whitelisted against references emitted by tools actually executed in the request;
+- backend canonical labels replace model-authored evidence labels;
+- no assistant question/thread/history is persisted by Smart Expense AI v1.
+
+If no provider is configured, the authenticated endpoint returns `503 financial_assistant_not_configured`; this does not prevent the rest of the application from starting or operating.
+
+Provider/loop failures use:
+
+```text
+502 financial_assistant_provider_error
+502 financial_assistant_tool_limit
+```
+
+See [`financial-assistant.md`](financial-assistant.md) for provider configuration, privacy boundaries and non-goals.
 
 ## Error contract
 

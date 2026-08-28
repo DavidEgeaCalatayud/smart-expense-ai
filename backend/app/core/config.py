@@ -25,6 +25,12 @@ class Settings(BaseSettings):
     access_token_minutes: int = 60
     auth_cookie_name: str = "smart_expense_session"
     auth_cookie_secure: bool = False
+    openai_api_key: str | None = None
+    financial_assistant_model: str = "gpt-5.6-terra"
+    financial_assistant_reasoning_effort: Literal["none", "low", "medium", "high", "xhigh", "max"] = "low"
+    financial_assistant_max_tool_rounds: int = 5
+    financial_assistant_max_tool_calls: int = 12
+    financial_assistant_max_output_tokens: int = 1600
 
     model_config = SettingsConfigDict(
         env_file=REPOSITORY_ROOT / ".env",
@@ -47,12 +53,25 @@ class Settings(BaseSettings):
             raise ValueError("JWT_SECRET must contain at least 32 bytes")
         return value
 
+    @field_validator("openai_api_key", mode="before")
+    @classmethod
+    def normalize_optional_api_key(cls, value: object) -> object:
+        if isinstance(value, str) and not value.strip():
+            return None
+        return value
+
     @model_validator(mode="after")
     def enforce_environment_security(self) -> "Settings":
         if self.app_env in {"staging", "production"} and not self.auth_cookie_secure:
             raise ValueError("AUTH_COOKIE_SECURE must be true in staging and production")
         if self.app_env == "production" and self.app_debug:
             raise ValueError("APP_DEBUG must be false in production")
+        if self.financial_assistant_max_tool_rounds < 1:
+            raise ValueError("FINANCIAL_ASSISTANT_MAX_TOOL_ROUNDS must be at least 1")
+        if self.financial_assistant_max_tool_calls < 1:
+            raise ValueError("FINANCIAL_ASSISTANT_MAX_TOOL_CALLS must be at least 1")
+        if self.financial_assistant_max_output_tokens < 256:
+            raise ValueError("FINANCIAL_ASSISTANT_MAX_OUTPUT_TOKENS must be at least 256")
         return self
 
     @property
