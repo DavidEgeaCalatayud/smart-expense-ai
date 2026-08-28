@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import csv
 import hashlib
+import shutil
 import zipfile
 from calendar import monthrange
 from collections import defaultdict
@@ -21,6 +22,7 @@ DATASET_NAME = "PKDD'99 Berka Financial Dataset"
 DATE_TOLERANCE_DAYS = 7
 MONEY_QUANTUM = Decimal("0.01")
 RATIO_QUANTUM = Decimal("0.0001")
+REQUIRED_RELATIONS = ("account.asc", "order.asc", "trans.asc")
 
 
 def _money(value: Decimal) -> str:
@@ -60,9 +62,35 @@ def _resolve_dataset_root(root: Path) -> Path:
     if root.is_dir():
         candidates.extend(path for path in root.iterdir() if path.is_dir())
     for candidate in candidates:
-        if all((candidate / name).exists() for name in ("account.asc", "order.asc", "trans.asc")):
+        if all((candidate / name).exists() for name in REQUIRED_RELATIONS):
             return candidate
     raise FileNotFoundError("Expected account.asc, order.asc and trans.asc in the Berka dataset")
+
+
+def _extract_required_relations(archive: zipfile.ZipFile, destination: Path) -> None:
+    """Copy only the three required Berka relations to controlled filenames.
+
+    The evaluator accepts a user-supplied ZIP path. Avoid ``extractall`` so unrelated
+    archive members, absolute paths and ``../`` traversal entries are never written.
+    Duplicate relation basenames are rejected rather than choosing one implicitly.
+    """
+
+    matches: dict[str, list[zipfile.ZipInfo]] = {name: [] for name in REQUIRED_RELATIONS}
+    for member in archive.infolist():
+        if member.is_dir():
+            continue
+        basename = Path(member.filename.replace("\\", "/")).name
+        if basename in matches:
+            matches[basename].append(member)
+
+    for name in REQUIRED_RELATIONS:
+        candidates = matches[name]
+        if len(candidates) != 1:
+            raise ValueError(
+                f"Expected exactly one {name} relation in Berka ZIP; found {len(candidates)}"
+            )
+        with archive.open(candidates[0], "r") as source, (destination / name).open("wb") as target:
+            shutil.copyfileobj(source, target)
 
 
 @dataclass(frozen=True)
@@ -375,7 +403,7 @@ def evaluate_berka_directory(root: Path) -> dict[str, object]:
         },
         "sourceFingerprints": {
             name: _sha256(dataset_root / name)
-            for name in ("account.asc", "order.asc", "trans.asc")
+            for name in REQUIRED_RELATIONS
         },
         "coverage": {
             "accounts": len(account_start),
@@ -411,9 +439,10 @@ def evaluate_berka_dataset(path: Path) -> dict[str, object]:
     if path.suffix.casefold() == ".zip":
         archive_fingerprint = _sha256(path)
         with TemporaryDirectory() as temp_directory:
+            destination = Path(temp_directory)
             with zipfile.ZipFile(path) as archive:
-                archive.extractall(temp_directory)
-            report = evaluate_berka_directory(Path(temp_directory))
+                _extract_required_relations(archive, destination)
+            report = evaluate_berka_directory(destination)
         provenance = dict(report["provenance"])
         provenance["sourceArchiveSha256"] = archive_fingerprint
         report["provenance"] = provenance
