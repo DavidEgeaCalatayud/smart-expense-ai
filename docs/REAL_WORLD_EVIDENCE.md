@@ -60,7 +60,7 @@ Aggregate coverage:
 | Outflow transactions | 651,237 |
 | Outgoing transfers | 208,283 |
 | Permanent orders | 6,471 |
-| Forecast account-month folds | 172,115 |
+| Forecast account-month folds | 171,826 |
 
 For forecasting, an outflow is a Berka transaction whose source `type` is not `PRIJEM` (credit). The evaluator does not convert amounts to EUR; metrics remain in native dataset monetary units.
 
@@ -71,14 +71,14 @@ For forecasting, an outflow is a Berka transaction whose source `type` is not `P
 1. previous-three-complete-month mean;
 2. day-15 run rate: `spent_through_day_15 / 15 * days_in_month`.
 
-Each account is evaluated walk-forward from its fourth observable calendar month through the dataset boundary. Previous complete months are history; for the run rate, transactions after day 15 are outcome only and cannot enter the prediction.
+Each account is evaluated walk-forward from its fourth observable calendar month **through that account's final observed transaction month**. This avoids inventing zero-spend months after an account disappears from the source. Previous complete months are history; for the run rate, transactions after day 15 are outcome only and cannot enter the prediction.
 
 | Baseline | Account-months | MAE | Median absolute error | sMAPE | Bias |
 | --- | ---: | ---: | ---: | ---: | ---: |
-| Previous 3 months | 172,115 | **8,843.33** | **4,200.00** | **55.1756%** | -577.26 |
-| Day-15 run rate | 172,115 | 11,083.95 | 6,300.00 | 66.0910% | +4,519.05 |
+| Previous 3 months | 171,826 | **8,856.30** | **4,200.00** | **55.1532%** | -580.13 |
+| Day-15 run rate | 171,826 | 11,102.60 | 6,315.00 | 66.2022% | +4,526.65 |
 
-The day-15 run rate beats the three-month mean on only **35.24%** of account-month folds; 2.04% are ties.
+The day-15 run rate beats the three-month mean on only **35.24%** of account-month folds; 1.94% are ties.
 
 ### Interpretation
 
@@ -148,6 +148,8 @@ A predicted and observed occurrence match within a seven-day tolerance.
 
 These very strong numbers describe **permanent bank orders in this dataset**. They must not be generalized to every subscription, card merchant or modern direct debit. The source relation itself represents a highly regular product class.
 
+There is an important censoring limitation: `order.asc` does not provide a reliable start/cancellation interval for each permanent order. The reference baseline is therefore scored only from the third observed realized occurrence through the final observed realized occurrence. It measures **active standing-order regularity**; it does not measure post-cancellation false positives.
+
 Crucially, this table is **not presented as a `historical-v2.2` production score**. It is real-domain reference evidence showing that a substantial portion of observed banking outflows contains stable, calendar-regular recurring structure.
 
 ## What Berka cannot validate
@@ -192,6 +194,7 @@ The evaluator:
 - uses only Python standard-library parsing;
 - reads `account.asc`, `order.asc` and `trans.asc`;
 - fingerprints the input relations and ZIP when applicable;
+- stops forecast folds at each account's final observed month;
 - emits aggregate metrics only;
 - never emits account IDs, counterparty accounts or transaction rows.
 
