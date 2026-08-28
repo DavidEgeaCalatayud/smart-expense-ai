@@ -2,7 +2,7 @@
   "contractVersion": "berka-real-data-v1",
   "coverage": {
     "accounts": 4500,
-    "forecastAccountMonths": 172115,
+    "forecastAccountMonths": 171826,
     "outflowTransactions": 651237,
     "outgoingTransfers": 208283,
     "permanentOrders": 6471,
@@ -11,25 +11,27 @@
   "forecastEvidence": {
     "runRateWinRateVsThreeMonthMean": 0.3524,
     "run_rate": {
-      "bias": "4519.05",
-      "mae": "11083.95",
-      "medianAbsoluteError": "6300.00",
-      "smapePercent": 66.091,
-      "support": 172115
+      "bias": "4526.65",
+      "mae": "11102.60",
+      "medianAbsoluteError": "6315.00",
+      "smapePercent": 66.2022,
+      "support": 171826
     },
     "three_month_mean": {
-      "bias": "-577.26",
-      "mae": "8843.33",
+      "bias": "-580.13",
+      "mae": "8856.30",
       "medianAbsoluteError": "4200.00",
-      "smapePercent": 55.1756,
-      "support": 172115
+      "smapePercent": 55.1532,
+      "support": 171826
     },
-    "tieRate": 0.0204
+    "tieRate": 0.0194
   },
   "limitations": [
     "Historical Czech banking data from 1993-1998; external validity to modern card/merchant behavior is limited.",
     "Outflows are defined as transaction type != PRIJEM following the source credit/withdrawal semantics.",
+    "Forecast folds stop at each account's final observed transaction month; no post-observation zero-spend months are invented.",
     "Permanent-order linkage evaluates standing bank transfers and should not be generalized directly to merchant subscriptions.",
+    "The recurring reference baseline ends at the final observed occurrence because order start/cancellation timestamps are unavailable; post-cancellation false positives are not measured.",
     "Forecast metrics evaluate the transparent three-month-mean and day-15 run-rate formulas; recurrence-aware production forecasting is not claimed here.",
     "Raw account and counterparty identifiers are intentionally omitted from this aggregate report."
   ],
@@ -54,6 +56,7 @@
       "amountMae": "0.00",
       "dateMaeDays": 0.0,
       "evaluatedStreams": 5747,
+      "evaluationBoundary": "third_observed_occurrence_to_final_observed_occurrence",
       "extraPredictions": 533,
       "f1": 0.9985,
       "matchedOccurrences": 180077,
