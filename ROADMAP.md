@@ -90,6 +90,8 @@ Goal: implement real analysis and evaluated ML baselines without simulated AI ou
 - [x] Gate chronological, cold-start, calibration and sealed-holdout classifier contracts in CI and document synthetic-data limitations.
 - [x] Add `private-real-data-v1`: git-ignored private dataset contract and aggregate-only local evaluator for classifier, `rules-v2` and `historical-v2.2`.
 - [x] Regression-test the private evaluator with temporary synthetic data so CI proves holdout sealing and report sanitization without private records.
+- [x] Add `private-real-data-evidence-v1`, surfacing classification accuracy/macro-F1/unseen-merchant F1/calibration, observed suggestion acceptance/correction, combined transaction-level anomaly metrics and occurrence precision/recall/date-MAE/amount-MAE from the existing evaluators.
+- [x] Add private evidence provenance, current-model feedback filtering, separate dataset/evidence fingerprints, aggregate-only public summary output and explicit real/final-holdout readiness gates that synthetic CI fixtures cannot satisfy.
 - [ ] Run `private-real-data-v1` against a genuinely independent/private labelled transaction dataset and retain only aggregate evidence outside the ignored private directory.
 - [ ] Validate `rules-v2` and historical algorithms against labelled real-world data and measure real-world precision/recall/false-positive rates.
 - [ ] Validate category classification and probability calibration against independent/real labelled transactions with meaningful natural unseen-merchant support before confidence or optional automatic assignment.
@@ -148,7 +150,7 @@ Goal: prepare the project for real deployment.
 - [x] Add API v1/v2 contract documentation and decimal-money/Docker smoke coverage.
 - [x] Gate historical-v2.2, lifecycle/occurrence evaluation, sealed splits/fingerprints/bootstrap and `rules-v2` behavior.
 - [x] Gate `tfidf-logreg-v1` with chronological, merchant-group cold-start, calibration and sealed synthetic-holdout evidence.
-- [x] Gate the `private-real-data-v1` loader/evaluator privacy contract with temporary synthetic data.
+- [x] Gate the `private-real-data-v1` loader/evaluator plus `private-real-data-evidence-v1` metric/privacy/readiness contract with temporary synthetic data that cannot claim real provenance.
 - [x] Gate `recurring-calendar-v1` with backend, component and persisted Playwright coverage.
 - [x] Gate `spending-forecast-v1` with backend unit/integration tests, Predictions component/E2E coverage and a dedicated deterministic forecast benchmark workflow.
 - [x] Gate `isolation-forest-v1` with future-leakage regressions, same-support comparison metrics, non-promotion assertions and a dedicated anomaly challenger workflow.
