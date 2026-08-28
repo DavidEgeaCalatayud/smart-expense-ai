@@ -92,8 +92,11 @@ Goal: implement real analysis and evaluated ML baselines without simulated AI ou
 - [x] Regression-test the private evaluator with temporary synthetic data so CI proves holdout sealing and report sanitization without private records.
 - [x] Add `private-real-data-evidence-v1`, surfacing classification accuracy/macro-F1/unseen-merchant F1/calibration, observed suggestion acceptance/correction, combined transaction-level anomaly metrics and occurrence precision/recall/date-MAE/amount-MAE from the existing evaluators.
 - [x] Add private evidence provenance, current-model feedback filtering, separate dataset/evidence fingerprints, aggregate-only public summary output and explicit real/final-holdout readiness gates that synthetic CI fixtures cannot satisfy.
+- [x] Add `berka-real-data-v1` as reproducible `real_public_historical` evidence over the PKDD'99 Berka banking dataset, retaining aggregate metrics and source fingerprints without committing raw financial rows.
+- [x] Evaluate previous-three-month mean vs day-15 run rate on 171,826 real account-month folds and preserve the negative result that the transparent three-month mean materially outperforms the run-rate baseline on this source.
+- [x] Link 5,788 bank permanent orders to realized outgoing transfers and report a prior-only calendar standing-order reference baseline, explicitly separated from any `historical-v2.2` production-quality claim.
 - [ ] Run `private-real-data-v1` against a genuinely independent/private labelled transaction dataset and retain only aggregate evidence outside the ignored private directory.
-- [ ] Validate `rules-v2` and historical algorithms against labelled real-world data and measure real-world precision/recall/false-positive rates.
+- [ ] Validate `rules-v2` and `historical-v2.2` production algorithms against independently labelled modern real-world data and measure precision/recall/false-positive rates.
 - [ ] Validate category classification and probability calibration against independent/real labelled transactions with meaningful natural unseen-merchant support before confidence or optional automatic assignment.
 - [ ] Tune recurring-score weights/cutoffs, stream-clustering tolerances and anomaly thresholds only on labelled calibration data, use validation for design checks, then open holdout once for final reporting.
 - [ ] Reassess amount-anomaly distribution fences and frequency-anomaly policy from real-world false-positive cost before loosening them.
@@ -121,7 +124,8 @@ Goal: turn existing recurrence evidence into visible product value and establish
 - [x] Compare forecasted spending with the previous-three-month mean and expose assumptions/evidence/backtest error rather than a bare number.
 - [x] Add a dedicated reproducible `spending-forecast-benchmark-v1` workflow plus backend/API/component/persisted Playwright coverage.
 - [x] Establish the ML promotion gate: any future forecasting challenger must consistently beat transparent baselines on the same chronological folds/support before product use.
-- [ ] Add warning thresholds only after backtested forecast error is understood from representative user/real-world evidence.
+- [x] Add public observed historical evidence for the two directly portable transparent baselines via `berka-real-data-v1`; retain the stronger three-month mean as the real-data reference winner on Berka rather than assuming run rate is superior.
+- [ ] Add warning thresholds only after backtested forecast error is understood from representative modern user/real-world evidence.
 - [ ] Add category-level spending forecasts after the overall baseline contract is stable on representative data.
 - [ ] Evaluate Ridge/Random Forest/Gradient Boosting or other forecasting challengers on the established causal protocol.
 - [ ] Do not display probabilistic forecast confidence until it has a separately evaluated calibration contract.
@@ -151,6 +155,7 @@ Goal: prepare the project for real deployment.
 - [x] Gate historical-v2.2, lifecycle/occurrence evaluation, sealed splits/fingerprints/bootstrap and `rules-v2` behavior.
 - [x] Gate `tfidf-logreg-v1` with chronological, merchant-group cold-start, calibration and sealed synthetic-holdout evidence.
 - [x] Gate the `private-real-data-v1` loader/evaluator plus `private-real-data-evidence-v1` metric/privacy/readiness contract with temporary synthetic data that cannot claim real provenance.
+- [x] Gate `berka-real-data-v1` parser/provenance/causal-cutoff/report-privacy behavior with synthetic temporary relations while keeping the 1.05M-row raw public dataset outside CI/repository storage.
 - [x] Gate `recurring-calendar-v1` with backend, component and persisted Playwright coverage.
 - [x] Gate `spending-forecast-v1` with backend unit/integration tests, Predictions component/E2E coverage and a dedicated deterministic forecast benchmark workflow.
 - [x] Gate `isolation-forest-v1` with future-leakage regressions, same-support comparison metrics, non-promotion assertions and a dedicated anomaly challenger workflow.
