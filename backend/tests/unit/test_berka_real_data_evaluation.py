@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import json
+import zipfile
 from datetime import date
 from decimal import Decimal
 from pathlib import Path
@@ -10,6 +11,7 @@ from app.services.berka_real_data_evaluation import (
     CONTRACT_VERSION,
     _forecast_metrics,
     _month_index,
+    evaluate_berka_dataset,
     evaluate_berka_directory,
 )
 
@@ -72,6 +74,45 @@ def test_berka_report_is_aggregate_real_public_evidence(tmp_path: Path) -> None:
     assert '"account_to"' not in serialized
     assert "modern merchant descriptors" in report["unsupportedEvidence"]["categoryClassifier"]
     assert "not a historical-v2.2 production score" in report["unsupportedEvidence"]["productionHistoricalV22"]
+
+
+def test_berka_zip_ingestion_extracts_only_required_relations(tmp_path: Path) -> None:
+    fixture = tmp_path / "fixture"
+    fixture.mkdir()
+    _write_fixture(fixture)
+    archive_path = tmp_path / "berka.zip"
+    escaped_path = tmp_path / "escape.txt"
+
+    with zipfile.ZipFile(archive_path, "w") as archive:
+        for name in ("account.asc", "order.asc", "trans.asc"):
+            archive.write(fixture / name, arcname=f"berka-dataset-master/{name}")
+        archive.writestr("../escape.txt", "must never be extracted")
+
+    report = evaluate_berka_dataset(archive_path)
+
+    assert report["coverage"]["transactions"] == 6
+    assert len(report["provenance"]["sourceArchiveSha256"]) == 64
+    assert escaped_path.exists() is False
+
+
+def test_berka_zip_rejects_ambiguous_duplicate_relations(tmp_path: Path) -> None:
+    fixture = tmp_path / "fixture"
+    fixture.mkdir()
+    _write_fixture(fixture)
+    archive_path = tmp_path / "duplicate.zip"
+
+    with zipfile.ZipFile(archive_path, "w") as archive:
+        archive.write(fixture / "account.asc", arcname="one/account.asc")
+        archive.write(fixture / "account.asc", arcname="two/account.asc")
+        archive.write(fixture / "order.asc", arcname="order.asc")
+        archive.write(fixture / "trans.asc", arcname="trans.asc")
+
+    try:
+        evaluate_berka_dataset(archive_path)
+    except ValueError as exc:
+        assert "exactly one account.asc" in str(exc)
+    else:
+        raise AssertionError("duplicate Berka relations must be rejected")
 
 
 def test_forecast_day15_cutoff_never_uses_later_same_month_spend() -> None:
