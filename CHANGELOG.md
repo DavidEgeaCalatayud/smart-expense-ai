@@ -6,6 +6,9 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ### Added
 
+- `private-real-data-evidence-v1`, a first-class aggregate evidence layer over `private-real-data-v1` exposing classification accuracy/macro-F1/natural unseen-merchant F1/calibration, observed category-suggestion acceptance/correction, combined transaction-level anomaly precision/recall/F1/FP-per-100 and recurrence occurrence precision/recall/date-MAE/amount-MAE.
+- Optional private `category_feedback.jsonl` input with current model/feature provenance, separate dataset/evidence SHA-256 fingerprints and explicit separation between independent-label classifier quality and observed product acceptance/correction behavior.
+- Non-sensitive private-evidence provenance, aggregate-only `--public-summary-output` and `--require-real-evidence` / `--require-final-holdout-evidence` gates that require real-private independent provenance plus non-zero metric support and cannot be satisfied by synthetic CI fixtures.
 - Stateless Financial Assistant v1 with authenticated `POST /api/v2/assistant/query`, a protected Assistant workspace, structured `answer` / canonical `evidence` / `limitations` / `requestId` responses and no persisted chat history.
 - Six strict read-only Financial Assistant tools for transaction summary, exact Decimal period comparison, budget progress, persisted `rules-v2` findings, latest persisted `historical-v2.2` insights and bounded transaction search; LLM tool schemas intentionally contain no user identity field.
 - Provider-decoupled OpenAI Responses API integration with strict function calling, Structured Outputs, configurable `gpt-5.6-terra`/reasoning defaults, `store=false`, bounded tool/output budgets and backend-only optional credentials.
@@ -68,6 +71,8 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ### Changed
 
+- Private evidence now treats independent category-label quality and observed suggestion behavior as separate measurements: acceptance/correction can only come from current-model `category_feedback.jsonl`, while accuracy/F1 come from independent labels; synthetic CI data is explicitly ineligible for a real-evidence claim.
+- The private-data roadmap distinguishes a completed evidence mechanism from the still-pending scientific milestone of actually running a genuinely independent private dataset and reporting only aggregate results.
 - Financial Assistant questions now route through existing authenticated domain services instead of reproducing analytics in frontend/model prompts: `current_user.id` stays backend-owned, financial deltas remain Decimal, findings/history reads are side-effect free and the application still starts normally when no LLM provider is configured.
 - Docker Compose forwards Financial Assistant provider configuration only to the backend container, with an empty API key by default; no provider credential is exposed to the frontend image/runtime.
 - `rules-v2` remains the production anomaly engine while `isolation-forest-v1` is evaluated offline; every challenger report explicitly sets `replaceProductionRules=false`, and synthetic fixture performance is never treated as a promotion decision or fraud-detection evidence.
