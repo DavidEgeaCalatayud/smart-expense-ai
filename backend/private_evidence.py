@@ -71,14 +71,11 @@ def _load_jsonl_if_present(path: Path) -> list[dict[str, Any]]:
     return rows
 
 
-def _load_category_feedback(
-    dataset: PrivateDataset,
-) -> tuple[dict[str, dict[str, str]], int]:
+def _load_category_feedback(dataset: PrivateDataset) -> dict[str, dict[str, str]]:
     path = dataset.root / "category_feedback.jsonl"
     rows = _load_jsonl_if_present(path)
     transaction_ids = {item.transaction_id for item in dataset.transactions}
     feedback: dict[str, dict[str, str]] = {}
-    incompatible_model_rows = 0
 
     for row in rows:
         transaction_id = str(row.get("transactionId", "")).strip()
@@ -110,10 +107,8 @@ def _load_category_feedback(
             "modelVersion": model_version,
             "featurePolicy": feature_policy,
         }
-        if model_version != MODEL_VERSION or feature_policy != FEATURE_POLICY:
-            incompatible_model_rows += 1
 
-    return feedback, incompatible_model_rows
+    return feedback
 
 
 def _rate(numerator: int, denominator: int) -> float | None:
@@ -126,18 +121,26 @@ def _feedback_metrics(
     dataset: PrivateDataset,
     split: MonthRange,
 ) -> dict[str, float | int | str | None]:
-    feedback, incompatible_model_rows = _load_category_feedback(dataset)
+    feedback = _load_category_feedback(dataset)
     labels = {item.transaction_id: item.category for item in dataset.transactions}
     split_ids = {
         item.transaction_id
         for item in dataset.transactions
         if split.contains(item.transaction_date)
     }
-    eligible = [
+    split_rows = [
         (transaction_id, row)
         for transaction_id, row in feedback.items()
         if transaction_id in split_ids
-        and row["modelVersion"] == MODEL_VERSION
+    ]
+    incompatible_model_rows = sum(
+        row["modelVersion"] != MODEL_VERSION or row["featurePolicy"] != FEATURE_POLICY
+        for _, row in split_rows
+    )
+    eligible = [
+        (transaction_id, row)
+        for transaction_id, row in split_rows
+        if row["modelVersion"] == MODEL_VERSION
         and row["featurePolicy"] == FEATURE_POLICY
     ]
     accepted = sum(
@@ -315,6 +318,9 @@ def _build_evidence_summary(
             "unseenMerchantF1": unseen["macroF1"],
             "unseenMerchantF1Definition": "macro_f1_on_natural_unseen_merchant_examples",
             "calibration": _compact_calibration(category_report, str(report["mode"])),
+            "feedbackSupport": feedback["support"],
+            "acceptanceRate": feedback["acceptanceRate"],
+            "correctionRate": feedback["correctionRate"],
             "observedSuggestionFeedback": feedback,
         },
         "anomalies": {
