@@ -1,9 +1,11 @@
 from __future__ import annotations
 
 import json
+from datetime import date
 from decimal import Decimal
 from pathlib import Path
 
+from app.analysis_contracts import BERKA_REAL_DATA_VERSION
 from app.services.berka_real_data_evaluation import (
     CONTRACT_VERSION,
     _forecast_metrics,
@@ -46,7 +48,7 @@ def test_berka_report_is_aggregate_real_public_evidence(tmp_path: Path) -> None:
 
     report = evaluate_berka_directory(tmp_path)
 
-    assert report["contractVersion"] == CONTRACT_VERSION == "berka-real-data-v1"
+    assert report["contractVersion"] == CONTRACT_VERSION == BERKA_REAL_DATA_VERSION
     assert report["provenance"]["sourceType"] == "real_public_historical"
     assert report["provenance"]["rawDataCommitted"] is False
     assert report["coverage"]["accounts"] == 1
@@ -56,6 +58,10 @@ def test_berka_report_is_aggregate_real_public_evidence(tmp_path: Path) -> None:
     assert report["recurrenceEvidence"]["referenceBaseline"]["recall"] == 1.0
     assert report["recurrenceEvidence"]["referenceBaseline"]["dateMaeDays"] == 0.0
     assert report["recurrenceEvidence"]["referenceBaseline"]["amountMae"] == "0.00"
+    assert (
+        report["recurrenceEvidence"]["referenceBaseline"]["evaluationBoundary"]
+        == "third_observed_occurrence_to_final_observed_occurrence"
+    )
 
     serialized = json.dumps(report, sort_keys=True)
     assert "99999999" not in serialized
@@ -66,8 +72,8 @@ def test_berka_report_is_aggregate_real_public_evidence(tmp_path: Path) -> None:
 
 
 def test_forecast_day15_cutoff_never_uses_later_same_month_spend() -> None:
-    january = _month_index(__import__("datetime").date(1993, 1, 1))
-    april = _month_index(__import__("datetime").date(1993, 4, 1))
+    january = _month_index(date(1993, 1, 1))
+    april = _month_index(date(1993, 4, 1))
     monthly = {
         ("1", january): Decimal("100"),
         ("1", january + 1): Decimal("100"),
@@ -79,12 +85,33 @@ def test_forecast_day15_cutoff_never_uses_later_same_month_spend() -> None:
 
     metrics = _forecast_metrics(
         {"1": january},
+        {"1": april},
         monthly,
         through_day15,
-        last_month=april,
     )
 
     assert metrics["three_month_mean"]["support"] == 1
     assert metrics["three_month_mean"]["mae"] == "900.00"
     # 100 / 15 * 30 = 200. The later 900 is actual outcome only, never evidence.
     assert metrics["run_rate"]["mae"] == "800.00"
+
+
+def test_forecast_stops_at_each_accounts_final_observed_month() -> None:
+    january = _month_index(date(1993, 1, 1))
+    april = _month_index(date(1993, 4, 1))
+    monthly = {
+        ("1", january): Decimal("100"),
+        ("1", january + 1): Decimal("100"),
+        ("1", january + 2): Decimal("100"),
+        ("1", april): Decimal("100"),
+    }
+
+    metrics = _forecast_metrics(
+        {"1": january},
+        {"1": april},
+        monthly,
+        {("1", april): Decimal("50")},
+    )
+
+    assert metrics["three_month_mean"]["support"] == 1
+    assert metrics["run_rate"]["support"] == 1
