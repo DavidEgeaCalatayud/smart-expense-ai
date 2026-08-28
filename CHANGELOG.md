@@ -6,6 +6,12 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ### Added
 
+- Stateless Financial Assistant v1 with authenticated `POST /api/v2/assistant/query`, a protected Assistant workspace, structured `answer` / canonical `evidence` / `limitations` / `requestId` responses and no persisted chat history.
+- Six strict read-only Financial Assistant tools for transaction summary, exact Decimal period comparison, budget progress, persisted `rules-v2` findings, latest persisted `historical-v2.2` insights and bounded transaction search; LLM tool schemas intentionally contain no user identity field.
+- Provider-decoupled OpenAI Responses API integration with strict function calling, Structured Outputs, configurable `gpt-5.6-terra`/reasoning defaults, `store=false`, bounded tool/output budgets and backend-only optional credentials.
+- Financial Assistant evidence grounding that accepts only `(source, reference)` pairs emitted by actually executed backend tools and replaces model-authored labels with canonical backend labels.
+- Backend fake-provider/unit coverage, PostgreSQL cross-account integration coverage, frontend component tests and a critical Playwright flow proving the browser submits only `{ question }` and external provider calls are unnecessary in CI.
+- `docs/financial-assistant.md` documenting the domain/provider boundary, exact-money policy, read-only tool contract, evidence whitelist, privacy semantics, optional configuration and v1 non-goals.
 - `isolation-forest-v1`, an offline anomaly challenger with `causal-transaction-features-v1` built strictly from each candidate transaction plus merchant/global state observed before it.
 - Chronological anomaly-challenger evaluation with disjoint pre-calibration fit, labelled threshold calibration and later validation/holdout scoring; the final holdout never participates in model fitting or threshold selection.
 - Same-observation comparison of `rules-v2`, `isolation-forest-v1` and the transparent `rules-v2-or-isolation-forest-v1` union using precision, recall, F1, false positives per 100, confusion counts, support and history-depth slices.
@@ -13,7 +19,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 - `spending-forecast-v1`, an authenticated overall month-end expense forecast contract with previous-three-complete-month mean, current-month run-rate and recurrence-aware baselines using exact Decimal money.
 - `GET /api/v2/analytics/spending-forecast` with optional reproducible `asOf`, explicit assumptions/evidence, historical comparison and per-baseline walk-forward MAE, sMAPE and signed bias.
 - Causal fixed day-15 walk-forward forecasting evaluation that admits a month only when all baselines are available, guaranteeing identical chronological fold support.
-- Recurrence-aware forecast composition that removes qualified recurring transactions already observed from the variable run-rate numerator and adds only future `recurring-calendar-v1` occurrences, preventing double counting.
+- Recurrence-aware forecast composition that removes qualified recurring transactions already observed from the variable-spend numerator and adds only future `recurring-calendar-v1` occurrences, preventing double counting.
 - Protected **Predictions** month-end forecast cards showing the three deterministic estimates, assumptions, historical comparison and historical error evidence without presenting probability/confidence.
 - Reproducible `spending-forecast-benchmark-v1` evaluator and dedicated **Spending forecast benchmark** GitHub Actions workflow enforcing cutoff, common support, metric completeness and ML-promotion-gate semantics.
 - Backend unit/integration, frontend component and persisted Playwright regression coverage for `spending-forecast-v1`.
@@ -62,12 +68,14 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ### Changed
 
+- Financial Assistant questions now route through existing authenticated domain services instead of reproducing analytics in frontend/model prompts: `current_user.id` stays backend-owned, financial deltas remain Decimal, findings/history reads are side-effect free and the application still starts normally when no LLM provider is configured.
+- Docker Compose forwards Financial Assistant provider configuration only to the backend container, with an empty API key by default; no provider credential is exposed to the frontend image/runtime.
 - `rules-v2` remains the production anomaly engine while `isolation-forest-v1` is evaluated offline; every challenger report explicitly sets `replaceProductionRules=false`, and synthetic fixture performance is never treated as a promotion decision or fraud-detection evidence.
 - Anomaly ML evaluation now has an explicit causal feature contract and common-support comparison policy instead of remaining roadmap-only: model fitting uses history before calibration, threshold calibration is separate, and validation/holdout rows cannot affect either step.
 - `recurring-calendar-v1` can separate its historical evidence cutoff from a later projection-window start; normal product behavior remains unchanged while `spending-forecast-v1` uses the boundary to avoid future leakage and same-day double counting.
 - Recurring profiles expose the latest observed stream amount in addition to the median so downstream price-continuity projections can represent the current sequential price regime without changing historical recurrence scoring.
 - Missing/overdue recurring schedules are not automatically rolled into future expected totals; new observed activity must re-establish the stream before future projection resumes.
-- The roadmap marks recurring calendar, deterministic month-end baselines/backtesting and the offline IsolationForest anomaly challenger as implemented while keeping representative real-data promotion decisions and forecasting ML future work.
+- The roadmap marks recurring calendar, deterministic month-end baselines/backtesting, the offline IsolationForest anomaly challenger and Financial Assistant v1 as implemented while keeping representative real-data promotion decisions and forecasting ML future work.
 - Forecasting ML has an explicit promotion gate: Ridge/Random Forest/Gradient Boosting or other approaches must consistently beat transparent baselines on identical causal walk-forward folds/support before entering the product.
 - API v2 transaction creation/update computes suggestion provenance server-side and persists the transaction plus category-feedback record atomically; clients cannot supply or spoof model version, feature policy or suggested category metadata.
 - `scikit-learn` is a runtime backend dependency and `backend/ml` is packaged in the backend Docker image because FastAPI serves the category suggestion baseline.
@@ -91,6 +99,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ### Removed
 
+- Obsolete long-term roadmap entry that treated an AI financial chat assistant as unimplemented; Financial Assistant v1 is now a stateless, evidence-grounded product capability while persistent memory/RAG/autonomous actions remain deliberate non-goals.
 - Obsolete roadmap wording that treated `IsolationForest-v1` causal challenger evaluation and same-support rules/ML/hybrid comparison as unimplemented; only real-world promotion evidence remains pending.
 - Obsolete Predictions placeholder/state that treated recurring-payment projection or deterministic overall month-end baseline forecasting as unimplemented; Predictions now contains both `recurring-calendar-v1` and `spending-forecast-v1` while forecasting ML remains future work.
 - Obsolete documentation that described `tfidf-logreg-v1` as offline-only or unavailable to the production Compose/API runtime.

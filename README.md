@@ -2,7 +2,7 @@
 
 Smart Expense AI is a personal-finance application built around persisted transaction data, account isolation, exact monetary arithmetic and explainable analysis. Machine-learning output is introduced as user-controlled assistance or evaluated challengers rather than silently rewriting financial records.
 
-The product does **not** simulate AI results. Transactions, budgets, dashboard metrics, actionable findings, historical snapshots, recurring-payment projections, month-end forecasts and category-suggestion feedback come from PostgreSQL-backed workflows and reproducible algorithms.
+The product does **not** simulate financial facts. Transactions, budgets, dashboard metrics, actionable findings, historical snapshots, recurring-payment projections, month-end forecasts and category-suggestion feedback come from PostgreSQL-backed workflows and reproducible algorithms. The Financial Assistant may use an LLM to choose bounded read-only tools and explain those backend-produced facts, but the model is not the source of truth for money, budgets, findings or historical analysis.
 
 ## Current capabilities
 
@@ -51,7 +51,7 @@ Highlights include lifecycle/calendar-aware recurrence, missed-payment evidence,
 
 ### Offline anomaly challenger — `isolation-forest-v1`
 
-The repository now evaluates an IsolationForest challenger without wiring it into the product engine. `rules-v2` remains authoritative for persisted findings.
+The repository evaluates an IsolationForest challenger without wiring it into the product engine. `rules-v2` remains authoritative for persisted findings.
 
 ```text
 strictly prior transaction state
@@ -136,6 +136,60 @@ The suggestion API is `POST /api/v2/category-suggestions/preview`. A suggestion 
 
 Raw `predict_proba` values remain evaluation primitives only. `productConfidenceEnabled=false` remains explicit until representative real labelled data supports a calibrated confidence policy.
 
+### Financial Assistant v1
+
+The protected **Assistant** workspace adds stateless natural-language questions over the existing financial services.
+
+```text
+user question
+     |
+     v
+POST /api/v2/assistant/query
+     |
+     v
+FinancialAssistantService
+     |
+     +--> LLM provider: tool selection + explanation only
+     |
+     +--> six bounded read-only tools
+              |
+              +--> transaction analytics / Decimal period comparison
+              +--> budgets
+              +--> persisted rules-v2 findings
+              +--> latest persisted historical-v2.2 snapshot
+              +--> bounded transaction search
+              |
+              v
+          evidence JSON
+     |
+     v
+backend evidence whitelist
+     |
+     v
+answer + canonical evidence + limitations + requestId
+```
+
+V1 tools are:
+
+```text
+get_financial_summary
+compare_periods
+get_budget_progress
+get_financial_findings
+get_historical_insights
+search_transactions
+```
+
+No tool accepts `userId`; scope is always derived from the authenticated backend session. `compare_periods` calculates differences, percentages and category deltas with server-side `Decimal` arithmetic. Findings and historical tools are read-only: asking a question does not trigger an intelligence scan or create a historical snapshot.
+
+The final evidence list is not trusted directly from model text. The backend resolves model-selected `(source, reference)` pairs against references emitted by tools actually executed in the request, drops invented references and adds a limitation when grounding is incomplete.
+
+The default OpenAI adapter uses the Responses API, strict function schemas, structured output and `store=false`; provider access is optional and the rest of the application starts normally without an API key. Financial Assistant v1 does not persist chat history, use RAG/embeddings/vector storage, perform autonomous financial mutations or use multi-agent/model-routing frameworks.
+
+Privacy boundary: if an external LLM provider is configured, it necessarily processes the question and bounded tool output required to answer it. The application omits its internal authenticated user ID from provider schemas and does not persist local assistant threads, but operators must still evaluate the provider's current data-processing/retention terms.
+
+See [`docs/financial-assistant.md`](docs/financial-assistant.md).
+
 ### Category-classifier evidence
 
 `financial-benchmark-v1` contains complete synthetic category labels. Chronological repeated-merchant performance is intentionally complemented by a canonical merchant-group-disjoint cold-start slice:
@@ -209,7 +263,7 @@ tfidf-logreg-v1
 merchant_descriptor_only_v1
 ```
 
-Ownership and change rules are documented in [`docs/analysis-contracts.md`](docs/analysis-contracts.md), with CI consistency tests.
+Ownership and change rules are documented in [`docs/analysis-contracts.md`](docs/analysis-contracts.md), with CI consistency tests. Financial Assistant v1 composes these domain contracts but is not itself an analytical model/version contract.
 
 ## Not implemented yet
 
@@ -218,6 +272,7 @@ Ownership and change rules are documented in [`docs/analysis-contracts.md`](docs
 - Automatic category assignment or per-user classifier retraining.
 - User-facing calibrated category confidence.
 - Automatic/background intelligence scans.
+- Persistent assistant threads, assistant memory, RAG/vector search, autonomous financial actions or multi-model routing.
 - Direct bank API integrations.
 - Multi-currency/FX accounting and foreign-currency CSV import.
 - Probabilistic fraud detection.
@@ -236,6 +291,8 @@ docker compose up --build
 
 Open `http://localhost:5173`.
 
+Financial Assistant is optional. Without `OPENAI_API_KEY`, the application remains operational and only `POST /api/v2/assistant/query` returns `503 financial_assistant_not_configured`. To enable the OpenAI adapter, set the backend-only variables documented in `.env.example` / [`docs/financial-assistant.md`](docs/financial-assistant.md) before starting Compose.
+
 Production Compose path:
 
 ```text
@@ -252,11 +309,12 @@ FastAPI :8000 (internal)
   |  historical-v2.2 diagnostics
   |  recurring-calendar-v1 upcoming payments
   |  spending-forecast-v1 month-end baselines/backtests
+  |  Financial Assistant -> optional external LLM provider
   v
 PostgreSQL 16 :5432 (internal)
 ```
 
-`isolation-forest-v1` is intentionally absent from the production path above. It exists only in offline evaluation tooling. The backend runtime already includes `scikit-learn` for `tfidf-logreg-v1` category suggestions.
+`OPENAI_API_KEY` is forwarded only to the backend container and is not compiled into the frontend. `isolation-forest-v1` is intentionally absent from the production path above; it exists only in offline evaluation tooling.
 
 Stop with `docker compose down`. Use `docker compose down -v` only when intentionally deleting the database volume.
 
@@ -277,6 +335,10 @@ FastAPI /api/v1 + /api/v2
         +--> historical-v2.2
         +--> recurring-calendar-v1
         +--> spending-forecast-v1 -> deterministic baselines + walk-forward errors
+        +--> Financial Assistant
+                  |
+                  +--> bounded read-only domain tools
+                  +--> optional OpenAI Responses provider
         |
         v
 SQLAlchemy 2 -> PostgreSQL NUMERIC
@@ -296,7 +358,7 @@ See [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md).
 ```text
 smart-expense-ai/
 ├── frontend/        # React + TypeScript, Vitest, Playwright, Nginx
-├── backend/         # FastAPI, persistence, ML runtime, evaluation, tests
+├── backend/         # FastAPI, persistence, ML runtime, LLM provider boundary, evaluation, tests
 │   ├── app/
 │   ├── ml/
 │   ├── benchmark/
@@ -322,6 +384,7 @@ smart-expense-ai/
 /api/v1/categories
 /api/v2/transactions
 /api/v2/category-suggestions/preview
+/api/v2/assistant/query
 /api/v2/analytics/*
 /api/v2/imports/*
 /api/v2/budgets
@@ -357,14 +420,15 @@ npm run lint
 npm run build
 ```
 
-GitHub Actions gates PostgreSQL migrations, critical Playwright E2E, Docker Compose, dependency security audits, Financial benchmark, Lifecycle diagnostic, Category classifier benchmark, **Spending forecast benchmark**, **Anomaly challenger benchmark** and CycloneDX SBOM generation. Critical browser coverage includes persisted recurring-history -> upcoming calendar and persisted historical spending -> month-end forecast.
+GitHub Actions gates PostgreSQL migrations, critical Playwright E2E, Docker Compose, dependency security audits, Financial benchmark, Lifecycle diagnostic, Category classifier benchmark, **Spending forecast benchmark**, **Anomaly challenger benchmark** and CycloneDX SBOM generation. Assistant regressions cover strict no-identity tool schemas, backend-owned account scope, Decimal period comparisons, invented-evidence filtering, provider-unavailable behavior, protected UI rendering and a browser request body containing only the question.
 
-See [`docs/testing.md`](docs/testing.md), [`docs/upcoming-payments.md`](docs/upcoming-payments.md), [`docs/spending-forecast.md`](docs/spending-forecast.md) and [`docs/isolation-forest-challenger.md`](docs/isolation-forest-challenger.md).
+See [`docs/testing.md`](docs/testing.md), [`docs/financial-assistant.md`](docs/financial-assistant.md), [`docs/upcoming-payments.md`](docs/upcoming-payments.md), [`docs/spending-forecast.md`](docs/spending-forecast.md) and [`docs/isolation-forest-challenger.md`](docs/isolation-forest-challenger.md).
 
 ## Documentation and governance
 
 - [`ROADMAP.md`](ROADMAP.md) — implemented vs future work.
 - [`CHANGELOG.md`](CHANGELOG.md) — Unreleased change log.
+- [`docs/financial-assistant.md`](docs/financial-assistant.md) — stateless LLM/tool/evidence/privacy contract.
 - [`docs/analysis-contracts.md`](docs/analysis-contracts.md) — analytical identifiers and ownership.
 - [`docs/private-evaluation.md`](docs/private-evaluation.md) — local independent/private evaluation contract.
 - [`docs/upcoming-payments.md`](docs/upcoming-payments.md) — recurring calendar projection semantics.

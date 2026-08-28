@@ -67,6 +67,7 @@ def test_current_technical_documentation_matches_contract_registry() -> None:
         "upcoming_payments": _read("docs/upcoming-payments.md"),
         "spending_forecast": _read("docs/spending-forecast.md"),
         "anomaly_challenger": _read("docs/isolation-forest-challenger.md"),
+        "financial_assistant": _read("docs/financial-assistant.md"),
     }
 
     for value in (
@@ -98,6 +99,8 @@ def test_current_technical_documentation_matches_contract_registry() -> None:
     assert CATEGORY_CLASSIFIER_VERSION in documents["api"]
     assert "category-suggestions/preview" in documents["api"]
     assert "categorySuggestions" in documents["api"]
+    assert "/api/v2/assistant/query" in documents["api"]
+    assert "current_user.id" in documents["api"]
     assert ACTIONABLE_RULES_VERSION in documents["testing"]
     assert HISTORICAL_ANALYSIS_VERSION in documents["testing"]
     assert UPCOMING_PAYMENTS_VERSION in documents["testing"]
@@ -105,12 +108,16 @@ def test_current_technical_documentation_matches_contract_registry() -> None:
     assert ISOLATION_FOREST_VERSION in documents["testing"]
     assert "merchant-group" in documents["testing"]
     assert "private-real-data-v1" in documents["testing"]
+    assert "financial assistant" in documents["testing"].lower()
+    assert "invented evidence" in documents["testing"].lower()
     assert HISTORICAL_ANALYSIS_VERSION in documents["architecture"]
     assert ACTIONABLE_RULES_VERSION in documents["architecture"]
     assert UPCOMING_PAYMENTS_VERSION in documents["architecture"]
     assert SPENDING_FORECAST_VERSION in documents["architecture"]
     assert "category suggestion" in documents["architecture"].lower()
     assert "private-real-data-v1" in documents["architecture"]
+    assert "financial assistant" in documents["architecture"].lower()
+    assert "evidence reconciliation" in documents["architecture"].lower()
     assert "category_suggestions" in documents["data_model"]
     assert "budgets" in documents["data_model"]
     assert ACTIONABLE_RULES_VERSION in documents["product"]
@@ -137,6 +144,11 @@ def test_current_technical_documentation_matches_contract_registry() -> None:
     assert ANOMALY_HYBRID_POLICY in documents["anomaly_challenger"]
     assert "replaceproductionrules=false" in documents["anomaly_challenger"].lower()
     assert "fraud" in documents["anomaly_challenger"].lower()
+    assert "/api/v2/assistant/query" in documents["financial_assistant"]
+    assert "current_user.id" in documents["financial_assistant"]
+    assert "read-only" in documents["financial_assistant"].lower()
+    assert "store=false" in documents["financial_assistant"].lower()
+    assert "no assistant history" in documents["financial_assistant"].lower()
 
     stale_claims = (
         "new runs create `historical-v2.1` snapshots",
@@ -175,9 +187,11 @@ def test_repository_metadata_and_primary_docs_reference_project_governance_files
     assert "docs/upcoming-payments.md" in readme
     assert "docs/spending-forecast.md" in readme
     assert "docs/isolation-forest-challenger.md" in readme
+    assert "docs/financial-assistant.md" in readme
     assert "CHANGELOG.md" in readme
     assert "LICENSE" in readme
     assert "category-suggestions/preview" in readme
+    assert "/api/v2/assistant/query" in readme
     assert "productConfidenceEnabled=false" in readme
     assert "private-real-data-v1" in readme
     assert UPCOMING_PAYMENTS_VERSION in readme
@@ -189,5 +203,8 @@ def test_repository_metadata_and_primary_docs_reference_project_governance_files
     assert UPCOMING_PAYMENTS_VERSION in roadmap
     assert SPENDING_FORECAST_VERSION in roadmap
     assert ISOLATION_FOREST_VERSION in roadmap
+    assert "Financial Assistant v1" in roadmap
+    assert "/api/v2/assistant/query" in roadmap
+    assert "AI chat assistant for financial questions" not in roadmap
     assert "CHANGELOG.md" in roadmap
     assert "LICENSE" in roadmap
