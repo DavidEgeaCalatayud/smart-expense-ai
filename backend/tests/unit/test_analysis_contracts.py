@@ -6,6 +6,7 @@ from app.analysis_contracts import (
     ACTIONABLE_RULES_VERSION,
     AMOUNT_ANOMALY_POLICY,
     ANOMALY_HYBRID_POLICY,
+    BERKA_REAL_DATA_VERSION,
     CATEGORY_CLASSIFIER_FEATURE_POLICY,
     CATEGORY_CLASSIFIER_VERSION,
     HISTORICAL_ANALYSIS_VERSION,
@@ -17,6 +18,7 @@ from app.analysis_contracts import (
     UPCOMING_PAYMENTS_VERSION,
 )
 from app.services.amount_anomaly_baseline import BASELINE_POLICY
+from app.services.berka_real_data_evaluation import CONTRACT_VERSION as BERKA_EVIDENCE_VERSION
 from app.services.historical_analysis_v2_2 import ANALYSIS_VERSION
 from app.services.intelligence_rules_v2 import RULE_VERSION
 from ml.category_classifier import FEATURE_POLICY, MODEL_VERSION
@@ -39,6 +41,7 @@ def test_current_engine_and_model_modules_alias_the_contract_registry() -> None:
     assert ANALYSIS_VERSION == HISTORICAL_ANALYSIS_VERSION == "historical-v2.2"
     assert UPCOMING_PAYMENTS_VERSION == "recurring-calendar-v1"
     assert SPENDING_FORECAST_VERSION == "spending-forecast-v1"
+    assert BERKA_EVIDENCE_VERSION == BERKA_REAL_DATA_VERSION == "berka-real-data-v1"
     assert BASELINE_POLICY == AMOUNT_ANOMALY_POLICY == "merchant_mad_plus_extreme_iqr_v1"
     assert ANOMALY_MODEL_VERSION == ISOLATION_FOREST_VERSION == "isolation-forest-v1"
     assert ANOMALY_FEATURE_POLICY == ISOLATION_FOREST_FEATURE_POLICY == "causal-transaction-features-v1"
@@ -68,6 +71,7 @@ def test_current_technical_documentation_matches_contract_registry() -> None:
         "spending_forecast": _read("docs/spending-forecast.md"),
         "anomaly_challenger": _read("docs/isolation-forest-challenger.md"),
         "financial_assistant": _read("docs/financial-assistant.md"),
+        "real_world_evidence": _read("docs/REAL_WORLD_EVIDENCE.md"),
     }
 
     for value in (
@@ -75,6 +79,7 @@ def test_current_technical_documentation_matches_contract_registry() -> None:
         HISTORICAL_ANALYSIS_VERSION,
         UPCOMING_PAYMENTS_VERSION,
         SPENDING_FORECAST_VERSION,
+        BERKA_REAL_DATA_VERSION,
         AMOUNT_ANOMALY_POLICY,
         ISOLATION_FOREST_VERSION,
         ISOLATION_FOREST_FEATURE_POLICY,
@@ -149,6 +154,11 @@ def test_current_technical_documentation_matches_contract_registry() -> None:
     assert "read-only" in documents["financial_assistant"].lower()
     assert "store=false" in documents["financial_assistant"].lower()
     assert "no assistant history" in documents["financial_assistant"].lower()
+    assert BERKA_REAL_DATA_VERSION in documents["real_world_evidence"]
+    assert "real_public_historical" in documents["real_world_evidence"]
+    assert "171,826" in documents["real_world_evidence"]
+    assert "not presented as a `historical-v2.2` production score" in documents["real_world_evidence"]
+    assert "acceptance and correction rates remain" in documents["real_world_evidence"]
 
     stale_claims = (
         "new runs create `historical-v2.1` snapshots",
@@ -179,6 +189,7 @@ def test_current_technical_documentation_matches_contract_registry() -> None:
 def test_repository_metadata_and_primary_docs_reference_project_governance_files() -> None:
     assert (REPO_ROOT / "LICENSE").is_file()
     assert (REPO_ROOT / "CHANGELOG.md").is_file()
+    assert (REPO_ROOT / "docs/evidence/berka-real-data-v1.json").is_file()
 
     readme = _read("README.md")
     roadmap = _read("ROADMAP.md")
