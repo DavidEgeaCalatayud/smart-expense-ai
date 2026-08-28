@@ -14,6 +14,9 @@ from app.services.berka_real_data_evaluation import (
 )
 
 
+REPO_ROOT = Path(__file__).resolve().parents[3]
+
+
 def _write_fixture(root: Path) -> None:
     (root / "account.asc").write_text(
         '"account_id";"district_id";"frequency";"date"\n'
@@ -115,3 +118,31 @@ def test_forecast_stops_at_each_accounts_final_observed_month() -> None:
 
     assert metrics["three_month_mean"]["support"] == 1
     assert metrics["run_rate"]["support"] == 1
+
+
+def test_committed_berka_evidence_is_aggregate_only_and_source_fingerprinted() -> None:
+    report_path = REPO_ROOT / "docs/evidence/berka-real-data-v1.json"
+    report = json.loads(report_path.read_text(encoding="utf-8"))
+    serialized = report_path.read_text(encoding="utf-8")
+
+    assert report["contractVersion"] == BERKA_REAL_DATA_VERSION
+    assert report["provenance"]["sourceType"] == "real_public_historical"
+    assert report["provenance"]["rawDataCommitted"] is False
+    assert len(report["provenance"]["sourceArchiveSha256"]) == 64
+    assert set(report["sourceFingerprints"]) == {"account.asc", "order.asc", "trans.asc"}
+    assert report["coverage"]["transactions"] == 1_056_320
+    assert report["coverage"]["forecastAccountMonths"] == 171_826
+    assert report["recurrenceEvidence"]["linkedOrders"] == 5_788
+    assert report["recurrenceEvidence"]["referenceBaseline"]["evaluationBoundary"] == (
+        "third_observed_occurrence_to_final_observed_occurrence"
+    )
+
+    for forbidden in (
+        '"account_id"',
+        '"account_to"',
+        '"bank_to"',
+        '"transactionId"',
+        '"orderId"',
+        '"merchant"',
+    ):
+        assert forbidden not in serialized
