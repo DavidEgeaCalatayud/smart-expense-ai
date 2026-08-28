@@ -12,8 +12,10 @@ from pathlib import Path
 from statistics import median
 from tempfile import TemporaryDirectory
 
+from app.analysis_contracts import BERKA_REAL_DATA_VERSION
 
-CONTRACT_VERSION = "berka-real-data-v1"
+
+CONTRACT_VERSION = BERKA_REAL_DATA_VERSION
 SOURCE_TYPE = "real_public_historical"
 DATASET_NAME = "PKDD'99 Berka Financial Dataset"
 DATE_TOLERANCE_DAYS = 7
@@ -79,10 +81,9 @@ class _Transfer:
 
 def _forecast_metrics(
     account_start: dict[str, int],
+    account_end: dict[str, int],
     monthly_spend: dict[tuple[str, int], Decimal],
     first_half_spend: dict[tuple[str, int], Decimal],
-    *,
-    last_month: int,
 ) -> dict[str, object]:
     absolute_error = {
         "three_month_mean": Decimal("0"),
@@ -98,8 +99,11 @@ def _forecast_metrics(
     folds = 0
 
     for account_id, start_month in account_start.items():
+        last_observed_month = account_end.get(account_id)
+        if last_observed_month is None:
+            continue
         target_month = start_month + 3
-        while target_month <= last_month:
+        while target_month <= last_observed_month:
             actual = monthly_spend.get((account_id, target_month), Decimal("0"))
             three_month_mean = sum(
                 (
@@ -191,8 +195,8 @@ def _recurrence_evidence(
 
         history = list(rows[:3])
         target_month = _month_index(rows[2].transaction_date) + 1
-        last_month = _month_index(rows[-1].transaction_date)
-        while target_month <= last_month:
+        last_observed_month = _month_index(rows[-1].transaction_date)
+        while target_month <= last_observed_month:
             prediction_months += 1
             month_end_history = sum(
                 item.transaction_date.day
@@ -251,6 +255,7 @@ def _recurrence_evidence(
         ),
         "referenceBaseline": {
             "name": "prior-only-calendar-order-baseline-v1",
+            "evaluationBoundary": "third_observed_occurrence_to_final_observed_occurrence",
             "evaluatedStreams": evaluated_streams,
             "predictionMonths": prediction_months,
             "matchedOccurrences": matched,
@@ -314,6 +319,7 @@ def evaluate_berka_directory(root: Path) -> dict[str, object]:
     monthly_spend: dict[tuple[str, int], Decimal] = defaultdict(lambda: Decimal("0"))
     first_half_spend: dict[tuple[str, int], Decimal] = defaultdict(lambda: Decimal("0"))
     transfers: dict[tuple[str, str, str, str], list[_Transfer]] = defaultdict(list)
+    account_end: dict[str, int] = {}
     transaction_count = 0
     outflow_count = 0
     outgoing_transfer_count = 0
@@ -326,12 +332,13 @@ def evaluate_berka_directory(root: Path) -> dict[str, object]:
             transaction_date = _parse_date(row["date"])
             amount = Decimal(row["amount"])
             account_id = row["account_id"].strip()
+            month = _month_index(transaction_date)
+            account_end[account_id] = max(account_end.get(account_id, month), month)
             minimum_date = transaction_date if minimum_date is None else min(minimum_date, transaction_date)
             maximum_date = transaction_date if maximum_date is None else max(maximum_date, transaction_date)
 
             if row["type"].strip() != "PRIJEM":
                 outflow_count += 1
-                month = _month_index(transaction_date)
                 monthly_spend[(account_id, month)] += amount
                 if transaction_date.day <= 15:
                     first_half_spend[(account_id, month)] += amount
@@ -351,9 +358,9 @@ def evaluate_berka_directory(root: Path) -> dict[str, object]:
 
     forecast = _forecast_metrics(
         account_start,
+        account_end,
         monthly_spend,
         first_half_spend,
-        last_month=_month_index(maximum_date),
     )
     recurrence = _recurrence_evidence(orders, transfers)
 
@@ -389,7 +396,9 @@ def evaluate_berka_directory(root: Path) -> dict[str, object]:
         "limitations": [
             "Historical Czech banking data from 1993-1998; external validity to modern card/merchant behavior is limited.",
             "Outflows are defined as transaction type != PRIJEM following the source credit/withdrawal semantics.",
+            "Forecast folds stop at each account's final observed transaction month; no post-observation zero-spend months are invented.",
             "Permanent-order linkage evaluates standing bank transfers and should not be generalized directly to merchant subscriptions.",
+            "The recurring reference baseline ends at the final observed occurrence because order start/cancellation timestamps are unavailable; post-cancellation false positives are not measured.",
             "Forecast metrics evaluate the transparent three-month-mean and day-15 run-rate formulas; recurrence-aware production forecasting is not claimed here.",
             "Raw account and counterparty identifiers are intentionally omitted from this aggregate report.",
         ],
