@@ -1,0 +1,82 @@
+{
+  "contractVersion": "berka-real-data-v1",
+  "coverage": {
+    "accounts": 4500,
+    "forecastAccountMonths": 171826,
+    "outflowTransactions": 651237,
+    "outgoingTransfers": 208283,
+    "permanentOrders": 6471,
+    "transactions": 1056320
+  },
+  "forecastEvidence": {
+    "runRateWinRateVsThreeMonthMean": 0.3524,
+    "run_rate": {
+      "bias": "4526.65",
+      "mae": "11102.60",
+      "medianAbsoluteError": "6315.00",
+      "smapePercent": 66.2022,
+      "support": 171826
+    },
+    "three_month_mean": {
+      "bias": "-580.13",
+      "mae": "8856.30",
+      "medianAbsoluteError": "4200.00",
+      "smapePercent": 55.1532,
+      "support": 171826
+    },
+    "tieRate": 0.0194
+  },
+  "limitations": [
+    "Historical Czech banking data from 1993-1998; external validity to modern card/merchant behavior is limited.",
+    "Outflows are defined as transaction type != PRIJEM following the source credit/withdrawal semantics.",
+    "Forecast folds stop at each account's final observed transaction month; no post-observation zero-spend months are invented.",
+    "Permanent-order linkage evaluates standing bank transfers and should not be generalized directly to merchant subscriptions.",
+    "The recurring reference baseline ends at the final observed occurrence because order start/cancellation timestamps are unavailable; post-cancellation false positives are not measured.",
+    "Forecast metrics evaluate the transparent three-month-mean and day-15 run-rate formulas; recurrence-aware production forecasting is not claimed here.",
+    "Raw account and counterparty identifiers are intentionally omitted from this aggregate report."
+  ],
+  "provenance": {
+    "dataset": "PKDD'99 Berka Financial Dataset",
+    "periodEnd": "1998-12-31",
+    "periodStart": "1993-01-01",
+    "rawDataCommitted": false,
+    "sourceArchiveSha256": "41b54b916533bc269c8d56da9306cec0f1cc40f2c8f5d96c216872e4296531fb",
+    "sourceType": "real_public_historical"
+  },
+  "recurrenceEvidence": {
+    "exactOrderAmountOccurrenceRate": 1.0,
+    "linkedOccurrences": 197403,
+    "linkedOrderRate": 0.8945,
+    "linkedOrders": 5788,
+    "ordersWithAtLeast12Occurrences": 5264,
+    "ordersWithAtLeast3Occurrences": 5765,
+    "ordersWithAtLeast6Occurrences": 5721,
+    "permanentOrders": 6471,
+    "referenceBaseline": {
+      "amountMae": "0.00",
+      "dateMaeDays": 0.0,
+      "evaluatedStreams": 5747,
+      "evaluationBoundary": "third_observed_occurrence_to_final_observed_occurrence",
+      "extraPredictions": 533,
+      "f1": 0.9985,
+      "matchedOccurrences": 180077,
+      "missedOccurrences": 0,
+      "name": "prior-only-calendar-order-baseline-v1",
+      "precision": 0.997,
+      "predictionMonths": 180610,
+      "recall": 1.0,
+      "within3DaysRate": 1.0
+    }
+  },
+  "sourceFingerprints": {
+    "account.asc": "58d7f50abd72e9b1a5568346f74bb54cd71224ee1db9f09a27d7cac563f38cc6",
+    "order.asc": "035930fa6acd2ca42a935e654b21e1bb260248f49b6dc6e7de6351b7c4d56d02",
+    "trans.asc": "75ab2f39df9d79d79c5c900de90ddd28248b689f214598ac9fa2ff0f574a70d2"
+  },
+  "unsupportedEvidence": {
+    "categoryClassifier": "Berka has no modern merchant descriptors or Smart Expense AI category gold labels.",
+    "productionHistoricalV22": "The recurring result is a transparent external-reference baseline grounded by permanent orders, not a historical-v2.2 production score.",
+    "subjectiveAnomalyUsefulness": "Berka contains no independent user-reviewed anomaly labels.",
+    "suggestionAcceptanceCorrection": "Berka contains no observed product suggestion decisions."
+  }
+}

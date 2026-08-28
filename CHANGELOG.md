@@ -6,6 +6,10 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ### Added
 
+- `berka-real-data-v1`, a reproducible aggregate-only evaluator over the PKDD'99 Berka `account.asc`, `order.asc` and `trans.asc` relations with explicit `real_public_historical` provenance, source/archive SHA-256 fingerprints and no committed raw banking rows.
+- First committed observed-financial evidence report over 4,500 accounts / 1,056,320 transactions: 171,826 causal account-month forecast folds comparing previous-three-month mean vs day-15 run rate, plus permanent-order linkage/reference recurrence evidence with explicit censoring and non-generalization limits.
+- `docs/REAL_WORLD_EVIDENCE.md` and `docs/evidence/berka-real-data-v1.json`, separating public historical evidence from synthetic benchmark evidence and still-pending modern/private labels for classifier, anomaly usefulness and production recurrence quality.
+- Berka evaluator regressions for day-15 causality, per-account observation boundaries, aggregate-report privacy, source fingerprints, safe ZIP member handling and duplicate relation rejection without requiring the raw 1.05M-row dataset in CI.
 - `private-real-data-evidence-v1`, a first-class aggregate evidence layer over `private-real-data-v1` exposing classification accuracy/macro-F1/natural unseen-merchant F1/calibration, observed category-suggestion acceptance/correction, combined transaction-level anomaly precision/recall/F1/FP-per-100 and recurrence occurrence precision/recall/date-MAE/amount-MAE.
 - Optional private `category_feedback.jsonl` input with current model/feature provenance, separate dataset/evidence SHA-256 fingerprints and explicit separation between independent-label classifier quality and observed product acceptance/correction behavior.
 - Non-sensitive private-evidence provenance, aggregate-only `--public-summary-output` and `--require-real-evidence` / `--require-final-holdout-evidence` gates that require real-private independent provenance plus non-zero metric support and cannot be satisfied by synthetic CI fixtures.
@@ -71,6 +75,8 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ### Changed
 
+- Evidence hierarchy now distinguishes synthetic regression/development results, `berka-real-data-v1` public observed historical banking evidence, and still-pending modern/private independent labels; Berka results are intentionally not generalized to domains the source cannot label.
+- Real-data forecasting evidence now records that the previous-three-month mean outperforms the day-15 run rate on Berka by MAE and sMAPE, reinforcing the policy that more reactive/complex estimators require empirical promotion evidence.
 - Private evidence now treats independent category-label quality and observed suggestion behavior as separate measurements: acceptance/correction can only come from current-model `category_feedback.jsonl`, while accuracy/F1 come from independent labels; synthetic CI data is explicitly ineligible for a real-evidence claim.
 - The private-data roadmap distinguishes a completed evidence mechanism from the still-pending scientific milestone of actually running a genuinely independent private dataset and reporting only aggregate results.
 - Financial Assistant questions now route through existing authenticated domain services instead of reproducing analytics in frontend/model prompts: `current_user.id` stays backend-owned, financial deltas remain Decimal, findings/history reads are side-effect free and the application still starts normally when no LLM provider is configured.
@@ -99,6 +105,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ### Fixed
 
+- Berka ZIP ingestion no longer uses archive-wide extraction: only the three required relation basenames are copied to controlled temporary filenames, traversal/unrelated members are ignored and duplicate relation basenames are rejected as ambiguous.
 - `monthly_expenses(..., through=...)` now enforces `transaction_date <= through`, preventing future-in-month transactions from leaking into an as-of monthly bucket.
 - Transaction pagination now ends every requested sort with the unique transaction UUID after `created_at`, giving tied rows a deterministic total order on a static dataset.
 - Same-user `rules-v2` intelligence scans are serialized with a PostgreSQL transaction-scoped advisory lock before snapshot loading, preventing concurrent read-then-insert races against the `(user_id, fingerprint)` uniqueness constraint while preserving finding status semantics.

@@ -222,6 +222,25 @@ Private data remains under ignored `data/private/`. Reports contain aggregate su
 
 See [`docs/private-evaluation.md`](docs/private-evaluation.md).
 
+### Public observed financial evidence — `berka-real-data-v1`
+
+The repository now also contains a reproducible **real public historical** evidence run over the PKDD'99 Berka banking dataset. Raw source rows are not committed; the versioned report stores only aggregate metrics, provenance and SHA-256 fingerprints.
+
+Observed coverage includes 4,500 accounts and 1,056,320 real transactions from 1993-1998. On **171,826 causal account-month folds**, the previous-three-month mean beats the day-15 run rate on both MAE and sMAPE:
+
+| Baseline | MAE | sMAPE | Bias |
+| --- | ---: | ---: | ---: |
+| Previous 3 months | **8,856.30** | **55.1532%** | -580.13 |
+| Day-15 run rate | 11,102.60 | 66.2022% | +4,526.65 |
+
+The run rate wins only 35.24% of folds. This is useful negative evidence: a more reactive estimator is not automatically better on observed banking behavior.
+
+Berka also provides an independent `order.asc` relation for permanent orders and realized transfers in `trans.asc`. 5,788 of 6,471 permanent orders link to observed transfers (89.45%). A transparent prior-only standing-order reference baseline reaches precision 0.9970 / recall 1.0000 / F1 0.9985 over its explicitly censored active-observation window. That result describes **standing bank orders**, not every merchant subscription, and is not presented as a `historical-v2.2` production score.
+
+Berka cannot validate modern merchant-text classification, suggestion acceptance/correction or subjective anomaly usefulness. Those remain modern/private evidence requirements.
+
+See [`docs/REAL_WORLD_EVIDENCE.md`](docs/REAL_WORLD_EVIDENCE.md) and the aggregate report [`docs/evidence/berka-real-data-v1.json`](docs/evidence/berka-real-data-v1.json).
+
 ## Evaluation methodology
 
 The repository favors chronological, leakage-aware evaluation over random time-series splitting.
@@ -233,11 +252,12 @@ small fixture -> regression protection
 financial-benchmark-v1 -> synthetic development evidence
 spending-forecast-benchmark-v1 -> deterministic forecast regression evidence
 anomaly-challenger-benchmark-v1 -> causal ML-vs-rules regression evidence
+berka-real-data-v1 -> public observed historical banking evidence
 private-real-data-v1 harness -> mechanism for independent/private evidence
-independent / real labelled results -> real quality evidence
+modern independent / private labelled results -> strongest product-specific evidence
 ```
 
-A green synthetic benchmark is not represented as real-world validation.
+A green synthetic benchmark is not represented as real-world validation, and Berka evidence is not generalized beyond the labels and banking products the source actually contains.
 
 ## Analysis contracts: single source of truth
 
@@ -254,6 +274,7 @@ rules-v2
 historical-v2.2
 recurring-calendar-v1
 spending-forecast-v1
+berka-real-data-v1
 merchant_mad_plus_extreme_iqr_v1
 isolation-forest-v1
 causal-transaction-features-v1
@@ -277,7 +298,7 @@ Ownership and change rules are documented in [`docs/analysis-contracts.md`](docs
 - Multi-currency/FX accounting and foreign-currency CSV import.
 - Probabilistic fraud detection.
 - Production anomaly ML replacement: `isolation-forest-v1` remains an offline challenger and `rules-v2` stays the product engine until representative real labelled evidence justifies any promotion.
-- Independent real-world validation results for classifier, `rules-v2`, `historical-v2.2`, forecasting and the IsolationForest challenger; the evaluation mechanisms exist but no private financial dataset is committed or claimed as validated evidence.
+- Modern/private independent validation for `tfidf-logreg-v1`, `rules-v2`, `historical-v2.2`, recurrence-aware forecasting and the IsolationForest challenger. `berka-real-data-v1` now provides public observed evidence for transparent forecast baselines and standing-order regularity, but it is not a substitute for modern product-specific labels.
 - Category-level spending forecasting and forecast warning thresholds.
 - Production forecasting ML; any challenger must first beat the deterministic baselines on the same causal folds/support.
 - Production staging/TLS/centralized monitoring.
@@ -347,6 +368,7 @@ Evaluation tooling
         +--> financial-benchmark-v1
         +--> spending-forecast-benchmark-v1
         +--> anomaly-challenger-benchmark-v1 -> rules-v2 vs isolation-forest-v1 vs union
+        +--> berka-real-data-v1 -> public observed historical banking evidence
         +--> chronological / cold-start / calibration reports
         +--> private-real-data-v1 aggregate-only local evaluation
 ```
@@ -420,14 +442,15 @@ npm run lint
 npm run build
 ```
 
-GitHub Actions gates PostgreSQL migrations, critical Playwright E2E, Docker Compose, dependency security audits, Financial benchmark, Lifecycle diagnostic, Category classifier benchmark, **Spending forecast benchmark**, **Anomaly challenger benchmark** and CycloneDX SBOM generation. Assistant regressions cover strict no-identity tool schemas, backend-owned account scope, Decimal period comparisons, invented-evidence filtering, provider-unavailable behavior, protected UI rendering and a browser request body containing only the question.
+GitHub Actions gates PostgreSQL migrations, critical Playwright E2E, Docker Compose, dependency security audits, Financial benchmark, Lifecycle diagnostic, Category classifier benchmark, **Spending forecast benchmark**, **Anomaly challenger benchmark** and CycloneDX SBOM generation. Assistant regressions cover strict no-identity tool schemas, backend-owned account scope, Decimal period comparisons, invented-evidence filtering, provider-unavailable behavior, protected UI rendering and a browser request body containing only the question. Berka unit regressions separately protect parsing, day-15 causality, per-account observation boundaries, safe ZIP handling, provenance and committed aggregate-report privacy without requiring the raw dataset in CI.
 
-See [`docs/testing.md`](docs/testing.md), [`docs/financial-assistant.md`](docs/financial-assistant.md), [`docs/upcoming-payments.md`](docs/upcoming-payments.md), [`docs/spending-forecast.md`](docs/spending-forecast.md) and [`docs/isolation-forest-challenger.md`](docs/isolation-forest-challenger.md).
+See [`docs/testing.md`](docs/testing.md), [`docs/REAL_WORLD_EVIDENCE.md`](docs/REAL_WORLD_EVIDENCE.md), [`docs/financial-assistant.md`](docs/financial-assistant.md), [`docs/upcoming-payments.md`](docs/upcoming-payments.md), [`docs/spending-forecast.md`](docs/spending-forecast.md) and [`docs/isolation-forest-challenger.md`](docs/isolation-forest-challenger.md).
 
 ## Documentation and governance
 
 - [`ROADMAP.md`](ROADMAP.md) — implemented vs future work.
 - [`CHANGELOG.md`](CHANGELOG.md) — Unreleased change log.
+- [`docs/REAL_WORLD_EVIDENCE.md`](docs/REAL_WORLD_EVIDENCE.md) — public observed financial evidence, provenance, metrics and limitations.
 - [`docs/financial-assistant.md`](docs/financial-assistant.md) — stateless LLM/tool/evidence/privacy contract.
 - [`docs/analysis-contracts.md`](docs/analysis-contracts.md) — analytical identifiers and ownership.
 - [`docs/private-evaluation.md`](docs/private-evaluation.md) — local independent/private evaluation contract.

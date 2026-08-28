@@ -16,6 +16,7 @@ Documentation explains identifiers but must not invent different current values.
 | Historical analysis engine | `historical-v2.2` | `backend/app/services/historical_analysis_v2_2.py` |
 | Upcoming recurring-payment projection | `recurring-calendar-v1` | `backend/app/services/upcoming_payments.py`, Predictions workspace |
 | Month-end spending forecast | `spending-forecast-v1` | `backend/app/services/spending_forecast.py`, Predictions workspace, forecast benchmark |
+| Public historical financial evidence | `berka-real-data-v1` | `backend/app/services/berka_real_data_evaluation.py`, `docs/evidence/berka-real-data-v1.json` |
 | Amount anomaly baseline | `merchant_mad_plus_extreme_iqr_v1` | shared amount-anomaly service |
 | Offline anomaly challenger | `isolation-forest-v1` | `backend/ml/isolation_forest_anomaly.py`, anomaly challenger benchmark |
 | Anomaly challenger feature policy | `causal-transaction-features-v1` | offline IsolationForest evaluation only |
@@ -24,6 +25,25 @@ Documentation explains identifiers but must not invent different current values.
 | Recurrence segmentation version | `lifecycle-v1` | `historical-v2.2` recurrence metadata |
 | Category classifier | `tfidf-logreg-v1` | `backend/ml/category_classifier.py`, runtime suggestion service, benchmark |
 | Category classifier feature policy | `merchant_descriptor_only_v1` | runtime suggestion service, benchmark/model card |
+
+## Public real-data evidence contract
+
+`berka-real-data-v1` is an **offline evidence contract**, not a product prediction engine. It evaluates the public PKDD'99 Berka banking relations without vendoring raw account or counterparty rows into this repository.
+
+Its provenance is deliberately distinct from the private evidence contract:
+
+```text
+real_public_historical
+```
+
+The evaluator fingerprints `account.asc`, `order.asc`, `trans.asc` and the source ZIP when applicable, then emits aggregate-only results. It currently provides two kinds of external evidence:
+
+1. causal account-month evaluation of the transparent previous-three-month mean and day-15 run-rate forecast formulas;
+2. permanent-order linkage and a simple prior-only calendar reference baseline grounded by the separate `order.asc` and realized `trans.asc` relations.
+
+The recurrence reference baseline is **not** a `historical-v2.2` production score. Berka also does not provide valid evidence for modern merchant category classification, suggestion acceptance/correction or subjective anomaly usefulness. Those cells remain dependent on modern/private independently labelled data.
+
+See [`REAL_WORLD_EVIDENCE.md`](REAL_WORLD_EVIDENCE.md).
 
 ## Amount anomaly policy
 
@@ -98,7 +118,7 @@ All forecast money uses `Decimal` and v2 decimal strings. Transactions after the
 
 Walk-forward backtesting uses a fixed day-15 cutoff and scores all baselines on identical chronological folds/support with MAE, sMAPE and signed bias. These error metrics are historical diagnostics, not probabilities or calibrated confidence.
 
-A future forecasting ML challenger is eligible for product promotion only after causal evaluation on the same folds/support demonstrates consistent improvement over transparent baselines. See [`spending-forecast.md`](spending-forecast.md).
+A future forecasting ML challenger is eligible for product promotion only after causal evaluation on the same folds/support demonstrates consistent improvement over transparent baselines. `berka-real-data-v1` now adds external real-public historical evidence for the first two transparent formulas while deliberately leaving the production recurrence-aware baseline to modern/compatible evidence. See [`spending-forecast.md`](spending-forecast.md) and [`REAL_WORLD_EVIDENCE.md`](REAL_WORLD_EVIDENCE.md).
 
 ## Category classifier contract
 
@@ -135,6 +155,7 @@ A version identifier changes when externally meaningful behavior/evidence change
 - historical output/segmentation semantics -> new `historical-*`;
 - recurring-payment projection semantics -> new `recurring-calendar-*`;
 - month-end forecast baseline/backtest semantics -> new `spending-forecast-*`;
+- external public real-data evidence semantics -> new `berka-real-data-*`;
 - material amount-anomaly policy changes -> new policy identifier;
 - anomaly challenger model/features -> new `isolation-forest-*` and/or feature-policy identifier;
 - category model pipeline/features -> new model and/or feature-policy identifier.
@@ -148,7 +169,7 @@ When a current contract changes:
 1. update `backend/app/analysis_contracts.py` when the stable identifier changes;
 2. update owning implementation/tests;
 3. update this document plus relevant engine/model documentation;
-4. align `README.md` / `ROADMAP.md` / `CHANGELOG.md` when product state changes;
+4. align `README.md` / `ROADMAP.md` / `CHANGELOG.md` when product/evidence state changes;
 5. run applicable financial/category/forecast/anomaly-challenger benchmarks with holdout/causality discipline preserved;
 6. merge only after full CI is green.
 

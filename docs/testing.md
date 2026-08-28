@@ -1,6 +1,6 @@
 # Testing and CI
 
-Smart Expense AI uses layered automated verification for persistence, authentication, security controls, versioned API contracts, exact monetary arithmetic, deterministic financial intelligence, historical analysis, recurring-payment projection, month-end forecasting, anomaly challengers, category suggestions/personalization, Financial Assistant orchestration/evidence grounding, ML evaluation, privacy-safe private-evaluation tooling, responsive UX, supply-chain inventory and critical browser flows.
+Smart Expense AI uses layered automated verification for persistence, authentication, security controls, versioned API contracts, exact monetary arithmetic, deterministic financial intelligence, historical analysis, recurring-payment projection, month-end forecasting, anomaly challengers, category suggestions/personalization, Financial Assistant orchestration/evidence grounding, ML evaluation, privacy-safe private-evaluation tooling, public real-world evidence, responsive UX, supply-chain inventory and critical browser flows.
 
 Current analytical identifiers come from `backend/app/analysis_contracts.py`; see [`analysis-contracts.md`](analysis-contracts.md). Tests explicitly prevent key implementation/documentation contracts from silently drifting.
 
@@ -149,6 +149,7 @@ rules-v2
 historical-v2.2
 recurring-calendar-v1
 spending-forecast-v1
+berka-real-data-v1
 merchant_mad_plus_extreme_iqr_v1
 isolation-forest-v1
 causal-transaction-features-v1
@@ -178,8 +179,9 @@ small fixture -> regression protection
 financial-benchmark-v1 -> synthetic development evidence
 spending-forecast-benchmark-v1 -> deterministic forecast regression evidence
 anomaly-challenger-benchmark-v1 -> causal rules-vs-ML regression evidence
+berka-real-data-v1 -> public observed historical banking evidence
 private-real-data-v1 harness -> private/independent evaluation mechanism
-independent / real labelled results -> real quality evidence
+modern independent / private labelled results -> strongest product-specific evidence
 ```
 
 ## Category classifier benchmark
@@ -197,6 +199,35 @@ Regression coverage verifies ordered non-overlapping calibration/validation/hold
 The `isolation-forest-v1` challenger is compatible with this split/label discipline but remains a separate aggregate-only evaluator in this cycle; CI does not consume private financial rows.
 
 See [`private-evaluation.md`](private-evaluation.md).
+
+## Public real-world evaluator — `berka-real-data-v1`
+
+`berka-real-data-v1` consumes the original PKDD'99 Berka `account.asc`, `order.asc` and `trans.asc` relations and marks provenance as:
+
+```text
+real_public_historical
+```
+
+The raw 1.05M-row dataset is not committed and is not required by CI. The committed `docs/evidence/berka-real-data-v1.json` contains aggregate support/metrics plus SHA-256 fingerprints only.
+
+Reproduce locally from `backend/`:
+
+```bash
+python scripts/evaluate_berka_real_data.py /path/to/berka-dataset-master.zip \
+  --output /tmp/berka-real-data-v1.json
+```
+
+`backend/tests/unit/test_berka_real_data_evaluation.py` uses tiny temporary relations to protect:
+
+- `real_public_historical` provenance and the `berka-real-data-v1` registry alias;
+- fixed day-15 forecast causality, including a later same-month expense that may affect the outcome but never the prediction;
+- per-account evaluation ending at the final observed transaction month rather than inventing zero-spend months after observation ends;
+- aggregate-only report sanitization and source fingerprints;
+- safe ZIP ingestion that copies only the three expected relations and never writes unrelated/path-traversal members;
+- rejection of ambiguous ZIPs containing duplicate relation basenames;
+- committed real-report coverage anchors (1,056,320 transactions and 171,826 forecast account-month folds).
+
+The observed report is evidence for the transparent previous-three-month and day-15 run-rate formulas plus the regularity of linked permanent bank orders. It deliberately does **not** claim modern merchant-classifier quality, suggestion acceptance/correction, subjective anomaly usefulness or a production `historical-v2.2` recurrence score. See [`REAL_WORLD_EVIDENCE.md`](REAL_WORLD_EVIDENCE.md).
 
 ## PostgreSQL integration
 
@@ -251,7 +282,7 @@ Playwright exercises critical authenticated flows against PostgreSQL/FastAPI/Vit
 
 The assistant E2E stubs the external provider-facing API response at the HTTP boundary so CI verifies browser/application semantics without sending financial data to an external model. Backend fake-provider tests separately verify tool orchestration and grounding.
 
-The IsolationForest challenger is offline-only, so it intentionally has no browser/Product E2E path. Algorithm depth remains tested at unit/evaluation layers.
+The IsolationForest challenger and Berka evaluator are offline-only, so neither intentionally has a browser/product E2E path. Algorithm/evidence depth remains tested at unit/evaluation layers.
 
 ## Docker Compose smoke test
 
@@ -271,7 +302,7 @@ The blocking security audit runs `pip-audit` and `npm audit --audit-level=high`.
 
 Functional gates:
 
-- **Backend tests** — clean PostgreSQL migration, FastAPI import, pytest, assistant/account-isolation/grounding regressions, analysis-contract/documentation checks and protected evaluation fixtures.
+- **Backend tests** — clean PostgreSQL migration, FastAPI import, pytest, assistant/account-isolation/grounding regressions, Berka parser/privacy/causality regressions, analysis-contract/documentation checks and protected evaluation fixtures.
 - **Frontend quality** — Vitest -> TypeScript -> ESLint -> production build.
 - **Dependency security audit** — Python and npm audits.
 - **Critical E2E** — PostgreSQL/FastAPI/Vite/Chromium flows including recurring calendar, spending forecast and Financial Assistant UI/request contract.
@@ -286,5 +317,7 @@ Additional merge-candidate workflows:
 - **Spending forecast benchmark**;
 - **Anomaly challenger benchmark**;
 - **Supply chain SBOM**.
+
+The real Berka source is intentionally not downloaded by Actions. CI protects the evaluator contract with synthetic temporary relations; the committed aggregate report is reproducible locally only when source fingerprints match.
 
 Third-party Actions are pinned to immutable commit SHAs. Dependabot monitors Actions, pip and npm dependencies.
