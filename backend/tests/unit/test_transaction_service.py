@@ -2,13 +2,15 @@ from datetime import date
 from decimal import Decimal
 from types import SimpleNamespace
 from unittest.mock import MagicMock
+from uuid import uuid4
 
 import pytest
 
 from app.schemas import TransactionStatus, TransactionType
+from app.services import transaction_service
 from app.services.transaction_service import (
     TransactionInputError,
-    _get_category,
+    _get_visible_category,
     _parse_transaction_date,
     calculate_status,
 )
@@ -45,17 +47,57 @@ def test_parse_transaction_date_rejects_invalid_date() -> None:
         _parse_transaction_date("24/08/2026")
 
 
-def test_get_category_rejects_unknown_category() -> None:
+def test_get_visible_category_rejects_unknown_category(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
     db = MagicMock()
-    db.scalar.return_value = None
+    user_id = uuid4()
+    monkeypatch.setattr(
+        transaction_service,
+        "find_active_visible_categories_by_name",
+        lambda _db, _user_id, _name: [],
+    )
 
     with pytest.raises(TransactionInputError, match="Unknown category"):
-        _get_category(db, "Unknown", TransactionType.expense)
+        _get_visible_category(db, user_id, "Unknown", TransactionType.expense)
 
 
-def test_get_category_rejects_wrong_transaction_type() -> None:
+def test_get_visible_category_rejects_wrong_transaction_type(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
     db = MagicMock()
-    db.scalar.return_value = SimpleNamespace(transaction_type="income")
+    user_id = uuid4()
+    category = SimpleNamespace(transaction_type="income")
+    monkeypatch.setattr(
+        transaction_service,
+        "find_active_visible_categories_by_name",
+        lambda _db, _user_id, _name: [category],
+    )
 
     with pytest.raises(TransactionInputError, match="not valid for expense"):
-        _get_category(db, "Salary", TransactionType.expense)
+        _get_visible_category(db, user_id, "Salary", TransactionType.expense)
+
+
+def test_get_visible_category_returns_compatible_visible_category(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    db = MagicMock()
+    user_id = uuid4()
+    income_category = SimpleNamespace(transaction_type="income")
+    expense_category = SimpleNamespace(transaction_type="expense")
+    calls: list[tuple[object, object, str]] = []
+
+    def visible_categories(_db, _user_id, name):
+        calls.append((_db, _user_id, name))
+        return [income_category, expense_category]
+
+    monkeypatch.setattr(
+        transaction_service,
+        "find_active_visible_categories_by_name",
+        visible_categories,
+    )
+
+    result = _get_visible_category(db, user_id, "Shared Name", TransactionType.expense)
+
+    assert result is expense_category
+    assert calls == [(db, user_id, "Shared Name")]
