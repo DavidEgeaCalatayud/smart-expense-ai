@@ -87,7 +87,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 - `privacy-export-v1` includes account-owned category-suggestion feedback in addition to CSV import batches, custom categories and budgets; account deletion removes the same feedback through database ownership cascades.
 - Category-classifier evaluation is `category-classifier-evaluation-v2`, adding a 382-row / nine-group canonical merchant cold-start slice with zero group overlap and raw/Platt/isotonic calibration diagnostics while retaining the sealed 2025 H2 holdout.
 - The model card, README, architecture, API, product, testing and roadmap documentation describe current suggestion, recurring-calendar and deterministic forecast behavior rather than stale placeholders.
-- Category lookup adds authenticated user-aware resolution alongside legacy category contracts, preserving existing `list_categories()` / `_get_category()` behavior and legacy unknown-vs-incompatible error semantics.
+- Transaction category lookup is ownership-aware: transaction write paths resolve only active system categories or active categories visible to the authenticated user through `_get_visible_category()`; the legacy ownership-blind `_get_category()` helper has been retired while preserving distinct unknown-vs-incompatible error semantics.
 - Transaction creation, update and CSV import can resolve active system categories together with the authenticated user's active custom categories.
 - Historical-analysis documentation treats `historical-v2.2` as the current persisted diagnostic engine and `lifecycle-v1` as the current recurrence segmentation contract.
 - Actionable, historical and API amount-anomaly documentation reflects the shared `merchant_mad_plus_extreme_iqr_v1` merchant-only baseline.
@@ -99,6 +99,10 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ### Fixed
 
+- `monthly_expenses(..., through=...)` now enforces `transaction_date <= through`, preventing future-in-month transactions from leaking into an as-of monthly bucket.
+- Transaction pagination now ends every requested sort with the unique transaction UUID after `created_at`, giving tied rows a deterministic total order on a static dataset.
+- Same-user `rules-v2` intelligence scans are serialized with a PostgreSQL transaction-scoped advisory lock before snapshot loading, preventing concurrent read-then-insert races against the `(user_id, fingerprint)` uniqueness constraint while preserving finding status semantics.
+- Expense snapshots used by intelligence scans now end their chronological ordering with transaction UUID so identical dates and creation timestamps cannot depend on PostgreSQL physical row order.
 - Asynchronous category loading no longer rebuilds and clears merchant/amount/date/type/payment/recurring input that a user started entering before `fetchCategories()` completed; only a blank or incompatible category is initialized/repaired.
 - Critical category-suggestion and recurring-calendar Playwright flows now wait on semantic form readiness/successful reset rather than incidental timing or transaction-table row counts.
 
