@@ -2,28 +2,32 @@
 
 Android-first React Native client for the Smart Expense AI multi-client platform.
 
-## Phase 5D status
+## Phase 5E status
 
-The mobile package now includes the Expo/SQLite foundation plus native authentication:
+The mobile package now includes the Expo/SQLite foundation, native authentication and the first complete foreground synchronization path:
 
 - Expo SDK 57 + Expo Router;
 - strict TypeScript;
 - Expo SQLite persistence with explicit migrations, foreign keys and WAL mode;
-- transaction/category/budget repository boundaries;
 - durable `sync_outbox`, `sync_state` and `sync_conflicts` tables;
 - exact decimal-string <-> integer-minor-unit money conversion through `shared/`;
-- offline transaction creation that persists across app restarts;
-- dedicated Android access + refresh authentication against FastAPI;
-- short-lived Bearer access tokens with a separate mobile JWT audience;
-- opaque rotating refresh tokens whose server-side representation is hashed;
-- refresh replay detection and per-device mobile-session revocation;
-- Expo SecureStore for access token, refresh token, device identity and cached account identity;
-- protected Expo Router routes for sign-in/registration vs authenticated workspace;
-- local account binding that prevents one authenticated account from inheriting another account's SQLite workspace;
-- logout/invalid-session local financial-data wipe;
-- mobile dependency/type/lint/test/Android-export CI validation.
+- native access + rotating refresh authentication against FastAPI;
+- Expo SecureStore for credentials/device identity;
+- `/api/v2/sync/push`, `/pull` and `/bootstrap` integration;
+- one-at-a-time refresh coordination so concurrent 401 responses cannot rotate the same refresh token twice;
+- ordered durable outbox push with idempotent mutation IDs;
+- bounded transient retry/backoff for network, 429 and 5xx failures;
+- permanent server rejections retained as `failed` instead of retried forever;
+- bootstrap and cursor-based delta pull;
+- SQLite change-page + cursor advancement in the same exclusive transaction;
+- interrupted `sending` mutations recovered back to `queued` after process termination;
+- local-first create/edit/delete transaction behavior;
+- pending transaction edits compacted into the existing outbox mutation instead of producing artificial stale-version conflicts;
+- explicit `synced`, `pending`, `failed` and `conflict` state in the UI;
+- durable conflict evidence with explicit `Use server` and safe `Retry mine` resolution;
+- automatic foreground sync when the authenticated workspace mounts plus a manual `Sync now` action.
 
-The existing web authentication contract remains unchanged: the browser continues to use its HttpOnly session cookie. Mobile authentication is an additional native transport over the same backend users and `session_version` revocation model.
+The existing web authentication and business-rule contracts remain unchanged. PostgreSQL/FastAPI is still the financial authority; SQLite stores the local replica plus pending user intent.
 
 ## Run locally
 
@@ -39,7 +43,26 @@ npm run mobile:android
 
 The project targets Expo SDK 57 / React Native 0.86 and Node.js 22.13+.
 
-## Local data model
+## Foreground sync sequence
+
+A normal authenticated foreground synchronization is:
+
+```text
+1. recover interrupted `sending` outbox rows
+2. read queued mutations in durable sequence order
+3. push one bounded batch with stable mutation IDs
+4. persist applied/rejected/conflict outcomes atomically
+5. bootstrap the local replica when no cursor exists
+6. pull deltas from the stored opaque cursor
+7. apply each page and its next cursor in one SQLite transaction
+8. continue until `hasMore = false`
+```
+
+The client never parses or creates a sync cursor. It only persists the opaque server token.
+
+If a transient request fails after the server committed but before the response reaches Android, the same mutation ID is retried. The backend `sync-v1` idempotency record therefore prevents duplicate financial writes.
+
+## Local transaction semantics
 
 SQLite stores financial amounts as integer minor units, never `REAL`.
 
@@ -51,9 +74,27 @@ Creating an expense performs one exclusive SQLite transaction:
 4. persist the transaction;
 5. enqueue the transaction mutation.
 
-If the app terminates after commit, both the entity and its outbox intent survive.
+Editing an unsynchronized transaction updates the existing queued upsert rather than adding a second create. Editing a synchronized transaction creates a new upsert whose `baseVersion` is the last observed server version.
 
-A local workspace is bound to an authenticated account ID in `sync_state`. If a different account authenticates, the previous account's local entities, outbox, conflicts and cursor state are cleared before the workspace is exposed.
+Deleting an unsynchronized transaction cancels the local create. Deleting a synchronized transaction removes it locally and queues a versioned server tombstone mutation.
+
+## Conflict policy
+
+The mobile client never silently overwrites a stale server value.
+
+A conflict stores:
+
+- local mutation payload;
+- server version;
+- server payload or tombstone;
+- conflict reason.
+
+The UI exposes:
+
+- `Use server` for all conflicts;
+- `Retry mine` only for safe `stale_version` conflicts where a current server version and local payload both exist.
+
+`server_deleted` and ownership/visibility conflicts do not offer an unsafe automatic local overwrite.
 
 ## Authentication boundary
 
@@ -67,25 +108,17 @@ Android -> Bearer token   -> mobile JWT audience + mobile session id
 
 Access and refresh tokens are stored only in Expo SecureStore. They are never persisted in SQLite. The backend stores only a SHA-256 digest of each refresh token, retains rotation lineage for replay detection and revokes a mobile session if a rotated token is replayed.
 
-Password changes continue to increment `session_version`, invalidating both browser and mobile credentials. Account deletion cascades through mobile-session persistence.
-
-Transient network/server failures do not erase the cached mobile identity, so the authenticated user can keep using local offline data. A definitive 401 that cannot be refreshed clears credentials and the local account workspace.
-
-## Next: Phase 5E
-
-The server `sync-v1` contract already exists, but this mobile package does **not** execute foreground push/pull yet. Phase 5E will wire the existing durable outbox and SQLite replica to:
-
-- `/api/v2/sync/bootstrap`;
-- `/api/v2/sync/push`;
-- `/api/v2/sync/pull`;
-- automatic access-token refresh during sync;
-- bounded retry/backoff;
-- atomic cursor advancement;
-- explicit conflict state/resolution;
-- web-create -> Android-pull and Android-offline-create -> server -> web tests.
+The generic mobile API client performs at most one refresh/retry after a 401 and coordinates simultaneous refresh demand through one in-flight promise. This prevents two foreground requests from replaying the same one-time refresh token.
 
 ## Production hardening still pending
 
-The SQLite financial file is not claimed to be encrypted in Phase 5D. Production SQLCipher/native encrypted-database configuration remains a later hardening requirement because it changes the native build surface. Background synchronization is also deferred until foreground sync correctness is proven.
+- SQLCipher/native encrypted financial database;
+- background synchronization;
+- Android release signing/AAB pipeline;
+- device/emulator E2E for offline/reconnect/conflict flows;
+- richer category/budget mobile workspaces;
+- server-derived Financial Intelligence, forecasts and Assistant screens.
 
-See `docs/mobile-offline-first.md` for the architecture contract.
+Background execution remains deliberately deferred: foreground synchronization must remain the correctness path even if Android never grants background execution time.
+
+See `docs/mobile-offline-first.md` and `docs/mobile-auth-v1.md` for the architecture and security contracts.

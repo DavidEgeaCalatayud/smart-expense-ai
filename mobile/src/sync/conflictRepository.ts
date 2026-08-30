@@ -1,15 +1,17 @@
 import type { SyncConflict, SyncMutation } from '@smart-expense-ai/api-contracts';
 import type { SQLiteDatabase } from 'expo-sqlite';
 
-export interface StoredConflict {
-  mutationId: string;
-  entityType: SyncConflict['entityType'];
-  entityId: string;
+export interface StoredConflictRow {
+  id: number;
+  mutation_id: string;
+  entity_type: SyncConflict['entityType'];
+  entity_id: string;
   reason: SyncConflict['reason'];
-  serverVersion: number | null;
-  serverPayloadJson: string | null;
-  localPayloadJson: string | null;
-  createdAt: string;
+  server_version: number | null;
+  server_payload_json: string | null;
+  local_payload_json: string | null;
+  created_at: string;
+  resolved_at: string | null;
 }
 
 export async function storeConflict(
@@ -38,5 +40,36 @@ export async function storeConflict(
     conflict.serverPayload === null ? null : JSON.stringify(conflict.serverPayload),
     localMutation.operation === 'upsert' ? JSON.stringify(localMutation.payload) : null,
     now,
+  );
+}
+
+export function listUnresolvedConflicts(db: SQLiteDatabase): Promise<StoredConflictRow[]> {
+  return db.getAllAsync<StoredConflictRow>(
+    `SELECT * FROM sync_conflicts
+     WHERE resolved_at IS NULL
+     ORDER BY created_at DESC, id DESC`,
+  );
+}
+
+export function getUnresolvedConflict(
+  db: SQLiteDatabase,
+  conflictId: number,
+): Promise<StoredConflictRow | null> {
+  return db.getFirstAsync<StoredConflictRow>(
+    `SELECT * FROM sync_conflicts
+     WHERE id = ? AND resolved_at IS NULL
+     LIMIT 1`,
+    conflictId,
+  );
+}
+
+export async function markConflictResolved(
+  db: SQLiteDatabase,
+  conflictId: number,
+): Promise<void> {
+  await db.runAsync(
+    'UPDATE sync_conflicts SET resolved_at = ? WHERE id = ?',
+    new Date().toISOString(),
+    conflictId,
   );
 }
