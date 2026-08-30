@@ -26,11 +26,15 @@ async function hasUnsyncedLocalIntent(
   return row !== null && row.sync_status !== 'synced';
 }
 
-async function applyCategoryChange(db: SqlTxn, change: SyncChange): Promise<void> {
+async function applyCategoryChange(
+  db: SqlTxn,
+  change: SyncChange,
+  force: boolean,
+): Promise<void> {
   if (change.entityType !== 'category') {
     return;
   }
-  if (await hasUnsyncedLocalIntent(db, 'categories', change.entityId)) {
+  if (!force && (await hasUnsyncedLocalIntent(db, 'categories', change.entityId))) {
     return;
   }
   if (change.operation === 'delete') {
@@ -65,11 +69,15 @@ async function applyCategoryChange(db: SqlTxn, change: SyncChange): Promise<void
   );
 }
 
-async function applyTransactionChange(db: SqlTxn, change: SyncChange): Promise<void> {
+async function applyTransactionChange(
+  db: SqlTxn,
+  change: SyncChange,
+  force: boolean,
+): Promise<void> {
   if (change.entityType !== 'transaction') {
     return;
   }
-  if (await hasUnsyncedLocalIntent(db, 'transactions', change.entityId)) {
+  if (!force && (await hasUnsyncedLocalIntent(db, 'transactions', change.entityId))) {
     return;
   }
   if (change.operation === 'delete') {
@@ -115,11 +123,15 @@ async function applyTransactionChange(db: SqlTxn, change: SyncChange): Promise<v
   );
 }
 
-async function applyBudgetChange(db: SqlTxn, change: SyncChange): Promise<void> {
+async function applyBudgetChange(
+  db: SqlTxn,
+  change: SyncChange,
+  force: boolean,
+): Promise<void> {
   if (change.entityType !== 'budget') {
     return;
   }
-  if (await hasUnsyncedLocalIntent(db, 'budgets', change.entityId)) {
+  if (!force && (await hasUnsyncedLocalIntent(db, 'budgets', change.entityId))) {
     return;
   }
   if (change.operation === 'delete') {
@@ -150,16 +162,21 @@ async function applyBudgetChange(db: SqlTxn, change: SyncChange): Promise<void> 
   );
 }
 
-export async function applySyncChange(db: SqlTxn, change: SyncChange): Promise<void> {
+export async function applySyncChange(
+  db: SqlTxn,
+  change: SyncChange,
+  options: { force?: boolean } = {},
+): Promise<void> {
+  const force = options.force ?? false;
   switch (change.entityType) {
     case 'category':
-      await applyCategoryChange(db, change);
+      await applyCategoryChange(db, change, force);
       return;
     case 'transaction':
-      await applyTransactionChange(db, change);
+      await applyTransactionChange(db, change, force);
       return;
     case 'budget':
-      await applyBudgetChange(db, change);
+      await applyBudgetChange(db, change, force);
       return;
   }
 }
