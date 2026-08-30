@@ -39,7 +39,7 @@ describe('MobileAuthClient', () => {
 
     expect(response).toEqual(tokenResponse);
     expect(fetchMock).toHaveBeenCalledTimes(1);
-    const [url, init] = fetchMock.mock.calls[0];
+    const [url, init] = fetchMock.mock.calls[0]!;
     expect(url).toBe('https://api.example.test/api/v2/auth/mobile/login');
     expect(init?.method).toBe('POST');
     expect(JSON.parse(String(init?.body))).toEqual({
@@ -58,7 +58,7 @@ describe('MobileAuthClient', () => {
     const user = await client.me('mobile-access-token');
 
     expect(user).toEqual(tokenResponse.user);
-    const [, init] = fetchMock.mock.calls[0];
+    const [, init] = fetchMock.mock.calls[0]!;
     const headers = init?.headers as Headers;
     expect(headers.get('Authorization')).toBe('Bearer mobile-access-token');
   });
