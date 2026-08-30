@@ -24,6 +24,7 @@ from app.routers.imports import router as imports_router
 from app.routers.intelligence import router as intelligence_router
 from app.routers.intelligence_v2 import router as intelligence_v2_router
 from app.routers.spending_forecast import router as spending_forecast_router
+from app.routers.sync import router as sync_router
 from app.routers.transactions import router as transactions_router
 from app.routers.transactions_v2 import router as transactions_v2_router
 from app.routers.upcoming_payments import router as upcoming_payments_router
@@ -85,3 +86,4 @@ app.include_router(category_suggestions_router, prefix=API_V2_PREFIX)
 app.include_router(upcoming_payments_router, prefix=API_V2_PREFIX)
 app.include_router(spending_forecast_router, prefix=API_V2_PREFIX)
 app.include_router(financial_assistant_router, prefix=API_V2_PREFIX)
+app.include_router(sync_router, prefix=API_V2_PREFIX)

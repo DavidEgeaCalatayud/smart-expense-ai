@@ -5,7 +5,7 @@ from decimal import Decimal
 from typing import TYPE_CHECKING
 from uuid import UUID, uuid4
 
-from sqlalchemy import CheckConstraint, Date, DateTime, ForeignKey, Index, Numeric, func, text
+from sqlalchemy import BigInteger, CheckConstraint, Date, DateTime, FetchedValue, ForeignKey, Index, Numeric, func, text
 from sqlalchemy.dialects.postgresql import UUID as PG_UUID
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
@@ -21,6 +21,7 @@ class Budget(Base):
     __table_args__ = (
         CheckConstraint("limit_amount > 0", name="ck_budgets_limit_positive"),
         CheckConstraint("EXTRACT(DAY FROM month) = 1", name="ck_budgets_month_first_day"),
+        CheckConstraint("sync_version > 0", name="ck_budgets_sync_version_positive"),
         Index(
             "uq_budgets_user_month_overall",
             "user_id",
@@ -53,6 +54,12 @@ class Budget(Base):
     )
     month: Mapped[date] = mapped_column(Date, nullable=False, index=True)
     limit_amount: Mapped[Decimal] = mapped_column(Numeric(12, 2), nullable=False)
+    sync_version: Mapped[int] = mapped_column(
+        BigInteger,
+        nullable=False,
+        server_default=text("1"),
+        server_onupdate=FetchedValue(),
+    )
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True),
         nullable=False,

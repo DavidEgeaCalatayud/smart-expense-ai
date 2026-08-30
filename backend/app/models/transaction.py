@@ -6,10 +6,12 @@ from typing import TYPE_CHECKING
 from uuid import UUID, uuid4
 
 from sqlalchemy import (
+    BigInteger,
     Boolean,
     CheckConstraint,
     Date,
     DateTime,
+    FetchedValue,
     ForeignKey,
     Index,
     Numeric,
@@ -44,6 +46,7 @@ class Transaction(Base):
             name="ck_transactions_source",
         ),
         CheckConstraint("amount > 0", name="ck_transactions_amount_positive"),
+        CheckConstraint("sync_version > 0", name="ck_transactions_sync_version_positive"),
         Index(
             "uq_transactions_user_import_fingerprint",
             "user_id",
@@ -91,6 +94,12 @@ class Transaction(Base):
         server_default=false(),
     )
     source: Mapped[str] = mapped_column(String(16), nullable=False, default="manual", server_default="manual")
+    sync_version: Mapped[int] = mapped_column(
+        BigInteger,
+        nullable=False,
+        server_default=text("1"),
+        server_onupdate=FetchedValue(),
+    )
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True),
         nullable=False,

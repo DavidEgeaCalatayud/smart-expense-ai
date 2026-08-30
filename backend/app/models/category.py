@@ -4,7 +4,7 @@ from datetime import datetime
 from typing import TYPE_CHECKING
 from uuid import UUID, uuid4
 
-from sqlalchemy import Boolean, CheckConstraint, DateTime, ForeignKey, String, false, func
+from sqlalchemy import BigInteger, Boolean, CheckConstraint, DateTime, FetchedValue, ForeignKey, String, false, func, text
 from sqlalchemy.dialects.postgresql import UUID as PG_UUID
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
@@ -28,6 +28,7 @@ class Category(Base):
             "(system_category = false AND owner_user_id IS NOT NULL)",
             name="ck_categories_ownership_scope",
         ),
+        CheckConstraint("sync_version > 0", name="ck_categories_sync_version_positive"),
     )
 
     id: Mapped[UUID] = mapped_column(
@@ -54,6 +55,12 @@ class Category(Base):
         nullable=False,
         default=False,
         server_default=false(),
+    )
+    sync_version: Mapped[int] = mapped_column(
+        BigInteger,
+        nullable=False,
+        server_default=text("1"),
+        server_onupdate=FetchedValue(),
     )
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True),
