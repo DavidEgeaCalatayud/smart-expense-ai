@@ -26,8 +26,34 @@ export function useTransactions() {
   }, [db]);
 
   useEffect(() => {
-    void reload();
-  }, [reload]);
+    let active = true;
+
+    const loadInitialTransactions = async () => {
+      try {
+        const repository = new SqliteTransactionRepository(db);
+        const rows = await repository.listRecent();
+        if (active) {
+          setTransactions(rows);
+        }
+      } catch (caught) {
+        if (active) {
+          setError(
+            caught instanceof Error ? caught.message : 'Could not load local transactions',
+          );
+        }
+      } finally {
+        if (active) {
+          setIsLoading(false);
+        }
+      }
+    };
+
+    void loadInitialTransactions();
+
+    return () => {
+      active = false;
+    };
+  }, [db]);
 
   const create = useCallback(
     async (input: OfflineTransactionFormInput) => {
