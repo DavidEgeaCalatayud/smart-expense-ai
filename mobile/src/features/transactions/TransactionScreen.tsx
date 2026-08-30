@@ -81,7 +81,7 @@ export function TransactionScreen() {
     isResolving,
     error: conflictError,
     reload: reloadConflicts,
-    useServer,
+    resolveWithServer,
     retryMine,
   } = useConflicts(async () => {
     await reload();
@@ -244,7 +244,7 @@ export function TransactionScreen() {
                       <Pressable
                         disabled={isResolving}
                         onPress={() =>
-                          void useServer(conflict.id)
+                          void resolveWithServer(conflict.id)
                             .then(() => syncNow())
                             .then(reloadConflicts)
                             .catch(() => undefined)
