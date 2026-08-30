@@ -76,7 +76,6 @@ def upgrade() -> None:
             ["replaced_by_id"], ["mobile_refresh_tokens.id"], ondelete="SET NULL"
         ),
         sa.PrimaryKeyConstraint("id"),
-        sa.UniqueConstraint("token_hash", name="uq_mobile_refresh_tokens_token_hash"),
     )
     op.create_index(
         "ix_mobile_refresh_tokens_token_hash",
