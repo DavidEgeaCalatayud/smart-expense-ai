@@ -85,6 +85,16 @@ BEGIN
         v_payload := NULL;
     END IF;
 
+    -- Account deletion cascades remove the parent user before child DELETE triggers
+    -- can persist a tombstone. There is no client left to synchronize in that case,
+    -- and retaining an orphaned journal entry would violate the privacy-delete contract.
+    IF TG_OP = 'DELETE'
+       AND v_scope_user_id IS NOT NULL
+       AND NOT EXISTS (SELECT 1 FROM users WHERE id = v_scope_user_id)
+    THEN
+        RETURN OLD;
+    END IF;
+
     INSERT INTO sync_changes (
         scope_user_id, entity_type, entity_id, operation,
         entity_version, payload_json, changed_at
@@ -158,6 +168,13 @@ BEGIN
         v_payload := NULL;
     END IF;
 
+    IF TG_OP = 'DELETE'
+       AND v_scope_user_id IS NOT NULL
+       AND NOT EXISTS (SELECT 1 FROM users WHERE id = v_scope_user_id)
+    THEN
+        RETURN OLD;
+    END IF;
+
     INSERT INTO sync_changes (
         scope_user_id, entity_type, entity_id, operation,
         entity_version, payload_json, changed_at
@@ -226,6 +243,13 @@ BEGIN
         v_entity_id := OLD.id;
         v_version := OLD.sync_version + 1;
         v_payload := NULL;
+    END IF;
+
+    IF TG_OP = 'DELETE'
+       AND v_scope_user_id IS NOT NULL
+       AND NOT EXISTS (SELECT 1 FROM users WHERE id = v_scope_user_id)
+    THEN
+        RETURN OLD;
     END IF;
 
     INSERT INTO sync_changes (
