@@ -59,7 +59,7 @@ export function listPendingMutations(
 
   return db.getAllAsync<OutboxRow>(
     `SELECT * FROM sync_outbox
-     WHERE status IN ('queued', 'failed')
+     WHERE status = 'queued'
      ORDER BY sequence ASC
      LIMIT ?`,
     limit,
@@ -101,6 +101,29 @@ export async function markMutationsSending(
          SET status = 'sending', attempt_count = attempt_count + 1,
              last_error = NULL, updated_at = ?
          WHERE mutation_id = ?`,
+        now,
+        mutationId,
+      );
+    }
+  });
+}
+
+export async function requeueMutations(
+  db: SQLiteDatabase,
+  mutationIds: readonly string[],
+  error: string,
+): Promise<void> {
+  if (mutationIds.length === 0) {
+    return;
+  }
+  const now = new Date().toISOString();
+  await db.withExclusiveTransactionAsync(async (txn) => {
+    for (const mutationId of mutationIds) {
+      await txn.runAsync(
+        `UPDATE sync_outbox
+         SET status = 'queued', last_error = ?, updated_at = ?
+         WHERE mutation_id = ?`,
+        error.slice(0, 500),
         now,
         mutationId,
       );
