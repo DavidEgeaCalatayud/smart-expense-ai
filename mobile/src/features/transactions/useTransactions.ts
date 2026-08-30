@@ -4,6 +4,11 @@ import { useSQLiteContext } from 'expo-sqlite';
 import type { LocalTransactionRow } from '../../database/types';
 import { SqliteTransactionRepository } from '../../repositories/transactionRepository';
 import { createOfflineTransaction } from './createOfflineTransaction';
+import {
+  deleteOfflineTransaction,
+  type OfflineTransactionEditInput,
+  updateOfflineTransaction,
+} from './offlineTransactionMutations';
 import type { OfflineTransactionFormInput } from './validation';
 
 export function useTransactions() {
@@ -73,6 +78,42 @@ export function useTransactions() {
     [db, reload],
   );
 
+  const update = useCallback(
+    async (transactionId: string, input: OfflineTransactionEditInput) => {
+      setIsSaving(true);
+      setError(null);
+      try {
+        await updateOfflineTransaction(db, transactionId, input);
+        await reload();
+      } catch (caught) {
+        const message = caught instanceof Error ? caught.message : 'Could not update transaction';
+        setError(message);
+        throw caught;
+      } finally {
+        setIsSaving(false);
+      }
+    },
+    [db, reload],
+  );
+
+  const remove = useCallback(
+    async (transactionId: string) => {
+      setIsSaving(true);
+      setError(null);
+      try {
+        await deleteOfflineTransaction(db, transactionId);
+        await reload();
+      } catch (caught) {
+        const message = caught instanceof Error ? caught.message : 'Could not delete transaction';
+        setError(message);
+        throw caught;
+      } finally {
+        setIsSaving(false);
+      }
+    },
+    [db, reload],
+  );
+
   return {
     transactions,
     isLoading,
@@ -80,5 +121,7 @@ export function useTransactions() {
     error,
     reload,
     create,
+    update,
+    remove,
   };
 }
