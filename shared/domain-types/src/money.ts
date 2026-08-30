@@ -24,7 +24,16 @@ export function decimalToMinorUnits(value: DecimalMoney): number {
 
   const negative = value.startsWith('-');
   const unsigned = negative ? value.slice(1) : value;
-  const [wholePart, fractionalPart = ''] = unsigned.split('.');
+  const parts = unsigned.split('.');
+  const wholePart = parts[0];
+  const fractionalPart = parts[1] ?? '';
+
+  // The regular expression above guarantees a non-empty integer component.
+  // Keep this invariant explicit so consumers can enable noUncheckedIndexedAccess.
+  if (wholePart === undefined) {
+    throw new Error(`Invalid two-decimal money value: ${value}`);
+  }
+
   const paddedFraction = fractionalPart.padEnd(MONEY_SCALE, '0');
 
   const absoluteMinorUnits =
