@@ -23,6 +23,9 @@ class Settings(BaseSettings):
     jwt_issuer: str = "smart-expense-ai"
     jwt_audience: str = "smart-expense-ai-web"
     access_token_minutes: int = 60
+    mobile_jwt_audience: str = "smart-expense-ai-mobile"
+    mobile_access_token_minutes: int = 15
+    mobile_refresh_token_days: int = 30
     auth_cookie_name: str = "smart_expense_session"
     auth_cookie_secure: bool = False
     openai_api_key: str | None = None
@@ -66,6 +69,12 @@ class Settings(BaseSettings):
             raise ValueError("AUTH_COOKIE_SECURE must be true in staging and production")
         if self.app_env == "production" and self.app_debug:
             raise ValueError("APP_DEBUG must be false in production")
+        if self.access_token_minutes < 1:
+            raise ValueError("ACCESS_TOKEN_MINUTES must be at least 1")
+        if self.mobile_access_token_minutes < 1:
+            raise ValueError("MOBILE_ACCESS_TOKEN_MINUTES must be at least 1")
+        if self.mobile_refresh_token_days < 1:
+            raise ValueError("MOBILE_REFRESH_TOKEN_DAYS must be at least 1")
         if self.financial_assistant_max_tool_rounds < 1:
             raise ValueError("FINANCIAL_ASSISTANT_MAX_TOOL_ROUNDS must be at least 1")
         if self.financial_assistant_max_tool_calls < 1:

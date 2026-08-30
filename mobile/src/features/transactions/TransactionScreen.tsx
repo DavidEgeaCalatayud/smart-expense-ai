@@ -11,6 +11,7 @@ import {
   View,
 } from 'react-native';
 
+import { useAuth } from '../../auth/AuthProvider';
 import type { LocalTransactionRow } from '../../database/types';
 import { useTransactions } from './useTransactions';
 
@@ -28,12 +29,13 @@ function TransactionItem({ item }: { item: LocalTransactionRow }) {
       <Text style={styles.metadata}>
         {item.category_name} · {item.transaction_date}
       </Text>
-      <Text style={styles.pending}>Pending local sync</Text>
+      <Text style={styles.pending}>Queued locally · sync wiring arrives in Phase 5E</Text>
     </View>
   );
 }
 
 export function TransactionScreen() {
+  const { user, logout, isSubmitting: isAuthSubmitting } = useAuth();
   const { transactions, isLoading, isSaving, error, create } = useTransactions();
   const [merchant, setMerchant] = useState('');
   const [amount, setAmount] = useState('');
@@ -59,10 +61,30 @@ export function TransactionScreen() {
         contentContainerStyle={styles.content}
         ListHeaderComponent={
           <View style={styles.header}>
-            <Text style={styles.eyebrow}>SMART EXPENSE AI · MOBILE</Text>
+            <View style={styles.accountRow}>
+              <View style={styles.accountIdentity}>
+                <Text style={styles.eyebrow}>SMART EXPENSE AI · MOBILE</Text>
+                <Text style={styles.accountName}>{user?.displayName}</Text>
+                <Text style={styles.accountEmail}>{user?.email}</Text>
+              </View>
+              <Pressable
+                accessibilityRole="button"
+                disabled={isAuthSubmitting}
+                onPress={() => void logout()}
+                style={({ pressed }) => [
+                  styles.logoutButton,
+                  pressed && styles.buttonPressed,
+                  isAuthSubmitting && styles.buttonDisabled,
+                ]}
+              >
+                <Text style={styles.logoutText}>Sign out</Text>
+              </Pressable>
+            </View>
+
             <Text style={styles.title}>Offline transactions</Text>
             <Text style={styles.subtitle}>
-              Phase 5B stores every new transaction and its durable sync intent in SQLite.
+              Phase 5D authenticates this device with a revocable native session while SQLite
+              remains the local offline workspace.
             </Text>
 
             <View style={styles.form}>
@@ -124,7 +146,7 @@ export function TransactionScreen() {
         ListEmptyComponent={
           isLoading ? null : (
             <Text style={styles.empty}>
-              No local transactions yet. Create one, restart the app, and it will still be here.
+              No local transactions yet. Create one and it remains available offline.
             </Text>
           )
         }
@@ -137,7 +159,24 @@ const styles = StyleSheet.create({
   safeArea: { flex: 1, backgroundColor: '#f6f7f9' },
   content: { padding: 20, gap: 12 },
   header: { gap: 14 },
+  accountRow: {
+    alignItems: 'center',
+    flexDirection: 'row',
+    gap: 16,
+    justifyContent: 'space-between',
+  },
+  accountIdentity: { flex: 1, gap: 2 },
   eyebrow: { fontSize: 12, fontWeight: '700', letterSpacing: 1.2 },
+  accountName: { fontSize: 16, fontWeight: '700' },
+  accountEmail: { fontSize: 12, opacity: 0.6 },
+  logoutButton: {
+    borderColor: '#c9ced6',
+    borderRadius: 10,
+    borderWidth: 1,
+    paddingHorizontal: 12,
+    paddingVertical: 9,
+  },
+  logoutText: { fontSize: 13, fontWeight: '700' },
   title: { fontSize: 32, fontWeight: '800' },
   subtitle: { fontSize: 15, lineHeight: 22, opacity: 0.7 },
   form: { gap: 10, marginTop: 4 },
