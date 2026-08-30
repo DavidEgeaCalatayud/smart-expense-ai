@@ -21,10 +21,18 @@ export function useConflicts(onResolved?: () => Promise<void> | void) {
   }, [db]);
 
   useEffect(() => {
-    void reload();
-  }, [reload]);
+    let active = true;
+    void listUnresolvedConflicts(db).then((rows) => {
+      if (active) {
+        setConflicts(rows);
+      }
+    });
+    return () => {
+      active = false;
+    };
+  }, [db]);
 
-  const useServer = useCallback(
+  const resolveWithServer = useCallback(
     async (conflictId: number) => {
       setIsResolving(true);
       setError(null);
@@ -65,7 +73,7 @@ export function useConflicts(onResolved?: () => Promise<void> | void) {
     isResolving,
     error,
     reload,
-    useServer,
+    resolveWithServer,
     retryMine,
   };
 }
