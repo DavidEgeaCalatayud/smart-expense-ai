@@ -1,46 +1,64 @@
 # Smart Expense AI Mobile
 
-Android-first React Native + Expo client for Smart Expense AI.
+Android-first React Native client for the Smart Expense AI multi-client platform.
 
-## Current status
+## Phase 5B status
 
-**Phase 5A: architecture and synchronization contract only.**
+This package is now a runnable Expo SDK 57 application with:
 
-No financial screens are implemented yet. This is intentional: the offline replication contract is defined before UI work so that mobile does not become a second, incompatible financial implementation.
+- Expo Router;
+- strict TypeScript;
+- Expo SQLite persistence;
+- explicit schema migrations;
+- `PRAGMA foreign_keys = ON`;
+- SQLite WAL journal mode;
+- transaction/category/budget repository boundaries;
+- durable `sync_outbox`, `sync_state` and `sync_conflicts` tables;
+- Expo SecureStore credential/device boundaries;
+- an offline transaction vertical slice that persists across app restarts;
+- exact decimal-string <-> integer-minor-unit money conversion through `shared/`;
+- mobile dependency/type/lint/test/Android-export CI validation.
 
-See [`../docs/mobile-offline-first.md`](../docs/mobile-offline-first.md).
+The mobile application does **not** synchronize with FastAPI yet. Queued mutations are intentionally durable but remain local until Phase 5C implements the authenticated server journal and sync endpoints.
 
-## Target architecture
+## Run locally
 
-```text
-React Native + Expo
-        |
-    Repository
-     /      \
-SQLite    FastAPI
-           |
-       PostgreSQL
+From the repository root:
+
+```bash
+npm install --workspace=@smart-expense-ai/mobile --include-workspace-root=false
+npm run mobile:android
 ```
 
-PostgreSQL/FastAPI remains the financial source of truth. SQLite is a local cache/replica and durable offline outbox.
+The project targets Expo SDK 57 / React Native 0.86 and Node.js 22.13+.
 
-## Target stack
+## Local data model
 
-- Expo SDK 57 baseline when scaffolding begins.
-- React Native 0.86.
-- React 19.2.x.
-- TypeScript.
-- Expo Router.
-- Expo SQLite.
-- Expo SecureStore for small authentication secrets.
-- Android first; architecture kept portable to iOS.
+SQLite stores financial amounts as integer minor units, never `REAL`.
 
-Dependency versions must be installed/pinned through the Expo toolchain during Phase 5B rather than guessed into this foundation commit.
+Creating an expense from the current foundation screen performs one exclusive SQLite transaction:
 
-## Non-goals
+1. validate and normalize exact money;
+2. reuse or create the local custom category;
+3. enqueue the category upsert when the category is new;
+4. persist the transaction;
+5. enqueue the transaction mutation.
 
-The mobile client will not reimplement server-owned financial intelligence, historical analysis, forecasting, classifier inference or Financial Assistant logic.
+If the app terminates after commit, both the entity and its outbox intent survive.
 
-## Next implementation step
+## Security boundary
 
-Phase 5B will scaffold the runnable Expo application, add SQLite migrations/repositories and wire mobile CI without changing the existing web client.
+Access and refresh tokens are reserved for Expo SecureStore. They are not stored in SQLite.
+
+The SQLite file is not claimed to be encrypted in Phase 5B. Production SQLCipher/native encrypted-database configuration remains a Phase 5G hardening requirement because it changes the native build surface.
+
+## Not implemented yet
+
+- backend sync push/pull;
+- bootstrap/cursor handling;
+- mobile access/refresh authentication;
+- conflict-resolution UI;
+- background synchronization;
+- server-derived workspaces.
+
+See `docs/mobile-offline-first.md` and `ROADMAP.md` for the versioned architecture and remaining phases.

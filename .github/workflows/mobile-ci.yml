@@ -1,0 +1,46 @@
+name: Mobile CI
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'mobile/**'
+      - 'shared/**'
+      - 'package.json'
+      - '.github/workflows/mobile-ci.yml'
+  pull_request:
+    branches: [main]
+    paths:
+      - 'mobile/**'
+      - 'shared/**'
+      - 'package.json'
+      - '.github/workflows/mobile-ci.yml'
+
+permissions:
+  contents: read
+
+concurrency:
+  group: mobile-ci-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  mobile:
+    name: Mobile quality
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version: '22.13.0'
+      - name: Install mobile workspace dependencies
+        run: npm install --workspace=@smart-expense-ai/mobile --include-workspace-root=false --no-audit --no-fund
+      - name: Verify Expo dependency compatibility
+        run: npm run dependencies:check --workspace=@smart-expense-ai/mobile
+      - name: Run mobile unit tests
+        run: npm run test --workspace=@smart-expense-ai/mobile
+      - name: TypeScript check
+        run: npm run typecheck --workspace=@smart-expense-ai/mobile
+      - name: ESLint
+        run: npm run lint --workspace=@smart-expense-ai/mobile
+      - name: Bundle Android application
+        run: npm run export:android --workspace=@smart-expense-ai/mobile
