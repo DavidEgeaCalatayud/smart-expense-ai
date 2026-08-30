@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useSQLiteContext } from 'expo-sqlite';
 
 import { MobileApiClient } from '../api/client';
@@ -24,6 +24,8 @@ export function useForegroundSync(onApplied?: () => Promise<void> | void) {
     () => new SyncClient(new MobileApiClient(getMobileApiBaseUrl())),
     [],
   );
+  const syncInFlight = useRef(false);
+  const initialSyncStarted = useRef(false);
   const [isSyncing, setIsSyncing] = useState(false);
   const [health, setHealth] = useState<SyncHealth>(EMPTY_HEALTH);
   const [lastResult, setLastResult] = useState<ForegroundSyncResult | null>(null);
@@ -34,9 +36,10 @@ export function useForegroundSync(onApplied?: () => Promise<void> | void) {
   }, [db]);
 
   const syncNow = useCallback(async () => {
-    if (isSyncing) {
+    if (syncInFlight.current) {
       return;
     }
+    syncInFlight.current = true;
     setIsSyncing(true);
     setError(null);
     try {
@@ -49,21 +52,35 @@ export function useForegroundSync(onApplied?: () => Promise<void> | void) {
       await refreshHealth();
       throw caught;
     } finally {
+      syncInFlight.current = false;
       setIsSyncing(false);
     }
-  }, [db, isSyncing, onApplied, refreshHealth, syncClient]);
+  }, [db, onApplied, refreshHealth, syncClient]);
 
   useEffect(() => {
-    void refreshHealth();
-  }, [refreshHealth]);
-
-  useEffect(() => {
-    void syncNow().catch(() => {
-      // Offline/transient failures are rendered as state and keep the local replica usable.
+    let active = true;
+    void getSyncHealth(db).then((nextHealth) => {
+      if (active) {
+        setHealth(nextHealth);
+      }
     });
-    // Run once for this mounted authenticated workspace; manual sync handles later retries.
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+    return () => {
+      active = false;
+    };
+  }, [db]);
+
+  useEffect(() => {
+    if (initialSyncStarted.current) {
+      return;
+    }
+    initialSyncStarted.current = true;
+    const timer = setTimeout(() => {
+      void syncNow().catch(() => {
+        // Offline/transient failures are rendered as state and keep the local replica usable.
+      });
+    }, 0);
+    return () => clearTimeout(timer);
+  }, [syncNow]);
 
   return {
     isSyncing,
