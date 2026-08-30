@@ -26,7 +26,9 @@ describe('MobileAuthClient', () => {
   });
 
   it('sends the device identity during login', async () => {
-    const fetchMock = jest.spyOn(global, 'fetch').mockResolvedValue(mockResponse(tokenResponse));
+    const fetchMock = jest
+      .spyOn(globalThis, 'fetch')
+      .mockResolvedValue(mockResponse(tokenResponse));
     const client = new MobileAuthClient('https://api.example.test');
 
     const response = await client.login({
@@ -49,7 +51,7 @@ describe('MobileAuthClient', () => {
 
   it('uses the bearer access token for the existing web me contract', async () => {
     const fetchMock = jest
-      .spyOn(global, 'fetch')
+      .spyOn(globalThis, 'fetch')
       .mockResolvedValue(mockResponse(tokenResponse.user));
     const client = new MobileAuthClient('https://api.example.test');
 
@@ -62,7 +64,7 @@ describe('MobileAuthClient', () => {
   });
 
   it('surfaces unauthorized refresh responses as typed HTTP errors', async () => {
-    jest.spyOn(global, 'fetch').mockResolvedValue(
+    jest.spyOn(globalThis, 'fetch').mockResolvedValue(
       mockResponse(
         {
           error: {
