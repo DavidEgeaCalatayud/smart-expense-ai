@@ -7,7 +7,7 @@ import { useCallback, useMemo, useState } from 'react';
 import { ActivityIndicator, Pressable, StyleSheet, Text, View } from 'react-native';
 
 import { createServerDerivedApi } from '../../api/serverDerivedApi';
-import { useServerResource } from '../../api/useServerResource';
+import { useCachedServerResource } from '../../api/useCachedServerResource';
 import { ServerWorkspaceShell, serverWorkspaceStyles as s } from '../../components/ServerWorkspaceShell';
 
 interface IntelligenceData {
@@ -26,7 +26,15 @@ export function IntelligenceScreen() {
     ]);
     return { summary, findings };
   }, [api]);
-  const { data, isLoading, isRefreshing, error, refresh } = useServerResource(loader);
+  const {
+    data,
+    isLoading,
+    isRefreshing,
+    error,
+    refresh,
+    cachedAt,
+    isCachedFallback,
+  } = useCachedServerResource('server:intelligence:v1', loader);
 
   const runScan = async () => {
     setIsActing(true);
@@ -63,8 +71,9 @@ export function IntelligenceScreen() {
       onRefresh={() => void refresh().catch(() => undefined)}
     >
       {isLoading && !data ? <ActivityIndicator size="large" /> : null}
-      {error ? <Text style={s.error}>{error}</Text> : null}
+      {error ? <Text style={isCachedFallback ? s.metadata : s.error}>{error}</Text> : null}
       {actionError ? <Text style={s.error}>{actionError}</Text> : null}
+      {cachedAt ? <Text style={s.metadata}>Latest local snapshot: {cachedAt}</Text> : null}
 
       {data ? (
         <>
@@ -91,9 +100,13 @@ export function IntelligenceScreen() {
 
           <Pressable
             accessibilityRole="button"
-            disabled={isActing}
+            disabled={isActing || isCachedFallback}
             onPress={() => void runScan()}
-            style={({ pressed }) => [s.primaryButton, pressed && styles.pressed, isActing && styles.disabled]}
+            style={({ pressed }) => [
+              s.primaryButton,
+              pressed && styles.pressed,
+              (isActing || isCachedFallback) && styles.disabled,
+            ]}
           >
             <Text style={s.primaryButtonText}>{isActing ? 'Running…' : 'Run server scan'}</Text>
           </Pressable>
@@ -120,14 +133,14 @@ export function IntelligenceScreen() {
                     {finding.status === 'open' ? (
                       <>
                         <Pressable
-                          disabled={isActing}
+                          disabled={isActing || isCachedFallback}
                           onPress={() => void updateStatus(finding.id, 'resolved')}
                           style={s.secondaryButton}
                         >
                           <Text style={s.secondaryButtonText}>Resolve</Text>
                         </Pressable>
                         <Pressable
-                          disabled={isActing}
+                          disabled={isActing || isCachedFallback}
                           onPress={() => void updateStatus(finding.id, 'dismissed')}
                           style={s.secondaryButton}
                         >
@@ -136,7 +149,7 @@ export function IntelligenceScreen() {
                       </>
                     ) : (
                       <Pressable
-                        disabled={isActing}
+                        disabled={isActing || isCachedFallback}
                         onPress={() => void updateStatus(finding.id, 'open')}
                         style={s.secondaryButton}
                       >
