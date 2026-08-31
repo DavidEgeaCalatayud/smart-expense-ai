@@ -1,0 +1,69 @@
+import * as Crypto from 'expo-crypto';
+import type { SQLiteDatabase } from 'expo-sqlite';
+
+const SYNC_LEASE_KEY = 'sync_runtime_lease';
+const SYNC_LEASE_DURATION_MS = 30 * 60 * 1000;
+
+interface StoredLease {
+  token: string;
+  expiresAt: number;
+}
+
+export interface SyncLease {
+  token: string;
+  encoded: string;
+}
+
+function parseLease(value: string | null): StoredLease | null {
+  if (!value) return null;
+  try {
+    const parsed = JSON.parse(value) as Partial<StoredLease>;
+    if (typeof parsed.token !== 'string' || typeof parsed.expiresAt !== 'number') {
+      return null;
+    }
+    return { token: parsed.token, expiresAt: parsed.expiresAt };
+  } catch {
+    return null;
+  }
+}
+
+export async function tryAcquireSyncLease(db: SQLiteDatabase): Promise<SyncLease | null> {
+  const now = Date.now();
+  const lease: StoredLease = {
+    token: Crypto.randomUUID(),
+    expiresAt: now + SYNC_LEASE_DURATION_MS,
+  };
+  const encoded = JSON.stringify(lease);
+  let acquired = false;
+
+  await db.withExclusiveTransactionAsync(async (txn) => {
+    const row = await txn.getFirstAsync<{ value: string }>(
+      'SELECT value FROM sync_state WHERE key = ?',
+      SYNC_LEASE_KEY,
+    );
+    const current = parseLease(row?.value ?? null);
+    if (current && current.expiresAt > now) {
+      return;
+    }
+
+    await txn.runAsync(
+      `INSERT INTO sync_state(key, value, updated_at)
+       VALUES (?, ?, ?)
+       ON CONFLICT(key) DO UPDATE SET value = excluded.value, updated_at = excluded.updated_at`,
+      SYNC_LEASE_KEY,
+      encoded,
+      new Date(now).toISOString(),
+    );
+    acquired = true;
+  });
+
+  return acquired ? { token: lease.token, encoded } : null;
+}
+
+export async function releaseSyncLease(db: SQLiteDatabase, lease: SyncLease): Promise<void> {
+  await db.runAsync(
+    'DELETE FROM sync_state WHERE key = ? AND value = ?',
+    SYNC_LEASE_KEY,
+    lease.encoded,
+  );
+}
