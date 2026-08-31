@@ -12,6 +12,10 @@ import {
 import { getMobileApiBaseUrl } from '../api/config';
 import { bindLocalAccount } from '../database/accountBoundary';
 import { clearLocalAccountData } from '../database/clearAccountData';
+import {
+  ensureBackgroundSyncRegistered,
+  unregisterBackgroundSync,
+} from '../sync/backgroundSync';
 import { MobileAuthClient } from './mobileAuthClient';
 import {
   loginMobileSession,
@@ -59,6 +63,9 @@ export function AuthProvider({ children }: PropsWithChildren) {
         }
         if (restored.user) {
           await bindLocalAccount(db, restored.user.id);
+          await ensureBackgroundSyncRegistered();
+        } else {
+          await unregisterBackgroundSync();
         }
         if (!cancelled) {
           setUser(restored.user);
@@ -86,6 +93,7 @@ export function AuthProvider({ children }: PropsWithChildren) {
       try {
         const authenticated = await loginMobileSession(client, email.trim(), password);
         await bindLocalAccount(db, authenticated.id);
+        await ensureBackgroundSyncRegistered();
         setUser(authenticated);
       } catch (loginError) {
         setError(errorMessage(loginError));
@@ -109,6 +117,7 @@ export function AuthProvider({ children }: PropsWithChildren) {
           displayName.trim(),
         );
         await bindLocalAccount(db, authenticated.id);
+        await ensureBackgroundSyncRegistered();
         setUser(authenticated);
       } catch (registerError) {
         setError(errorMessage(registerError));
@@ -126,8 +135,9 @@ export function AuthProvider({ children }: PropsWithChildren) {
     try {
       await logoutMobileSession(client);
       await clearLocalAccountData(db);
-      setUser(null);
     } finally {
+      await unregisterBackgroundSync().catch(() => undefined);
+      setUser(null);
       setIsSubmitting(false);
     }
   }, [client, db]);
