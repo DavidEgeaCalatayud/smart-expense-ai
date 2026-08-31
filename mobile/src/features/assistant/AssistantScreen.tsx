@@ -6,7 +6,7 @@ import { createServerDerivedApi } from '../../api/serverDerivedApi';
 import { ServerWorkspaceShell, serverWorkspaceStyles as s } from '../../components/ServerWorkspaceShell';
 
 export function AssistantScreen() {
-  const api = useMemo(createServerDerivedApi, []);
+  const api = useMemo(() => createServerDerivedApi(), []);
   const [question, setQuestion] = useState('');
   const [answer, setAnswer] = useState<FinancialAssistantAnswer | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
