@@ -1,6 +1,6 @@
 {
   "name": "@smart-expense-ai/mobile",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "private": true,
   "main": "expo-router/entry",
   "scripts": {
@@ -11,12 +11,17 @@
     "test": "jest --runInBand",
     "dependencies:check": "expo install --check",
     "export:android": "expo export --platform android --output-dir dist-android",
+    "prebuild:android": "expo prebuild --platform android --clean --no-install",
+    "native:android:debug": "cd android && ./gradlew :app:assembleDebug --no-daemon",
+    "check:native:android": "npm run prebuild:android && npm run native:android:debug",
     "check": "npm run dependencies:check && npm run test && npm run typecheck && npm run lint && npm run export:android"
   },
   "dependencies": {
     "@smart-expense-ai/api-contracts": "*",
     "@smart-expense-ai/domain-types": "*",
     "expo": "~57.0.17",
+    "expo-background-task": "~57.0.14",
+    "expo-build-properties": "~57.0.15",
     "expo-constants": "~57.0.16",
     "expo-crypto": "~57.0.2",
     "expo-linking": "~57.0.8",
@@ -24,6 +29,7 @@
     "expo-secure-store": "~57.0.2",
     "expo-sqlite": "~57.0.1",
     "expo-status-bar": "~57.0.1",
+    "expo-task-manager": "~57.0.14",
     "react": "19.2.3",
     "react-native": "0.86.3",
     "react-native-safe-area-context": "~5.7.0",
@@ -45,7 +51,8 @@
     ],
     "testPathIgnorePatterns": [
       "/node_modules/",
-      "/dist-android/"
+      "/dist-android/",
+      "/android/"
     ]
   }
 }
