@@ -35,6 +35,12 @@ jobs:
       - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
         with:
           node-version: '22.13.0'
+      - name: Reject backend/provider secret surface from mobile source
+        run: |
+          if grep -R -n -E '(OPENAI_API_KEY|DATABASE_URL|POSTGRES_PASSWORD|JWT_SECRET|SECRET_KEY)' mobile shared --exclude-dir=node_modules --exclude='*.md'; then
+            echo 'Backend/provider secret identifiers must not be shipped in the mobile/shared source surface.' >&2
+            exit 1
+          fi
       - name: Install mobile workspace dependencies
         run: npm install --workspace=@smart-expense-ai/mobile --include-workspace-root=false --no-audit --no-fund
       - name: Verify Expo dependency compatibility
