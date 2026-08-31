@@ -3,7 +3,8 @@ import { useSQLiteContext } from 'expo-sqlite';
 
 import { MobileApiClient } from '../api/client';
 import { getMobileApiBaseUrl } from '../api/config';
-import { runForegroundSync, type ForegroundSyncResult } from './foregroundSync';
+import { runCoordinatedSync } from './coordinatedSync';
+import type { ForegroundSyncResult } from './foregroundSync';
 import { getSyncHealth, type SyncHealth } from './statusRepository';
 import { SyncClient } from './syncClient';
 
@@ -43,10 +44,12 @@ export function useForegroundSync(onApplied?: () => Promise<void> | void) {
     setIsSyncing(true);
     setError(null);
     try {
-      const result = await runForegroundSync(db, syncClient);
-      setLastResult(result);
+      const result = await runCoordinatedSync(db, syncClient);
+      if (result) {
+        setLastResult(result);
+        await onApplied?.();
+      }
       await refreshHealth();
-      await onApplied?.();
     } catch (caught) {
       setError(syncErrorMessage(caught));
       await refreshHealth();
