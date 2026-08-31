@@ -12,7 +12,7 @@ interface HistoricalData {
 }
 
 export function HistoricalAnalysisScreen() {
-  const api = useMemo(createServerDerivedApi, []);
+  const api = useMemo(() => createServerDerivedApi(), []);
   const [isRunning, setIsRunning] = useState(false);
   const [runError, setRunError] = useState<string | null>(null);
   const loader = useCallback(async (): Promise<HistoricalData> => {
