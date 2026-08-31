@@ -26,16 +26,6 @@
         {
           "useSQLCipher": true
         }
-      ],
-      [
-        "expo-build-properties",
-        {
-          "android": {
-            "usesCleartextTraffic": false,
-            "enableMinifyInReleaseBuilds": true,
-            "enableShrinkResourcesInReleaseBuilds": true
-          }
-        }
       ]
     ],
     "experiments": {
