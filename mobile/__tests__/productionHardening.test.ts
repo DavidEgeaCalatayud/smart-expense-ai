@@ -1,19 +1,21 @@
-const secureValues = new Map<string, string>();
-const getRandomBytesAsync = jest.fn(async (count: number) => new Uint8Array(count).fill(0xab));
+const mockSecureValues = new Map<string, string>();
+const mockGetRandomBytesAsync = jest.fn(
+  async (count: number) => new Uint8Array(count).fill(0xab),
+);
 
 jest.mock('expo-secure-store', () => ({
   WHEN_UNLOCKED_THIS_DEVICE_ONLY: 'WHEN_UNLOCKED_THIS_DEVICE_ONLY',
-  getItemAsync: jest.fn(async (key: string) => secureValues.get(key) ?? null),
+  getItemAsync: jest.fn(async (key: string) => mockSecureValues.get(key) ?? null),
   setItemAsync: jest.fn(async (key: string, value: string) => {
-    secureValues.set(key, value);
+    mockSecureValues.set(key, value);
   }),
   deleteItemAsync: jest.fn(async (key: string) => {
-    secureValues.delete(key);
+    mockSecureValues.delete(key);
   }),
 }));
 
 jest.mock('expo-crypto', () => ({
-  getRandomBytesAsync,
+  getRandomBytesAsync: mockGetRandomBytesAsync,
 }));
 
 jest.mock('expo-sqlite', () => ({
@@ -33,8 +35,8 @@ import {
 
 describe('mobile production hardening', () => {
   beforeEach(() => {
-    secureValues.clear();
-    getRandomBytesAsync.mockClear();
+    mockSecureValues.clear();
+    mockGetRandomBytesAsync.mockClear();
   });
 
   it('allows emulator HTTP only in development and requires HTTPS in production', () => {
@@ -56,7 +58,7 @@ describe('mobile production hardening', () => {
     expect(first).toBe('ab'.repeat(32));
     expect(second).toBe(first);
     expect(first).toMatch(/^[0-9a-f]{64}$/);
-    expect(getRandomBytesAsync).toHaveBeenCalledTimes(1);
+    expect(mockGetRandomBytesAsync).toHaveBeenCalledTimes(1);
   });
 
   it('fails closed when the native database does not expose SQLCipher', async () => {
