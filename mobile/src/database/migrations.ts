@@ -99,6 +99,16 @@ const MIGRATIONS: readonly Migration[] = [
         ON sync_conflicts(resolved_at, created_at DESC)`,
     ],
   },
+  {
+    version: 2,
+    statements: [
+      `CREATE TABLE IF NOT EXISTS server_cache (
+        cache_key TEXT PRIMARY KEY NOT NULL,
+        payload_json TEXT NOT NULL,
+        fetched_at TEXT NOT NULL
+      )`,
+    ],
+  },
 ];
 
 export async function migrateDatabase(db: SQLiteDatabase): Promise<void> {

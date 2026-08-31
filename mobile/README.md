@@ -4,7 +4,7 @@ Android-first React Native client for the Smart Expense AI multi-client platform
 
 ## Current status
 
-The mobile package includes the Expo/SQLite foundation, native authentication, foreground synchronization and offline-first transaction/category/budget workspaces:
+The mobile package includes the Expo/SQLite foundation, native authentication, foreground synchronization, offline-first transaction/category/budget workspaces and server-derived financial workspaces:
 
 - Expo SDK 57 + Expo Router;
 - strict TypeScript;
@@ -26,9 +26,13 @@ The mobile package includes the Expo/SQLite foundation, native authentication, f
 - local-first monthly overall/per-expense-category budgets with exact integer minor units;
 - explicit `synced`, `pending`, `failed` and `conflict` state in the UI;
 - durable conflict evidence with explicit `Use server` and safe `Retry mine` resolution;
-- protected Transactions, Categories and Budgets workspaces using the same foreground SyncEngine.
+- protected Transactions, Categories and Budgets workspaces using the same foreground SyncEngine;
+- protected Dashboard, Financial Intelligence, Historical Analysis, Predictions, Suggestions and Financial Assistant workspaces consuming existing FastAPI contracts;
+- shared TypeScript contracts for the server-derived v2 APIs;
+- selected read-only server snapshots cached in SQLite for offline viewing with an explicit fetched timestamp;
+- account-bound cache deletion on logout/account switch so cached analytics cannot cross user boundaries.
 
-The existing web authentication and business-rule contracts remain unchanged. PostgreSQL/FastAPI is still the financial authority; SQLite stores the local replica plus pending user intent.
+The existing web authentication and business-rule contracts remain unchanged. PostgreSQL/FastAPI is still the financial authority; SQLite stores the local replica, pending user intent and explicitly read-only cached server snapshots.
 
 ## Run locally
 
@@ -106,6 +110,23 @@ Budgets remain server-authoritative definitions replicated into SQLite.
 
 Budget progress (`spentAmount`, remaining amount, percent used, days remaining and over-budget policy) is deliberately not reimplemented in Android. Those values remain server-derived product logic.
 
+## Server-derived workspaces
+
+The following Android workspaces call the existing authenticated FastAPI contracts instead of reproducing backend algorithms:
+
+- **Dashboard** — exact v2 summary and six-month spending history;
+- **Financial Intelligence** — persisted `rules-v2` summary/findings plus server scan and review actions;
+- **Historical Analysis** — latest/run `historical-v2.2` snapshots, trends, recurring profiles, outliers and category shifts;
+- **Predictions** — `recurring-calendar-v1` upcoming payments and `spending-forecast-v1` deterministic baselines/backtest evidence;
+- **Category Suggestions** — explicit advisory preview using user history or `tfidf-logreg-v1`; no transaction is changed automatically;
+- **Financial Assistant** — stateless evidence-grounded `/api/v2/assistant/query`; no local conversation history and no provider credentials in the app.
+
+Dashboard, Intelligence, Historical Analysis and Predictions may retain the latest successful response in `server_cache` solely for read-only offline presentation. Cached views always expose their fetch timestamp. A cached fallback cannot initiate server-only Intelligence/Historical mutations.
+
+The cache is not part of `sync-v1`, does not participate in conflict resolution and is never a source of truth. Fresh server responses replace it. Logout/account switching deletes it together with the rest of the account-local SQLite workspace.
+
+Financial Assistant answers are deliberately not cached because v1 remains stateless/no-memory. Category suggestion previews are also transient and advisory.
+
 ## Conflict policy
 
 The mobile client never silently overwrites a stale server value.
@@ -144,7 +165,7 @@ The generic mobile API client performs at most one refresh/retry after a 401 and
 - background synchronization;
 - Android release signing/AAB pipeline;
 - device/emulator E2E for offline/reconnect/conflict flows;
-- server-derived Dashboard, Financial Intelligence, Historical Analysis, Predictions and Assistant screens.
+- explicit account-switch/device-isolation and mobile security/privacy hardening tests.
 
 Background execution remains deliberately deferred: foreground synchronization must remain the correctness path even if Android never grants background execution time.
 
