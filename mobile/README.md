@@ -4,11 +4,14 @@ Android-first React Native client for the Smart Expense AI multi-client platform
 
 ## Current status
 
-The mobile package includes the Expo/SQLite foundation, native authentication, foreground synchronization, offline-first transaction/category/budget workspaces and server-derived financial workspaces:
+The mobile package includes the Expo/SQLite foundation, native authentication, foreground synchronization, offline-first transaction/category/budget workspaces, server-derived financial workspaces and the Phase 5G native hardening layer:
 
 - Expo SDK 57 + Expo Router;
 - strict TypeScript;
-- Expo SQLite persistence with explicit migrations, foreign keys and WAL mode;
+- SQLCipher-backed Expo SQLite with explicit migrations, foreign keys and WAL mode;
+- a 256-bit random SQLCipher key held in Expo SecureStore, never SQLite or `EXPO_PUBLIC_*`;
+- fail-closed SQLCipher verification before schema access;
+- one-time migration from the legacy plaintext SQLite file through `sqlcipher_export()`;
 - durable `sync_outbox`, `sync_state` and `sync_conflicts` tables;
 - exact decimal-string <-> integer-minor-unit money conversion through `shared/`;
 - native access + rotating refresh authentication against FastAPI;
@@ -28,23 +31,32 @@ The mobile package includes the Expo/SQLite foundation, native authentication, f
 - durable conflict evidence with explicit `Use server` and safe `Retry mine` resolution;
 - protected Transactions, Categories and Budgets workspaces using the same foreground SyncEngine;
 - protected Dashboard, Financial Intelligence, Historical Analysis, Predictions, Suggestions and Financial Assistant workspaces consuming existing FastAPI contracts;
-- shared TypeScript contracts for the server-derived v2 APIs;
 - selected read-only server snapshots cached in SQLite for offline viewing with an explicit fetched timestamp;
-- account-bound cache deletion on logout/account switch so cached analytics cannot cross user boundaries.
+- account-bound cache/workspace deletion on logout/account switch;
+- terminal refresh invalidation that records a one-shot local-wipe requirement for the next foreground launch;
+- best-effort Android WorkManager background synchronization reusing the exact foreground SyncEngine;
+- Android Auto Backup disabled;
+- production cleartext traffic disabled and production runtime API URLs restricted to HTTPS;
+- EAS preview APK and production AAB profiles without committed signing credentials.
 
-The existing web authentication and business-rule contracts remain unchanged. PostgreSQL/FastAPI is still the financial authority; SQLite stores the local replica, pending user intent and explicitly read-only cached server snapshots.
+FastAPI/PostgreSQL remains the financial authority. SQLite stores the local replica, pending user intent and explicitly read-only cached server snapshots.
 
-## Run locally
+## Native Android development
 
-Set the public mobile API endpoint before starting Expo. For the standard Android emulator, the host machine is available as `10.0.2.2`:
+SQLCipher is a native dependency and is intentionally not supported through Expo Go. Use a native Android build.
+
+For the standard Android emulator, the host machine is available as `10.0.2.2`:
 
 ```bash
 export EXPO_PUBLIC_API_BASE_URL=http://10.0.2.2:8000
+export APP_ENV=development
 npm install --workspace=@smart-expense-ai/mobile --include-workspace-root=false
 npm run mobile:android
 ```
 
-`EXPO_PUBLIC_*` values are bundled into the application. Never put secrets, signing keys, provider keys or backend credentials in these variables.
+`npm run mobile:android` now uses `expo run:android`, so the generated Android project includes SQLCipher and background-task native modules.
+
+`EXPO_PUBLIC_*` values are bundled into the application. Never put secrets, signing keys, provider keys or backend credentials in these variables. A production build must provide an HTTPS `EXPO_PUBLIC_API_BASE_URL`; the runtime rejects plain HTTP outside development.
 
 The project targets Expo SDK 57 / React Native 0.86 and Node.js 22.13+.
 
@@ -83,90 +95,95 @@ Editing an unsynchronized transaction updates the existing queued upsert rather 
 
 Deleting an unsynchronized transaction cancels the local create. Deleting a synchronized transaction removes it locally and queues a versioned server tombstone mutation.
 
-## Category semantics
+## Category and budget semantics
 
 Android replicates both system and account-owned categories, but ownership remains server-authoritative.
 
 - system categories are visible and read-only;
 - account-owned categories can be created and renamed offline;
 - active-name uniqueness uses the same canonical whitespace/case-insensitive local key before sync;
-- category mutations retain the last observed `server_version` and participate in normal stale-version conflict handling;
-- a category with locally referenced transactions cannot be archived implicitly: Android requires those relationships to be resolved/reassigned first rather than silently moving financial records;
-- restoring a category checks the local visible-name conflict before the mutation enters the outbox.
-
-If a transaction is created against a brand-new offline category, the durable outbox preserves category-before-transaction mutation order.
-
-## Budget semantics
+- category mutations retain the last observed `server_version` and participate in stale-version conflict handling;
+- a category with locally referenced transactions cannot be archived implicitly;
+- restoring a category checks the local visible-name conflict before entering the outbox.
 
 Budgets remain server-authoritative definitions replicated into SQLite.
 
 - SQLite stores `limit_minor INTEGER`, never floating-point money;
-- the local UI uses `YYYY-MM`, while `sync-v1` receives the required `YYYY-MM-01` first-of-month date;
-- budget limits must be positive before a mutation is persisted;
+- local `YYYY-MM` is converted to the required `YYYY-MM-01` sync contract;
+- budget limits must be positive before persistence;
 - only active expense categories can be targeted;
-- local creation rejects duplicate `(month, category)` or `(month, overall)` scope before sync;
-- unsynchronized create/update operations compact into the existing queued upsert;
-- deleting an unsynchronized budget cancels the local create; deleting a synchronized budget queues a versioned tombstone.
+- duplicate month/scope budgets are rejected locally before sync;
+- unsynchronized changes compact into their existing queued upsert.
 
-Budget progress (`spentAmount`, remaining amount, percent used, days remaining and over-budget policy) is deliberately not reimplemented in Android. Those values remain server-derived product logic.
+Budget progress remains server-derived product logic.
 
 ## Server-derived workspaces
 
-The following Android workspaces call the existing authenticated FastAPI contracts instead of reproducing backend algorithms:
+The following Android workspaces call existing authenticated FastAPI contracts rather than reproducing backend algorithms:
 
 - **Dashboard** — exact v2 summary and six-month spending history;
 - **Financial Intelligence** — persisted `rules-v2` summary/findings plus server scan and review actions;
-- **Historical Analysis** — latest/run `historical-v2.2` snapshots, trends, recurring profiles, outliers and category shifts;
-- **Predictions** — `recurring-calendar-v1` upcoming payments and `spending-forecast-v1` deterministic baselines/backtest evidence;
-- **Category Suggestions** — explicit advisory preview using user history or `tfidf-logreg-v1`; no transaction is changed automatically;
-- **Financial Assistant** — stateless evidence-grounded `/api/v2/assistant/query`; no local conversation history and no provider credentials in the app.
+- **Historical Analysis** — latest/run `historical-v2.2` snapshots;
+- **Predictions** — `recurring-calendar-v1` and `spending-forecast-v1`;
+- **Category Suggestions** — advisory user-history/`tfidf-logreg-v1` preview;
+- **Financial Assistant** — stateless evidence-grounded `/api/v2/assistant/query`.
 
-Dashboard, Intelligence, Historical Analysis and Predictions may retain the latest successful response in `server_cache` solely for read-only offline presentation. Cached views always expose their fetch timestamp. A cached fallback cannot initiate server-only Intelligence/Historical mutations.
+Dashboard, Intelligence, Historical Analysis and Predictions may retain the latest successful response in `server_cache` solely for read-only offline presentation. Financial Assistant answers and category suggestion previews remain transient.
 
-The cache is not part of `sync-v1`, does not participate in conflict resolution and is never a source of truth. Fresh server responses replace it. Logout/account switching deletes it together with the rest of the account-local SQLite workspace.
+## SQLCipher and local privacy
 
-Financial Assistant answers are deliberately not cached because v1 remains stateless/no-memory. Category suggestion previews are also transient and advisory.
+The hardened database is `smart-expense-ai-secure.db`. On first hardened launch, the app can migrate the former `smart-expense-ai.db` plaintext file into SQLCipher without treating a wipe as a migration strategy.
 
-## Conflict policy
-
-The mobile client never silently overwrites a stale server value.
-
-A conflict stores:
-
-- local mutation payload;
-- server version;
-- server payload or tombstone;
-- conflict reason.
-
-The UI exposes:
-
-- `Use server` for all conflicts;
-- `Retry mine` only for safe `stale_version` conflicts where a current server version and local payload both exist.
-
-`server_deleted` and ownership/visibility conflicts do not offer an unsafe automatic local overwrite. Cross-account category/budget integration tests additionally require that an attempted mutation never returns another account's server payload or version.
-
-## Authentication boundary
-
-Web and Android intentionally use separate transports:
+The initialization order is deliberately fail-closed:
 
 ```text
-Web     -> HttpOnly cookie -> web JWT audience
-Android -> Bearer token   -> mobile JWT audience + mobile session id
-                            + rotating opaque refresh token
+SecureStore key
+   -> PRAGMA key
+   -> PRAGMA cipher_version
+   -> encrypted page read
+   -> legacy sqlcipher_export (if required)
+   -> versioned migrations
+   -> final SQLCipher verification
 ```
 
-Access and refresh tokens are stored only in Expo SecureStore. They are never persisted in SQLite. The backend stores only a SHA-256 digest of each refresh token, retains rotation lineage for replay detection and revokes a mobile session if a rotated token is replayed.
+If SQLCipher is absent, initialization fails rather than opening the financial workspace as plaintext.
 
-The generic mobile API client performs at most one refresh/retry after a 401 and coordinates simultaneous refresh demand through one in-flight promise. This prevents two foreground requests from replaying the same one-time refresh token.
+Account switching wipes the previous account-local database rows before binding the new account. Explicit logout also clears the local financial workspace. A terminal refresh/session failure occurring in a headless background task records a secure one-shot wipe marker so the next foreground launch clears local account data before another session is accepted.
 
-## Production hardening still pending
+## Background synchronization
 
-- SQLCipher/native encrypted financial database;
-- background synchronization;
-- Android release signing/AAB pipeline;
-- device/emulator E2E for offline/reconnect/conflict flows;
-- explicit account-switch/device-isolation and mobile security/privacy hardening tests.
+Background sync is a convenience, never a correctness dependency.
 
-Background execution remains deliberately deferred: foreground synchronization must remain the correctness path even if Android never grants background execution time.
+- task definition loads before Expo Router;
+- Android WorkManager is requested with a 60-minute minimum interval;
+- Android may delay, restrict or omit executions;
+- the task opens and verifies SQLCipher, applies the account boundary and invokes the same `runForegroundSync()` implementation;
+- no token or financial payload is written to background-task logs;
+- registration exists only while a mobile user session exists.
 
-See `docs/mobile-offline-first.md` and `docs/mobile-auth-v1.md` for the architecture and security contracts.
+A user returning to the app can always recover through foreground sync even if background execution never ran.
+
+## Android build and release
+
+`mobile/eas.json` defines:
+
+- `preview`: internal APK;
+- `production`: auto-incremented Android App Bundle (AAB).
+
+`APP_ENV=production` generates Android configuration with `usesCleartextTraffic=false`. `android.allowBackup=false` prevents the application database from entering Android Auto Backup.
+
+Signing material is deliberately absent from the repository. Production signing should be managed by EAS/Google Play or another secure release credential store.
+
+Mobile CI continues to run Expo dependency validation, Jest, strict TypeScript, ESLint and Android export. Phase 5G additionally generates the Android project in production mode, asserts the native backup/transport policy, verifies SQLCipher integration and compiles a native debug APK with Java 17.
+
+## Remaining device-level validation
+
+The native build gate proves that the hardening modules link and compile, but it does not substitute for an emulator/device runtime test. Still pending as an explicit quality-gate item:
+
+- prove SQLCipher opens and survives process restart;
+- prove plaintext-to-encrypted migration with real files;
+- prove offline/reconnect/conflict flows on Android;
+- prove local data wipe on account switch/logout;
+- exercise the background task in a development build.
+
+See `docs/mobile-offline-first.md`, `docs/mobile-auth-v1.md` and `docs/mobile-production-hardening-v1.md` for the architecture and security contracts.
