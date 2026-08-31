@@ -9,6 +9,7 @@ export type WorkspaceName =
   | 'intelligence'
   | 'historical'
   | 'predictions'
+  | 'suggestions'
   | 'assistant';
 
 const ITEMS = [
@@ -19,6 +20,7 @@ const ITEMS = [
   { key: 'intelligence' as const, label: 'Intelligence', href: '/intelligence' as const },
   { key: 'historical' as const, label: 'Historical', href: '/historical' as const },
   { key: 'predictions' as const, label: 'Predictions', href: '/predictions' as const },
+  { key: 'suggestions' as const, label: 'Suggest', href: '/suggestions' as const },
   { key: 'assistant' as const, label: 'Assistant', href: '/assistant' as const },
 ];
 
