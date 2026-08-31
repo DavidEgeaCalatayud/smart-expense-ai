@@ -1,14 +1,14 @@
-const getSyncState = jest.fn();
-const setSyncState = jest.fn();
-const clearLocalAccountData = jest.fn();
+const mockGetSyncState = jest.fn();
+const mockSetSyncState = jest.fn();
+const mockClearLocalAccountData = jest.fn();
 
 jest.mock('../src/sync/stateRepository', () => ({
-  getSyncState,
-  setSyncState,
+  getSyncState: mockGetSyncState,
+  setSyncState: mockSetSyncState,
 }));
 
 jest.mock('../src/database/clearAccountData', () => ({
-  clearLocalAccountData,
+  clearLocalAccountData: mockClearLocalAccountData,
 }));
 
 import { bindLocalAccount } from '../src/database/accountBoundary';
@@ -19,21 +19,21 @@ describe('bindLocalAccount', () => {
   });
 
   it('keeps the local replica intact when the same account returns', async () => {
-    getSyncState.mockResolvedValue('account-a');
+    mockGetSyncState.mockResolvedValue('account-a');
 
     await bindLocalAccount({} as never, 'account-a');
 
-    expect(clearLocalAccountData).not.toHaveBeenCalled();
-    expect(setSyncState).not.toHaveBeenCalled();
+    expect(mockClearLocalAccountData).not.toHaveBeenCalled();
+    expect(mockSetSyncState).not.toHaveBeenCalled();
   });
 
   it('wipes the previous replica before binding a different account', async () => {
     const order: string[] = [];
-    getSyncState.mockResolvedValue('account-a');
-    clearLocalAccountData.mockImplementation(async () => {
+    mockGetSyncState.mockResolvedValue('account-a');
+    mockClearLocalAccountData.mockImplementation(async () => {
       order.push('wipe');
     });
-    setSyncState.mockImplementation(async (_db: unknown, key: string, value: string) => {
+    mockSetSyncState.mockImplementation(async (_db: unknown, key: string, value: string) => {
       order.push(`bind:${key}:${value}`);
     });
 
@@ -43,11 +43,11 @@ describe('bindLocalAccount', () => {
   });
 
   it('wipes an unbound replica before establishing the first explicit account boundary', async () => {
-    getSyncState.mockResolvedValue(null);
+    mockGetSyncState.mockResolvedValue(null);
 
     await bindLocalAccount({} as never, 'account-a');
 
-    expect(clearLocalAccountData).toHaveBeenCalledTimes(1);
-    expect(setSyncState).toHaveBeenCalledWith(expect.anything(), 'local_account_id', 'account-a');
+    expect(mockClearLocalAccountData).toHaveBeenCalledTimes(1);
+    expect(mockSetSyncState).toHaveBeenCalledWith(expect.anything(), 'local_account_id', 'account-a');
   });
 });
