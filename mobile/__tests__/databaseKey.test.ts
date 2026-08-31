@@ -1,3 +1,8 @@
+import * as Crypto from 'expo-crypto';
+import * as SecureStore from 'expo-secure-store';
+
+import { bytesToHex, getOrCreateDatabaseKey } from '../src/database/databaseKey';
+
 jest.mock('expo-crypto', () => ({
   getRandomBytesAsync: jest.fn(),
 }));
@@ -8,11 +13,6 @@ jest.mock('expo-secure-store', () => ({
   setItemAsync: jest.fn(),
   deleteItemAsync: jest.fn(),
 }));
-
-import * as Crypto from 'expo-crypto';
-import * as SecureStore from 'expo-secure-store';
-
-import { bytesToHex, getOrCreateDatabaseKey } from '../src/database/databaseKey';
 
 const getRandomBytesAsync = Crypto.getRandomBytesAsync as jest.MockedFunction<
   typeof Crypto.getRandomBytesAsync
