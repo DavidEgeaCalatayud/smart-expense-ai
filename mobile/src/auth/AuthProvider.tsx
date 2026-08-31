@@ -45,6 +45,18 @@ function errorMessage(error: unknown): string {
   return 'Unable to complete authentication.';
 }
 
+async function reconcileBackgroundSyncRegistration(authenticated: boolean): Promise<void> {
+  try {
+    if (authenticated) {
+      await ensureBackgroundSyncRegistered();
+    } else {
+      await unregisterBackgroundSync();
+    }
+  } catch {
+    // Background scheduling is opportunistic and must never block authentication.
+  }
+}
+
 export function AuthProvider({ children }: PropsWithChildren) {
   const db = useSQLiteContext();
   const client = useMemo(() => new MobileAuthClient(getMobileApiBaseUrl()), []);
@@ -63,10 +75,8 @@ export function AuthProvider({ children }: PropsWithChildren) {
         }
         if (restored.user) {
           await bindLocalAccount(db, restored.user.id);
-          await ensureBackgroundSyncRegistered();
-        } else {
-          await unregisterBackgroundSync();
         }
+        await reconcileBackgroundSyncRegistration(restored.user !== null);
         if (!cancelled) {
           setUser(restored.user);
         }
@@ -93,7 +103,7 @@ export function AuthProvider({ children }: PropsWithChildren) {
       try {
         const authenticated = await loginMobileSession(client, email.trim(), password);
         await bindLocalAccount(db, authenticated.id);
-        await ensureBackgroundSyncRegistered();
+        await reconcileBackgroundSyncRegistration(true);
         setUser(authenticated);
       } catch (loginError) {
         setError(errorMessage(loginError));
@@ -117,7 +127,7 @@ export function AuthProvider({ children }: PropsWithChildren) {
           displayName.trim(),
         );
         await bindLocalAccount(db, authenticated.id);
-        await ensureBackgroundSyncRegistered();
+        await reconcileBackgroundSyncRegistration(true);
         setUser(authenticated);
       } catch (registerError) {
         setError(errorMessage(registerError));
@@ -136,7 +146,7 @@ export function AuthProvider({ children }: PropsWithChildren) {
       await logoutMobileSession(client);
       await clearLocalAccountData(db);
     } finally {
-      await unregisterBackgroundSync().catch(() => undefined);
+      await reconcileBackgroundSyncRegistration(false);
       setUser(null);
       setIsSubmitting(false);
     }
