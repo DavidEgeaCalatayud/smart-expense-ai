@@ -6,7 +6,7 @@ import { createServerDerivedApi } from '../../api/serverDerivedApi';
 import { ServerWorkspaceShell, serverWorkspaceStyles as s } from '../../components/ServerWorkspaceShell';
 
 export function SuggestionsScreen() {
-  const api = useMemo(createServerDerivedApi, []);
+  const api = useMemo(() => createServerDerivedApi(), []);
   const [merchant, setMerchant] = useState('');
   const [type, setType] = useState<'expense' | 'income'>('expense');
   const [suggestion, setSuggestion] = useState<CategorySuggestionPreviewResponse | null>(null);
