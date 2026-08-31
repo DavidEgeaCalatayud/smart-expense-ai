@@ -16,7 +16,7 @@ function money(value: string): string {
 }
 
 export function DashboardScreen() {
-  const api = useMemo(createServerDerivedApi, []);
+  const api = useMemo(() => createServerDerivedApi(), []);
   const loader = useCallback(async (): Promise<DashboardData> => {
     const [summary, monthly] = await Promise.all([api.getSummary(), api.getMonthlyExpenses(6)]);
     return { summary, monthly };
