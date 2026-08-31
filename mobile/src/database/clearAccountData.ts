@@ -2,6 +2,7 @@ import type { SQLiteDatabase } from 'expo-sqlite';
 
 export async function clearLocalAccountData(db: SQLiteDatabase): Promise<void> {
   await db.withExclusiveTransactionAsync(async (txn) => {
+    await txn.execAsync('DELETE FROM server_cache');
     await txn.execAsync('DELETE FROM sync_conflicts');
     await txn.execAsync('DELETE FROM sync_outbox');
     await txn.execAsync('DELETE FROM transactions');
