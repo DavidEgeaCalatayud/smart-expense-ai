@@ -16,6 +16,9 @@ build/
 coverage/
 .cache/
 .next/
+mobile/dist-android/
+mobile/android/
+mobile/ios/
 
 # Test artifacts
 playwright-report/
