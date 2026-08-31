@@ -7,6 +7,7 @@ import { ActivityIndicator, StyleSheet, View } from 'react-native';
 import { AuthProvider, useAuth } from '../src/auth/AuthProvider';
 import { DATABASE_NAME } from '../src/database/constants';
 import { initializeDatabase } from '../src/database/initializeDatabase';
+import '../src/sync/backgroundSync';
 
 function AppFallback() {
   return (
@@ -50,11 +51,7 @@ function AuthenticatedStack() {
 export default function RootLayout() {
   return (
     <Suspense fallback={<AppFallback />}>
-      <SQLiteProvider
-        databaseName={DATABASE_NAME}
-        onInit={initializeDatabase}
-        useSuspense
-      >
+      <SQLiteProvider databaseName={DATABASE_NAME} onInit={initializeDatabase} useSuspense>
         <AuthProvider>
           <AuthenticatedStack />
         </AuthProvider>
