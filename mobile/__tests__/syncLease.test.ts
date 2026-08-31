@@ -1,10 +1,10 @@
-jest.mock('expo-crypto', () => ({
-  randomUUID: jest.fn(() => 'lease-token'),
-}));
-
 import type { SQLiteDatabase } from 'expo-sqlite';
 
 import { releaseSyncLease, tryAcquireSyncLease } from '../src/sync/syncLease';
+
+jest.mock('expo-crypto', () => ({
+  randomUUID: jest.fn(() => 'lease-token'),
+}));
 
 function makeDb(currentValue: string | null) {
   const getFirstAsync = jest.fn().mockResolvedValue(
