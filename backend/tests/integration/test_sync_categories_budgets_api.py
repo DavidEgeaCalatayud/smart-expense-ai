@@ -131,7 +131,7 @@ def test_stale_category_sync_returns_current_server_payload(client: TestClient) 
     assert created["results"][0]["serverVersion"] == 1
 
     renamed = client.patch(
-        f"/api/v2/categories/{category_id}",
+        f"/api/v1/categories/{category_id}",
         json={"name": "Trips"},
     )
     assert renamed.status_code == 200, renamed.text
