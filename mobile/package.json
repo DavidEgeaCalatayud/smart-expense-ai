@@ -10,13 +10,15 @@
     "lint": "eslint . --max-warnings=0",
     "test": "jest --runInBand",
     "dependencies:check": "expo install --check",
+    "prebuild:android:check": "expo prebuild --platform android --no-install --clean",
     "export:android": "expo export --platform android --output-dir dist-android",
-    "check": "npm run dependencies:check && npm run test && npm run typecheck && npm run lint && npm run export:android"
+    "check": "npm run dependencies:check && npm run test && npm run typecheck && npm run lint && npm run prebuild:android:check && npm run export:android"
   },
   "dependencies": {
     "@smart-expense-ai/api-contracts": "*",
     "@smart-expense-ai/domain-types": "*",
     "expo": "~57.0.17",
+    "expo-background-task": "~57.0.14",
     "expo-constants": "~57.0.16",
     "expo-crypto": "~57.0.2",
     "expo-linking": "~57.0.8",
@@ -24,6 +26,7 @@
     "expo-secure-store": "~57.0.2",
     "expo-sqlite": "~57.0.1",
     "expo-status-bar": "~57.0.1",
+    "expo-task-manager": "~57.0.14",
     "react": "19.2.3",
     "react-native": "0.86.3",
     "react-native-safe-area-context": "~5.7.0",
