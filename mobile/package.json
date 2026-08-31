@@ -10,9 +10,10 @@
     "lint": "eslint . --max-warnings=0",
     "test": "jest --runInBand",
     "dependencies:check": "expo install --check",
+    "native-dependencies:check": "node -e \"const reanimated=require('react-native-reanimated/package.json').version; const worklets=require('react-native-worklets/package.json').version; if(reanimated!=='4.5.1'||worklets!=='0.10.1'){console.error('Unexpected native worklets pair',{reanimated,worklets});process.exit(1)}; console.log('Native worklets pair OK',{reanimated,worklets})\"",
     "prebuild:android:check": "expo prebuild --platform android --no-install --clean",
     "export:android": "expo export --platform android --output-dir dist-android",
-    "check": "npm run dependencies:check && npm run test && npm run typecheck && npm run lint && npm run prebuild:android:check && npm run export:android"
+    "check": "npm run dependencies:check && npm run native-dependencies:check && npm run test && npm run typecheck && npm run lint && npm run prebuild:android:check && npm run export:android"
   },
   "dependencies": {
     "@smart-expense-ai/api-contracts": "*",
@@ -29,8 +30,10 @@
     "expo-task-manager": "~57.0.14",
     "react": "19.2.3",
     "react-native": "0.86.3",
+    "react-native-reanimated": "4.5.1",
     "react-native-safe-area-context": "~5.7.0",
-    "react-native-screens": "4.26.0"
+    "react-native-screens": "4.26.0",
+    "react-native-worklets": "0.10.1"
   },
   "devDependencies": {
     "@types/jest": "^29.5.14",
