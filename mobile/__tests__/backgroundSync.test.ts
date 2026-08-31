@@ -1,20 +1,20 @@
-const defineTask = jest.fn();
-const isTaskRegisteredAsync = jest.fn();
-const getStatusAsync = jest.fn();
-const registerTaskAsync = jest.fn();
-const unregisterTaskAsync = jest.fn();
+const mockDefineTask = jest.fn();
+const mockIsTaskRegisteredAsync = jest.fn();
+const mockGetStatusAsync = jest.fn();
+const mockRegisterTaskAsync = jest.fn();
+const mockUnregisterTaskAsync = jest.fn();
 
 jest.mock('expo-task-manager', () => ({
-  defineTask,
-  isTaskRegisteredAsync,
+  defineTask: mockDefineTask,
+  isTaskRegisteredAsync: mockIsTaskRegisteredAsync,
 }));
 
 jest.mock('expo-background-task', () => ({
   BackgroundTaskResult: { Success: 1, Failed: 2 },
   BackgroundTaskStatus: { Available: 1, Restricted: 2 },
-  getStatusAsync,
-  registerTaskAsync,
-  unregisterTaskAsync,
+  getStatusAsync: mockGetStatusAsync,
+  registerTaskAsync: mockRegisterTaskAsync,
+  unregisterTaskAsync: mockUnregisterTaskAsync,
 }));
 
 jest.mock('expo-sqlite', () => ({
@@ -37,12 +37,12 @@ describe('background sync scheduler', () => {
   });
 
   it('defines the headless task in global module scope', () => {
-    expect(defineTask).toHaveBeenCalledWith(BACKGROUND_SYNC_TASK_NAME, expect.any(Function));
+    expect(mockDefineTask).toHaveBeenCalledWith(BACKGROUND_SYNC_TASK_NAME, expect.any(Function));
   });
 
   it('registers one best-effort task with a safe interval when Android allows it', async () => {
-    getStatusAsync.mockResolvedValue(BackgroundTask.BackgroundTaskStatus.Available);
-    isTaskRegisteredAsync.mockResolvedValue(false);
+    mockGetStatusAsync.mockResolvedValue(BackgroundTask.BackgroundTaskStatus.Available);
+    mockIsTaskRegisteredAsync.mockResolvedValue(false);
 
     await expect(registerBackgroundSyncAsync()).resolves.toEqual({
       available: true,
@@ -50,26 +50,26 @@ describe('background sync scheduler', () => {
     });
 
     expect(BACKGROUND_SYNC_MINIMUM_INTERVAL_MINUTES).toBeGreaterThanOrEqual(15);
-    expect(registerTaskAsync).toHaveBeenCalledWith(BACKGROUND_SYNC_TASK_NAME, {
+    expect(mockRegisterTaskAsync).toHaveBeenCalledWith(BACKGROUND_SYNC_TASK_NAME, {
       minimumInterval: BACKGROUND_SYNC_MINIMUM_INTERVAL_MINUTES,
     });
   });
 
   it('does not pretend background sync is registered when the scheduler is restricted', async () => {
-    getStatusAsync.mockResolvedValue(BackgroundTask.BackgroundTaskStatus.Restricted);
+    mockGetStatusAsync.mockResolvedValue(BackgroundTask.BackgroundTaskStatus.Restricted);
 
     await expect(registerBackgroundSyncAsync()).resolves.toEqual({
       available: false,
       registered: false,
     });
-    expect(registerTaskAsync).not.toHaveBeenCalled();
+    expect(mockRegisterTaskAsync).not.toHaveBeenCalled();
   });
 
   it('unregisters only an existing background task', async () => {
-    isTaskRegisteredAsync.mockResolvedValue(true);
+    mockIsTaskRegisteredAsync.mockResolvedValue(true);
 
     await unregisterBackgroundSyncAsync();
 
-    expect(unregisterTaskAsync).toHaveBeenCalledWith(BACKGROUND_SYNC_TASK_NAME);
+    expect(mockUnregisterTaskAsync).toHaveBeenCalledWith(BACKGROUND_SYNC_TASK_NAME);
   });
 });
