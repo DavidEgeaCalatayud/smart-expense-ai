@@ -10,6 +10,10 @@ import {
 } from 'react';
 
 import { getMobileApiBaseUrl } from '../api/config';
+import {
+  registerBackgroundSyncAsync,
+  unregisterBackgroundSyncAsync,
+} from '../background/backgroundSync';
 import { bindLocalAccount } from '../database/accountBoundary';
 import { clearLocalAccountData } from '../database/clearAccountData';
 import { MobileAuthClient } from './mobileAuthClient';
@@ -78,6 +82,21 @@ export function AuthProvider({ children }: PropsWithChildren) {
       cancelled = true;
     };
   }, [client, db]);
+
+  useEffect(() => {
+    if (isLoading) {
+      return;
+    }
+    if (user) {
+      void registerBackgroundSyncAsync().catch(() => {
+        // Background execution is best-effort; foreground sync remains the correctness path.
+      });
+    } else {
+      void unregisterBackgroundSyncAsync().catch(() => {
+        // A restricted/unavailable scheduler must never block authentication flows.
+      });
+    }
+  }, [isLoading, user]);
 
   const login = useCallback(
     async (email: string, password: string) => {
