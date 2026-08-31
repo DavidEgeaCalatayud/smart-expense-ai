@@ -4,6 +4,7 @@ const mockGetRandomBytesAsync = jest.fn(
 );
 
 jest.mock('expo-secure-store', () => ({
+  __esModule: true,
   WHEN_UNLOCKED_THIS_DEVICE_ONLY: 'WHEN_UNLOCKED_THIS_DEVICE_ONLY',
   getItemAsync: jest.fn(async (key: string) => mockSecureValues.get(key) ?? null),
   setItemAsync: jest.fn(async (key: string, value: string) => {
@@ -15,10 +16,12 @@ jest.mock('expo-secure-store', () => ({
 }));
 
 jest.mock('expo-crypto', () => ({
+  __esModule: true,
   getRandomBytesAsync: mockGetRandomBytesAsync,
 }));
 
 jest.mock('expo-sqlite', () => ({
+  __esModule: true,
   defaultDatabaseDirectory: '/tmp/sqlite',
   deleteDatabaseAsync: jest.fn(async () => undefined),
 }));
