@@ -11,7 +11,7 @@ import {
 
 import { getMobileApiBaseUrl } from '../api/config';
 import { bindLocalAccount } from '../database/accountBoundary';
-import { clearLocalAccountData } from '../database/clearAccountData';
+import { clearLocalAccountDataSafely } from '../database/privacyWipe';
 import {
   ensureBackgroundSyncRegistered,
   unregisterBackgroundSync,
@@ -71,7 +71,7 @@ export function AuthProvider({ children }: PropsWithChildren) {
       try {
         const restored = await restoreMobileSession(client);
         if (restored.shouldClearLocalData) {
-          await clearLocalAccountData(db);
+          await clearLocalAccountDataSafely(db);
         }
         if (restored.user) {
           await bindLocalAccount(db, restored.user.id);
@@ -144,7 +144,7 @@ export function AuthProvider({ children }: PropsWithChildren) {
     setError(null);
     try {
       await logoutMobileSession(client);
-      await clearLocalAccountData(db);
+      await clearLocalAccountDataSafely(db);
     } finally {
       await reconcileBackgroundSyncRegistration(false);
       setUser(null);
