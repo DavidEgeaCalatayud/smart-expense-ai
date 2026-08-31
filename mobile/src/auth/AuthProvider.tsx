@@ -70,13 +70,15 @@ export function AuthProvider({ children }: PropsWithChildren) {
     void (async () => {
       try {
         const restored = await restoreMobileSession(client);
-        if (restored.shouldClearLocalData) {
+        if (!restored.user) {
+          // No valid mobile session means account-scoped financial data must not
+          // remain readable locally, including after remote token revocation.
+          await reconcileBackgroundSyncRegistration(false);
           await clearLocalAccountDataSafely(db);
-        }
-        if (restored.user) {
+        } else {
           await bindLocalAccount(db, restored.user.id);
+          await reconcileBackgroundSyncRegistration(true);
         }
-        await reconcileBackgroundSyncRegistration(restored.user !== null);
         if (!cancelled) {
           setUser(restored.user);
         }
@@ -143,11 +145,16 @@ export function AuthProvider({ children }: PropsWithChildren) {
     setIsSubmitting(true);
     setError(null);
     try {
-      await logoutMobileSession(client);
-      await clearLocalAccountDataSafely(db);
-    } finally {
+      // Stop future scheduling first, then serialize the privacy wipe against any
+      // already-running foreground/background sync before credentials disappear.
       await reconcileBackgroundSyncRegistration(false);
+      await clearLocalAccountDataSafely(db);
+      await logoutMobileSession(client);
       setUser(null);
+    } catch (logoutError) {
+      setError(errorMessage(logoutError));
+      throw logoutError;
+    } finally {
       setIsSubmitting(false);
     }
   }, [client, db]);
