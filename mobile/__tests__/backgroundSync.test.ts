@@ -1,3 +1,12 @@
+import * as BackgroundTask from 'expo-background-task';
+import * as TaskManager from 'expo-task-manager';
+
+import {
+  BACKGROUND_SYNC_TASK,
+  ensureBackgroundSyncRegistered,
+  unregisterBackgroundSync,
+} from '../src/sync/backgroundSync';
+
 jest.mock('expo-background-task', () => ({
   BackgroundTaskResult: { Success: 1, Failed: 2 },
   BackgroundTaskStatus: { Restricted: 1, Available: 2 },
@@ -14,15 +23,6 @@ jest.mock('expo-task-manager', () => ({
 jest.mock('expo-sqlite', () => ({
   openDatabaseAsync: jest.fn(),
 }));
-
-import * as BackgroundTask from 'expo-background-task';
-import * as TaskManager from 'expo-task-manager';
-
-import {
-  BACKGROUND_SYNC_TASK,
-  ensureBackgroundSyncRegistered,
-  unregisterBackgroundSync,
-} from '../src/sync/backgroundSync';
 
 const getStatusAsync = BackgroundTask.getStatusAsync as jest.MockedFunction<
   typeof BackgroundTask.getStatusAsync
