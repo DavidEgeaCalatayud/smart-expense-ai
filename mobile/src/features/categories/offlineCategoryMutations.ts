@@ -4,19 +4,9 @@ import type { SQLiteDatabase } from 'expo-sqlite';
 
 import type { LocalCategoryRow } from '../../database/types';
 import { enqueueMutation, type OutboxRow } from '../../sync/outboxRepository';
+import { normalizeCategoryName, normalizedCategoryKey } from './validation';
 
 export type CategoryTransactionType = 'expense' | 'income';
-
-function normalizeName(value: string): string {
-  const normalized = value.trim().split(/\s+/).filter(Boolean).join(' ');
-  if (!normalized) {
-    throw new Error('Category name must not be empty');
-  }
-  if (normalized.length > 80) {
-    throw new Error('Category name must be 80 characters or fewer');
-  }
-  return normalized;
-}
 
 async function findCategory(db: SQLiteDatabase, categoryId: string): Promise<LocalCategoryRow> {
   const category = await db.getFirstAsync<LocalCategoryRow>(
@@ -40,7 +30,7 @@ async function assertNameAvailable(
      WHERE normalized_name = ? AND transaction_type = ?
        AND (? IS NULL OR id != ?)
      LIMIT 1`,
-    name.toLocaleLowerCase(),
+    normalizedCategoryKey(name),
     type,
     excludeId,
     excludeId,
@@ -104,14 +94,14 @@ export async function createOfflineCategory(
   db: SQLiteDatabase,
   input: { name: string; transactionType: CategoryTransactionType },
 ): Promise<string> {
-  const name = normalizeName(input.name);
+  const name = normalizeCategoryName(input.name);
   await assertNameAvailable(db, name, input.transactionType, null);
   const id = Crypto.randomUUID();
   const now = new Date().toISOString();
   const category: LocalCategoryRow = {
     id,
     name,
-    normalized_name: name.toLocaleLowerCase(),
+    normalized_name: normalizedCategoryKey(name),
     transaction_type: input.transactionType,
     system_category: 0,
     archived: 0,
@@ -129,7 +119,7 @@ export async function createOfflineCategory(
        ) VALUES (?, ?, ?, ?, 0, 0, NULL, 'pending', ?, ?)`,
       id,
       name,
-      name.toLocaleLowerCase(),
+      normalizedCategoryKey(name),
       input.transactionType,
       now,
       now,
@@ -151,7 +141,7 @@ export async function renameOfflineCategory(
   if (category.sync_status === 'conflict') {
     throw new Error('Resolve this category conflict before editing it again');
   }
-  const nextName = normalizeName(nextNameInput);
+  const nextName = normalizeCategoryName(nextNameInput);
   await assertNameAvailable(db, nextName, category.transaction_type, category.id);
   const now = new Date().toISOString();
 
@@ -161,7 +151,7 @@ export async function renameOfflineCategory(
        SET name = ?, normalized_name = ?, sync_status = 'pending', updated_at = ?
        WHERE id = ?`,
       nextName,
-      nextName.toLocaleLowerCase(),
+      normalizedCategoryKey(nextName),
       now,
       category.id,
     );
