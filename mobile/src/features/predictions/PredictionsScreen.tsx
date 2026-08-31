@@ -15,7 +15,7 @@ interface PredictionsData {
 }
 
 export function PredictionsScreen() {
-  const api = useMemo(createServerDerivedApi, []);
+  const api = useMemo(() => createServerDerivedApi(), []);
   const loader = useCallback(async (): Promise<PredictionsData> => {
     const [upcoming, forecast] = await Promise.all([
       api.getUpcomingPayments(30),
