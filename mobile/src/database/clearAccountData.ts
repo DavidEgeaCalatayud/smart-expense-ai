@@ -10,4 +10,8 @@ export async function clearLocalAccountData(db: SQLiteDatabase): Promise<void> {
     await txn.execAsync('DELETE FROM categories');
     await txn.execAsync('DELETE FROM sync_state');
   });
+
+  // Ensure stale WAL pages are not retained after a privacy-boundary wipe.
+  await db.execAsync('PRAGMA wal_checkpoint(TRUNCATE)');
+  await db.execAsync('VACUUM');
 }
