@@ -3,6 +3,7 @@ import type { SQLiteDatabase } from 'expo-sqlite';
 
 const SYNC_LEASE_KEY = 'sync_runtime_lease';
 const SYNC_LEASE_DURATION_MS = 30 * 60 * 1000;
+const LEASE_WAIT_INTERVAL_MS = 100;
 
 interface StoredLease {
   token: string;
@@ -25,6 +26,10 @@ function parseLease(value: string | null): StoredLease | null {
   } catch {
     return null;
   }
+}
+
+function sleep(milliseconds: number): Promise<void> {
+  return new Promise((resolve) => setTimeout(resolve, milliseconds));
 }
 
 export async function tryAcquireSyncLease(db: SQLiteDatabase): Promise<SyncLease | null> {
@@ -58,6 +63,23 @@ export async function tryAcquireSyncLease(db: SQLiteDatabase): Promise<SyncLease
   });
 
   return acquired ? { token: lease.token, encoded } : null;
+}
+
+export async function acquireSyncLease(
+  db: SQLiteDatabase,
+  timeoutMs: number,
+): Promise<SyncLease> {
+  const deadline = Date.now() + timeoutMs;
+  while (true) {
+    const lease = await tryAcquireSyncLease(db);
+    if (lease) {
+      return lease;
+    }
+    if (Date.now() >= deadline) {
+      throw new Error('Timed out waiting for active synchronization to finish');
+    }
+    await sleep(Math.min(LEASE_WAIT_INTERVAL_MS, Math.max(1, deadline - Date.now())));
+  }
 }
 
 export async function releaseSyncLease(db: SQLiteDatabase, lease: SyncLease): Promise<void> {
