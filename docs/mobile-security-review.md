@@ -17,9 +17,10 @@ Risk: an attacker obtains the application data directory or a copied SQLite data
 Controls:
 
 - `expo-sqlite` is built with SQLCipher enabled;
-- a 256-bit random database passphrase is generated with `expo-crypto` and stored only in SecureStore;
+- a 256-bit random raw database key is generated with `expo-crypto` and stored only in SecureStore;
 - the key is applied immediately after opening SQLite and before migrations or application queries;
-- Android Auto Backup is disabled so encrypted database files are not restored without their Keystore-bound secrets;
+- startup verifies that the native SQLite build exposes SQLCipher and forces an immediate schema-page read so a missing/wrong key fails closed;
+- Android Auto Backup is disabled so encrypted database files are not restored without their device-bound secrets;
 - SQLite `secure_delete` is enabled;
 - logout/account-boundary erasure truncates WAL and runs `VACUUM` after deleting account-scoped rows.
 
@@ -34,9 +35,13 @@ Controls:
 - Phase 5G uses a new encrypted database filename;
 - when the encrypted database is empty, the client checks for the legacy schema;
 - the legacy WAL is checkpointed before migration;
-- Expo SQLite backup copies the complete logical database, including outbox/conflict/sync state, into the keyed destination connection;
-- the legacy database is deleted only after a successful backup;
-- normal schema migrations then run against the encrypted destination.
+- the legacy database is attached to the already-keyed SQLCipher connection with an explicit empty key and copied with `sqlcipher_export('main', 'legacy_plaintext')`, the supported SQLCipher path for plaintext-to-encrypted conversion;
+- SQLite `user_version`, which `sqlcipher_export()` deliberately does not transfer, is preserved explicitly before normal schema migrations continue;
+- the exported destination is checked for the application schema;
+- the plaintext legacy database is deleted only after export, version restoration and destination verification all succeed;
+- any export/detach/verification failure leaves the plaintext source intact rather than risking silent data loss.
+
+The SQLite Online Backup API is deliberately not used for this conversion because SQLCipher does not support using it to change a database between plaintext and encrypted modes.
 
 ### Cross-account local leakage
 
@@ -46,8 +51,10 @@ Controls:
 
 - the local account id is bound in SQLite;
 - switching to a different account invokes the same full account-data erasure boundary before binding the new id;
-- logout erases transactions, categories, budgets, outbox, conflicts, sync state and server-derived cache;
-- remote account deletion/session revocation causes mobile session restoration to clear credentials and request the same local wipe.
+- logout first stops future background scheduling, then obtains the SQLite runtime lease and completes the privacy wipe before local credentials are cleared and the UI transitions to signed-out;
+- if the privacy wipe cannot obtain exclusivity, logout fails instead of presenting a false successful-logout state;
+- any startup without a valid restored mobile session invokes the same local wipe, including confirmed remote session revocation;
+- the wipe erases transactions, categories, budgets, outbox, conflicts, sync state and server-derived cache.
 
 ### Background synchronization races
 
@@ -59,6 +66,7 @@ Controls:
 - lease acquisition occurs inside an exclusive SQLite transaction;
 - a second synchronizer skips instead of resetting another synchronizer's `sending` mutations;
 - the lease has a bounded expiry for crash recovery;
+- privacy-boundary wipes acquire the same lease before deleting local data;
 - server mutation IDs remain idempotent, so a transport retry cannot duplicate a committed financial write.
 
 Background execution is opportunistic. Foreground sync remains the correctness path because Android WorkManager scheduling is inexact and OS-controlled.
@@ -70,7 +78,7 @@ Controls already present before Phase 5G:
 - access and refresh tokens are never stored in SQLite;
 - refresh tokens rotate and server-side replay detection revokes the mobile session;
 - concurrent 401 responses share a single refresh operation;
-- logout clears local credentials even when the network is unavailable;
+- remote logout failure does not prevent local credential clearing after the privacy wipe has completed;
 - server-side account/session revocation invalidates subsequent mobile refresh.
 
 ### Build and signing secrets
@@ -90,10 +98,11 @@ Before a production Play release:
 1. Mobile CI and repository Quality Gate must be green on the exact release SHA.
 2. A production EAS AAB must build using managed signing credentials.
 3. Android offline/reconnect/conflict flows must be exercised on an emulator or physical development build, not Expo Go (SQLCipher is not available in Expo Go).
-4. Logout must be verified to remove account-scoped local rows and cached read models.
-5. Remote account deletion/revocation must be verified to invalidate mobile credentials and clear local account data on the next session restore.
-6. No `EXPO_PUBLIC_*` variable may contain credentials or secrets.
-7. Store privacy/data-safety declarations must match actual local storage, analytics and network behavior.
+4. The plaintext-to-SQLCipher upgrade must be exercised on a native Android installation containing pre-5G local data and pending outbox state.
+5. Logout must be verified to remove account-scoped local rows and cached read models.
+6. Remote account deletion/revocation must be verified to invalidate mobile credentials and clear local account data on the next session restore.
+7. No `EXPO_PUBLIC_*` variable may contain credentials or secrets.
+8. Store privacy/data-safety declarations must match actual local storage, analytics and network behavior.
 
 ## Deferred hardening
 
