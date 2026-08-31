@@ -44,5 +44,12 @@ jobs:
         run: npm run typecheck --workspace=@smart-expense-ai/mobile
       - name: ESLint
         run: npm run lint --workspace=@smart-expense-ai/mobile
+      - name: Generate Android native project
+        run: npm run prebuild:android:check --workspace=@smart-expense-ai/mobile
+      - name: Compile Android debug APK
+        run: |
+          chmod +x mobile/android/gradlew
+          cd mobile/android
+          ./gradlew :app:assembleDebug --no-daemon
       - name: Bundle Android application
         run: npm run export:android --workspace=@smart-expense-ai/mobile
