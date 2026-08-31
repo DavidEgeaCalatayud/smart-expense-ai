@@ -145,11 +145,11 @@ export function AuthProvider({ children }: PropsWithChildren) {
     setIsSubmitting(true);
     setError(null);
     try {
-      // Stop future scheduling first, then serialize the privacy wipe against any
-      // already-running foreground/background sync before credentials disappear.
+      // Stop future scheduling first. Keep credentials revocation/clearing under
+      // the same lease as the wipe so an already-queued background task cannot
+      // enter between those operations and repopulate the outgoing account.
       await reconcileBackgroundSyncRegistration(false);
-      await clearLocalAccountDataSafely(db);
-      await logoutMobileSession(client);
+      await clearLocalAccountDataSafely(db, () => logoutMobileSession(client));
       setUser(null);
     } catch (logoutError) {
       setError(errorMessage(logoutError));
