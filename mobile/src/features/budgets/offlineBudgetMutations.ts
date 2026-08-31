@@ -1,28 +1,20 @@
 import type { BudgetUpsertMutation } from '@smart-expense-ai/api-contracts';
-import { decimalToMinorUnits, minorUnitsToDecimal } from '@smart-expense-ai/domain-types';
+import { minorUnitsToDecimal } from '@smart-expense-ai/domain-types';
 import * as Crypto from 'expo-crypto';
 import type { SQLiteDatabase } from 'expo-sqlite';
 
 import type { LocalBudgetRow, LocalCategoryRow } from '../../database/types';
 import { enqueueMutation, type OutboxRow } from '../../sync/outboxRepository';
+import {
+  budgetMonthForSync,
+  validateBudgetLimitAmount,
+  validateBudgetMonth,
+} from './validation';
 
 export interface OfflineBudgetInput {
   month: string;
   categoryId: string | null;
   limitAmount: string;
-}
-
-function validateMonth(value: string): string {
-  if (!/^\d{4}-\d{2}$/.test(value)) {
-    throw new Error('Month must use YYYY-MM');
-  }
-  const [yearText, monthText] = value.split('-');
-  const year = Number(yearText);
-  const month = Number(monthText);
-  if (!Number.isInteger(year) || !Number.isInteger(month) || month < 1 || month > 12) {
-    throw new Error('Month must use a valid YYYY-MM value');
-  }
-  return `${yearText}-${monthText}`;
 }
 
 async function validateCategory(
@@ -59,7 +51,7 @@ async function findBudget(db: SQLiteDatabase, budgetId: string): Promise<LocalBu
 function payload(month: string, categoryId: string | null, limitMinor: number) {
   return {
     categoryId,
-    month: `${month}-01`,
+    month: budgetMonthForSync(month),
     limitAmount: minorUnitsToDecimal(limitMinor),
   } as const;
 }
@@ -109,8 +101,8 @@ export async function createOfflineBudget(
   db: SQLiteDatabase,
   input: OfflineBudgetInput,
 ): Promise<string> {
-  const month = validateMonth(input.month);
-  const limitMinor = decimalToMinorUnits(input.limitAmount);
+  const month = validateBudgetMonth(input.month);
+  const limitMinor = validateBudgetLimitAmount(input.limitAmount);
   await validateCategory(db, input.categoryId);
 
   const duplicate = input.categoryId === null
@@ -167,7 +159,7 @@ export async function updateOfflineBudget(
   if (budget.sync_status === 'conflict') {
     throw new Error('Resolve this budget conflict before editing it again');
   }
-  const limitMinor = decimalToMinorUnits(limitAmount);
+  const limitMinor = validateBudgetLimitAmount(limitAmount);
   const now = new Date().toISOString();
 
   await db.withExclusiveTransactionAsync(async (txn) => {
