@@ -4,7 +4,7 @@ import { ActivityIndicator, Pressable, StyleSheet, Text, View } from 'react-nati
 
 import { MobileApiHttpError } from '../../api/client';
 import { createServerDerivedApi } from '../../api/serverDerivedApi';
-import { useServerResource } from '../../api/useServerResource';
+import { useCachedServerResource } from '../../api/useCachedServerResource';
 import { ServerWorkspaceShell, serverWorkspaceStyles as s } from '../../components/ServerWorkspaceShell';
 
 interface HistoricalData {
@@ -25,14 +25,22 @@ export function HistoricalAnalysisScreen() {
       throw error;
     }
   }, [api]);
-  const { data, isLoading, isRefreshing, error, refresh, setData } = useServerResource(loader);
+  const {
+    data,
+    isLoading,
+    isRefreshing,
+    error,
+    refresh,
+    cachedAt,
+    isCachedFallback,
+  } = useCachedServerResource('server:historical:v1', loader);
 
   const runAnalysis = async () => {
     setIsRunning(true);
     setRunError(null);
     try {
-      const analysis = await api.runHistoricalAnalysis(12);
-      setData({ analysis });
+      await api.runHistoricalAnalysis(12);
+      await refresh();
     } catch (reason) {
       setRunError(reason instanceof Error ? reason.message : 'Unable to run historical analysis');
     } finally {
@@ -51,14 +59,19 @@ export function HistoricalAnalysisScreen() {
       onRefresh={() => void refresh().catch(() => undefined)}
     >
       {isLoading && !data ? <ActivityIndicator size="large" /> : null}
-      {error ? <Text style={s.error}>{error}</Text> : null}
+      {error ? <Text style={isCachedFallback ? s.metadata : s.error}>{error}</Text> : null}
       {runError ? <Text style={s.error}>{runError}</Text> : null}
+      {cachedAt ? <Text style={s.metadata}>Latest local snapshot: {cachedAt}</Text> : null}
 
       <Pressable
         accessibilityRole="button"
-        disabled={isRunning}
+        disabled={isRunning || isCachedFallback}
         onPress={() => void runAnalysis()}
-        style={({ pressed }) => [s.primaryButton, pressed && styles.pressed, isRunning && styles.disabled]}
+        style={({ pressed }) => [
+          s.primaryButton,
+          pressed && styles.pressed,
+          (isRunning || isCachedFallback) && styles.disabled,
+        ]}
       >
         <Text style={s.primaryButtonText}>{isRunning ? 'Analyzing…' : 'Run 12-month analysis'}</Text>
       </Pressable>
