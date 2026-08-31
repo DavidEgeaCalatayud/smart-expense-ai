@@ -16,7 +16,7 @@ interface IntelligenceData {
 }
 
 export function IntelligenceScreen() {
-  const api = useMemo(createServerDerivedApi, []);
+  const api = useMemo(() => createServerDerivedApi(), []);
   const [isActing, setIsActing] = useState(false);
   const [actionError, setActionError] = useState<string | null>(null);
   const loader = useCallback(async (): Promise<IntelligenceData> => {
