@@ -2,6 +2,7 @@ import { getOrCreateDeviceId } from './deviceIdentity';
 import { MobileAuthClient, MobileAuthHttpError, type MobileTokenResponse } from './mobileAuthClient';
 import {
   clearMobileCredentials,
+  consumeLocalWipeRequirement,
   getAccessToken,
   getMobileUser,
   getRefreshToken,
@@ -32,6 +33,11 @@ function isUnauthorized(error: unknown): boolean {
 export async function restoreMobileSession(
   client: MobileAuthClient,
 ): Promise<SessionRestoreResult> {
+  if (await consumeLocalWipeRequirement()) {
+    await clearMobileCredentials();
+    return { user: null, shouldClearLocalData: true };
+  }
+
   const [accessToken, refreshToken, cachedUser] = await Promise.all([
     getAccessToken(),
     getRefreshToken(),
