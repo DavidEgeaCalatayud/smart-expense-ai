@@ -1,7 +1,7 @@
 import * as Crypto from 'expo-crypto';
 import type { SQLiteDatabase } from 'expo-sqlite';
 
-const SYNC_LEASE_KEY = 'sync_runtime_lease';
+export const SYNC_LEASE_STATE_KEY = 'sync_runtime_lease';
 const SYNC_LEASE_DURATION_MS = 30 * 60 * 1000;
 const LEASE_WAIT_INTERVAL_MS = 100;
 
@@ -44,7 +44,7 @@ export async function tryAcquireSyncLease(db: SQLiteDatabase): Promise<SyncLease
   await db.withExclusiveTransactionAsync(async (txn) => {
     const row = await txn.getFirstAsync<{ value: string }>(
       'SELECT value FROM sync_state WHERE key = ?',
-      SYNC_LEASE_KEY,
+      SYNC_LEASE_STATE_KEY,
     );
     const current = parseLease(row?.value ?? null);
     if (current && current.expiresAt > now) {
@@ -55,7 +55,7 @@ export async function tryAcquireSyncLease(db: SQLiteDatabase): Promise<SyncLease
       `INSERT INTO sync_state(key, value, updated_at)
        VALUES (?, ?, ?)
        ON CONFLICT(key) DO UPDATE SET value = excluded.value, updated_at = excluded.updated_at`,
-      SYNC_LEASE_KEY,
+      SYNC_LEASE_STATE_KEY,
       encoded,
       new Date(now).toISOString(),
     );
@@ -85,7 +85,7 @@ export async function acquireSyncLease(
 export async function releaseSyncLease(db: SQLiteDatabase, lease: SyncLease): Promise<void> {
   await db.runAsync(
     'DELETE FROM sync_state WHERE key = ? AND value = ?',
-    SYNC_LEASE_KEY,
+    SYNC_LEASE_STATE_KEY,
     lease.encoded,
   );
 }
