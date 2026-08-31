@@ -3,7 +3,7 @@ import { useCallback, useMemo } from 'react';
 import { ActivityIndicator, Text, View } from 'react-native';
 
 import { createServerDerivedApi } from '../../api/serverDerivedApi';
-import { useServerResource } from '../../api/useServerResource';
+import { useCachedServerResource } from '../../api/useCachedServerResource';
 import { ServerWorkspaceShell, serverWorkspaceStyles as s } from '../../components/ServerWorkspaceShell';
 
 interface DashboardData {
@@ -21,7 +21,8 @@ export function DashboardScreen() {
     const [summary, monthly] = await Promise.all([api.getSummary(), api.getMonthlyExpenses(6)]);
     return { summary, monthly };
   }, [api]);
-  const { data, isLoading, isRefreshing, error, refresh } = useServerResource(loader);
+  const { data, isLoading, isRefreshing, error, refresh, cachedAt, isCachedFallback } =
+    useCachedServerResource('server:dashboard:v1', loader);
 
   return (
     <ServerWorkspaceShell
@@ -32,7 +33,8 @@ export function DashboardScreen() {
       onRefresh={() => void refresh().catch(() => undefined)}
     >
       {isLoading && !data ? <ActivityIndicator size="large" /> : null}
-      {error ? <Text style={s.error}>{error}</Text> : null}
+      {error ? <Text style={isCachedFallback ? s.metadata : s.error}>{error}</Text> : null}
+      {cachedAt ? <Text style={s.metadata}>Latest local snapshot: {cachedAt}</Text> : null}
 
       {data ? (
         <>
