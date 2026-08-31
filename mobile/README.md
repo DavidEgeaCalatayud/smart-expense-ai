@@ -4,15 +4,20 @@ Android-first React Native client for the Smart Expense AI multi-client platform
 
 ## Current status
 
-The mobile package includes the Expo/SQLite foundation, native authentication, foreground synchronization, offline-first transaction/category/budget workspaces and server-derived financial workspaces:
+The mobile package includes the Expo/SQLite foundation, native authentication, offline-first synchronization, server-derived financial workspaces and the first Android production-hardening layer:
 
 - Expo SDK 57 + Expo Router;
 - strict TypeScript;
 - Expo SQLite persistence with explicit migrations, foreign keys and WAL mode;
+- SQLCipher-enabled native SQLite builds;
+- a per-install 256-bit database key generated with `expo-crypto` and stored in Expo SecureStore;
+- migration from the legacy plaintext SQLite file into the encrypted database without discarding pending outbox/conflict state;
+- Android Auto Backup disabled for the financial application data boundary;
+- `secure_delete`, WAL checkpoint/truncation and `VACUUM` on privacy-boundary wipes;
 - durable `sync_outbox`, `sync_state` and `sync_conflicts` tables;
 - exact decimal-string <-> integer-minor-unit money conversion through `shared/`;
 - native access + rotating refresh authentication against FastAPI;
-- Expo SecureStore for credentials/device identity;
+- Expo SecureStore for credentials/device identity/database key;
 - `/api/v2/sync/push`, `/pull` and `/bootstrap` integration;
 - one-at-a-time refresh coordination so concurrent 401 responses cannot rotate the same refresh token twice;
 - ordered durable outbox push with idempotent mutation IDs;
@@ -26,13 +31,17 @@ The mobile package includes the Expo/SQLite foundation, native authentication, f
 - local-first monthly overall/per-expense-category budgets with exact integer minor units;
 - explicit `synced`, `pending`, `failed` and `conflict` state in the UI;
 - durable conflict evidence with explicit `Use server` and safe `Retry mine` resolution;
-- protected Transactions, Categories and Budgets workspaces using the same foreground SyncEngine;
+- protected Transactions, Categories and Budgets workspaces using the same SyncEngine;
 - protected Dashboard, Financial Intelligence, Historical Analysis, Predictions, Suggestions and Financial Assistant workspaces consuming existing FastAPI contracts;
 - shared TypeScript contracts for the server-derived v2 APIs;
 - selected read-only server snapshots cached in SQLite for offline viewing with an explicit fetched timestamp;
-- account-bound cache deletion on logout/account switch so cached analytics cannot cross user boundaries.
+- account-bound cache deletion on logout/account switch so cached analytics cannot cross user boundaries;
+- Android WorkManager background synchronization through `expo-background-task`;
+- one SQLite runtime lease shared by foreground sync, background sync and privacy wipes;
+- EAS preview APK and production AAB build profiles without signing credentials in source control;
+- Mobile CI native prebuild + Gradle debug compilation in addition to Jest, TypeScript, ESLint and Expo export.
 
-The existing web authentication and business-rule contracts remain unchanged. PostgreSQL/FastAPI is still the financial authority; SQLite stores the local replica, pending user intent and explicitly read-only cached server snapshots.
+The existing web authentication and business-rule contracts remain unchanged. PostgreSQL/FastAPI is still the financial authority; SQLite stores the encrypted local replica, pending user intent and explicitly read-only cached server snapshots.
 
 ## Run locally
 
@@ -48,11 +57,48 @@ npm run mobile:android
 
 The project targets Expo SDK 57 / React Native 0.86 and Node.js 22.13+.
 
-## Foreground sync sequence
+SQLCipher is a native capability and is not available in Expo Go. Use an Android development/native build (`expo prebuild` + Gradle or EAS) when validating encrypted storage.
 
-A normal authenticated foreground synchronization is:
+## Encrypted local storage
+
+Phase 5G moves the application from the legacy plaintext file:
 
 ```text
+smart-expense-ai.db
+```
+
+to:
+
+```text
+smart-expense-ai-secure-v1.db
+```
+
+The encrypted database passphrase is generated once as 32 random bytes and stored only in SecureStore. It is applied with `PRAGMA key` immediately after opening the SQLCipher connection and before schema inspection/migration.
+
+Existing installs are migrated conservatively:
+
+```text
+legacy DB
+   |
+   | WAL checkpoint
+   v
+encrypted SQLCipher DB
+   |
+   | SQLite logical backup succeeds
+   v
+legacy DB deleted
+```
+
+The logical backup preserves the local replica, pending outbox operations, conflict evidence, sync cursor/state and server cache. The legacy file is deleted only after a successful copy.
+
+Android Auto Backup is disabled so an encrypted database is not restored independently of the Keystore/SecureStore material required to open it.
+
+## Synchronization sequence
+
+A normal authenticated synchronization is:
+
+```text
+0. acquire the SQLite runtime sync lease
 1. recover interrupted `sending` outbox rows
 2. read queued mutations in durable sequence order
 3. push one bounded batch with stable mutation IDs
@@ -61,11 +107,27 @@ A normal authenticated foreground synchronization is:
 6. pull deltas from the stored opaque cursor
 7. apply each page and its next cursor in one SQLite transaction
 8. continue until `hasMore = false`
+9. release the runtime lease
 ```
 
 The client never parses or creates a sync cursor. It only persists the opaque server token.
 
 If a transient request fails after the server committed but before the response reaches Android, the same mutation ID is retried. The backend `sync-v1` idempotency record therefore prevents duplicate financial writes.
+
+Foreground and background execution share the same SQLite lease. A second synchronizer skips rather than resetting another run's `sending` mutations. Privacy-boundary wipes wait for the lease before deleting account data.
+
+## Background synchronization
+
+Android background synchronization uses `expo-background-task` / WorkManager with a requested minimum interval of 15 minutes.
+
+The schedule is deliberately treated as opportunistic:
+
+- Android decides the actual execution time;
+- foreground sync remains the correctness path;
+- background registration failure never blocks login or registration;
+- logout unregisters the task when possible;
+- a task with no stored mobile session exits successfully without touching financial state;
+- foreground/background overlap is prevented by the shared SQLite lease.
 
 ## Local transaction semantics
 
@@ -145,7 +207,7 @@ The UI exposes:
 
 `server_deleted` and ownership/visibility conflicts do not offer an unsafe automatic local overwrite. Cross-account category/budget integration tests additionally require that an attempted mutation never returns another account's server payload or version.
 
-## Authentication boundary
+## Authentication and privacy boundary
 
 Web and Android intentionally use separate transports:
 
@@ -159,14 +221,31 @@ Access and refresh tokens are stored only in Expo SecureStore. They are never pe
 
 The generic mobile API client performs at most one refresh/retry after a 401 and coordinates simultaneous refresh demand through one in-flight promise. This prevents two foreground requests from replaying the same one-time refresh token.
 
-## Production hardening still pending
+A logout, account switch or confirmed remote revocation uses the same privacy wipe. The operation waits for any active sync lease, deletes all account-scoped SQLite state, truncates WAL and vacuums the database before the next account is bound.
 
-- SQLCipher/native encrypted financial database;
-- background synchronization;
-- Android release signing/AAB pipeline;
-- device/emulator E2E for offline/reconnect/conflict flows;
-- explicit account-switch/device-isolation and mobile security/privacy hardening tests.
+## Android build and release
 
-Background execution remains deliberately deferred: foreground synchronization must remain the correctness path even if Android never grants background execution time.
+Continuous Native Generation remains the source-of-truth workflow: generated `mobile/android/` and `mobile/ios/` directories are not committed.
 
-See `docs/mobile-offline-first.md` and `docs/mobile-auth-v1.md` for the architecture and security contracts.
+Mobile CI generates Android from `app.json` and compiles a debug APK with Gradle. This catches native config-plugin or SQLCipher integration errors that a JavaScript-only Expo export would miss.
+
+`mobile/eas.json` provides:
+
+- `preview`: internal-distribution APK;
+- `production`: signed production AAB profile with automatic build-number increment.
+
+Signing keys, Expo access tokens and Google Play service-account credentials must never be committed. Production signing should be managed through EAS/Play credential stores.
+
+## Remaining production evidence
+
+Phase 5G code hardening is not equivalent to a Play production release. Still required before claiming production readiness:
+
+- automated Android emulator/device E2E for offline create -> process restart -> reconnect -> push/pull -> web visibility;
+- emulator/device conflict-resolution and account-switch isolation tests;
+- runtime verification of the plaintext-to-SQLCipher upgrade path on a native Android build;
+- a real production EAS AAB built with managed signing credentials;
+- Play internal-testing installation/update evidence;
+- final Play Data safety/privacy declarations;
+- runtime crash/performance monitoring selection and privacy review.
+
+See `docs/mobile-offline-first.md`, `docs/mobile-auth-v1.md` and `docs/mobile-security-review.md` for the architecture and security contracts.
