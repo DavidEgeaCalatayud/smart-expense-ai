@@ -2,9 +2,9 @@
 
 Android-first React Native client for the Smart Expense AI multi-client platform.
 
-## Phase 5E status
+## Current status
 
-The mobile package now includes the Expo/SQLite foundation, native authentication and the first complete foreground synchronization path:
+The mobile package includes the Expo/SQLite foundation, native authentication, foreground synchronization and offline-first transaction/category/budget workspaces:
 
 - Expo SDK 57 + Expo Router;
 - strict TypeScript;
@@ -22,10 +22,11 @@ The mobile package now includes the Expo/SQLite foundation, native authenticatio
 - SQLite change-page + cursor advancement in the same exclusive transaction;
 - interrupted `sending` mutations recovered back to `queued` after process termination;
 - local-first create/edit/delete transaction behavior;
-- pending transaction edits compacted into the existing outbox mutation instead of producing artificial stale-version conflicts;
+- local-first custom-category create/rename/archive/restore behavior with system categories read-only;
+- local-first monthly overall/per-expense-category budgets with exact integer minor units;
 - explicit `synced`, `pending`, `failed` and `conflict` state in the UI;
 - durable conflict evidence with explicit `Use server` and safe `Retry mine` resolution;
-- automatic foreground sync when the authenticated workspace mounts plus a manual `Sync now` action.
+- protected Transactions, Categories and Budgets workspaces using the same foreground SyncEngine.
 
 The existing web authentication and business-rule contracts remain unchanged. PostgreSQL/FastAPI is still the financial authority; SQLite stores the local replica plus pending user intent.
 
@@ -78,6 +79,33 @@ Editing an unsynchronized transaction updates the existing queued upsert rather 
 
 Deleting an unsynchronized transaction cancels the local create. Deleting a synchronized transaction removes it locally and queues a versioned server tombstone mutation.
 
+## Category semantics
+
+Android replicates both system and account-owned categories, but ownership remains server-authoritative.
+
+- system categories are visible and read-only;
+- account-owned categories can be created and renamed offline;
+- active-name uniqueness uses the same canonical whitespace/case-insensitive local key before sync;
+- category mutations retain the last observed `server_version` and participate in normal stale-version conflict handling;
+- a category with locally referenced transactions cannot be archived implicitly: Android requires those relationships to be resolved/reassigned first rather than silently moving financial records;
+- restoring a category checks the local visible-name conflict before the mutation enters the outbox.
+
+If a transaction is created against a brand-new offline category, the durable outbox preserves category-before-transaction mutation order.
+
+## Budget semantics
+
+Budgets remain server-authoritative definitions replicated into SQLite.
+
+- SQLite stores `limit_minor INTEGER`, never floating-point money;
+- the local UI uses `YYYY-MM`, while `sync-v1` receives the required `YYYY-MM-01` first-of-month date;
+- budget limits must be positive before a mutation is persisted;
+- only active expense categories can be targeted;
+- local creation rejects duplicate `(month, category)` or `(month, overall)` scope before sync;
+- unsynchronized create/update operations compact into the existing queued upsert;
+- deleting an unsynchronized budget cancels the local create; deleting a synchronized budget queues a versioned tombstone.
+
+Budget progress (`spentAmount`, remaining amount, percent used, days remaining and over-budget policy) is deliberately not reimplemented in Android. Those values remain server-derived product logic.
+
 ## Conflict policy
 
 The mobile client never silently overwrites a stale server value.
@@ -94,7 +122,7 @@ The UI exposes:
 - `Use server` for all conflicts;
 - `Retry mine` only for safe `stale_version` conflicts where a current server version and local payload both exist.
 
-`server_deleted` and ownership/visibility conflicts do not offer an unsafe automatic local overwrite.
+`server_deleted` and ownership/visibility conflicts do not offer an unsafe automatic local overwrite. Cross-account category/budget integration tests additionally require that an attempted mutation never returns another account's server payload or version.
 
 ## Authentication boundary
 
@@ -116,8 +144,7 @@ The generic mobile API client performs at most one refresh/retry after a 401 and
 - background synchronization;
 - Android release signing/AAB pipeline;
 - device/emulator E2E for offline/reconnect/conflict flows;
-- richer category/budget mobile workspaces;
-- server-derived Financial Intelligence, forecasts and Assistant screens.
+- server-derived Dashboard, Financial Intelligence, Historical Analysis, Predictions and Assistant screens.
 
 Background execution remains deliberately deferred: foreground synchronization must remain the correctness path even if Android never grants background execution time.
 
