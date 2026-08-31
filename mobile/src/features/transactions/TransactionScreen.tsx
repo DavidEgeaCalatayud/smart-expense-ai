@@ -13,6 +13,7 @@ import {
 } from 'react-native';
 
 import { useAuth } from '../../auth/AuthProvider';
+import { WorkspaceNav } from '../../components/WorkspaceNav';
 import type { LocalTransactionRow } from '../../database/types';
 import { useConflicts } from '../../sync/useConflicts';
 import { useForegroundSync } from '../../sync/useForegroundSync';
@@ -194,6 +195,8 @@ export function TransactionScreen() {
                 <Text style={styles.logoutText}>Sign out</Text>
               </Pressable>
             </View>
+
+            <WorkspaceNav active="transactions" />
 
             <Text style={styles.title}>Offline-first transactions</Text>
             <Text style={styles.subtitle}>

@@ -29,6 +29,8 @@ function AuthenticatedStack() {
       <Stack screenOptions={{ headerShown: false }}>
         <Stack.Protected guard={user !== null}>
           <Stack.Screen name="index" />
+          <Stack.Screen name="categories" />
+          <Stack.Screen name="budgets" />
         </Stack.Protected>
         <Stack.Protected guard={user === null}>
           <Stack.Screen name="sign-in" />
