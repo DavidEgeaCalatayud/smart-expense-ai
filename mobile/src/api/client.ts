@@ -1,9 +1,9 @@
 import { getOrCreateDeviceId } from '../auth/deviceIdentity';
 import { MobileAuthClient } from '../auth/mobileAuthClient';
 import {
-  clearMobileCredentials,
   getAccessToken,
   getRefreshToken,
+  invalidateMobileSessionAndRequireLocalWipe,
   saveMobileSession,
 } from '../auth/secureCredentials';
 
@@ -78,7 +78,7 @@ export class MobileApiClient {
           'status' in error &&
           (error as { status?: unknown }).status === 401
         ) {
-          await clearMobileCredentials();
+          await invalidateMobileSessionAndRequireLocalWipe();
         }
         throw error;
       } finally {
