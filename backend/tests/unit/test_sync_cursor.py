@@ -9,6 +9,9 @@ _BASE64URL_ALPHABET = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz01234
 
 
 def _noncanonical_signature_alias(signature: str) -> str:
+    # A 32-byte HMAC encodes to 43 unpadded Base64URL characters. The final character carries
+    # only two significant bits, so a permissive decoder can accept different textual aliases
+    # for the exact same signature bytes. The token contract deliberately rejects those aliases.
     last_index = _BASE64URL_ALPHABET.index(signature[-1])
     assert last_index % 16 == 0
     return signature[:-1] + _BASE64URL_ALPHABET[last_index + 1]
