@@ -3,11 +3,13 @@ const mockSetSyncState = jest.fn();
 const mockClearLocalAccountData = jest.fn();
 
 jest.mock('../src/sync/stateRepository', () => ({
+  __esModule: true,
   getSyncState: mockGetSyncState,
   setSyncState: mockSetSyncState,
 }));
 
 jest.mock('../src/database/clearAccountData', () => ({
+  __esModule: true,
   clearLocalAccountData: mockClearLocalAccountData,
 }));
 
