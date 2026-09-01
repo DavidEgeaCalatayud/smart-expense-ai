@@ -1,7 +1,6 @@
 appId: com.davidegea.smartexpenseai
 ---
-- launchApp:
-    clearState: true
+- launchApp
 - extendedWaitUntil:
     visible: "Welcome back"
     timeout: 60000
