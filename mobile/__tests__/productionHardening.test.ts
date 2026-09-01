@@ -2,10 +2,14 @@ import * as Crypto from 'expo-crypto';
 import * as SecureStore from 'expo-secure-store';
 
 import { normalizeMobileApiBaseUrl } from '../src/api/config';
+import { logoutMobileSession } from '../src/auth/sessionManager';
 import {
   acknowledgeLocalWipeRequirement,
+  getAccessToken,
+  getRefreshToken,
   hasLocalWipeRequirement,
   invalidateMobileSessionAndRequireLocalWipe,
+  saveMobileSession,
 } from '../src/auth/secureCredentials';
 import {
   applyAndVerifyDatabaseEncryption,
@@ -23,6 +27,7 @@ jest.mock('expo-secure-store', () => ({
 jest.mock('expo-crypto', () => ({
   __esModule: true,
   getRandomBytesAsync: jest.fn(),
+  randomUUID: jest.fn(),
 }));
 
 jest.mock('expo-sqlite', () => ({
@@ -32,6 +37,7 @@ jest.mock('expo-sqlite', () => ({
 }));
 
 const mockGetRandomBytesAsync = jest.mocked(Crypto.getRandomBytesAsync);
+const mockRandomUUID = jest.mocked(Crypto.randomUUID);
 const mockGetItemAsync = jest.mocked(SecureStore.getItemAsync);
 const mockSetItemAsync = jest.mocked(SecureStore.setItemAsync);
 const mockDeleteItemAsync = jest.mocked(SecureStore.deleteItemAsync);
@@ -41,11 +47,13 @@ describe('mobile production hardening', () => {
   beforeEach(() => {
     mockSecureValues.clear();
     mockGetRandomBytesAsync.mockReset();
+    mockRandomUUID.mockReset();
     mockGetItemAsync.mockReset();
     mockSetItemAsync.mockReset();
     mockDeleteItemAsync.mockReset();
 
     mockGetRandomBytesAsync.mockResolvedValue(new Uint8Array(32).fill(0xab));
+    mockRandomUUID.mockReturnValue('00000000-0000-4000-8000-000000000001');
     mockGetItemAsync.mockImplementation(async (key: string) => mockSecureValues.get(key) ?? null);
     mockSetItemAsync.mockImplementation(async (key: string, value: string) => {
       mockSecureValues.set(key, value);
@@ -120,5 +128,23 @@ describe('mobile production hardening', () => {
 
     await acknowledgeLocalWipeRequirement();
     await expect(hasLocalWipeRequirement()).resolves.toBe(false);
+  });
+
+  it('records the durable wipe requirement before explicit logout can finish local cleanup', async () => {
+    await saveMobileSession(
+      { accessToken: 'access-token', refreshToken: 'refresh-token' },
+      { id: 'user-a', email: 'user@example.test', displayName: 'User A' },
+    );
+    const logout = jest.fn(async () => undefined);
+
+    await logoutMobileSession({ logout } as never);
+
+    await expect(getAccessToken()).resolves.toBeNull();
+    await expect(getRefreshToken()).resolves.toBeNull();
+    await expect(hasLocalWipeRequirement()).resolves.toBe(true);
+    expect(logout).toHaveBeenCalledWith(
+      'refresh-token',
+      '00000000-0000-4000-8000-000000000001',
+    );
   });
 });
