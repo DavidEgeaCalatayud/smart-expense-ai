@@ -5,11 +5,13 @@ const mockRegisterTaskAsync = jest.fn();
 const mockUnregisterTaskAsync = jest.fn();
 
 jest.mock('expo-task-manager', () => ({
+  __esModule: true,
   defineTask: mockDefineTask,
   isTaskRegisteredAsync: mockIsTaskRegisteredAsync,
 }));
 
 jest.mock('expo-background-task', () => ({
+  __esModule: true,
   BackgroundTaskResult: { Success: 1, Failed: 2 },
   BackgroundTaskStatus: { Available: 1, Restricted: 2 },
   getStatusAsync: mockGetStatusAsync,
@@ -18,6 +20,7 @@ jest.mock('expo-background-task', () => ({
 }));
 
 jest.mock('expo-sqlite', () => ({
+  __esModule: true,
   openDatabaseAsync: jest.fn(),
   defaultDatabaseDirectory: '/tmp/sqlite',
   deleteDatabaseAsync: jest.fn(),
