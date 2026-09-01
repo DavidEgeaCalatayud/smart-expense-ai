@@ -95,6 +95,7 @@ jobs:
       - name: Build native Android debug APK
         env:
           APP_ENV: development
+          ORG_GRADLE_PROJECT_reactNativeArchitectures: x86_64
         run: npm run native:android:debug --workspace=@smart-expense-ai/mobile
 
       - name: Install pinned Maestro CLI
