@@ -3,6 +3,7 @@ set -euo pipefail
 
 PACKAGE_ID='com.davidegea.smartexpenseai'
 DATABASE_NAME='smart-expense-ai-secure.db'
+DATABASE_PATH="files/SQLite/$DATABASE_NAME"
 APK_PATH='mobile/android/app/build/outputs/apk/debug/app-debug.apk'
 MAESTRO_RESULTS="${RUNNER_TEMP:-/tmp}/maestro-results"
 BACKEND_PID_FILE="${RUNNER_TEMP:-/tmp}/mobile-e2e-backend.pid"
@@ -71,11 +72,12 @@ adb install -r "$APK_PATH"
 # Real FastAPI registration proves the native auth path and creates the first account boundary.
 run_flow register mobile/.maestro/01-register.yaml
 
-# SQLCipher databases must not expose the standard plaintext SQLite header on disk.
+# Expo SQLite stores Android databases under context.filesDir/SQLite by default. SQLCipher
+# databases must not expose the standard plaintext SQLite header at that real on-device path.
 plaintext_header='53514c69746520666f726d6174203300'
-encrypted_header="$({ adb exec-out run-as "$PACKAGE_ID" cat "databases/$DATABASE_NAME" | head -c 16 | od -An -tx1 | tr -d ' \n'; } || true)"
+encrypted_header="$({ adb exec-out run-as "$PACKAGE_ID" cat "$DATABASE_PATH" | head -c 16 | od -An -tx1 | tr -d ' \n'; } || true)"
 if [[ -z "$encrypted_header" ]]; then
-  echo 'Could not read the encrypted database header through run-as.' >&2
+  echo "Could not read the encrypted database header through run-as at $DATABASE_PATH." >&2
   exit 1
 fi
 if [[ "$encrypted_header" == "$plaintext_header" ]]; then

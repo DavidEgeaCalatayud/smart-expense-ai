@@ -138,7 +138,10 @@ jobs:
 
           (
             cd mobile
-            nohup setsid npx expo start --localhost --port 8081 \
+            # Expo's localhost host type can resolve to IPv6-only ::1 on Ubuntu runners while
+            # adb reverse and the native status probe use IPv4. LAN binds Metro on all runner
+            # interfaces; the ephemeral CI runner exposes no inbound public port.
+            nohup setsid npx expo start --lan --port 8081 \
               > "$RUNNER_TEMP/mobile-e2e-metro.log" 2>&1 &
             echo $! > "$RUNNER_TEMP/mobile-e2e-metro.pid"
           )
