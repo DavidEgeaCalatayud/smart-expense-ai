@@ -1,30 +1,24 @@
-const mockSecureValues = new Map<string, string>();
-const mockGetRandomBytesAsync = jest.fn(
-  async (count: number) => new Uint8Array(count).fill(0xab),
-);
-
 jest.mock('expo-secure-store', () => ({
   __esModule: true,
   WHEN_UNLOCKED_THIS_DEVICE_ONLY: 'WHEN_UNLOCKED_THIS_DEVICE_ONLY',
-  getItemAsync: jest.fn(async (key: string) => mockSecureValues.get(key) ?? null),
-  setItemAsync: jest.fn(async (key: string, value: string) => {
-    mockSecureValues.set(key, value);
-  }),
-  deleteItemAsync: jest.fn(async (key: string) => {
-    mockSecureValues.delete(key);
-  }),
+  getItemAsync: jest.fn(),
+  setItemAsync: jest.fn(),
+  deleteItemAsync: jest.fn(),
 }));
 
 jest.mock('expo-crypto', () => ({
   __esModule: true,
-  getRandomBytesAsync: mockGetRandomBytesAsync,
+  getRandomBytesAsync: jest.fn(),
 }));
 
 jest.mock('expo-sqlite', () => ({
   __esModule: true,
   defaultDatabaseDirectory: '/tmp/sqlite',
-  deleteDatabaseAsync: jest.fn(async () => undefined),
+  deleteDatabaseAsync: jest.fn(),
 }));
+
+import * as Crypto from 'expo-crypto';
+import * as SecureStore from 'expo-secure-store';
 
 import { normalizeMobileApiBaseUrl } from '../src/api/config';
 import {
@@ -36,10 +30,28 @@ import {
   getOrCreateDatabaseKeyHex,
 } from '../src/database/databaseEncryption';
 
+const mockGetRandomBytesAsync = jest.mocked(Crypto.getRandomBytesAsync);
+const mockGetItemAsync = jest.mocked(SecureStore.getItemAsync);
+const mockSetItemAsync = jest.mocked(SecureStore.setItemAsync);
+const mockDeleteItemAsync = jest.mocked(SecureStore.deleteItemAsync);
+const mockSecureValues = new Map<string, string>();
+
 describe('mobile production hardening', () => {
   beforeEach(() => {
     mockSecureValues.clear();
-    mockGetRandomBytesAsync.mockClear();
+    mockGetRandomBytesAsync.mockReset();
+    mockGetItemAsync.mockReset();
+    mockSetItemAsync.mockReset();
+    mockDeleteItemAsync.mockReset();
+
+    mockGetRandomBytesAsync.mockResolvedValue(new Uint8Array(32).fill(0xab));
+    mockGetItemAsync.mockImplementation(async (key: string) => mockSecureValues.get(key) ?? null);
+    mockSetItemAsync.mockImplementation(async (key: string, value: string) => {
+      mockSecureValues.set(key, value);
+    });
+    mockDeleteItemAsync.mockImplementation(async (key: string) => {
+      mockSecureValues.delete(key);
+    });
   });
 
   it('allows emulator HTTP only in development and requires HTTPS in production', () => {
