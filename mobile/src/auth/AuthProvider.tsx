@@ -149,8 +149,10 @@ export function AuthProvider({ children }: PropsWithChildren) {
     setIsSubmitting(true);
     setError(null);
     try {
+      // logoutMobileSession persists the wipe requirement before credentials are discarded.
       await logoutMobileSession(client);
       await clearLocalAccountData(db);
+      await acknowledgeLocalWipeRequirement();
       setUser(null);
     } finally {
       setIsSubmitting(false);
