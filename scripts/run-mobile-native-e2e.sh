@@ -73,9 +73,10 @@ prewarm_android_bundle() {
     initial_lines="$(wc -l < "$METRO_LOG")"
   fi
 
-  # The first Metro bundle on a fresh CI runner can take around 20 seconds, which is close to
-  # Maestro's default assertion timeout. Warm the exact native entrypoint once, then stop the app;
-  # the real flow still starts with clearState=true, so no account or SQLite state is retained.
+  # The first Metro bundle on a fresh CI runner can take around 20 seconds. Warm the exact native
+  # entrypoint once before Maestro, then preserve the resulting SQLCipher database + SecureStore
+  # key pair for the real flows. Clearing app state after this point would orphan the encrypted DB
+  # from its key and correctly make SQLCipher fail closed with "file is not a database".
   adb shell am start -W -n "$PACKAGE_ID/.MainActivity" > /dev/null
   for attempt in $(seq 1 90); do
     if tail -n "+$((initial_lines + 1))" "$METRO_LOG" 2>/dev/null \
@@ -95,6 +96,11 @@ prewarm_android_bundle() {
 adb wait-for-device
 adb reverse tcp:8081 tcp:8081
 adb install -r "$APK_PATH"
+
+# Guarantee a deterministic empty app sandbox once, before SQLCipher creates its database key.
+# All subsequent flows preserve app state so the encrypted database and SecureStore key stay paired.
+adb shell pm clear "$PACKAGE_ID" > /dev/null
+adb reverse tcp:8081 tcp:8081
 prewarm_android_bundle
 
 # Real FastAPI registration proves the native auth path and creates the first account boundary.
