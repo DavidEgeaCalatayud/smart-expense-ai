@@ -4,6 +4,7 @@ set -euo pipefail
 PACKAGE_ID='com.davidegea.smartexpenseai'
 DATABASE_NAME='smart-expense-ai-secure.db'
 DATABASE_PATH="files/SQLite/$DATABASE_NAME"
+LEGACY_DATABASE_PATH='files/SQLite/smart-expense-ai.db'
 APK_PATH='mobile/android/app/build/outputs/apk/debug/app-debug.apk'
 MAESTRO_RESULTS="${RUNNER_TEMP:-/tmp}/maestro-results"
 BACKEND_PID_FILE="${RUNNER_TEMP:-/tmp}/mobile-e2e-backend.pid"
@@ -68,6 +69,24 @@ run_flow() {
     "$@"
 }
 
+print_database_file_diagnostics() {
+  local path
+  echo 'On-device SQLite diagnostics:' >&2
+  adb shell run-as "$PACKAGE_ID" sh -c 'ls -la files/SQLite 2>/dev/null || true' >&2 || true
+
+  for path in "$DATABASE_PATH" "$LEGACY_DATABASE_PATH"; do
+    if adb shell run-as "$PACKAGE_ID" test -f "$path" >/dev/null 2>&1; then
+      local size
+      local header
+      size="$(adb shell run-as "$PACKAGE_ID" wc -c < "$path" 2>/dev/null | tr -d '\r' || true)"
+      header="$({ adb exec-out run-as "$PACKAGE_ID" cat "$path" | head -c 16 | od -An -tx1 | tr -d ' \n'; } || true)"
+      echo "  $path size=${size:-unknown} header=${header:-unavailable}" >&2
+    else
+      echo "  $path absent" >&2
+    fi
+  done
+}
+
 prewarm_android_bundle() {
   local initial_lines=0
   if [[ -f "$METRO_LOG" ]]; then
@@ -95,6 +114,7 @@ prewarm_android_bundle() {
   if [[ "$bundle_finished" != true ]]; then
     echo 'Android development bundle did not finish during E2E prewarm.' >&2
     tail -n 200 "$METRO_LOG" >&2 || true
+    print_database_file_diagnostics
     adb logcat -d -t 300 | grep -E "$PACKAGE_ID|ReactNativeJS|FATAL EXCEPTION|ANR in" >&2 || true
     return 1
   fi
@@ -112,6 +132,7 @@ prewarm_android_bundle() {
     if adb logcat -d -t 250 2>/dev/null | grep -q 'file is not a database'; then
       echo 'SQLCipher failed before the Android prewarm reached the login screen.' >&2
       tail -n 200 "$METRO_LOG" >&2 || true
+      print_database_file_diagnostics
       adb logcat -d -t 300 | grep -E "$PACKAGE_ID|ReactNativeJS|file is not a database|FATAL EXCEPTION|ANR in" >&2 || true
       return 1
     fi
@@ -120,6 +141,7 @@ prewarm_android_bundle() {
 
   echo 'Android app did not finish native initialization during E2E prewarm.' >&2
   tail -n 200 "$METRO_LOG" >&2 || true
+  print_database_file_diagnostics
   adb shell uiautomator dump "$PREWARM_UI_DUMP" > /dev/null 2>&1 || true
   adb shell cat "$PREWARM_UI_DUMP" >&2 2>/dev/null || true
   adb logcat -d -t 300 | grep -E "$PACKAGE_ID|ReactNativeJS|FATAL EXCEPTION|ANR in" >&2 || true
