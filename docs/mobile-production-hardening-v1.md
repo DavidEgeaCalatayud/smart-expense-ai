@@ -23,8 +23,12 @@ At startup the application:
 5. forces a schema-page read before running application migrations;
 6. migrates the old plaintext beta database, when present, using SQLCipher `sqlcipher_export()`;
 7. preserves the prior SQLite `user_version` during that migration;
-8. deletes the plaintext predecessor only after the encrypted export succeeds;
-9. runs the normal versioned application migrations and verifies SQLCipher again.
+8. verifies the encrypted destination with `PRAGMA integrity_check`;
+9. writes a dedicated migration-completion marker that is distinct from ordinary application schema;
+10. deletes the plaintext predecessor only after export, integrity verification and completion marking succeed;
+11. runs the normal versioned application migrations and verifies SQLCipher again.
+
+The completion marker deliberately prevents ordinary destination tables from being treated as proof of success. If both a plaintext source and an unmarked destination schema exist, startup fails closed and preserves the plaintext source for recovery instead of risking deletion after a partial export.
 
 The database key is never committed, never placed in `EXPO_PUBLIC_*`, never stored in SQLite and never sent to FastAPI.
 
