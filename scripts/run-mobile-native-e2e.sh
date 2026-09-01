@@ -154,7 +154,9 @@ wait_for_metro_pattern() {
   local attempts="$3"
 
   for attempt in $(seq 1 "$attempts"); do
-    if metro_log_since "$initial_lines" | grep -qE "$pattern"; then
+    # Do not use grep -q here: with pipefail an early grep exit can SIGPIPE tail/tr and turn a
+    # successful match into status 141. Reading the short Metro delta fully keeps the probe stable.
+    if metro_log_since "$initial_lines" | grep -E "$pattern" > /dev/null; then
       return 0
     fi
     sleep 1
@@ -216,13 +218,13 @@ prewarm_android_bundle() {
   # with the persisted SecureStore key after process death.
   for attempt in $(seq 1 60); do
     if adb shell uiautomator dump "$PREWARM_UI_DUMP" > /dev/null 2>&1 \
-      && adb shell cat "$PREWARM_UI_DUMP" 2>/dev/null | grep -q 'Welcome back'; then
+      && adb shell cat "$PREWARM_UI_DUMP" 2>/dev/null | grep 'Welcome back' > /dev/null; then
       adb shell rm -f "$PREWARM_UI_DUMP" || true
       adb shell am force-stop "$PACKAGE_ID"
       return 0
     fi
 
-    if adb logcat -d -t 300 2>/dev/null | grep -q 'file is not a database'; then
+    if adb logcat -d -t 300 2>/dev/null | grep 'file is not a database' > /dev/null; then
       echo 'SQLCipher failed before the Android prewarm reached the login screen.' >&2
       tail -n 200 "$METRO_LOG" >&2 || true
       capture_prewarm_diagnostics
