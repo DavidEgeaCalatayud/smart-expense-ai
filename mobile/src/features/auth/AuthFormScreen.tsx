@@ -103,6 +103,7 @@ export function AuthFormScreen({ mode }: AuthFormScreenProps) {
             {error ? <Text style={styles.error}>{error}</Text> : null}
 
             <Pressable
+              accessibilityLabel={isRegister ? 'Submit create account' : 'Submit sign in'}
               accessibilityRole="button"
               disabled={disabled}
               onPress={() => void submit()}
