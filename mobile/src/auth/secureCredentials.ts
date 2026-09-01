@@ -79,11 +79,16 @@ export async function invalidateMobileSessionAndRequireLocalWipe(): Promise<void
   await SecureStore.setItemAsync(LOCAL_WIPE_REQUIRED_KEY, '1', SECURE_OPTIONS);
 }
 
-export async function consumeLocalWipeRequirement(): Promise<boolean> {
-  const required = await SecureStore.getItemAsync(LOCAL_WIPE_REQUIRED_KEY, SECURE_OPTIONS);
-  if (!required) {
-    return false;
-  }
-  await SecureStore.deleteItemAsync(LOCAL_WIPE_REQUIRED_KEY, SECURE_OPTIONS);
-  return true;
+/**
+ * Returns whether account-local SQLite data must be wiped without consuming the requirement.
+ *
+ * The marker must survive crashes between session restoration and the actual SQLite wipe. It is
+ * therefore acknowledged only after clearLocalAccountData() has completed successfully.
+ */
+export async function hasLocalWipeRequirement(): Promise<boolean> {
+  return Boolean(await SecureStore.getItemAsync(LOCAL_WIPE_REQUIRED_KEY, SECURE_OPTIONS));
+}
+
+export function acknowledgeLocalWipeRequirement(): Promise<void> {
+  return SecureStore.deleteItemAsync(LOCAL_WIPE_REQUIRED_KEY, SECURE_OPTIONS);
 }
