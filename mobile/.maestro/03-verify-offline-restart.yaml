@@ -1,0 +1,8 @@
+appId: com.davidegea.smartexpenseai
+---
+- launchApp
+- extendedWaitUntil:
+    visible: "Offline-first transactions"
+    timeout: 15000
+- assertVisible: "Offline Coffee"
+- assertVisible: "Pending sync"

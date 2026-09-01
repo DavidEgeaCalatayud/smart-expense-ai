@@ -3,6 +3,15 @@
     "appVersionSource": "remote"
   },
   "build": {
+    "e2e-test": {
+      "withoutCredentials": true,
+      "env": {
+        "APP_ENV": "preview"
+      },
+      "android": {
+        "buildType": "apk"
+      }
+    },
     "preview": {
       "distribution": "internal",
       "env": {
