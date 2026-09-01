@@ -8,8 +8,10 @@ APK_PATH='mobile/android/app/build/outputs/apk/debug/app-debug.apk'
 MAESTRO_RESULTS="${RUNNER_TEMP:-/tmp}/maestro-results"
 BACKEND_PID_FILE="${RUNNER_TEMP:-/tmp}/mobile-e2e-backend.pid"
 BACKEND_LOG="${RUNNER_TEMP:-/tmp}/mobile-e2e-backend.log"
+METRO_LOG="${RUNNER_TEMP:-/tmp}/mobile-e2e-metro.log"
 
 mkdir -p "$MAESTRO_RESULTS"
+export MAESTRO_CLI_NO_ANALYTICS=1
 
 e2e_email_a="mobile-e2e-${GITHUB_RUN_ID:-local}-${GITHUB_RUN_ATTEMPT:-1}-a@example.com"
 e2e_email_b="mobile-e2e-${GITHUB_RUN_ID:-local}-${GITHUB_RUN_ATTEMPT:-1}-b@example.com"
@@ -65,9 +67,35 @@ run_flow() {
     "$@"
 }
 
+prewarm_android_bundle() {
+  local initial_lines=0
+  if [[ -f "$METRO_LOG" ]]; then
+    initial_lines="$(wc -l < "$METRO_LOG")"
+  fi
+
+  # The first Metro bundle on a fresh CI runner can take around 20 seconds, which is close to
+  # Maestro's default assertion timeout. Warm the exact native entrypoint once, then stop the app;
+  # the real flow still starts with clearState=true, so no account or SQLite state is retained.
+  adb shell am start -W -n "$PACKAGE_ID/.MainActivity" > /dev/null
+  for attempt in $(seq 1 90); do
+    if tail -n "+$((initial_lines + 1))" "$METRO_LOG" 2>/dev/null \
+      | grep -qE 'Android Bundled .*mobile/index\.ts'; then
+      adb shell am force-stop "$PACKAGE_ID"
+      return 0
+    fi
+    sleep 1
+  done
+
+  echo 'Android development bundle did not finish during E2E prewarm.' >&2
+  tail -n 200 "$METRO_LOG" >&2 || true
+  adb logcat -d -t 300 | grep -E "$PACKAGE_ID|FATAL EXCEPTION|ANR in" >&2 || true
+  return 1
+}
+
 adb wait-for-device
 adb reverse tcp:8081 tcp:8081
 adb install -r "$APK_PATH"
+prewarm_android_bundle
 
 # Real FastAPI registration proves the native auth path and creates the first account boundary.
 run_flow register mobile/.maestro/01-register.yaml
