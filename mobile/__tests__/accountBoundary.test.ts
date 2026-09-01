@@ -1,3 +1,7 @@
+import { clearLocalAccountData } from '../src/database/clearAccountData';
+import { bindLocalAccount } from '../src/database/accountBoundary';
+import { getSyncState, setSyncState } from '../src/sync/stateRepository';
+
 jest.mock('../src/sync/stateRepository', () => ({
   __esModule: true,
   getSyncState: jest.fn(),
@@ -8,10 +12,6 @@ jest.mock('../src/database/clearAccountData', () => ({
   __esModule: true,
   clearLocalAccountData: jest.fn(),
 }));
-
-import { clearLocalAccountData } from '../src/database/clearAccountData';
-import { bindLocalAccount } from '../src/database/accountBoundary';
-import { getSyncState, setSyncState } from '../src/sync/stateRepository';
 
 const mockGetSyncState = jest.mocked(getSyncState);
 const mockSetSyncState = jest.mocked(setSyncState);
