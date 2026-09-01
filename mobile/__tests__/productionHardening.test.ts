@@ -1,3 +1,16 @@
+import * as Crypto from 'expo-crypto';
+import * as SecureStore from 'expo-secure-store';
+
+import { normalizeMobileApiBaseUrl } from '../src/api/config';
+import {
+  consumeLocalWipeRequirement,
+  invalidateMobileSessionAndRequireLocalWipe,
+} from '../src/auth/secureCredentials';
+import {
+  applyAndVerifyDatabaseEncryption,
+  getOrCreateDatabaseKeyHex,
+} from '../src/database/databaseEncryption';
+
 jest.mock('expo-secure-store', () => ({
   __esModule: true,
   WHEN_UNLOCKED_THIS_DEVICE_ONLY: 'WHEN_UNLOCKED_THIS_DEVICE_ONLY',
@@ -16,19 +29,6 @@ jest.mock('expo-sqlite', () => ({
   defaultDatabaseDirectory: '/tmp/sqlite',
   deleteDatabaseAsync: jest.fn(),
 }));
-
-import * as Crypto from 'expo-crypto';
-import * as SecureStore from 'expo-secure-store';
-
-import { normalizeMobileApiBaseUrl } from '../src/api/config';
-import {
-  consumeLocalWipeRequirement,
-  invalidateMobileSessionAndRequireLocalWipe,
-} from '../src/auth/secureCredentials';
-import {
-  applyAndVerifyDatabaseEncryption,
-  getOrCreateDatabaseKeyHex,
-} from '../src/database/databaseEncryption';
 
 const mockGetRandomBytesAsync = jest.mocked(Crypto.getRandomBytesAsync);
 const mockGetItemAsync = jest.mocked(SecureStore.getItemAsync);
