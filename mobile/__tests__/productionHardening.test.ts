@@ -1,5 +1,6 @@
 import * as Crypto from 'expo-crypto';
 import * as SecureStore from 'expo-secure-store';
+import * as SQLite from 'expo-sqlite';
 
 import { normalizeMobileApiBaseUrl } from '../src/api/config';
 import { logoutMobileSession } from '../src/auth/sessionManager';
@@ -14,6 +15,7 @@ import {
 import {
   applyAndVerifyDatabaseEncryption,
   getOrCreateDatabaseKeyHex,
+  migrateLegacyPlaintextDatabase,
 } from '../src/database/databaseEncryption';
 
 jest.mock('expo-secure-store', () => ({
@@ -41,6 +43,7 @@ const mockRandomUUID = jest.mocked(Crypto.randomUUID);
 const mockGetItemAsync = jest.mocked(SecureStore.getItemAsync);
 const mockSetItemAsync = jest.mocked(SecureStore.setItemAsync);
 const mockDeleteItemAsync = jest.mocked(SecureStore.deleteItemAsync);
+const mockDeleteDatabaseAsync = jest.mocked(SQLite.deleteDatabaseAsync);
 const mockSecureValues = new Map<string, string>();
 
 describe('mobile production hardening', () => {
@@ -51,6 +54,7 @@ describe('mobile production hardening', () => {
     mockGetItemAsync.mockReset();
     mockSetItemAsync.mockReset();
     mockDeleteItemAsync.mockReset();
+    mockDeleteDatabaseAsync.mockReset();
 
     mockGetRandomBytesAsync.mockResolvedValue(new Uint8Array(32).fill(0xab));
     mockRandomUUID.mockReturnValue('00000000-0000-4000-8000-000000000001');
@@ -61,6 +65,7 @@ describe('mobile production hardening', () => {
     mockDeleteItemAsync.mockImplementation(async (key: string) => {
       mockSecureValues.delete(key);
     });
+    mockDeleteDatabaseAsync.mockResolvedValue();
   });
 
   it('allows emulator HTTP only in development and requires HTTPS in production', () => {
@@ -116,6 +121,70 @@ describe('mobile production hardening', () => {
     expect(calls[0]).toMatch(/^PRAGMA key/);
     expect(calls[1]).toBe('PRAGMA cipher_version');
     expect(calls[2]).toBe('SELECT COUNT(*) AS count FROM sqlite_master');
+  });
+
+  it('preserves the plaintext source when destination schema exists without a completion marker', async () => {
+    const execAsync = jest.fn(async () => undefined);
+    const runAsync = jest.fn(async () => ({ changes: 0, lastInsertRowId: 0 }));
+    const getFirstAsync = jest.fn(async (sql: string) => {
+      if (sql.includes("name = '__smart_expense_sqlcipher_plaintext_migration_v1'")) {
+        return { count: 0 };
+      }
+      if (sql.includes('FROM main.sqlite_master')) {
+        return { count: 1 };
+      }
+      if (sql.includes('FROM legacy.sqlite_master')) {
+        return { count: 1 };
+      }
+      return null;
+    });
+
+    await expect(
+      migrateLegacyPlaintextDatabase({ execAsync, runAsync, getFirstAsync } as never),
+    ).rejects.toThrow('migration state is ambiguous');
+
+    expect(execAsync).toHaveBeenCalledWith('DETACH DATABASE legacy');
+    expect(mockDeleteDatabaseAsync).not.toHaveBeenCalled();
+  });
+
+  it('deletes legacy plaintext only after export, integrity verification and completion marking', async () => {
+    const calls: string[] = [];
+    const execAsync = jest.fn(async (sql: string) => {
+      calls.push(sql);
+    });
+    const runAsync = jest.fn(async (sql: string) => {
+      calls.push(sql);
+      return { changes: 1, lastInsertRowId: 1 };
+    });
+    const getFirstAsync = jest.fn(async (sql: string) => {
+      calls.push(sql);
+      if (sql.includes("name = '__smart_expense_sqlcipher_plaintext_migration_v1'")) {
+        return { count: 0 };
+      }
+      if (sql.includes('FROM main.sqlite_master')) {
+        return { count: 0 };
+      }
+      if (sql.includes('FROM legacy.sqlite_master')) {
+        return { count: 1 };
+      }
+      if (sql === 'PRAGMA legacy.user_version') {
+        return { user_version: 2 };
+      }
+      if (sql === 'PRAGMA integrity_check') {
+        return { integrity_check: 'ok' };
+      }
+      return null;
+    });
+
+    await migrateLegacyPlaintextDatabase({ execAsync, runAsync, getFirstAsync } as never);
+
+    expect(calls).toContain("SELECT sqlcipher_export('main', 'legacy')");
+    expect(calls).toContain('PRAGMA user_version = 2');
+    expect(calls).toContain('PRAGMA integrity_check');
+    expect(calls.some((call) => call.startsWith('CREATE TABLE __smart_expense_sqlcipher_plaintext_migration_v1'))).toBe(
+      true,
+    );
+    expect(mockDeleteDatabaseAsync).toHaveBeenCalledTimes(1);
   });
 
   it('keeps terminal credential invalidation durable until the local wipe is acknowledged', async () => {
