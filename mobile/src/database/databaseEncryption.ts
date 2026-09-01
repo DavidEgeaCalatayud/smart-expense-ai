@@ -7,6 +7,7 @@ import { DATABASE_NAME, LEGACY_DATABASE_NAME } from './constants';
 
 const DATABASE_KEY_STORAGE_KEY = 'smart-expense-ai.database-key-v1';
 const DATABASE_KEY_BYTES = 32;
+const LEGACY_MIGRATION_COMPLETION_TABLE = '__smart_expense_sqlcipher_plaintext_migration_v1';
 
 const SECURE_OPTIONS: SecureStore.SecureStoreOptions = {
   keychainAccessible: SecureStore.WHEN_UNLOCKED_THIS_DEVICE_ONLY,
@@ -68,6 +69,35 @@ async function hasApplicationSchema(db: SQLiteDatabase, database = 'main'): Prom
   return (row?.count ?? 0) > 0;
 }
 
+async function hasLegacyMigrationCompletionMarker(db: SQLiteDatabase): Promise<boolean> {
+  const row = await db.getFirstAsync<{ count: number }>(
+    `SELECT COUNT(*) AS count
+       FROM main.sqlite_master
+      WHERE type = 'table'
+        AND name = '${LEGACY_MIGRATION_COMPLETION_TABLE}'`,
+  );
+  return (row?.count ?? 0) === 1;
+}
+
+async function markLegacyMigrationComplete(db: SQLiteDatabase): Promise<void> {
+  await db.execAsync(
+    `CREATE TABLE ${LEGACY_MIGRATION_COMPLETION_TABLE} (
+       completed_at TEXT NOT NULL
+     )`,
+  );
+  await db.runAsync(
+    `INSERT INTO ${LEGACY_MIGRATION_COMPLETION_TABLE} (completed_at) VALUES (?)`,
+    new Date().toISOString(),
+  );
+}
+
+async function assertDatabaseIntegrity(db: SQLiteDatabase): Promise<void> {
+  const result = await db.getFirstAsync<{ integrity_check?: string }>('PRAGMA integrity_check');
+  if (result?.integrity_check !== 'ok') {
+    throw new Error('SQLCipher migration integrity check failed');
+  }
+}
+
 async function deleteLegacyDatabaseBestEffort(): Promise<void> {
   try {
     await SQLite.deleteDatabaseAsync(LEGACY_DATABASE_NAME);
@@ -81,31 +111,46 @@ async function deleteLegacyDatabaseBestEffort(): Promise<void> {
  *
  * SQLCipher cannot encrypt a standard SQLite file in place with PRAGMA rekey. The supported path
  * is to attach the plaintext database with an empty key and copy it into the encrypted database
- * through sqlcipher_export(). The plaintext file is deleted only after the export succeeds.
+ * through sqlcipher_export(). The plaintext file is deleted only after the export, integrity
+ * verification and an explicit completion marker all succeed.
+ *
+ * The completion marker is intentionally separate from ordinary application schema. sqlcipher_export
+ * may leave destination schema behind if a late export step fails, so merely seeing tables in main
+ * is not sufficient evidence that the legacy database is safe to delete.
  */
 export async function migrateLegacyPlaintextDatabase(db: SQLiteDatabase): Promise<void> {
-  if (await hasApplicationSchema(db)) {
-    // The encrypted database is already initialized. Remove any stale plaintext predecessor left
-    // behind by an interrupted post-export cleanup.
-    await deleteLegacyDatabaseBestEffort();
-    return;
-  }
+  const mainAlreadyHasSchema = await hasApplicationSchema(db);
 
   await db.runAsync('ATTACH DATABASE ? AS legacy KEY ?', databasePath(LEGACY_DATABASE_NAME), '');
-  let exportSucceeded = false;
+  let shouldDeleteLegacy = false;
   try {
-    if (await hasApplicationSchema(db, 'legacy')) {
+    const legacyHasSchema = await hasApplicationSchema(db, 'legacy');
+
+    if (!legacyHasSchema) {
+      // ATTACH creates an empty file when the old database is absent. Remove that empty probe file.
+      shouldDeleteLegacy = true;
+    } else if (await hasLegacyMigrationCompletionMarker(db)) {
+      // A previous export committed fully but the process died before plaintext cleanup.
+      shouldDeleteLegacy = true;
+    } else if (mainAlreadyHasSchema) {
+      // Never infer completion from destination schema alone: a failed sqlcipher_export can leave a
+      // partially populated schema. Preserve the plaintext source and fail closed for recovery.
+      throw new Error(
+        'Legacy SQLite migration state is ambiguous; plaintext source preserved for recovery',
+      );
+    } else {
       const version = await db.getFirstAsync<{ user_version: number }>('PRAGMA legacy.user_version');
       await db.execAsync("SELECT sqlcipher_export('main', 'legacy')");
       await db.execAsync(`PRAGMA user_version = ${Math.max(0, version?.user_version ?? 0)}`);
-      await db.getFirstAsync<{ count: number }>('SELECT COUNT(*) AS count FROM sqlite_master');
+      await assertDatabaseIntegrity(db);
+      await markLegacyMigrationComplete(db);
+      shouldDeleteLegacy = true;
     }
-    exportSucceeded = true;
   } finally {
     await db.execAsync('DETACH DATABASE legacy');
   }
 
-  if (exportSucceeded) {
+  if (shouldDeleteLegacy) {
     await deleteLegacyDatabaseBestEffort();
   }
 }
