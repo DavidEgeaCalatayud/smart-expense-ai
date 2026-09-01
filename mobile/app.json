@@ -2,18 +2,31 @@
   "expo": {
     "name": "Smart Expense AI",
     "slug": "smart-expense-ai-mobile",
-    "version": "0.1.0",
+    "version": "0.2.0",
     "orientation": "portrait",
     "scheme": "smartexpenseai",
     "userInterfaceStyle": "automatic",
     "newArchEnabled": true,
     "android": {
       "package": "com.davidegea.smartexpenseai",
+      "versionCode": 1,
+      "allowBackup": false,
       "predictiveBackGestureEnabled": false
     },
     "plugins": [
       "expo-router",
-      "expo-secure-store"
+      [
+        "expo-secure-store",
+        {
+          "configureAndroidBackup": true
+        }
+      ],
+      [
+        "expo-sqlite",
+        {
+          "useSQLCipher": true
+        }
+      ]
     ],
     "experiments": {
       "typedRoutes": true

@@ -5,6 +5,8 @@ import {
   getAccessToken,
   getMobileUser,
   getRefreshToken,
+  hasLocalWipeRequirement,
+  invalidateMobileSessionAndRequireLocalWipe,
   saveMobileSession,
   type MobileAuthUser,
 } from './secureCredentials';
@@ -32,6 +34,12 @@ function isUnauthorized(error: unknown): boolean {
 export async function restoreMobileSession(
   client: MobileAuthClient,
 ): Promise<SessionRestoreResult> {
+  if (await hasLocalWipeRequirement()) {
+    // Keep the durable marker in place until AuthProvider has actually cleared SQLite.
+    await clearMobileCredentials();
+    return { user: null, shouldClearLocalData: true };
+  }
+
   const [accessToken, refreshToken, cachedUser] = await Promise.all([
     getAccessToken(),
     getRefreshToken(),
@@ -41,7 +49,9 @@ export async function restoreMobileSession(
   if (!accessToken || !refreshToken || !cachedUser) {
     const hadPartialSession = Boolean(accessToken || refreshToken || cachedUser);
     if (hadPartialSession) {
-      await clearMobileCredentials();
+      // Persist the wipe requirement before returning control to the UI. A process death between
+      // session restoration and SQLite cleanup must not make the cleanup disappear.
+      await invalidateMobileSessionAndRequireLocalWipe();
     }
     return { user: null, shouldClearLocalData: hadPartialSession };
   }
@@ -68,7 +78,7 @@ export async function restoreMobileSession(
     if (!isUnauthorized(error)) {
       return { user: cachedUser, shouldClearLocalData: false };
     }
-    await clearMobileCredentials();
+    await invalidateMobileSessionAndRequireLocalWipe();
     return { user: null, shouldClearLocalData: true };
   }
 }
@@ -104,5 +114,8 @@ export async function logoutMobileSession(client: MobileAuthClient): Promise<voi
       // Local logout is authoritative for device privacy even when the network is unavailable.
     }
   }
-  await clearMobileCredentials();
+
+  // Record the local deletion requirement before the UI starts wiping SQLite. This keeps logout
+  // crash-safe: a process death after credentials are removed still retries the wipe on startup.
+  await invalidateMobileSessionAndRequireLocalWipe();
 }

@@ -10,6 +10,10 @@ import {
 } from 'react';
 
 import { getMobileApiBaseUrl } from '../api/config';
+import {
+  registerBackgroundSyncAsync,
+  unregisterBackgroundSyncAsync,
+} from '../background/backgroundSync';
 import { bindLocalAccount } from '../database/accountBoundary';
 import { clearLocalAccountData } from '../database/clearAccountData';
 import { MobileAuthClient } from './mobileAuthClient';
@@ -19,7 +23,10 @@ import {
   registerMobileSession,
   restoreMobileSession,
 } from './sessionManager';
-import type { MobileAuthUser } from './secureCredentials';
+import {
+  acknowledgeLocalWipeRequirement,
+  type MobileAuthUser,
+} from './secureCredentials';
 
 interface AuthContextValue {
   user: MobileAuthUser | null;
@@ -55,7 +62,10 @@ export function AuthProvider({ children }: PropsWithChildren) {
       try {
         const restored = await restoreMobileSession(client);
         if (restored.shouldClearLocalData) {
+          // A headless revocation marker is acknowledged only after the SQLite wipe succeeds. If
+          // the process dies during the wipe the marker remains, so the next startup retries it.
           await clearLocalAccountData(db);
+          await acknowledgeLocalWipeRequirement();
         }
         if (restored.user) {
           await bindLocalAccount(db, restored.user.id);
@@ -78,6 +88,21 @@ export function AuthProvider({ children }: PropsWithChildren) {
       cancelled = true;
     };
   }, [client, db]);
+
+  useEffect(() => {
+    if (isLoading) {
+      return;
+    }
+    if (user) {
+      void registerBackgroundSyncAsync().catch(() => {
+        // Background execution is best-effort; foreground sync remains the correctness path.
+      });
+    } else {
+      void unregisterBackgroundSyncAsync().catch(() => {
+        // A restricted/unavailable scheduler must never block authentication flows.
+      });
+    }
+  }, [isLoading, user]);
 
   const login = useCallback(
     async (email: string, password: string) => {
@@ -124,8 +149,10 @@ export function AuthProvider({ children }: PropsWithChildren) {
     setIsSubmitting(true);
     setError(null);
     try {
+      // logoutMobileSession persists the wipe requirement before credentials are discarded.
       await logoutMobileSession(client);
       await clearLocalAccountData(db);
+      await acknowledgeLocalWipeRequirement();
       setUser(null);
     } finally {
       setIsSubmitting(false);

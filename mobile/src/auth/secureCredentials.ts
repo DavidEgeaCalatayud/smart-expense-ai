@@ -3,6 +3,7 @@ import * as SecureStore from 'expo-secure-store';
 const ACCESS_TOKEN_KEY = 'smart-expense-ai.access-token';
 const REFRESH_TOKEN_KEY = 'smart-expense-ai.refresh-token';
 const USER_KEY = 'smart-expense-ai.auth-user';
+const LOCAL_WIPE_REQUIRED_KEY = 'smart-expense-ai.local-wipe-required';
 
 const SECURE_OPTIONS: SecureStore.SecureStoreOptions = {
   keychainAccessible: SecureStore.WHEN_UNLOCKED_THIS_DEVICE_ONLY,
@@ -71,4 +72,23 @@ export async function clearMobileCredentials(): Promise<void> {
     SecureStore.deleteItemAsync(REFRESH_TOKEN_KEY, SECURE_OPTIONS),
     SecureStore.deleteItemAsync(USER_KEY, SECURE_OPTIONS),
   ]);
+}
+
+export async function invalidateMobileSessionAndRequireLocalWipe(): Promise<void> {
+  await clearMobileCredentials();
+  await SecureStore.setItemAsync(LOCAL_WIPE_REQUIRED_KEY, '1', SECURE_OPTIONS);
+}
+
+/**
+ * Returns whether account-local SQLite data must be wiped without consuming the requirement.
+ *
+ * The marker must survive crashes between session restoration and the actual SQLite wipe. It is
+ * therefore acknowledged only after clearLocalAccountData() has completed successfully.
+ */
+export async function hasLocalWipeRequirement(): Promise<boolean> {
+  return Boolean(await SecureStore.getItemAsync(LOCAL_WIPE_REQUIRED_KEY, SECURE_OPTIONS));
+}
+
+export function acknowledgeLocalWipeRequirement(): Promise<void> {
+  return SecureStore.deleteItemAsync(LOCAL_WIPE_REQUIRED_KEY, SECURE_OPTIONS);
 }
