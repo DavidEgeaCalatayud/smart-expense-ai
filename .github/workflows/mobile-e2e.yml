@@ -48,6 +48,7 @@ jobs:
       EXPO_NO_TELEMETRY: '1'
       EXPO_NO_QR_CODE: '1'
       EXPO_NO_TYPESCRIPT_SETUP: '1'
+      EXPO_UNSTABLE_HEADLESS: '1'
     services:
       postgres:
         image: postgres:16
@@ -135,64 +136,24 @@ jobs:
             exit 1
           fi
 
-          start_metro() {
-            (
-              cd mobile
-              nohup setsid npx expo start --localhost --port 8081 \
-                >> "$RUNNER_TEMP/mobile-e2e-metro.log" 2>&1 &
-              echo $! > "$RUNNER_TEMP/mobile-e2e-metro.pid"
-            )
-          }
+          (
+            cd mobile
+            nohup setsid npx expo start --localhost --port 8081 \
+              > "$RUNNER_TEMP/mobile-e2e-metro.log" 2>&1 &
+            echo $! > "$RUNNER_TEMP/mobile-e2e-metro.pid"
+          )
 
-          stop_metro() {
-            if [[ -f "$RUNNER_TEMP/mobile-e2e-metro.pid" ]]; then
-              metro_pid="$(cat "$RUNNER_TEMP/mobile-e2e-metro.pid")"
-              kill -- "-$metro_pid" 2>/dev/null || kill "$metro_pid" 2>/dev/null || true
-              sleep 2
+          for attempt in $(seq 1 60); do
+            if curl --fail --silent --max-time 2 \
+              'http://127.0.0.1:8081/_expo/open?platform=android' > /dev/null; then
+              break
             fi
-          }
+            sleep 1
+          done
 
-          metro_ready() {
-            curl --fail --silent --max-time 2 \
-              'http://127.0.0.1:8081/_expo/open?platform=android' > /dev/null
-          }
-
-          wait_for_metro() {
-            for attempt in $(seq 1 45); do
-              if metro_ready; then
-                return 0
-              fi
-              sleep 1
-            done
-            return 1
-          }
-
-          : > "$RUNNER_TEMP/mobile-e2e-metro.log"
-          start_metro
-          if ! wait_for_metro; then
-            if grep -q 'React Native DevTools-linux-x64/chrome-sandbox' "$RUNNER_TEMP/mobile-e2e-metro.log"; then
-              echo 'Repairing React Native DevTools Chromium sandbox permissions for the ephemeral CI runner.'
-              stop_metro
-              sandbox_count=0
-              while IFS= read -r sandbox_path; do
-                [[ -n "$sandbox_path" ]] || continue
-                sudo chown root:root "$sandbox_path"
-                sudo chmod 4755 "$sandbox_path"
-                sandbox_count=$((sandbox_count + 1))
-              done < <(find "$HOME/.cache/dotslash" -type f \
-                -path '*/React Native DevTools-linux-x64/chrome-sandbox' -print 2>/dev/null || true)
-              if [[ "$sandbox_count" -eq 0 ]]; then
-                echo 'React Native DevTools reported a Chromium sandbox failure, but its sandbox binary was not found.' >&2
-                cat "$RUNNER_TEMP/mobile-e2e-metro.log" >&2 || true
-                exit 1
-              fi
-              echo '--- restarting Metro after sandbox repair ---' >> "$RUNNER_TEMP/mobile-e2e-metro.log"
-              start_metro
-            fi
-          fi
-
-          if ! wait_for_metro; then
-            echo 'Metro failed to become ready:' >&2
+          if ! curl --fail --silent --show-error --max-time 2 \
+            'http://127.0.0.1:8081/_expo/open?platform=android' > /dev/null; then
+            echo 'Metro failed to become ready in Expo headless mode:' >&2
             cat "$RUNNER_TEMP/mobile-e2e-metro.log" >&2 || true
             exit 1
           fi
