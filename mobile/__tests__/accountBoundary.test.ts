@@ -1,23 +1,27 @@
-const mockGetSyncState = jest.fn();
-const mockSetSyncState = jest.fn();
-const mockClearLocalAccountData = jest.fn();
-
 jest.mock('../src/sync/stateRepository', () => ({
   __esModule: true,
-  getSyncState: mockGetSyncState,
-  setSyncState: mockSetSyncState,
+  getSyncState: jest.fn(),
+  setSyncState: jest.fn(),
 }));
 
 jest.mock('../src/database/clearAccountData', () => ({
   __esModule: true,
-  clearLocalAccountData: mockClearLocalAccountData,
+  clearLocalAccountData: jest.fn(),
 }));
 
+import { clearLocalAccountData } from '../src/database/clearAccountData';
 import { bindLocalAccount } from '../src/database/accountBoundary';
+import { getSyncState, setSyncState } from '../src/sync/stateRepository';
+
+const mockGetSyncState = jest.mocked(getSyncState);
+const mockSetSyncState = jest.mocked(setSyncState);
+const mockClearLocalAccountData = jest.mocked(clearLocalAccountData);
 
 describe('bindLocalAccount', () => {
   beforeEach(() => {
-    jest.clearAllMocks();
+    mockGetSyncState.mockReset();
+    mockSetSyncState.mockReset();
+    mockClearLocalAccountData.mockReset();
   });
 
   it('keeps the local replica intact when the same account returns', async () => {
