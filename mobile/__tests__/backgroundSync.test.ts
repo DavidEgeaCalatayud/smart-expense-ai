@@ -1,3 +1,13 @@
+import * as BackgroundTask from 'expo-background-task';
+import * as TaskManager from 'expo-task-manager';
+
+import {
+  BACKGROUND_SYNC_MINIMUM_INTERVAL_MINUTES,
+  BACKGROUND_SYNC_TASK_NAME,
+  registerBackgroundSyncAsync,
+  unregisterBackgroundSyncAsync,
+} from '../src/background/backgroundSync';
+
 jest.mock('expo-task-manager', () => ({
   __esModule: true,
   defineTask: jest.fn(),
@@ -19,16 +29,6 @@ jest.mock('expo-sqlite', () => ({
   defaultDatabaseDirectory: '/tmp/sqlite',
   deleteDatabaseAsync: jest.fn(),
 }));
-
-import * as BackgroundTask from 'expo-background-task';
-import * as TaskManager from 'expo-task-manager';
-
-import {
-  BACKGROUND_SYNC_MINIMUM_INTERVAL_MINUTES,
-  BACKGROUND_SYNC_TASK_NAME,
-  registerBackgroundSyncAsync,
-  unregisterBackgroundSyncAsync,
-} from '../src/background/backgroundSync';
 
 const mockDefineTask = jest.mocked(TaskManager.defineTask);
 const mockIsTaskRegisteredAsync = jest.mocked(TaskManager.isTaskRegisteredAsync);
