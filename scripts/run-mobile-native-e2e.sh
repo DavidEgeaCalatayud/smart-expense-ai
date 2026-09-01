@@ -78,7 +78,7 @@ print_database_file_diagnostics() {
     if adb shell run-as "$PACKAGE_ID" test -f "$path" >/dev/null 2>&1; then
       local size
       local header
-      size="$(adb shell run-as "$PACKAGE_ID" wc -c < "$path" 2>/dev/null | tr -d '\r' || true)"
+      size="$({ adb exec-out run-as "$PACKAGE_ID" cat "$path" | wc -c | tr -d ' \r\n'; } || true)"
       header="$({ adb exec-out run-as "$PACKAGE_ID" cat "$path" | head -c 16 | od -An -tx1 | tr -d ' \n'; } || true)"
       echo "  $path size=${size:-unknown} header=${header:-unavailable}" >&2
     else
