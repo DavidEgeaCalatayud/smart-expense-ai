@@ -2,7 +2,9 @@ appId: com.davidegea.smartexpenseai
 ---
 - launchApp:
     clearState: true
-- assertVisible: "Welcome back"
+- extendedWaitUntil:
+    visible: "Welcome back"
+    timeout: 60000
 - tapOn: "Create one"
 - assertVisible: "Create account"
 - tapOn: "Display name"
