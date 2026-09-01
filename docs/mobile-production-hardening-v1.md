@@ -35,7 +35,7 @@ The mobile client maintains one local account boundary per installation.
 - switching account IDs wipes transactions, categories, budgets, outbox, conflicts, sync state and read-only server cache before the new account ID is bound;
 - explicit logout clears credentials and the account-local SQLite workspace;
 - a terminal mobile-refresh 401 clears credentials and stores a one-shot `local-wipe-required` marker in SecureStore;
-- the next foreground startup consumes that marker and wipes SQLite before another session can use the workspace;
+- the next foreground startup observes that marker, wipes SQLite, and acknowledges/removes the marker only after the wipe succeeds, so a process death during cleanup retries the wipe on the next launch;
 - Android Auto Backup is disabled for the application.
 
 This marker covers headless/background invalidation where the React authentication provider is not mounted at the time the session is revoked.
