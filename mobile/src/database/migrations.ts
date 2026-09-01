@@ -111,6 +111,28 @@ const MIGRATIONS: readonly Migration[] = [
   },
 ];
 
+async function runMigrationTransaction(
+  db: SQLiteDatabase,
+  task: () => Promise<void>,
+): Promise<void> {
+  // SQLCipher keys are scoped to a SQLite connection. Expo's
+  // withExclusiveTransactionAsync() opens a second native connection, which would be unkeyed and
+  // therefore cannot read this encrypted database. Keep migrations on the already-keyed connection
+  // and acquire the write reservation explicitly before applying any schema change.
+  await db.execAsync('BEGIN IMMEDIATE');
+  try {
+    await task();
+    await db.execAsync('COMMIT');
+  } catch (error) {
+    try {
+      await db.execAsync('ROLLBACK');
+    } catch {
+      // Preserve the original migration failure if rollback itself cannot complete.
+    }
+    throw error;
+  }
+}
+
 export async function migrateDatabase(db: SQLiteDatabase): Promise<void> {
   await db.execAsync('PRAGMA foreign_keys = ON');
   await db.execAsync('PRAGMA journal_mode = WAL');
@@ -129,11 +151,11 @@ export async function migrateDatabase(db: SQLiteDatabase): Promise<void> {
       continue;
     }
 
-    await db.withExclusiveTransactionAsync(async (txn) => {
+    await runMigrationTransaction(db, async () => {
       for (const statement of migration.statements) {
-        await txn.execAsync(statement);
+        await db.execAsync(statement);
       }
-      await txn.execAsync(`PRAGMA user_version = ${migration.version}`);
+      await db.execAsync(`PRAGMA user_version = ${migration.version}`);
     });
     currentVersion = migration.version;
   }
