@@ -3,6 +3,7 @@ import { minorUnitsToDecimal } from '@smart-expense-ai/domain-types';
 import * as Crypto from 'expo-crypto';
 import type { SQLiteDatabase } from 'expo-sqlite';
 
+import { runKeyedTransaction } from '../../database/keyedTransaction';
 import type { LocalCategoryRow } from '../../database/types';
 import { enqueueMutation } from '../../sync/outboxRepository';
 import {
@@ -24,7 +25,7 @@ export async function createOfflineTransaction(
   const transactionId = Crypto.randomUUID();
   let categoryId = '';
 
-  await db.withExclusiveTransactionAsync(async (txn) => {
+  await runKeyedTransaction(db, async (txn) => {
     const existingCategory = await txn.getFirstAsync<LocalCategoryRow>(
       `SELECT * FROM categories
        WHERE normalized_name = ? AND transaction_type = 'expense' AND archived = 0

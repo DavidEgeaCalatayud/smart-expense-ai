@@ -3,6 +3,7 @@ import { minorUnitsToDecimal } from '@smart-expense-ai/domain-types';
 import * as Crypto from 'expo-crypto';
 import type { SQLiteDatabase } from 'expo-sqlite';
 
+import { runKeyedTransaction } from '../../database/keyedTransaction';
 import type { LocalBudgetRow, LocalCategoryRow } from '../../database/types';
 import { enqueueMutation, type OutboxRow } from '../../sync/outboxRepository';
 import {
@@ -132,7 +133,7 @@ export async function createOfflineBudget(
     updated_at: now,
   };
 
-  await db.withExclusiveTransactionAsync(async (txn) => {
+  await runKeyedTransaction(db, async (txn) => {
     await txn.runAsync(
       `INSERT INTO budgets (
          id, category_id, month, limit_minor, server_version,
@@ -162,7 +163,7 @@ export async function updateOfflineBudget(
   const limitMinor = validateBudgetLimitAmount(limitAmount);
   const now = new Date().toISOString();
 
-  await db.withExclusiveTransactionAsync(async (txn) => {
+  await runKeyedTransaction(db, async (txn) => {
     await txn.runAsync(
       `UPDATE budgets
        SET limit_minor = ?, sync_status = 'pending', updated_at = ?
@@ -190,7 +191,7 @@ export async function deleteOfflineBudget(
   }
   const now = new Date().toISOString();
 
-  await db.withExclusiveTransactionAsync(async (txn) => {
+  await runKeyedTransaction(db, async (txn) => {
     const existingMutation = await txn.getFirstAsync<OutboxRow>(
       `SELECT * FROM sync_outbox
        WHERE entity_type = 'budget' AND entity_id = ?
