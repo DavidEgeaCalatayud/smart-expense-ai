@@ -1,22 +1,16 @@
-const mockDefineTask = jest.fn();
-const mockIsTaskRegisteredAsync = jest.fn();
-const mockGetStatusAsync = jest.fn();
-const mockRegisterTaskAsync = jest.fn();
-const mockUnregisterTaskAsync = jest.fn();
-
 jest.mock('expo-task-manager', () => ({
   __esModule: true,
-  defineTask: mockDefineTask,
-  isTaskRegisteredAsync: mockIsTaskRegisteredAsync,
+  defineTask: jest.fn(),
+  isTaskRegisteredAsync: jest.fn(),
 }));
 
 jest.mock('expo-background-task', () => ({
   __esModule: true,
   BackgroundTaskResult: { Success: 1, Failed: 2 },
-  BackgroundTaskStatus: { Available: 1, Restricted: 2 },
-  getStatusAsync: mockGetStatusAsync,
-  registerTaskAsync: mockRegisterTaskAsync,
-  unregisterTaskAsync: mockUnregisterTaskAsync,
+  BackgroundTaskStatus: { Restricted: 1, Available: 2 },
+  getStatusAsync: jest.fn(),
+  registerTaskAsync: jest.fn(),
+  unregisterTaskAsync: jest.fn(),
 }));
 
 jest.mock('expo-sqlite', () => ({
@@ -27,6 +21,8 @@ jest.mock('expo-sqlite', () => ({
 }));
 
 import * as BackgroundTask from 'expo-background-task';
+import * as TaskManager from 'expo-task-manager';
+
 import {
   BACKGROUND_SYNC_MINIMUM_INTERVAL_MINUTES,
   BACKGROUND_SYNC_TASK_NAME,
@@ -34,9 +30,18 @@ import {
   unregisterBackgroundSyncAsync,
 } from '../src/background/backgroundSync';
 
+const mockDefineTask = jest.mocked(TaskManager.defineTask);
+const mockIsTaskRegisteredAsync = jest.mocked(TaskManager.isTaskRegisteredAsync);
+const mockGetStatusAsync = jest.mocked(BackgroundTask.getStatusAsync);
+const mockRegisterTaskAsync = jest.mocked(BackgroundTask.registerTaskAsync);
+const mockUnregisterTaskAsync = jest.mocked(BackgroundTask.unregisterTaskAsync);
+
 describe('background sync scheduler', () => {
   beforeEach(() => {
-    jest.clearAllMocks();
+    mockIsTaskRegisteredAsync.mockReset();
+    mockGetStatusAsync.mockReset();
+    mockRegisterTaskAsync.mockReset();
+    mockUnregisterTaskAsync.mockReset();
   });
 
   it('defines the headless task in global module scope', () => {
