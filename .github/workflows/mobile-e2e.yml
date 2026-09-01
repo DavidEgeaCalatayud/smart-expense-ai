@@ -161,13 +161,9 @@ jobs:
             exit 1
           fi
 
-          if ! curl --fail --silent --show-error --max-time 180 \
-            'http://127.0.0.1:8081/index.bundle?platform=android&dev=true&minify=false' \
-            --output /dev/null; then
-            echo 'Metro could not compile the Android development bundle:' >&2
-            cat "$RUNNER_TEMP/mobile-e2e-metro.log" >&2 || true
-            exit 1
-          fi
+          # Mobile CI already validates an Android export. The installed debug APK is the
+          # authoritative integration check for the development bundle because Expo Router
+          # chooses the runtime bundle URL; probing a guessed /index.bundle path is invalid.
 
       - name: Enable KVM
         run: |
