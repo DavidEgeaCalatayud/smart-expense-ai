@@ -63,9 +63,26 @@ jobs:
         run: npm run prebuild:android --workspace=@smart-expense-ai/mobile
       - name: Verify generated Android privacy and transport policy
         run: |
-          grep -q 'android:allowBackup="false"' mobile/android/app/src/main/AndroidManifest.xml
-          grep -q 'android:usesCleartextTraffic="false"' mobile/android/app/src/main/AndroidManifest.xml
-          grep -q 'net.zetetic:sqlcipher-android' mobile/android/app/build.gradle || grep -R -q 'sqlcipher' mobile/android
+          manifest='mobile/android/app/src/main/AndroidManifest.xml'
+          gradle_properties='mobile/android/gradle.properties'
+
+          grep -q 'android:allowBackup="false"' "$manifest" || {
+            echo 'Generated Android manifest must disable Auto Backup.' >&2
+            grep -n 'allowBackup' "$manifest" || true
+            exit 1
+          }
+
+          grep -q 'android:usesCleartextTraffic="false"' "$manifest" || {
+            echo 'Production Android manifest must disable cleartext traffic.' >&2
+            grep -n 'usesCleartextTraffic' "$manifest" || true
+            exit 1
+          }
+
+          grep -q '^expo\.sqlite\.useSQLCipher=true$' "$gradle_properties" || {
+            echo 'Expo SQLite prebuild must enable SQLCipher through expo.sqlite.useSQLCipher=true.' >&2
+            grep -n 'expo\.sqlite' "$gradle_properties" || true
+            exit 1
+          }
       - name: Build native Android debug APK
         env:
           APP_ENV: production
