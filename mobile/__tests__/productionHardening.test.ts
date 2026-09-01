@@ -3,7 +3,8 @@ import * as SecureStore from 'expo-secure-store';
 
 import { normalizeMobileApiBaseUrl } from '../src/api/config';
 import {
-  consumeLocalWipeRequirement,
+  acknowledgeLocalWipeRequirement,
+  hasLocalWipeRequirement,
   invalidateMobileSessionAndRequireLocalWipe,
 } from '../src/auth/secureCredentials';
 import {
@@ -109,10 +110,15 @@ describe('mobile production hardening', () => {
     expect(calls[2]).toBe('SELECT COUNT(*) AS count FROM sqlite_master');
   });
 
-  it('turns terminal credential invalidation into a one-shot local wipe requirement', async () => {
+  it('keeps terminal credential invalidation durable until the local wipe is acknowledged', async () => {
     await invalidateMobileSessionAndRequireLocalWipe();
 
-    await expect(consumeLocalWipeRequirement()).resolves.toBe(true);
-    await expect(consumeLocalWipeRequirement()).resolves.toBe(false);
+    await expect(hasLocalWipeRequirement()).resolves.toBe(true);
+    // Merely observing the marker must not consume it; a process death before SQLite cleanup must
+    // make the next foreground launch retry the wipe.
+    await expect(hasLocalWipeRequirement()).resolves.toBe(true);
+
+    await acknowledgeLocalWipeRequirement();
+    await expect(hasLocalWipeRequirement()).resolves.toBe(false);
   });
 });
