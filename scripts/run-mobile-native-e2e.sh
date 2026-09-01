@@ -9,6 +9,7 @@ MAESTRO_RESULTS="${RUNNER_TEMP:-/tmp}/maestro-results"
 BACKEND_PID_FILE="${RUNNER_TEMP:-/tmp}/mobile-e2e-backend.pid"
 BACKEND_LOG="${RUNNER_TEMP:-/tmp}/mobile-e2e-backend.log"
 METRO_LOG="${RUNNER_TEMP:-/tmp}/mobile-e2e-metro.log"
+PREWARM_UI_DUMP='/sdcard/smart-expense-ai-prewarm.xml'
 
 mkdir -p "$MAESTRO_RESULTS"
 export MAESTRO_CLI_NO_ANALYTICS=1
@@ -73,23 +74,55 @@ prewarm_android_bundle() {
     initial_lines="$(wc -l < "$METRO_LOG")"
   fi
 
-  # The first Metro bundle on a fresh CI runner can take around 20 seconds. Warm the exact native
-  # entrypoint once before Maestro, then preserve the resulting SQLCipher database + SecureStore
-  # key pair for the real flows. Clearing app state after this point would orphan the encrypted DB
-  # from its key and correctly make SQLCipher fail closed with "file is not a database".
+  # A fresh Metro transform can take ~20 seconds on CI. The prewarm is allowed to execute the real
+  # app startup, so it must not be interrupted merely because bundling finished: SQLiteProvider may
+  # already have created the database file while SQLCipher keying/migrations are still in progress.
+  # Wait for the actual unauthenticated UI instead. Reaching "Welcome back" proves that the full
+  # key -> migration -> encryption verification chain completed before we exercise a process restart.
+  adb logcat -c || true
   adb shell am start -W -n "$PACKAGE_ID/.MainActivity" > /dev/null
+
+  local bundle_finished=false
   for attempt in $(seq 1 90); do
     if tail -n "+$((initial_lines + 1))" "$METRO_LOG" 2>/dev/null \
       | grep -qE 'Android Bundled .*mobile/index\.ts'; then
-      adb shell am force-stop "$PACKAGE_ID"
-      return 0
+      bundle_finished=true
+      break
     fi
     sleep 1
   done
 
-  echo 'Android development bundle did not finish during E2E prewarm.' >&2
+  if [[ "$bundle_finished" != true ]]; then
+    echo 'Android development bundle did not finish during E2E prewarm.' >&2
+    tail -n 200 "$METRO_LOG" >&2 || true
+    adb logcat -d -t 300 | grep -E "$PACKAGE_ID|ReactNativeJS|FATAL EXCEPTION|ANR in" >&2 || true
+    return 1
+  fi
+
+  for attempt in $(seq 1 30); do
+    if adb shell uiautomator dump "$PREWARM_UI_DUMP" > /dev/null 2>&1 \
+      && adb shell cat "$PREWARM_UI_DUMP" 2>/dev/null | grep -q 'Welcome back'; then
+      adb shell rm -f "$PREWARM_UI_DUMP" || true
+      # Restart only after the encrypted database has been initialized completely. The first Maestro
+      # flow therefore also proves that SQLCipher can reopen the file with the persisted SecureStore key.
+      adb shell am force-stop "$PACKAGE_ID"
+      return 0
+    fi
+
+    if adb logcat -d -t 250 2>/dev/null | grep -q 'file is not a database'; then
+      echo 'SQLCipher failed before the Android prewarm reached the login screen.' >&2
+      tail -n 200 "$METRO_LOG" >&2 || true
+      adb logcat -d -t 300 | grep -E "$PACKAGE_ID|ReactNativeJS|file is not a database|FATAL EXCEPTION|ANR in" >&2 || true
+      return 1
+    fi
+    sleep 1
+  done
+
+  echo 'Android app did not finish native initialization during E2E prewarm.' >&2
   tail -n 200 "$METRO_LOG" >&2 || true
-  adb logcat -d -t 300 | grep -E "$PACKAGE_ID|FATAL EXCEPTION|ANR in" >&2 || true
+  adb shell uiautomator dump "$PREWARM_UI_DUMP" > /dev/null 2>&1 || true
+  adb shell cat "$PREWARM_UI_DUMP" >&2 2>/dev/null || true
+  adb logcat -d -t 300 | grep -E "$PACKAGE_ID|ReactNativeJS|FATAL EXCEPTION|ANR in" >&2 || true
   return 1
 }
 
