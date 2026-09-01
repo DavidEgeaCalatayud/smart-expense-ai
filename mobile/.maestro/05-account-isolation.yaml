@@ -14,7 +14,7 @@ appId: com.davidegea.smartexpenseai
 - tapOn: "Password"
 - inputText: ${E2E_PASSWORD}
 - hideKeyboard
-- tapOn: "Create account"
+- tapOn: "Submit create account"
 - extendedWaitUntil:
     visible: "Offline-first transactions"
     timeout: 20000
