@@ -10,6 +10,11 @@ MAESTRO_RESULTS="${RUNNER_TEMP:-/tmp}/maestro-results"
 BACKEND_PID_FILE="${RUNNER_TEMP:-/tmp}/mobile-e2e-backend.pid"
 BACKEND_LOG="${RUNNER_TEMP:-/tmp}/mobile-e2e-backend.log"
 METRO_LOG="${RUNNER_TEMP:-/tmp}/mobile-e2e-metro.log"
+PREWARM_LAUNCH_LOG="${RUNNER_TEMP:-/tmp}/android-e2e-app-prewarm.log"
+PREWARM_LOGCAT="${RUNNER_TEMP:-/tmp}/android-e2e-app-prewarm-logcat.log"
+PREWARM_ACTIVITY_DUMP="${RUNNER_TEMP:-/tmp}/android-e2e-app-prewarm-activity.txt"
+PREWARM_REVERSE_LOG="${RUNNER_TEMP:-/tmp}/android-e2e-adb-reverse.txt"
+PREWARM_UI_HOST_DUMP="${RUNNER_TEMP:-/tmp}/android-e2e-app-prewarm-ui.xml"
 PREWARM_UI_DUMP='/sdcard/smart-expense-ai-prewarm.xml'
 
 mkdir -p "$MAESTRO_RESULTS"
@@ -87,53 +92,141 @@ print_database_file_diagnostics() {
   done
 }
 
+capture_prewarm_diagnostics() {
+  {
+    echo '=== adb reverse --list ==='
+    adb reverse --list || true
+  } > "$PREWARM_REVERSE_LOG" 2>&1
+  adb shell dumpsys activity activities > "$PREWARM_ACTIVITY_DUMP" 2>&1 || true
+  adb logcat -d -v threadtime > "$PREWARM_LOGCAT" 2>&1 || true
+  if adb shell uiautomator dump "$PREWARM_UI_DUMP" > /dev/null 2>&1; then
+    adb exec-out cat "$PREWARM_UI_DUMP" > "$PREWARM_UI_HOST_DUMP" 2>/dev/null || true
+    adb shell rm -f "$PREWARM_UI_DUMP" || true
+  fi
+}
+
+launch_android_app() {
+  local label="$1"
+  local launch_output
+
+  adb shell input keyevent KEYCODE_WAKEUP >/dev/null 2>&1 || true
+  adb shell input keyevent 82 >/dev/null 2>&1 || true
+  adb shell wm dismiss-keyguard >/dev/null 2>&1 || true
+  adb shell am force-stop "$PACKAGE_ID" >/dev/null 2>&1 || true
+  adb reverse tcp:8081 tcp:8081 >/dev/null
+
+  if ! launch_output="$(
+    adb shell am start -W \
+      -a android.intent.action.MAIN \
+      -c android.intent.category.LAUNCHER \
+      -n "$PACKAGE_ID/.MainActivity" 2>&1
+  )"; then
+    {
+      echo "=== $label ==="
+      printf '%s\n' "$launch_output"
+    } >> "$PREWARM_LAUNCH_LOG"
+    return 1
+  fi
+
+  {
+    echo "=== $label ==="
+    printf '%s\n' "$launch_output"
+    echo '--- process ---'
+    adb shell pidof "$PACKAGE_ID" || true
+    echo '--- reverse ---'
+    adb reverse --list || true
+  } >> "$PREWARM_LAUNCH_LOG" 2>&1
+
+  if grep -qiE '(^|[[:space:]])(Error|Exception):' <<<"$launch_output"; then
+    return 1
+  fi
+  adb shell pidof "$PACKAGE_ID" >/dev/null 2>&1
+}
+
+metro_log_since() {
+  local initial_lines="$1"
+  tail -n "+$((initial_lines + 1))" "$METRO_LOG" 2>/dev/null | tr '\r' '\n'
+}
+
+wait_for_metro_pattern() {
+  local initial_lines="$1"
+  local pattern="$2"
+  local attempts="$3"
+
+  for attempt in $(seq 1 "$attempts"); do
+    if metro_log_since "$initial_lines" | grep -qE "$pattern"; then
+      return 0
+    fi
+    sleep 1
+  done
+  return 1
+}
+
 prewarm_android_bundle() {
   local initial_lines=0
   if [[ -f "$METRO_LOG" ]]; then
     initial_lines="$(wc -l < "$METRO_LOG")"
   fi
 
-  # A fresh Metro transform can take ~20 seconds on CI. The prewarm is allowed to execute the real
-  # app startup, so it must not be interrupted merely because bundling finished: SQLiteProvider may
-  # already have created the database file while SQLCipher keying/migrations are still in progress.
-  # Wait for the actual unauthenticated UI instead. Reaching "Welcome back" proves that the full
-  # key -> migration -> encryption verification chain completed before we exercise a process restart.
+  : > "$PREWARM_LAUNCH_LOG"
   adb logcat -c || true
-  adb shell am start -W -n "$PACKAGE_ID/.MainActivity" > /dev/null
 
-  local bundle_finished=false
-  for attempt in $(seq 1 90); do
-    if tail -n "+$((initial_lines + 1))" "$METRO_LOG" 2>/dev/null \
-      | grep -qE 'Android Bundled .*mobile/index\.ts'; then
-      bundle_finished=true
-      break
+  # Native debug builds discover Metro only after the activity starts. On hosted Android emulators,
+  # the first launch can occasionally remain behind the keyguard or keep a stale dev-server socket.
+  # Make the launch explicit and retry once only when Metro has received no Android bundle request.
+  if ! launch_android_app 'launch-1'; then
+    echo 'The first Android activity launch failed.' >&2
+  fi
+
+  if ! wait_for_metro_pattern "$initial_lines" 'Android .*index\.ts' 25; then
+    echo 'Metro received no Android bundle request after the first launch; retrying the activity once.' >&2
+    {
+      echo '--- first-launch logcat tail ---'
+      adb logcat -d -t 250 || true
+    } >> "$PREWARM_LAUNCH_LOG" 2>&1
+
+    if ! launch_android_app 'launch-2'; then
+      echo 'The Android activity retry failed.' >&2
+      capture_prewarm_diagnostics
+      print_database_file_diagnostics
+      return 1
     fi
-    sleep 1
-  done
 
-  if [[ "$bundle_finished" != true ]]; then
-    echo 'Android development bundle did not finish during E2E prewarm.' >&2
+    if ! wait_for_metro_pattern "$initial_lines" 'Android .*index\.ts' 25; then
+      echo 'Android never requested its development bundle from Metro.' >&2
+      tail -n 200 "$METRO_LOG" >&2 || true
+      capture_prewarm_diagnostics
+      print_database_file_diagnostics
+      return 1
+    fi
+  fi
+
+  # Expo CLI reports the entrypoint as "index.ts" in this workspace. Do not require a repository
+  # path prefix: progress and completion lines use different display forms across Expo/Metro builds.
+  if ! wait_for_metro_pattern "$initial_lines" 'Android Bundled .*index\.ts' 120; then
+    echo 'Android requested Metro but the development bundle did not finish during E2E prewarm.' >&2
     tail -n 200 "$METRO_LOG" >&2 || true
+    capture_prewarm_diagnostics
     print_database_file_diagnostics
-    adb logcat -d -t 300 | grep -E "$PACKAGE_ID|ReactNativeJS|FATAL EXCEPTION|ANR in" >&2 || true
     return 1
   fi
 
-  for attempt in $(seq 1 30); do
+  # Reaching the unauthenticated UI proves the full key -> migration -> encryption verification
+  # chain completed. Only then force-stop so the first Maestro flow also proves SQLCipher reopens
+  # with the persisted SecureStore key after process death.
+  for attempt in $(seq 1 60); do
     if adb shell uiautomator dump "$PREWARM_UI_DUMP" > /dev/null 2>&1 \
       && adb shell cat "$PREWARM_UI_DUMP" 2>/dev/null | grep -q 'Welcome back'; then
       adb shell rm -f "$PREWARM_UI_DUMP" || true
-      # Restart only after the encrypted database has been initialized completely. The first Maestro
-      # flow therefore also proves that SQLCipher can reopen the file with the persisted SecureStore key.
       adb shell am force-stop "$PACKAGE_ID"
       return 0
     fi
 
-    if adb logcat -d -t 250 2>/dev/null | grep -q 'file is not a database'; then
+    if adb logcat -d -t 300 2>/dev/null | grep -q 'file is not a database'; then
       echo 'SQLCipher failed before the Android prewarm reached the login screen.' >&2
       tail -n 200 "$METRO_LOG" >&2 || true
+      capture_prewarm_diagnostics
       print_database_file_diagnostics
-      adb logcat -d -t 300 | grep -E "$PACKAGE_ID|ReactNativeJS|file is not a database|FATAL EXCEPTION|ANR in" >&2 || true
       return 1
     fi
     sleep 1
@@ -141,21 +234,19 @@ prewarm_android_bundle() {
 
   echo 'Android app did not finish native initialization during E2E prewarm.' >&2
   tail -n 200 "$METRO_LOG" >&2 || true
+  capture_prewarm_diagnostics
   print_database_file_diagnostics
-  adb shell uiautomator dump "$PREWARM_UI_DUMP" > /dev/null 2>&1 || true
-  adb shell cat "$PREWARM_UI_DUMP" >&2 2>/dev/null || true
-  adb logcat -d -t 300 | grep -E "$PACKAGE_ID|ReactNativeJS|FATAL EXCEPTION|ANR in" >&2 || true
   return 1
 }
 
 adb wait-for-device
-adb reverse tcp:8081 tcp:8081
+adb reverse tcp:8081 tcp:8081 >/dev/null
 adb install -r "$APK_PATH"
 
 # Guarantee a deterministic empty app sandbox once, before SQLCipher creates its database key.
 # All subsequent flows preserve app state so the encrypted database and SecureStore key stay paired.
 adb shell pm clear "$PACKAGE_ID" > /dev/null
-adb reverse tcp:8081 tcp:8081
+adb reverse tcp:8081 tcp:8081 >/dev/null
 prewarm_android_bundle
 
 # Real FastAPI registration proves the native auth path and creates the first account boundary.

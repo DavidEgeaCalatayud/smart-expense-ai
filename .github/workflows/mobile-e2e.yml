@@ -192,6 +192,11 @@ jobs:
           path: |
             ${{ runner.temp }}/mobile-e2e-backend.log
             ${{ runner.temp }}/mobile-e2e-metro.log
+            ${{ runner.temp }}/android-e2e-app-prewarm.log
+            ${{ runner.temp }}/android-e2e-app-prewarm-logcat.log
+            ${{ runner.temp }}/android-e2e-app-prewarm-activity.txt
+            ${{ runner.temp }}/android-e2e-adb-reverse.txt
+            ${{ runner.temp }}/android-e2e-app-prewarm-ui.xml
             ${{ runner.temp }}/maestro-results
           if-no-files-found: ignore
           retention-days: 7

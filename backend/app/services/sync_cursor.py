@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import base64
+import binascii
 import hashlib
 import hmac
 import json
@@ -32,9 +33,12 @@ def _b64encode(value: bytes) -> str:
 def _b64decode(value: str) -> bytes:
     padding = "=" * (-len(value) % 4)
     try:
-        return base64.urlsafe_b64decode(value + padding)
-    except (ValueError, TypeError) as exc:
+        decoded = base64.b64decode(value + padding, altchars=b"-_", validate=True)
+    except (binascii.Error, ValueError, TypeError) as exc:
         raise SyncTokenError("Sync token is not valid base64url") from exc
+    if _b64encode(decoded) != value:
+        raise SyncTokenError("Sync token is not canonical base64url")
+    return decoded
 
 
 def _sign(message: bytes) -> bytes:
