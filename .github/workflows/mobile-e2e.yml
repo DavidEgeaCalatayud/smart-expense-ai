@@ -144,16 +144,24 @@ jobs:
           )
 
           for attempt in $(seq 1 60); do
-            if curl --fail --silent --max-time 2 \
-              'http://127.0.0.1:8081/_expo/open?platform=android' > /dev/null; then
+            if curl --fail --silent --max-time 2 http://127.0.0.1:8081/status \
+              | grep -q 'packager-status:running'; then
               break
             fi
             sleep 1
           done
 
-          if ! curl --fail --silent --show-error --max-time 2 \
-            'http://127.0.0.1:8081/_expo/open?platform=android' > /dev/null; then
+          if ! curl --fail --silent --show-error --max-time 2 http://127.0.0.1:8081/status \
+            | grep -q 'packager-status:running'; then
             echo 'Metro failed to become ready in Expo headless mode:' >&2
+            cat "$RUNNER_TEMP/mobile-e2e-metro.log" >&2 || true
+            exit 1
+          fi
+
+          if ! curl --fail --silent --show-error --max-time 180 \
+            'http://127.0.0.1:8081/index.bundle?platform=android&dev=true&minify=false' \
+            --output /dev/null; then
+            echo 'Metro could not compile the Android development bundle:' >&2
             cat "$RUNNER_TEMP/mobile-e2e-metro.log" >&2 || true
             exit 1
           fi
