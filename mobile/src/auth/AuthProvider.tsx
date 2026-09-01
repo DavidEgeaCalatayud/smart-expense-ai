@@ -23,7 +23,10 @@ import {
   registerMobileSession,
   restoreMobileSession,
 } from './sessionManager';
-import type { MobileAuthUser } from './secureCredentials';
+import {
+  acknowledgeLocalWipeRequirement,
+  type MobileAuthUser,
+} from './secureCredentials';
 
 interface AuthContextValue {
   user: MobileAuthUser | null;
@@ -59,7 +62,10 @@ export function AuthProvider({ children }: PropsWithChildren) {
       try {
         const restored = await restoreMobileSession(client);
         if (restored.shouldClearLocalData) {
+          // A headless revocation marker is acknowledged only after the SQLite wipe succeeds. If
+          // the process dies during the wipe the marker remains, so the next startup retries it.
           await clearLocalAccountData(db);
+          await acknowledgeLocalWipeRequirement();
         }
         if (restored.user) {
           await bindLocalAccount(db, restored.user.id);
