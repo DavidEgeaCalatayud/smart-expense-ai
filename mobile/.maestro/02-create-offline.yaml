@@ -12,4 +12,8 @@ appId: com.davidegea.smartexpenseai
 - extendedWaitUntil:
     visible: "Offline Coffee"
     timeout: 10000
+- scrollUntilVisible:
+    element: "Pending sync"
+    direction: DOWN
+    timeout: 10000
 - assertVisible: "Pending sync"
