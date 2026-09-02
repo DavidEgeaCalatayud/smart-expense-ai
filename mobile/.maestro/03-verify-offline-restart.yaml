@@ -4,5 +4,13 @@ appId: com.davidegea.smartexpenseai
 - extendedWaitUntil:
     visible: "Offline-first transactions"
     timeout: 15000
+- scrollUntilVisible:
+    element: "Offline Coffee"
+    direction: DOWN
+    timeout: 15000
 - assertVisible: "Offline Coffee"
+- scrollUntilVisible:
+    element: "Pending sync"
+    direction: DOWN
+    timeout: 10000
 - assertVisible: "Pending sync"

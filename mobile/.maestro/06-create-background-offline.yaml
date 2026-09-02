@@ -11,7 +11,13 @@ appId: com.davidegea.smartexpenseai
 - inputText: "7.89"
 - hideKeyboard
 - tapOn: "Save offline"
-- extendedWaitUntil:
-    visible: "Background Worker Coffee"
+- scrollUntilVisible:
+    element: "Background Worker Coffee"
+    direction: DOWN
     timeout: 15000
+- assertVisible: "Background Worker Coffee"
+- scrollUntilVisible:
+    element: "Pending sync"
+    direction: DOWN
+    timeout: 10000
 - assertVisible: "Pending sync"
