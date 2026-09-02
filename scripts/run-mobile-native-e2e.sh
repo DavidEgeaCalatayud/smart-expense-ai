@@ -272,12 +272,24 @@ prewarm_android_bundle() {
 
 install_legacy_fixture() {
   python scripts/create-mobile-legacy-fixture.py "$LEGACY_FIXTURE"
-  adb shell run-as "$PACKAGE_ID" mkdir -p files/SQLite
-  adb exec-in run-as "$PACKAGE_ID" sh -c "cat > '$LEGACY_DATABASE_PATH'" < "$LEGACY_FIXTURE"
-  if ! adb shell run-as "$PACKAGE_ID" test -f "$LEGACY_DATABASE_PATH" >/dev/null 2>&1; then
-    echo 'Could not install the plaintext legacy SQLite fixture inside the app sandbox.' >&2
-    return 1
-  fi
+  # adb install can return before package-added/data-cleared bookkeeping has fully settled on a
+  # freshly booted Google API image. Reinstall the fixture if that asynchronous work removes the
+  # first copy, and validate its contents rather than accepting an empty or partial file.
+  for attempt in $(seq 1 10); do
+    if adb shell run-as "$PACKAGE_ID" mkdir -p files/SQLite >/dev/null 2>&1 \
+      && adb exec-in run-as "$PACKAGE_ID" sh -c "cat > '$LEGACY_DATABASE_PATH'" \
+        < "$LEGACY_FIXTURE" \
+      && adb shell run-as "$PACKAGE_ID" test -f "$LEGACY_DATABASE_PATH" >/dev/null 2>&1 \
+      && [[ "$(read_database_header "$LEGACY_DATABASE_PATH")" == "$plaintext_header" ]]; then
+      return 0
+    fi
+    sleep 1
+  done
+
+  echo 'Could not install a valid plaintext legacy SQLite fixture inside the app sandbox.' >&2
+  adb shell pm path "$PACKAGE_ID" >&2 || true
+  print_database_file_diagnostics
+  return 1
 }
 
 assert_legacy_plaintext_removed() {
