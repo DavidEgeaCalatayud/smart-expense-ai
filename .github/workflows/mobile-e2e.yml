@@ -221,8 +221,8 @@ jobs:
           emulator-options: -no-window -gpu swiftshader_indirect -no-snapshot -noaudio -no-boot-anim -camera-back none
           disable-animations: true
           script: |
-            ./scripts/run-mobile-native-e2e.sh
-            ./scripts/run-cross-client-e2e.sh
+            bash ./scripts/run-mobile-native-e2e.sh
+            bash ./scripts/run-cross-client-e2e.sh
 
       - name: Upload native E2E diagnostics on failure
         if: failure()
