@@ -6,7 +6,6 @@ DATABASE_NAME='smart-expense-ai-secure.db'
 DATABASE_PATH="files/SQLite/$DATABASE_NAME"
 LEGACY_DATABASE_NAME='smart-expense-ai.db'
 LEGACY_DATABASE_PATH="files/SQLite/$LEGACY_DATABASE_NAME"
-RN_DEBUG_PREFERENCES_PATH="shared_prefs/${PACKAGE_ID}_preferences.xml"
 APK_PATH='mobile/android/app/build/outputs/apk/debug/app-debug.apk'
 MAESTRO_RESULTS="${RUNNER_TEMP:-/tmp}/maestro-results"
 BACKEND_PID_FILE="${RUNNER_TEMP:-/tmp}/mobile-e2e-backend.pid"
@@ -124,31 +123,10 @@ print_database_file_diagnostics() {
   done
 }
 
-configure_react_native_debug_host() {
-  # React Native's Android dev support reads debug_http_host from the default SharedPreferences.
-  # Force localhost so the debug APK reaches Metro through adb reverse instead of depending on the
-  # emulator's 10.0.2.2 NAT route, which is not reliable on every GitHub-hosted runner.
-  adb shell run-as "$PACKAGE_ID" mkdir -p shared_prefs
-  cat <<'EOF' | adb exec-in run-as "$PACKAGE_ID" sh -c "cat > '$RN_DEBUG_PREFERENCES_PATH'"
-<?xml version='1.0' encoding='utf-8' standalone='yes' ?>
-<map>
-    <string name="debug_http_host">localhost:8081</string>
-</map>
-EOF
-
-  if ! adb shell run-as "$PACKAGE_ID" cat "$RN_DEBUG_PREFERENCES_PATH" 2>/dev/null \
-    | grep -q '<string name="debug_http_host">localhost:8081</string>'; then
-    echo 'Could not persist React Native debug_http_host for the Android E2E app.' >&2
-    return 1
-  fi
-}
-
 capture_prewarm_diagnostics() {
   {
     echo '=== adb reverse --list ==='
     adb reverse --list || true
-    echo '=== React Native debug preferences ==='
-    adb shell run-as "$PACKAGE_ID" cat "$RN_DEBUG_PREFERENCES_PATH" 2>/dev/null || true
   } > "$PREWARM_REVERSE_LOG" 2>&1
   adb shell dumpsys activity activities > "$PREWARM_ACTIVITY_DUMP" 2>&1 || true
   adb logcat -d -v threadtime > "$PREWARM_LOGCAT" 2>&1 || true
@@ -188,8 +166,6 @@ launch_android_app() {
     adb shell pidof "$PACKAGE_ID" || true
     echo '--- reverse ---'
     adb reverse --list || true
-    echo '--- React Native debug preferences ---'
-    adb shell run-as "$PACKAGE_ID" cat "$RN_DEBUG_PREFERENCES_PATH" 2>/dev/null || true
   } >> "$PREWARM_LAUNCH_LOG" 2>&1
 
   if grep -qiE '(^|[[:space:]])(Error|Exception):' <<<"$launch_output"; then
@@ -227,7 +203,7 @@ wait_for_login_ui() {
       echo 'SQLCipher failed before the Android prewarm reached the login screen.' >&2
       return 1
     fi
-    if grep -Eq 'Failed to connect to /10\.0\.2\.2:8081|Unable to load script' <<<"$recent_logcat"; then
+    if grep -Eq 'Failed to connect to /[^[:space:]]*:8081|Unable to load script' <<<"$recent_logcat"; then
       echo 'React Native could not reach Metro during Android prewarm.' >&2
       return 1
     fi
@@ -307,7 +283,6 @@ adb install -r "$APK_PATH"
 # 0. Exercise a real plaintext Expo-SQLite -> SQLCipher migration before any account is bound.
 adb shell pm clear "$PACKAGE_ID" > /dev/null
 adb reverse tcp:8081 tcp:8081 >/dev/null
-configure_react_native_debug_host
 install_legacy_fixture
 prewarm_android_bundle
 run_flow legacy-migration mobile/.maestro/00-legacy-migration.yaml
@@ -317,7 +292,6 @@ assert_encrypted_database_header
 # Reset the migration probe. The remaining scenarios intentionally start from a clean workspace.
 adb shell pm clear "$PACKAGE_ID" > /dev/null
 adb reverse tcp:8081 tcp:8081 >/dev/null
-configure_react_native_debug_host
 prewarm_android_bundle
 
 # 1. Real FastAPI registration creates account A and the initial account boundary.
