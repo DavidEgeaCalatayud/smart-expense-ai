@@ -1,6 +1,7 @@
 appId: com.davidegea.smartexpenseai
 ---
-- launchApp
+# Keep the foreground replica left by 04-reconnect-sync at V1. The host-side helper has advanced
+# the server to V2; relaunching here would mount useForegroundSync and pull V2 before the stale edit.
 - extendedWaitUntil:
     visible: "Offline-first transactions"
     timeout: 15000
