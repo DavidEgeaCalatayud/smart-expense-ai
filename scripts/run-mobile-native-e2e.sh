@@ -195,6 +195,10 @@ wait_for_login_ui() {
         echo 'React Native displayed the missing Metro bundle RedBox during Android prewarm.' >&2
         return 1
       fi
+      if grep -q "isn't responding" <<<"$ui_dump"; then
+        echo 'An Android system error dialog obscured the application during E2E prewarm.' >&2
+        return 1
+      fi
     fi
 
     local recent_logcat
@@ -277,6 +281,12 @@ find_workmanager_job_id() {
 }
 
 adb wait-for-device
+# Fresh Google API images can report an unrelated Pixel Launcher ANR while package indexing is
+# still settling after boot. The dialog sits above the correctly resumed test activity and hides
+# its accessibility tree from both uiautomator and Maestro. Keep system-package error UI from
+# obscuring the application; app readiness, process death, RedBox and logcat failures remain
+# explicit test invariants below.
+adb shell settings put global hide_error_dialogs 1
 adb reverse tcp:8081 tcp:8081 >/dev/null
 adb install -r "$APK_PATH"
 
