@@ -1,7 +1,7 @@
 import { chromium, expect } from '@playwright/test';
 
 const [, , mode, email, password] = process.argv;
-const baseURL = process.env.CROSS_CLIENT_BASE_URL ?? 'http://127.0.0.1:5173';
+const baseURL = process.env.CROSS_CLIENT_BASE_URL ?? 'http://localhost:5173';
 
 if (!['create-web', 'assert-native'].includes(mode) || !email || !password) {
   console.error('Usage: node e2e/cross-client-driver.mjs <create-web|assert-native> <email> <password>');
