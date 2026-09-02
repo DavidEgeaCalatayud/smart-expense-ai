@@ -19,5 +19,7 @@ appId: com.davidegea.smartexpenseai
     visible: "Offline-first transactions"
     timeout: 20000
 - assertVisible: ${E2E_EMAIL_B}
-- assertNotVisible: "Offline Coffee"
+- assertNotVisible: "Server Coffee"
+- assertNotVisible: "Background Worker Coffee"
+- assertNotVisible: "Conflicts need a decision"
 - assertVisible: "No local transactions yet.*"

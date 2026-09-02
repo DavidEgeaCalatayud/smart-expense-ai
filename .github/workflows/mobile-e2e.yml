@@ -8,6 +8,8 @@ on:
       - 'backend/**'
       - 'shared/**'
       - 'scripts/run-mobile-native-e2e.sh'
+      - 'scripts/create-mobile-legacy-fixture.py'
+      - 'scripts/mobile-e2e-server-helper.py'
       - '.github/workflows/mobile-e2e.yml'
   pull_request:
     branches: [main]
@@ -16,6 +18,8 @@ on:
       - 'backend/**'
       - 'shared/**'
       - 'scripts/run-mobile-native-e2e.sh'
+      - 'scripts/create-mobile-legacy-fixture.py'
+      - 'scripts/mobile-e2e-server-helper.py'
       - '.github/workflows/mobile-e2e.yml'
 
 permissions:
@@ -45,6 +49,7 @@ jobs:
       FRONTEND_ORIGIN: http://localhost:5173
       ALLOWED_HOSTS: localhost,127.0.0.1,testserver,10.0.2.2
       EXPO_PUBLIC_API_BASE_URL: http://10.0.2.2:8000
+      EXPO_PUBLIC_E2E_MODE: '1'
       EXPO_NO_TELEMETRY: '1'
       EXPO_NO_QR_CODE: '1'
       EXPO_NO_TYPESCRIPT_SETUP: '1'
@@ -87,6 +92,12 @@ jobs:
 
       - name: Install mobile workspace dependencies
         run: npm install --workspace=@smart-expense-ai/mobile --include-workspace-root=false --no-audit --no-fund
+      - name: Validate native E2E harness
+        run: |
+          bash -n scripts/run-mobile-native-e2e.sh
+          python -m py_compile scripts/create-mobile-legacy-fixture.py scripts/mobile-e2e-server-helper.py
+          npm run test --workspace=@smart-expense-ai/mobile
+          npm run typecheck --workspace=@smart-expense-ai/mobile
       - name: Verify Expo dependency compatibility
         run: npm run dependencies:check --workspace=@smart-expense-ai/mobile
       - name: Generate Android native project for emulator E2E
@@ -138,9 +149,6 @@ jobs:
 
           (
             cd mobile
-            # Expo's localhost host type can resolve to IPv6-only ::1 on Ubuntu runners while
-            # adb reverse and the native status probe use IPv4. LAN binds Metro on all runner
-            # interfaces; the ephemeral CI runner exposes no inbound public port.
             nohup setsid npx expo start --lan --port 8081 \
               > "$RUNNER_TEMP/mobile-e2e-metro.log" 2>&1 &
             echo $! > "$RUNNER_TEMP/mobile-e2e-metro.pid"
@@ -160,10 +168,6 @@ jobs:
             cat "$RUNNER_TEMP/mobile-e2e-metro.log" >&2 || true
             exit 1
           fi
-
-          # Mobile CI already validates an Android export. The installed debug APK is the
-          # authoritative integration check for the development bundle because Expo Router
-          # chooses the runtime bundle URL; probing a guessed /index.bundle path is invalid.
 
       - name: Enable KVM
         run: |
@@ -192,6 +196,7 @@ jobs:
           path: |
             ${{ runner.temp }}/mobile-e2e-backend.log
             ${{ runner.temp }}/mobile-e2e-metro.log
+            ${{ runner.temp }}/mobile-e2e-jobscheduler.txt
             ${{ runner.temp }}/android-e2e-app-prewarm.log
             ${{ runner.temp }}/android-e2e-app-prewarm-logcat.log
             ${{ runner.temp }}/android-e2e-app-prewarm-activity.txt

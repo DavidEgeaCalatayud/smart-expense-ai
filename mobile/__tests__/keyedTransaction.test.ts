@@ -1,15 +1,26 @@
-import { readdirSync, readFileSync } from 'node:fs';
-import { extname, join } from 'node:path';
-
 import { runKeyedTransaction } from '../src/database/keyedTransaction';
 
+interface DirectoryEntry {
+  name: string;
+  isDirectory(): boolean;
+}
+
+const fs = jest.requireActual<{
+  readdirSync(directory: string, options: { withFileTypes: true }): DirectoryEntry[];
+  readFileSync(path: string, encoding: 'utf8'): string;
+}>('fs');
+const pathApi = jest.requireActual<{
+  extname(path: string): string;
+  join(...paths: string[]): string;
+}>('path');
+
 function sourceFiles(directory: string): string[] {
-  return readdirSync(directory, { withFileTypes: true }).flatMap((entry) => {
-    const path = join(directory, entry.name);
+  return fs.readdirSync(directory, { withFileTypes: true }).flatMap((entry) => {
+    const path = pathApi.join(directory, entry.name);
     if (entry.isDirectory()) {
       return sourceFiles(path);
     }
-    return ['.ts', '.tsx'].includes(extname(entry.name)) ? [path] : [];
+    return ['.ts', '.tsx'].includes(pathApi.extname(entry.name)) ? [path] : [];
   });
 }
 
@@ -52,9 +63,8 @@ describe('SQLCipher keyed transactions', () => {
   });
 
   it('does not allow runtime source to reopen writes through Expo exclusive transactions', () => {
-    const sourceRoot = join(__dirname, '..', 'src');
-    const offenders = sourceFiles(sourceRoot).filter((file) =>
-      /\.withExclusiveTransactionAsync\s*\(/.test(readFileSync(file, 'utf8')),
+    const offenders = sourceFiles('src').filter((file) =>
+      /\.withExclusiveTransactionAsync\s*\(/.test(fs.readFileSync(file, 'utf8')),
     );
 
     expect(offenders).toEqual([]);

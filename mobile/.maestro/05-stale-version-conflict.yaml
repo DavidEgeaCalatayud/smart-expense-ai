@@ -1,0 +1,26 @@
+appId: com.davidegea.smartexpenseai
+---
+- launchApp
+- extendedWaitUntil:
+    visible: "Offline-first transactions"
+    timeout: 15000
+- assertVisible: "Offline Coffee"
+- tapOn: "Edit"
+- assertVisible: "Edit local transaction"
+- tapOn: "Merchant"
+- eraseText: 50
+- inputText: "Local Coffee"
+- hideKeyboard
+- tapOn: "Save offline edit"
+- extendedWaitUntil:
+    visible: "Conflicts need a decision"
+    timeout: 30000
+- assertVisible: "transaction · stale_version"
+- assertVisible: "Use server"
+- assertVisible: "Retry mine"
+- tapOn: "Use server"
+- extendedWaitUntil:
+    visible: "Server Coffee"
+    timeout: 30000
+- assertVisible: "Synced"
+- assertNotVisible: "Conflicts need a decision"

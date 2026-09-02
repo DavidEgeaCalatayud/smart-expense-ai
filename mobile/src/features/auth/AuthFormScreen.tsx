@@ -14,6 +14,7 @@ import {
 } from 'react-native';
 
 import { useAuth } from '../../auth/AuthProvider';
+import { E2eLegacyMigrationDiagnostic } from './E2eLegacyMigrationDiagnostic';
 
 interface AuthFormScreenProps {
   mode: 'login' | 'register';
@@ -64,6 +65,8 @@ export function AuthFormScreen({ mode }: AuthFormScreenProps) {
                 : 'Sign in to unlock your offline financial workspace on this device.'}
             </Text>
           </View>
+
+          {!isRegister ? <E2eLegacyMigrationDiagnostic /> : null}
 
           <View style={styles.form}>
             {isRegister ? (
