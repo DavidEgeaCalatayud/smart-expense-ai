@@ -4,6 +4,7 @@ appId: com.davidegea.smartexpenseai
 - assertVisible: "Offline-first transactions"
 - tapOn: "Merchant"
 - inputText: "Offline Coffee"
+- hideKeyboard
 - tapOn: "Amount"
 - inputText: "12.34"
 - hideKeyboard
