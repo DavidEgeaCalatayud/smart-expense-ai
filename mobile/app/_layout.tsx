@@ -3,6 +3,7 @@ import { SQLiteProvider } from 'expo-sqlite';
 import { StatusBar } from 'expo-status-bar';
 import { Suspense } from 'react';
 import { ActivityIndicator, StyleSheet, View } from 'react-native';
+import { SafeAreaProvider } from 'react-native-safe-area-context';
 
 import { AuthProvider, useAuth } from '../src/auth/AuthProvider';
 import { DATABASE_NAME } from '../src/database/constants';
@@ -49,17 +50,19 @@ function AuthenticatedStack() {
 
 export default function RootLayout() {
   return (
-    <Suspense fallback={<AppFallback />}>
-      <SQLiteProvider
-        databaseName={DATABASE_NAME}
-        onInit={initializeDatabase}
-        useSuspense
-      >
-        <AuthProvider>
-          <AuthenticatedStack />
-        </AuthProvider>
-      </SQLiteProvider>
-    </Suspense>
+    <SafeAreaProvider>
+      <Suspense fallback={<AppFallback />}>
+        <SQLiteProvider
+          databaseName={DATABASE_NAME}
+          onInit={initializeDatabase}
+          useSuspense
+        >
+          <AuthProvider>
+            <AuthenticatedStack />
+          </AuthProvider>
+        </SQLiteProvider>
+      </Suspense>
+    </SafeAreaProvider>
   );
 }
 
