@@ -50,8 +50,15 @@ class PrivacyExportCategorySuggestion(BaseModel):
     updatedAt: datetime
 
 
+class PrivacyExportSubscription(BaseModel):
+    planTier: str
+    subscriptionStatus: str
+    subscriptionCurrentPeriodEnd: datetime | None
+
+
 class PrivacyExportResponseWithImports(PrivacyExportResponse):
     importBatches: list[PrivacyExportImportBatch] = Field(default_factory=list)
     customCategories: list[PrivacyExportCustomCategory] = Field(default_factory=list)
     budgets: list[PrivacyExportBudget] = Field(default_factory=list)
     categorySuggestions: list[PrivacyExportCategorySuggestion] = Field(default_factory=list)
+    subscription: PrivacyExportSubscription | None = None
