@@ -145,71 +145,80 @@ Goal: evolve the project into a multi-client financial platform with an Android-
 
 ### Phase 5B - Expo + SQLite foundation
 
-- [ ] Scaffold the Android-first React Native + Expo application under `mobile/` without changing the existing web build.
-- [ ] Pin the current stable Expo/React Native/React dependency set through the Expo toolchain and add Expo Router.
-- [ ] Add versioned SQLite migrations, foreign keys and WAL mode.
-- [ ] Add local repositories for transactions, categories and budgets behind a platform-neutral repository boundary.
-- [ ] Add durable `sync_outbox`, `sync_state` and `sync_conflicts` persistence.
-- [ ] Add secure device credential storage and define the SQLCipher/native encrypted-database production path.
-- [ ] Add mobile unit/type/lint/build validation to CI.
+- [x] Scaffold the Android-first React Native + Expo application under `mobile/` without changing the existing web build.
+- [x] Pin the current stable Expo/React Native/React dependency set through the Expo toolchain and add Expo Router.
+- [x] Add versioned SQLite migrations, foreign keys and WAL mode.
+- [x] Add local repositories for transactions, categories and budgets behind a platform-neutral repository boundary.
+- [x] Add durable `sync_outbox`, `sync_state` and `sync_conflicts` persistence.
+- [x] Add secure device credential storage and define the SQLCipher/native encrypted-database production path.
+- [x] Add mobile unit/type/lint/build validation to CI.
 
 ### Phase 5C - Backend synchronization and mobile authentication
 
-- [ ] Add server-owned sync versions for syncable entities.
-- [ ] Add authenticated sync device/mutation/change-journal persistence with Alembic migrations.
-- [ ] Add idempotent bounded `POST /api/v2/sync/push`.
-- [ ] Add cursor-based bounded `GET /api/v2/sync/pull` with delete tombstones and no gaps/duplicates.
-- [ ] Add a consistent paginated bootstrap path and typed `sync_cursor_expired` recovery.
-- [ ] Add a mobile-appropriate short-lived access/refresh credential flow while preserving the existing HttpOnly browser-cookie flow.
-- [ ] Reuse current session-version/password-change/account-deletion revocation semantics for mobile credentials.
-- [ ] Regression-test cross-account isolation, stale conflicts, retries, concurrent web/mobile writes and exact Decimal money.
+- [x] Add server-owned sync versions for syncable entities.
+- [x] Add authenticated sync device/mutation/change-journal persistence with Alembic migrations.
+- [x] Add idempotent bounded `POST /api/v2/sync/push`.
+- [x] Add cursor-based bounded `GET /api/v2/sync/pull` with delete tombstones and no gaps/duplicates.
+- [x] Add a consistent paginated bootstrap path and typed `sync_cursor_expired` recovery.
+- [x] Add a mobile-appropriate short-lived access/refresh credential flow while preserving the existing HttpOnly browser-cookie flow.
+- [x] Reuse current session-version/password-change/account-deletion revocation semantics for mobile credentials.
+- [x] Regression-test cross-account isolation, stale conflicts, retries, concurrent web/mobile writes and exact Decimal money.
 
 ### Phase 5D - Offline transaction vertical slice
 
-- [ ] Add Android authentication/session bootstrap.
-- [ ] Add local-first transaction list/detail/form flows.
-- [ ] Support offline transaction create/edit/delete with client-generated UUIDs.
-- [ ] Implement foreground push/pull synchronization with bounded retry/backoff.
-- [ ] Preserve the durable outbox across app/process termination.
-- [ ] Surface pending/failed/conflict state explicitly in the UI.
-- [ ] Add explicit conflict resolution instead of silent last-write-wins.
-- [ ] Prove web-create -> Android-pull and Android-offline-create -> server -> web E2E flows.
+- [x] Add Android authentication/session bootstrap.
+- [x] Add local-first transaction list/detail/form flows.
+- [x] Support offline transaction create/edit/delete with client-generated UUIDs.
+- [x] Implement foreground push/pull synchronization with bounded retry/backoff.
+- [x] Preserve the durable outbox across app/process termination.
+- [x] Surface pending/failed/conflict state explicitly in the UI.
+- [x] Add explicit conflict resolution instead of silent last-write-wins.
+- [ ] Add one combined browser + native-device E2E proving web-create -> Android-pull and Android-offline-create -> server -> web in a single cross-client scenario. Backend/web/native pieces are independently gated today, but the repository does not yet contain this literal combined test.
 
 ### Phase 5E - Categories and budgets
 
-- [ ] Replicate system/account-owned categories while preserving server ownership and archive/reassign rules.
-- [ ] Support allowed offline custom-category mutations and relationship ordering with pending transactions.
-- [ ] Replicate budgets with exact minor-unit local storage and server-authoritative invariants.
-- [ ] Add category/budget sync conflict and cross-account tests.
+- [x] Replicate system/account-owned categories while preserving server ownership and archive/reassign rules.
+- [x] Support allowed offline custom-category mutations and relationship ordering with pending transactions.
+- [x] Replicate budgets with exact minor-unit local storage and server-authoritative invariants.
+- [x] Add category/budget sync conflict and cross-account tests.
 
 ### Phase 5F - Server-derived mobile workspaces
 
-- [ ] Add dashboard analytics.
-- [ ] Add Financial Intelligence findings/review UX without porting `rules-v2`.
-- [ ] Add Historical Analysis without porting `historical-v2.2`.
-- [ ] Add upcoming recurring payments and spending forecast using existing backend contracts.
-- [ ] Add category suggestions as user-controlled server-backed suggestions.
-- [ ] Add the stateless Financial Assistant using the existing evidence-grounded backend boundary.
-- [ ] Cache selected latest server-derived responses only as read-only mobile UX state where appropriate.
+- [x] Add dashboard analytics.
+- [x] Add Financial Intelligence findings/review UX without porting `rules-v2`.
+- [x] Add Historical Analysis without porting `historical-v2.2`.
+- [x] Add upcoming recurring payments and spending forecast using existing backend contracts.
+- [x] Add category suggestions as user-controlled server-backed suggestions.
+- [x] Add the stateless Financial Assistant using the existing evidence-grounded backend boundary.
+- [x] Cache selected latest server-derived responses only as read-only mobile UX state where appropriate.
 
 ### Phase 5G - Android production hardening
 
-- [ ] Add production local-database encryption and verify logout/account-deletion local data wipe.
-- [ ] Add background synchronization only after foreground sync correctness is proven.
-- [ ] Add account-switch/device-isolation tests.
-- [ ] Add mobile security/privacy review and ensure no backend/provider secrets are shipped in the application.
-- [ ] Add Android development/release build pipeline, signing strategy and distributable AAB artifact.
-- [ ] Add Android offline/reconnect/conflict E2E coverage to the required quality gate.
-- [ ] Keep the architecture portable to a future iOS client without making iOS a Phase 5 release blocker.
+- [x] Add production local-database encryption and verify logout/account-deletion local data wipe.
+- [x] Add background synchronization only after foreground sync correctness is proven.
+- [x] Add account-switch/device-isolation tests.
+- [x] Add mobile security/privacy review and ensure no backend/provider secrets are shipped in the application.
+- [x] Add Android development/release build pipeline, signing strategy and distributable AAB artifact.
+- [x] Add Android offline/reconnect/conflict E2E coverage to the required quality gate.
+- [x] Keep the architecture portable to a future iOS client without making iOS a Phase 5 release blocker.
+
+### Phase 5H - Native Android emulator E2E gate
+
+- [x] Migrate a real plaintext legacy Expo-SQLite fixture to SQLCipher and verify plaintext removal/header encryption on-device.
+- [x] Prove durable offline transaction persistence across Android process death and foreground reconnect synchronization.
+- [x] Produce and resolve a real `stale_version` conflict after an independent server-side version advance.
+- [x] Force the registered WorkManager/JobScheduler job while backgrounded and prove the pending mutation reaches FastAPI/PostgreSQL.
+- [x] Prove native account-switch isolation with an empty second-account workspace and no residual outbox/conflict state.
+- [x] Gate the invariant set in GitHub Actions with pinned Maestro/emulator tooling and failure diagnostics.
 
 ## Phase 6 - Premium SaaS Preparation
 
 Goal: prepare the project for a subscription-based model.
 
-- [ ] Define free and premium limits.
-- [ ] Add premium feature flags.
-- [ ] Add subscription-ready user model.
-- [ ] Add payment provider research.
+- [x] Define versioned free and premium limits under `premium-entitlements-v1` without enforcing quotas prematurely.
+- [x] Add server-owned premium feature flags that distinguish plan eligibility from release-time enablement.
+- [x] Add a provider-neutral subscription-ready user model and include subscription state in privacy export.
+- [x] Complete payment-provider/store research and document the provider-independent billing architecture in `docs/payment-provider-decision.md`.
 - [ ] Add exportable reports.
 - [ ] Add advanced insights.
 
