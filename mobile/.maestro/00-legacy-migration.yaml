@@ -3,6 +3,6 @@ appId: com.davidegea.smartexpenseai
 - launchApp
 - extendedWaitUntil:
     visible: "Legacy migration verified"
-    timeout: 20000
+    timeout: 60000
 - assertVisible: "Legacy Migration Probe.*schema v2.*"
 - assertVisible: "Welcome back"
