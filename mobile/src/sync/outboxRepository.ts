@@ -6,6 +6,8 @@ import type {
 } from '@smart-expense-ai/api-contracts';
 import type { SQLiteDatabase } from 'expo-sqlite';
 
+import { runKeyedTransaction } from '../database/keyedTransaction';
+
 export interface OutboxRow {
   sequence: number;
   mutation_id: string;
@@ -94,7 +96,7 @@ export async function markMutationsSending(
     return;
   }
   const now = new Date().toISOString();
-  await db.withExclusiveTransactionAsync(async (txn) => {
+  await runKeyedTransaction(db, async (txn) => {
     for (const mutationId of mutationIds) {
       await txn.runAsync(
         `UPDATE sync_outbox
@@ -117,7 +119,7 @@ export async function requeueMutations(
     return;
   }
   const now = new Date().toISOString();
-  await db.withExclusiveTransactionAsync(async (txn) => {
+  await runKeyedTransaction(db, async (txn) => {
     for (const mutationId of mutationIds) {
       await txn.runAsync(
         `UPDATE sync_outbox
