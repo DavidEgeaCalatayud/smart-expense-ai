@@ -19,17 +19,12 @@ appId: com.davidegea.smartexpenseai
     visible: "Native Bridge Coffee"
     timeout: 10000
 - scrollUntilVisible:
-    element: "Sync now"
-    direction: UP
-    timeout: 10000
-- tapOn: "Sync now"
-- scrollUntilVisible:
     element: "Native Bridge Coffee"
     direction: DOWN
-    timeout: 30000
+    timeout: 10000
 - assertVisible: "Native Bridge Coffee"
 - scrollUntilVisible:
-    element: "Synced"
+    element: "Pending sync"
     direction: DOWN
-    timeout: 30000
-- assertVisible: "Synced"
+    timeout: 10000
+- assertVisible: "Pending sync"

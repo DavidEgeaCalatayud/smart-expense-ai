@@ -2,7 +2,7 @@ import { Stack } from 'expo-router';
 import { SQLiteProvider } from 'expo-sqlite';
 import { StatusBar } from 'expo-status-bar';
 import { Suspense } from 'react';
-import { ActivityIndicator, StyleSheet, View } from 'react-native';
+import { ActivityIndicator, Platform, StyleSheet, View } from 'react-native';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 
 import { AuthProvider, useAuth } from '../src/auth/AuthProvider';
@@ -27,7 +27,15 @@ function AuthenticatedStack() {
   return (
     <>
       <StatusBar style="auto" />
-      <Stack screenOptions={{ headerShown: false }}>
+      <Stack
+        screenOptions={{
+          headerShown: false,
+          // RN 0.86/Fabric has an open Android mounting crash associated with native-stack
+          // transitions. This app does not depend on Android route animations, so keep the native
+          // stack while disabling only that transition path; iOS retains its platform animation.
+          animation: Platform.OS === 'android' ? 'none' : 'default',
+        }}
+      >
         <Stack.Protected guard={user !== null}>
           <Stack.Screen name="index" />
           <Stack.Screen name="categories" />

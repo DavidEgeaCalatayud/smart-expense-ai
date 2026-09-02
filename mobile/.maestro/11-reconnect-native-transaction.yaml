@@ -1,0 +1,16 @@
+appId: com.davidegea.smartexpenseai
+---
+- launchApp
+- extendedWaitUntil:
+    visible: "Offline-first transactions"
+    timeout: 30000
+- scrollUntilVisible:
+    element: "Native Bridge Coffee"
+    direction: DOWN
+    timeout: 30000
+- assertVisible: "Native Bridge Coffee"
+- scrollUntilVisible:
+    element: "Synced"
+    direction: DOWN
+    timeout: 30000
+- assertVisible: "Synced"
