@@ -6,6 +6,7 @@ appId: com.davidegea.smartexpenseai
     timeout: 15000
 - tapOn: "Merchant"
 - inputText: "Background Worker Coffee"
+- hideKeyboard
 - tapOn: "Amount"
 - inputText: "7.89"
 - hideKeyboard
