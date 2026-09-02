@@ -83,9 +83,11 @@ run_flow android-offline-create mobile/.maestro/10-create-offline-native-transac
 adb shell am force-stop "$PACKAGE_ID"
 start_backend
 server_helper_b assert-absent --merchant 'Native Bridge Coffee'
+echo 'Cross-client server absence verified: Native Bridge Coffee is not in PostgreSQL before Android relaunch.'
 
 run_flow android-reconnect-sync mobile/.maestro/11-reconnect-native-transaction.yaml
 server_helper_b wait-present --merchant 'Native Bridge Coffee' --timeout-seconds 60
+echo 'Cross-client server presence verified: Native Bridge Coffee reached PostgreSQL after Android relaunch and sync.'
 
 (
   cd frontend
