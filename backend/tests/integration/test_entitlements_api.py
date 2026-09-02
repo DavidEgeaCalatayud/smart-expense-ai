@@ -124,3 +124,11 @@ def test_premium_account_gets_premium_policy_without_releasing_planned_features(
             "enabled": False,
         },
     }
+
+    privacy_response = client.get(f"{API_V1}/auth/privacy-export")
+    assert privacy_response.status_code == 200
+    assert privacy_response.json()["subscription"] == {
+        "planTier": "premium",
+        "subscriptionStatus": "active",
+        "subscriptionCurrentPeriodEnd": period_end.isoformat().replace("+00:00", "Z"),
+    }

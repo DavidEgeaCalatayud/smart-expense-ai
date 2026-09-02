@@ -6,6 +6,7 @@ Phase 6A introduces the subscription-ready entitlement boundary without adding a
 
 - FastAPI/PostgreSQL remain the server-authoritative source for account plan state.
 - Existing browser and mobile authentication contracts are unchanged.
+- The authenticated privacy export includes the provider-neutral plan/subscription metadata introduced here.
 - No current feature is paywalled in this phase.
 - Limits are published in `observe_only` mode. They are product-policy inputs, not enforcement rules yet.
 - Planned premium features distinguish **eligibility** from **release state**. A premium account can be eligible for a feature while `enabled` remains `false` until that feature is actually shipped.

@@ -9,7 +9,7 @@ from app.core.http_security import log_security_event
 from app.core.security import create_access_token
 from app.db.session import get_db
 from app.models.user import User
-from app.privacy_schemas import PrivacyExportResponseWithImports
+from app.privacy_schemas import PrivacyExportResponseWithImports, PrivacyExportSubscription
 from app.schemas import (
     AuthResponse,
     ChangePasswordRequest,
@@ -159,6 +159,15 @@ def privacy_export(
     db: Session = Depends(get_db),
 ) -> PrivacyExportResponseWithImports:
     export = build_privacy_export(db, current_user)
+    export = export.model_copy(
+        update={
+            "subscription": PrivacyExportSubscription(
+                planTier=current_user.plan_tier,
+                subscriptionStatus=current_user.subscription_status,
+                subscriptionCurrentPeriodEnd=current_user.subscription_current_period_end,
+            )
+        }
+    )
     log_security_event(request, "privacy_export", "success", user_id=current_user.id)
     return export
 
