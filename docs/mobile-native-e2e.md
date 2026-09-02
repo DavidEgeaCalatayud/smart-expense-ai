@@ -20,16 +20,19 @@ The APK is generated with the non-production Android transport policy so emulato
 
 ## Required invariants
 
-The first native suite proves the following end to end:
+The native suite proves the following end to end:
 
-1. **Native authentication** — a clean install registers a real mobile session against FastAPI/PostgreSQL and enters the protected workspace.
-2. **SQLCipher at rest** — after database initialization, the on-device database header must not equal the standard plaintext SQLite header (`SQLite format 3`).
-3. **Offline durability** — with FastAPI stopped, creating a transaction leaves a durable `Pending sync` row.
-4. **Process-death recovery** — Android force-stops the process and a subsequent launch still shows the transaction and pending state.
-5. **Reconnect convergence** — FastAPI is restarted and an explicit foreground sync pushes the durable outbox mutation until the row becomes `Synced`.
-6. **Account isolation** — signing out and registering a second account produces an empty local transaction workspace; data from the first account is not visible.
+1. **Plaintext-to-SQLCipher migration** — a real legacy Expo-SQLite fixture is installed in the application sandbox, migrated on device, verified at schema v2 and removed after successful conversion.
+2. **SQLCipher at rest** — after migration and normal database initialization, the on-device encrypted database header must not equal the standard plaintext SQLite header (`SQLite format 3`).
+3. **Native authentication** — a clean workspace registers a real mobile session against FastAPI/PostgreSQL and enters the protected workspace.
+4. **Offline durability** — with FastAPI stopped, creating a transaction leaves a durable `Pending sync` row.
+5. **Process-death recovery** — Android force-stops the process and a subsequent launch still shows the transaction and pending state.
+6. **Reconnect convergence** — FastAPI is restarted and an explicit foreground sync pushes the durable outbox mutation until the row becomes `Synced`.
+7. **Deterministic stale-version conflict** — an independent legitimate mobile session advances the server row, the device edits from the stale local base, surfaces `stale_version`, and exercises the conflict-resolution UI.
+8. **Native WorkManager execution** — another durable offline mutation is created, the registered Android JobScheduler/WorkManager job is discovered and forced while the app remains backgrounded, and server-side verification proves the worker—not a foreground `Sync now` action—pushed it.
+9. **Account isolation** — signing out and registering a second account produces an empty local transaction workspace; data and conflict residue from the first account are not visible.
 
-The suite uses the existing application UI and the existing `runForegroundSync()` correctness path. It does not add a test-only synchronization algorithm.
+The suite uses the existing application UI and the existing `runForegroundSync()` correctness path. The background task invokes that same synchronization path; it does not add a test-only synchronization algorithm.
 
 ## Supply-chain pinning
 
@@ -47,16 +50,12 @@ On failure GitHub Actions uploads:
 
 - FastAPI log;
 - Metro log;
+- JobScheduler diagnostics;
+- Android prewarm launch, logcat, activity, adb-reverse and UI diagnostics;
 - Maestro test output.
 
 The workflow has an explicit 55-minute job timeout so a deadlocked emulator/Gradle process cannot consume an unbounded runner.
 
-## Deliberately remaining native scenarios
+## Merge gate
 
-This first gate does not yet claim all device-only hardening cases. Follow-up coverage should add:
-
-- plaintext legacy database fixture -> SQLCipher migration with row-level preservation verification and plaintext-file removal;
-- a deterministic stale-version web/mobile race that surfaces the explicit conflict UI and exercises `Use server` / `Retry mine`;
-- explicit triggering/inspection of the registered Android WorkManager background task while preserving foreground sync as the correctness path.
-
-These scenarios build on the same emulator harness rather than creating a second mobile test architecture.
+The scenarios above are part of the harness, but the pull request must not be merged merely because they exist in source. The final Android Native E2E run for the merge candidate must be green and its log must show that every scenario executed through the final success marker.
