@@ -54,6 +54,7 @@ jobs:
       EXPO_NO_QR_CODE: '1'
       EXPO_NO_TYPESCRIPT_SETUP: '1'
       EXPO_UNSTABLE_HEADLESS: '1'
+      ORG_GRADLE_PROJECT_reactNativeDevServerIp: localhost
     services:
       postgres:
         image: postgres:16
