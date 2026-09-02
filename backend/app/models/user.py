@@ -4,7 +4,7 @@ from datetime import datetime
 from typing import TYPE_CHECKING
 from uuid import UUID, uuid4
 
-from sqlalchemy import Boolean, DateTime, Integer, String, func, true
+from sqlalchemy import Boolean, CheckConstraint, DateTime, Integer, String, func, true
 from sqlalchemy.dialects.postgresql import UUID as PG_UUID
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
@@ -18,6 +18,16 @@ if TYPE_CHECKING:
 
 class User(Base):
     __tablename__ = "users"
+    __table_args__ = (
+        CheckConstraint(
+            "plan_tier IN ('free', 'premium')",
+            name="ck_users_plan_tier",
+        ),
+        CheckConstraint(
+            "subscription_status IN ('none', 'trialing', 'active', 'past_due', 'canceled')",
+            name="ck_users_subscription_status",
+        ),
+    )
 
     id: Mapped[UUID] = mapped_column(
         PG_UUID(as_uuid=True),
@@ -38,6 +48,22 @@ class User(Base):
         nullable=False,
         default=1,
         server_default="1",
+    )
+    plan_tier: Mapped[str] = mapped_column(
+        String(32),
+        nullable=False,
+        default="free",
+        server_default="free",
+    )
+    subscription_status: Mapped[str] = mapped_column(
+        String(32),
+        nullable=False,
+        default="none",
+        server_default="none",
+    )
+    subscription_current_period_end: Mapped[datetime | None] = mapped_column(
+        DateTime(timezone=True),
+        nullable=True,
     )
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True),
