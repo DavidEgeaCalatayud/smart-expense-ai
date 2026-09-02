@@ -174,6 +174,31 @@ launch_android_app() {
   adb shell pidof "$PACKAGE_ID" >/dev/null 2>&1
 }
 
+dismiss_unrelated_launcher_anr() {
+  local ui_dump="$1"
+  if ! grep -q "Pixel Launcher isn't responding" <<<"$ui_dump"; then
+    return 1
+  fi
+
+  local close_node
+  close_node="$(
+    grep -o 'resource-id="android:id/aerr_close"[^>]*bounds="\[[0-9]\+,[0-9]\+\]\[[0-9]\+,[0-9]\+\]"' \
+      <<<"$ui_dump" | head -n 1
+  )"
+  if [[ -z "$close_node" ]]; then
+    return 1
+  fi
+
+  local left top right bottom
+  read -r left top right bottom <<<"$(sed 's/[^0-9]\+/ /g' <<<"$close_node")"
+  if [[ -z "$left" || -z "$top" || -z "$right" || -z "$bottom" ]]; then
+    return 1
+  fi
+
+  echo 'Dismissing an unrelated Pixel Launcher ANR during Android E2E prewarm.' >&2
+  adb shell input tap "$(((left + right) / 2))" "$(((top + bottom) / 2))" >/dev/null
+}
+
 wait_for_login_ui() {
   # The React Native host can report Metro reachable and start loadJSBundleFromMetro several
   # seconds before Expo emits a bundle progress line. UI readiness is the integration invariant;
@@ -194,6 +219,10 @@ wait_for_login_ui() {
       if grep -q 'Unable to load script' <<<"$ui_dump"; then
         echo 'React Native displayed the missing Metro bundle RedBox during Android prewarm.' >&2
         return 1
+      fi
+      if dismiss_unrelated_launcher_anr "$ui_dump"; then
+        sleep 1
+        continue
       fi
       if grep -q "isn't responding" <<<"$ui_dump"; then
         echo 'An Android system error dialog obscured the application during E2E prewarm.' >&2
