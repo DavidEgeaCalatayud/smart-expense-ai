@@ -9,7 +9,8 @@ if (!['create-web', 'assert-native'].includes(mode) || !email || !password) {
 }
 
 const browser = await chromium.launch({ headless: true });
-const page = await browser.newPage({ baseURL });
+const context = await browser.newContext({ baseURL });
+const page = await context.newPage();
 
 try {
   await page.goto('/');
@@ -42,5 +43,6 @@ try {
     console.log('Cross-client browser observed Native Bridge Coffee.');
   }
 } finally {
+  await context.close();
   await browser.close();
 }
