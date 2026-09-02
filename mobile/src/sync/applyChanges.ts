@@ -2,6 +2,7 @@ import type { SyncChange } from '@smart-expense-ai/api-contracts';
 import { decimalToMinorUnits } from '@smart-expense-ai/domain-types';
 import type { SQLiteDatabase } from 'expo-sqlite';
 
+import { runKeyedTransaction } from '../database/keyedTransaction';
 import type { LocalSyncStatus } from '../database/types';
 
 interface ExistingSyncRow {
@@ -187,7 +188,7 @@ export async function applyChangesAndCursor(
   cursor: string,
 ): Promise<void> {
   const now = new Date().toISOString();
-  await db.withExclusiveTransactionAsync(async (txn) => {
+  await runKeyedTransaction(db, async (txn) => {
     for (const change of changes) {
       await applySyncChange(txn, change);
     }
@@ -205,7 +206,7 @@ export async function applyBootstrapPage(
   db: SQLiteDatabase,
   changes: readonly SyncChange[],
 ): Promise<void> {
-  await db.withExclusiveTransactionAsync(async (txn) => {
+  await runKeyedTransaction(db, async (txn) => {
     for (const change of changes) {
       await applySyncChange(txn, change);
     }

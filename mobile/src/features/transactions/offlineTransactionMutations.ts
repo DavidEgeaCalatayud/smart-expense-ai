@@ -3,6 +3,7 @@ import { minorUnitsToDecimal } from '@smart-expense-ai/domain-types';
 import * as Crypto from 'expo-crypto';
 import type { SQLiteDatabase } from 'expo-sqlite';
 
+import { runKeyedTransaction } from '../../database/keyedTransaction';
 import type { LocalTransactionRow } from '../../database/types';
 import { enqueueMutation, type OutboxRow } from '../../sync/outboxRepository';
 import { validateOfflineTransactionInput } from './validation';
@@ -69,7 +70,7 @@ export async function updateOfflineTransaction(
   const now = new Date().toISOString();
   const payload = payloadFor(current, validated.merchant, validated.amountMinor, validated.transactionDate);
 
-  await db.withExclusiveTransactionAsync(async (txn) => {
+  await runKeyedTransaction(db, async (txn) => {
     const existingMutation = await txn.getFirstAsync<OutboxRow>(
       `SELECT * FROM sync_outbox
        WHERE entity_type = 'transaction' AND entity_id = ?
@@ -128,7 +129,7 @@ export async function deleteOfflineTransaction(
   }
   const now = new Date().toISOString();
 
-  await db.withExclusiveTransactionAsync(async (txn) => {
+  await runKeyedTransaction(db, async (txn) => {
     const existingMutation = await txn.getFirstAsync<OutboxRow>(
       `SELECT * FROM sync_outbox
        WHERE entity_type = 'transaction' AND entity_id = ?

@@ -8,6 +8,7 @@ import type {
 import * as Crypto from 'expo-crypto';
 import type { SQLiteDatabase } from 'expo-sqlite';
 
+import { runKeyedTransaction } from '../database/keyedTransaction';
 import { applySyncChange } from './applyChanges';
 import {
   getUnresolvedConflict,
@@ -118,7 +119,7 @@ export async function resolveConflictWithServer(
   if (!conflict) {
     return;
   }
-  await db.withExclusiveTransactionAsync(async (txn) => {
+  await runKeyedTransaction(db, async (txn) => {
     await applySyncChange(txn, serverChangeFromConflict(conflict), { force: true });
     await markConflictResolved(txn, conflictId);
   });
@@ -138,7 +139,7 @@ export async function retryConflictWithLocalValue(
   const mutation = retryMutationFromConflict(conflict);
   const now = new Date().toISOString();
 
-  await db.withExclusiveTransactionAsync(async (txn) => {
+  await runKeyedTransaction(db, async (txn) => {
     await txn.runAsync(
       `UPDATE ${TABLE_BY_ENTITY[conflict.entity_type]}
        SET sync_status = 'pending', server_version = ?, updated_at = ?

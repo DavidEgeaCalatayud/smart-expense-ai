@@ -1,0 +1,30 @@
+appId: com.davidegea.smartexpenseai
+---
+- launchApp
+- assertVisible: "Offline-first transactions"
+- tapOn: "Sign out"
+- extendedWaitUntil:
+    visible: "Welcome back"
+    timeout: 15000
+- tapOn: "Create one"
+- tapOn: "Display name"
+- inputText: "Mobile E2E Second"
+- tapOn: "Email"
+- inputText: ${E2E_EMAIL_B}
+- tapOn: "Password"
+- inputText: ${E2E_PASSWORD}
+- hideKeyboard
+- tapOn: "Submit create account"
+- extendedWaitUntil:
+    visible: "Offline-first transactions"
+    timeout: 20000
+- assertVisible: ${E2E_EMAIL_B}
+- extendedWaitUntil:
+    visible: "0 queued · 0 failed · 0 conflicts"
+    timeout: 15000
+- assertNotVisible: "Conflicts need a decision"
+- scrollUntilVisible:
+    element: "No local transactions yet.*"
+    direction: DOWN
+    timeout: 15000
+- assertVisible: "No local transactions yet.*"

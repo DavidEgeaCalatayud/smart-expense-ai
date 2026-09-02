@@ -5,6 +5,7 @@ import type {
 } from '@smart-expense-ai/api-contracts';
 import type { SQLiteDatabase } from 'expo-sqlite';
 
+import { runKeyedTransaction } from '../database/keyedTransaction';
 import { storeConflict } from './conflictRepository';
 import { type OutboxRow, outboxRowToMutation } from './outboxRepository';
 
@@ -54,7 +55,7 @@ export async function persistPushResponse(
   const rowByMutationId = new Map(rows.map((row) => [row.mutation_id, row]));
   const conflicts = conflictByMutationId(response);
 
-  await db.withExclusiveTransactionAsync(async (txn) => {
+  await runKeyedTransaction(db, async (txn) => {
     for (const result of response.results) {
       const row = rowByMutationId.get(result.mutationId);
       if (!row) {

@@ -2,6 +2,7 @@ import type { CategoryUpsertMutation } from '@smart-expense-ai/api-contracts';
 import * as Crypto from 'expo-crypto';
 import type { SQLiteDatabase } from 'expo-sqlite';
 
+import { runKeyedTransaction } from '../../database/keyedTransaction';
 import type { LocalCategoryRow } from '../../database/types';
 import { enqueueMutation, type OutboxRow } from '../../sync/outboxRepository';
 import { normalizeCategoryName, normalizedCategoryKey } from './validation';
@@ -111,7 +112,7 @@ export async function createOfflineCategory(
     updated_at: now,
   };
 
-  await db.withExclusiveTransactionAsync(async (txn) => {
+  await runKeyedTransaction(db, async (txn) => {
     await txn.runAsync(
       `INSERT INTO categories (
          id, name, normalized_name, transaction_type, system_category, archived,
@@ -145,7 +146,7 @@ export async function renameOfflineCategory(
   await assertNameAvailable(db, nextName, category.transaction_type, category.id);
   const now = new Date().toISOString();
 
-  await db.withExclusiveTransactionAsync(async (txn) => {
+  await runKeyedTransaction(db, async (txn) => {
     await txn.runAsync(
       `UPDATE categories
        SET name = ?, normalized_name = ?, sync_status = 'pending', updated_at = ?
@@ -188,7 +189,7 @@ export async function setOfflineCategoryArchived(
   }
 
   const now = new Date().toISOString();
-  await db.withExclusiveTransactionAsync(async (txn) => {
+  await runKeyedTransaction(db, async (txn) => {
     await txn.runAsync(
       `UPDATE categories
        SET archived = ?, sync_status = 'pending', updated_at = ?

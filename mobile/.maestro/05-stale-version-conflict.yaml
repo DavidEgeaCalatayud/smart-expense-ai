@@ -1,0 +1,44 @@
+appId: com.davidegea.smartexpenseai
+---
+# Keep the foreground replica left by 04-reconnect-sync at V1. The host-side helper has advanced
+# the server to V2; relaunching here would mount useForegroundSync and pull V2 before the stale edit.
+- scrollUntilVisible:
+    element: "Offline Coffee"
+    direction: DOWN
+    timeout: 15000
+- assertVisible: "Offline Coffee"
+- tapOn: "Edit"
+- scrollUntilVisible:
+    element: "Edit local transaction"
+    direction: UP
+    timeout: 10000
+- assertVisible: "Edit local transaction"
+- tapOn: "Merchant"
+- eraseText: 50
+- inputText: "Local Coffee"
+- hideKeyboard
+- tapOn: "Save offline edit"
+- scrollUntilVisible:
+    element: "Conflicts need a decision"
+    direction: UP
+    timeout: 30000
+- assertVisible: "transaction · stale_version"
+- assertVisible: "Use server"
+- assertVisible: "Retry mine"
+- tapOn: "Use server"
+- scrollUntilVisible:
+    element: "Server Coffee"
+    direction: DOWN
+    timeout: 30000
+- scrollUntilVisible:
+    element: "Synced"
+    direction: DOWN
+    timeout: 10000
+- scrollUntilVisible:
+    element: "Synchronization"
+    direction: UP
+    timeout: 10000
+- extendedWaitUntil:
+    visible: "0 queued · 0 failed · 0 conflicts"
+    timeout: 15000
+- assertNotVisible: "Conflicts need a decision"

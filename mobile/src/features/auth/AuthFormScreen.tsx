@@ -5,15 +5,16 @@ import {
   KeyboardAvoidingView,
   Platform,
   Pressable,
-  SafeAreaView,
   ScrollView,
   StyleSheet,
   Text,
   TextInput,
   View,
 } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { useAuth } from '../../auth/AuthProvider';
+import { E2eLegacyMigrationDiagnostic } from './E2eLegacyMigrationDiagnostic';
 
 interface AuthFormScreenProps {
   mode: 'login' | 'register';
@@ -65,6 +66,8 @@ export function AuthFormScreen({ mode }: AuthFormScreenProps) {
             </Text>
           </View>
 
+          {!isRegister ? <E2eLegacyMigrationDiagnostic /> : null}
+
           <View style={styles.form}>
             {isRegister ? (
               <TextInput
@@ -103,6 +106,7 @@ export function AuthFormScreen({ mode }: AuthFormScreenProps) {
             {error ? <Text style={styles.error}>{error}</Text> : null}
 
             <Pressable
+              accessibilityLabel={isRegister ? 'Submit create account' : 'Submit sign in'}
               accessibilityRole="button"
               disabled={disabled}
               onPress={() => void submit()}

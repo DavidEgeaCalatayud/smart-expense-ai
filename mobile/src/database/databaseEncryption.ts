@@ -24,6 +24,15 @@ function assertHexKey(value: string): string {
   return value.toLowerCase();
 }
 
+async function runEncryptionStage<T>(stage: string, operation: () => Promise<T>): Promise<T> {
+  try {
+    return await operation();
+  } catch (error) {
+    const detail = error instanceof Error ? error.message : String(error);
+    throw new Error(`SQLCipher initialization failed during ${stage}: ${detail}`);
+  }
+}
+
 export async function getOrCreateDatabaseKeyHex(): Promise<string> {
   const existing = await SecureStore.getItemAsync(DATABASE_KEY_STORAGE_KEY, SECURE_OPTIONS);
   if (existing) {
@@ -37,13 +46,15 @@ export async function getOrCreateDatabaseKeyHex(): Promise<string> {
 }
 
 export async function applyAndVerifyDatabaseEncryption(db: SQLiteDatabase): Promise<void> {
-  const keyHex = await getOrCreateDatabaseKeyHex();
+  const keyHex = await runEncryptionStage('secure key retrieval', getOrCreateDatabaseKeyHex);
 
   // The key is generated locally as strict hexadecimal, so interpolating it cannot alter the PRAGMA.
   // This must be the first database operation that touches encrypted pages.
-  await db.execAsync(`PRAGMA key = "x'${keyHex}'"`);
+  await runEncryptionStage('PRAGMA key', () => db.execAsync(`PRAGMA key = "x'${keyHex}'"`));
 
-  const cipher = await db.getFirstAsync<{ cipher_version?: string }>('PRAGMA cipher_version');
+  const cipher = await runEncryptionStage('cipher version probe', () =>
+    db.getFirstAsync<{ cipher_version?: string }>('PRAGMA cipher_version'),
+  );
   if (!cipher?.cipher_version) {
     throw new Error(
       'SQLCipher is unavailable. Use a native development/preview build; Expo Go is not supported.',
@@ -51,7 +62,9 @@ export async function applyAndVerifyDatabaseEncryption(db: SQLiteDatabase): Prom
   }
 
   // Force a page read so a missing/wrong key fails before migrations or application queries run.
-  await db.getFirstAsync<{ count: number }>('SELECT COUNT(*) AS count FROM sqlite_master');
+  await runEncryptionStage('first encrypted page read', () =>
+    db.getFirstAsync<{ count: number }>('SELECT COUNT(*) AS count FROM sqlite_master'),
+  );
 }
 
 function databasePath(databaseName: string): string {
