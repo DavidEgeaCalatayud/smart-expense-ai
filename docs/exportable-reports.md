@@ -38,7 +38,7 @@ Returns:
 
 `GET /api/v2/reports/monthly.csv?month=YYYY-MM`
 
-Returns `text/csv` with a private/no-store cache policy and an attachment filename of `smart-expense-report-YYYY-MM.csv`.
+Returns `text/csv` with a private/no-store cache policy and an attachment filename of `smart-expense-report-YYYY-MM.csv`. `Content-Disposition` is explicitly CORS-exposed so the browser can honor the server filename when frontend and API run on different origins.
 
 The CSV contains three sections:
 
@@ -62,7 +62,7 @@ The generated report is not persisted as a separate database object. It is deriv
 
 ## Spreadsheet safety
 
-CSV values originating from user-controlled text are protected against spreadsheet formula execution. Merchant, category and description fields beginning with `=`, `+`, `-` or `@` are prefixed with an apostrophe before CSV serialization.
+CSV values originating from user-controlled text are protected against spreadsheet formula execution. Merchant, category and description fields beginning with `=`, `+`, `-`, `@`, tab, carriage-return or newline are prefixed with an apostrophe before CSV serialization.
 
 This rule is output-specific and does not modify the persisted transaction text.
 
@@ -73,6 +73,7 @@ The protected **Reports** workspace first reads the server entitlement contract.
 - Free accounts see a truthful locked state explaining that report export requires Premium. The application does not display a fake checkout or simulated upgrade action while billing activation remains a separate milestone.
 - Premium accounts receive the selected month's server preview and may download the corresponding CSV.
 - Browser-side code formats already-calculated decimal strings only for presentation; it does not recompute financial totals.
+- The initial reporting month is derived from the browser's local calendar rather than UTC so users near a timezone/month boundary do not land on the wrong month.
 
 ## Validation
 
