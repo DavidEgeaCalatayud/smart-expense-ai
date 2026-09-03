@@ -221,7 +221,7 @@ jobs:
           emulator-options: -no-window -gpu swiftshader_indirect -no-snapshot -noaudio -no-boot-anim -camera-back none
           disable-animations: true
           script: |
-            set -euo pipefail
+            set -eu
             network_ready=0
             for attempt in $(seq 1 60); do
               if adb shell 'toybox nc -z -w 2 10.0.2.2 8000' >/dev/null 2>&1 \
@@ -231,7 +231,7 @@ jobs:
               fi
               sleep 1
             done
-            if [[ "$network_ready" != '1' ]]; then
+            if [ "$network_ready" != '1' ]; then
               echo 'Android emulator could not reach FastAPI and Metro through 10.0.2.2.' >&2
               adb shell ip route >&2 || true
               adb shell getprop sys.boot_completed >&2 || true
