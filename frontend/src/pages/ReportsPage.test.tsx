@@ -65,8 +65,16 @@ describe('ReportsPage', () => {
       filename: 'smart-expense-report-2026-09.csv',
     });
 
-    const createObjectURL = vi.spyOn(URL, 'createObjectURL').mockReturnValue('blob:report');
-    const revokeObjectURL = vi.spyOn(URL, 'revokeObjectURL').mockImplementation(() => undefined);
+    const createObjectURL = vi.fn(() => 'blob:report');
+    const revokeObjectURL = vi.fn();
+    Object.defineProperty(URL, 'createObjectURL', {
+      configurable: true,
+      value: createObjectURL,
+    });
+    Object.defineProperty(URL, 'revokeObjectURL', {
+      configurable: true,
+      value: revokeObjectURL,
+    });
     const click = vi.spyOn(HTMLAnchorElement.prototype, 'click').mockImplementation(() => undefined);
 
     render(<ReportsPage />);
@@ -86,7 +94,5 @@ describe('ReportsPage', () => {
     expect(revokeObjectURL).toHaveBeenCalledWith('blob:report');
 
     click.mockRestore();
-    revokeObjectURL.mockRestore();
-    createObjectURL.mockRestore();
   });
 });
