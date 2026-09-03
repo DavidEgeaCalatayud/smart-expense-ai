@@ -1,8 +1,7 @@
+from decimal import Decimal
 from typing import Literal
 
 from pydantic import BaseModel, ConfigDict
-
-from app.schemas import MoneyString
 
 
 class ReportCategoryBreakdown(BaseModel):
@@ -10,7 +9,7 @@ class ReportCategoryBreakdown(BaseModel):
 
     category: str
     type: Literal["expense", "income"]
-    total: MoneyString
+    total: Decimal
     transactionCount: int
 
 
@@ -20,9 +19,9 @@ class MonthlyReportResponse(BaseModel):
     reportVersion: Literal["monthly-financial-report-v1"]
     month: str
     currency: Literal["EUR"]
-    totalIncome: MoneyString
-    totalExpenses: MoneyString
-    net: MoneyString
+    totalIncome: Decimal
+    totalExpenses: Decimal
+    net: Decimal
     transactionCount: int
     categoryBreakdown: list[ReportCategoryBreakdown]
     downloadFilename: str
