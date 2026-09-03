@@ -19,7 +19,8 @@ from app.report_schemas import MonthlyReportResponse, ReportCategoryBreakdown
 REPORT_VERSION = "monthly-financial-report-v1"
 CENT = Decimal("0.01")
 ZERO = Decimal("0.00")
-FORMULA_PREFIXES = ("=", "+", "-", "@", "\t", "\r", "\n")
+FORMULA_PREFIXES = ("=", "+", "-", "@")
+FORMULA_LEADING_WHITESPACE = " \t\r\n"
 
 
 @dataclass(frozen=True)
@@ -128,7 +129,8 @@ def build_monthly_report(db: Session, user_id: UUID, month: str) -> MonthlyRepor
 
 
 def _safe_csv_text(value: str) -> str:
-    if value.startswith(FORMULA_PREFIXES):
+    significant_value = value.lstrip(FORMULA_LEADING_WHITESPACE)
+    if significant_value.startswith(FORMULA_PREFIXES):
         return f"'{value}"
     return value
 
