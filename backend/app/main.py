@@ -62,6 +62,7 @@ app.add_middleware(
     allow_credentials=True,
     allow_methods=["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],
     allow_headers=["Content-Type", "Accept", "Authorization"],
+    expose_headers=["Content-Disposition"],
 )
 app.add_middleware(SecurityMiddleware)
 
