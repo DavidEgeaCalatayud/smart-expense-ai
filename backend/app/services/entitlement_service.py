@@ -13,7 +13,7 @@ POLICY_VERSION = "premium-entitlements-v1"
 ENFORCEMENT_MODE = "observe_only"
 
 # Phase 6A deliberately exposes limits without enforcing them. Existing users keep
-# all current product behavior until a later, explicit enforcement milestone.
+# all current product behavior until a later, explicit quota-enforcement milestone.
 PLAN_LIMITS: dict[PlanTier, EntitlementLimits] = {
     "free": EntitlementLimits(
         maxCsvImportsPerMonth=5,
@@ -40,7 +40,7 @@ class FeaturePolicy:
 
 FEATURE_POLICIES: dict[str, FeaturePolicy] = {
     "advancedInsights": FeaturePolicy(premium_only=True, released=False),
-    "exportableReports": FeaturePolicy(premium_only=True, released=False),
+    "exportableReports": FeaturePolicy(premium_only=True, released=True),
 }
 
 
