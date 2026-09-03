@@ -92,6 +92,10 @@ def test_free_account_cannot_use_premium_reports(client: TestClient) -> None:
     assert response.status_code == 403
     assert response.json()["error"]["code"] == "premium_feature_required"
 
+    csv_response = client.get("/api/v2/reports/monthly.csv?month=2026-09")
+    assert csv_response.status_code == 403
+    assert csv_response.json()["error"]["code"] == "premium_feature_required"
+
 
 def test_premium_monthly_report_preserves_exact_money_and_safe_csv(client: TestClient) -> None:
     user_id = register(client, "premium-reports@example.com")
@@ -99,12 +103,12 @@ def test_premium_monthly_report_preserves_exact_money_and_safe_csv(client: TestC
 
     transactions = [
         transaction_payload(
-            merchant='=SUM(1,1)',
+            merchant=" \t=SUM(1,1)",
             amount="12.34",
             category="Food",
             transaction_type="expense",
             transaction_date="2026-09-03",
-            description="=spreadsheet-formula",
+            description="\t=spreadsheet-formula",
         ),
         transaction_payload(
             merchant="Metro",
@@ -171,8 +175,8 @@ def test_premium_monthly_report_preserves_exact_money_and_safe_csv(client: TestC
     assert "totalExpenses,32.34" in csv_text
     assert "net,967.66" in csv_text
     assert "Outside month" not in csv_text
-    assert "'=SUM(1,1)" in csv_text
-    assert "'=spreadsheet-formula" in csv_text
+    assert "' \t=SUM(1,1)" in csv_text
+    assert "'\t=spreadsheet-formula" in csv_text
 
 
 def test_reports_are_account_isolated_and_validate_month(client: TestClient) -> None:
