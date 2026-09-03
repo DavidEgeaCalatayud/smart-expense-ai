@@ -11,7 +11,8 @@ import type { MonthlyReport, ReportEntitlements } from '../types/reports';
 import { formatCurrencyWithDecimals } from '../utils/formatters';
 
 function currentMonth(): string {
-  return new Date().toISOString().slice(0, 7);
+  const now = new Date();
+  return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
 }
 
 export function ReportsPage() {
@@ -35,7 +36,7 @@ export function ReportsPage() {
         const nextEntitlements = await fetchReportEntitlements();
         if (!active) return;
         setEntitlements(nextEntitlements);
-        if (nextEntitlements.features.exportableReports?.enabled) {
+        if (nextEntitlements.features.exportableReports?.enabled && month) {
           const nextReport = await fetchMonthlyReport(month);
           if (!active) return;
           setReport(nextReport);
@@ -58,6 +59,7 @@ export function ReportsPage() {
   }, [month]);
 
   const handleDownload = async () => {
+    if (!month) return;
     setIsDownloading(true);
     setStatus(null);
     try {
@@ -92,6 +94,7 @@ export function ReportsPage() {
             Reporting month
             <input
               type="month"
+              required
               value={month}
               onChange={(event) => setMonth(event.target.value)}
               className="mt-2 block rounded-2xl border border-slate-200 px-4 py-3 font-normal outline-none transition focus:border-brand-400 focus:ring-2 focus:ring-brand-100"
@@ -101,7 +104,7 @@ export function ReportsPage() {
             <button
               type="button"
               onClick={() => void handleDownload()}
-              disabled={isLoading || !report || isDownloading}
+              disabled={isLoading || !report || !month || isDownloading}
               className="inline-flex items-center justify-center gap-2 rounded-2xl bg-slate-950 px-5 py-3 text-sm font-semibold text-white transition hover:bg-slate-800 disabled:cursor-not-allowed disabled:opacity-50"
             >
               <Download size={17} />
