@@ -173,7 +173,7 @@ Goal: evolve the project into a multi-client financial platform with an Android-
 - [x] Preserve the durable outbox across app/process termination.
 - [x] Surface pending/failed/conflict state explicitly in the UI.
 - [x] Add explicit conflict resolution instead of silent last-write-wins.
-- [ ] Add one combined browser + native-device E2E proving web-create -> Android-pull and Android-offline-create -> server -> web in a single cross-client scenario. Backend/web/native pieces are independently gated today, but the repository does not yet contain this literal combined test.
+- [x] Add one combined browser + native-device E2E proving web-create -> Android-pull and Android-offline-create -> server -> web in a single cross-client scenario, including durable process restart and host-side PostgreSQL absence/presence verification.
 
 ### Phase 5E - Categories and budgets
 
