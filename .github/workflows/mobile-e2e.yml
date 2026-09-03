@@ -7,7 +7,12 @@ on:
       - 'mobile/**'
       - 'backend/**'
       - 'shared/**'
+      - 'frontend/e2e/cross-client-driver.mjs'
+      - 'frontend/package.json'
+      - 'frontend/package-lock.json'
       - 'scripts/run-mobile-native-e2e.sh'
+      - 'scripts/run-cross-client-e2e.sh'
+      - 'scripts/wait-for-android-host-network.sh'
       - 'scripts/create-mobile-legacy-fixture.py'
       - 'scripts/mobile-e2e-server-helper.py'
       - '.github/workflows/mobile-e2e.yml'
@@ -17,7 +22,12 @@ on:
       - 'mobile/**'
       - 'backend/**'
       - 'shared/**'
+      - 'frontend/e2e/cross-client-driver.mjs'
+      - 'frontend/package.json'
+      - 'frontend/package-lock.json'
       - 'scripts/run-mobile-native-e2e.sh'
+      - 'scripts/run-cross-client-e2e.sh'
+      - 'scripts/wait-for-android-host-network.sh'
       - 'scripts/create-mobile-legacy-fixture.py'
       - 'scripts/mobile-e2e-server-helper.py'
       - '.github/workflows/mobile-e2e.yml'
@@ -33,7 +43,7 @@ jobs:
   android-e2e:
     name: Android emulator E2E
     runs-on: ubuntu-latest
-    timeout-minutes: 55
+    timeout-minutes: 65
     env:
       CI: 'true'
       APP_ENV: test
@@ -93,9 +103,16 @@ jobs:
 
       - name: Install mobile workspace dependencies
         run: npm install --workspace=@smart-expense-ai/mobile --include-workspace-root=false --no-audit --no-fund
-      - name: Validate native E2E harness
+      - name: Install locked frontend dependencies
+        working-directory: frontend
+        run: npm ci --no-audit --no-fund
+      - name: Install Chromium for cross-client E2E
+        working-directory: frontend
+        run: npx playwright install --with-deps chromium
+      - name: Validate native and cross-client E2E harnesses
         run: |
-          bash -n scripts/run-mobile-native-e2e.sh
+          bash -n scripts/run-mobile-native-e2e.sh scripts/run-cross-client-e2e.sh scripts/wait-for-android-host-network.sh
+          node --check frontend/e2e/cross-client-driver.mjs
           python -m py_compile scripts/create-mobile-legacy-fixture.py scripts/mobile-e2e-server-helper.py
           npm run test --workspace=@smart-expense-ai/mobile
           npm run typecheck --workspace=@smart-expense-ai/mobile
@@ -126,7 +143,7 @@ jobs:
           chmod +x "$MAESTRO_BIN"
           echo "$(dirname "$MAESTRO_BIN")" >> "$GITHUB_PATH"
 
-      - name: Start FastAPI and Metro
+      - name: Start FastAPI, Metro and web frontend
         run: |
           set -euo pipefail
 
@@ -170,13 +187,31 @@ jobs:
             exit 1
           fi
 
+          (
+            cd frontend
+            nohup npm run dev -- --host 0.0.0.0 \
+              > "$RUNNER_TEMP/mobile-e2e-frontend.log" 2>&1 &
+            echo $! > "$RUNNER_TEMP/mobile-e2e-frontend.pid"
+          )
+          for attempt in $(seq 1 60); do
+            if curl --fail --silent http://localhost:5173 > /dev/null; then
+              break
+            fi
+            sleep 1
+          done
+          if ! curl --fail --silent --show-error http://localhost:5173 > /dev/null; then
+            echo 'Vite failed to become ready:' >&2
+            cat "$RUNNER_TEMP/mobile-e2e-frontend.log" >&2 || true
+            exit 1
+          fi
+
       - name: Enable KVM
         run: |
           echo 'KERNEL=="kvm", GROUP="kvm", MODE="0666", OPTIONS+="static_node=kvm"' | sudo tee /etc/udev/rules.d/99-kvm4all.rules
           sudo udevadm control --reload-rules
           sudo udevadm trigger --name-match=kvm
 
-      - name: Run Android native E2E
+      - name: Run Android native and cross-client E2E
         uses: ReactiveCircus/android-emulator-runner@a421e43855164a8197daf9d8d40fe71c6996bb0d # v2.38.0
         with:
           api-level: 35
@@ -187,7 +222,11 @@ jobs:
           ram-size: 2048M
           emulator-options: -no-window -gpu swiftshader_indirect -no-snapshot -noaudio -no-boot-anim -camera-back none
           disable-animations: true
-          script: ./scripts/run-mobile-native-e2e.sh
+          script: |
+            bash ./scripts/wait-for-android-host-network.sh
+            adb reverse tcp:8081 tcp:8081
+            bash ./scripts/run-mobile-native-e2e.sh
+            bash ./scripts/run-cross-client-e2e.sh
 
       - name: Upload native E2E diagnostics on failure
         if: failure()
@@ -197,6 +236,7 @@ jobs:
           path: |
             ${{ runner.temp }}/mobile-e2e-backend.log
             ${{ runner.temp }}/mobile-e2e-metro.log
+            ${{ runner.temp }}/mobile-e2e-frontend.log
             ${{ runner.temp }}/mobile-e2e-jobscheduler.txt
             ${{ runner.temp }}/android-e2e-app-prewarm.log
             ${{ runner.temp }}/android-e2e-app-prewarm-logcat.log
