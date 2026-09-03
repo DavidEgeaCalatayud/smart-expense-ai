@@ -79,7 +79,9 @@ describe('ReportsPage', () => {
 
     render(<ReportsPage />);
 
-    expect(await screen.findByText('€1,000.00')).toBeInTheDocument();
+    const incomeCard = (await screen.findByText('Income')).closest('article');
+    expect(incomeCard).not.toBeNull();
+    expect(incomeCard).toHaveTextContent('€1,000.00');
     expect(screen.getByText('€32.34')).toBeInTheDocument();
     expect(screen.getByText('€967.66')).toBeInTheDocument();
     expect(screen.getByText('Food')).toBeInTheDocument();
