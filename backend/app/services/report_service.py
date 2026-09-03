@@ -19,7 +19,7 @@ from app.report_schemas import MonthlyReportResponse, ReportCategoryBreakdown
 REPORT_VERSION = "monthly-financial-report-v1"
 CENT = Decimal("0.01")
 ZERO = Decimal("0.00")
-FORMULA_PREFIXES = ("=", "+", "-", "@")
+FORMULA_PREFIXES = ("=", "+", "-", "@", "\t", "\r", "\n")
 
 
 @dataclass(frozen=True)
