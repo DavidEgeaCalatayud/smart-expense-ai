@@ -12,6 +12,7 @@ on:
       - 'frontend/package-lock.json'
       - 'scripts/run-mobile-native-e2e.sh'
       - 'scripts/run-cross-client-e2e.sh'
+      - 'scripts/wait-for-android-host-network.sh'
       - 'scripts/create-mobile-legacy-fixture.py'
       - 'scripts/mobile-e2e-server-helper.py'
       - '.github/workflows/mobile-e2e.yml'
@@ -26,6 +27,7 @@ on:
       - 'frontend/package-lock.json'
       - 'scripts/run-mobile-native-e2e.sh'
       - 'scripts/run-cross-client-e2e.sh'
+      - 'scripts/wait-for-android-host-network.sh'
       - 'scripts/create-mobile-legacy-fixture.py'
       - 'scripts/mobile-e2e-server-helper.py'
       - '.github/workflows/mobile-e2e.yml'
@@ -109,7 +111,7 @@ jobs:
         run: npx playwright install --with-deps chromium
       - name: Validate native and cross-client E2E harnesses
         run: |
-          bash -n scripts/run-mobile-native-e2e.sh scripts/run-cross-client-e2e.sh
+          bash -n scripts/run-mobile-native-e2e.sh scripts/run-cross-client-e2e.sh scripts/wait-for-android-host-network.sh
           node --check frontend/e2e/cross-client-driver.mjs
           python -m py_compile scripts/create-mobile-legacy-fixture.py scripts/mobile-e2e-server-helper.py
           npm run test --workspace=@smart-expense-ai/mobile
@@ -221,23 +223,7 @@ jobs:
           emulator-options: -no-window -gpu swiftshader_indirect -no-snapshot -noaudio -no-boot-anim -camera-back none
           disable-animations: true
           script: |
-            set -eu
-            network_ready=0
-            for attempt in $(seq 1 60); do
-              if adb shell 'toybox nc -z -w 2 10.0.2.2 8000' >/dev/null 2>&1 \
-                && adb shell 'toybox nc -z -w 2 10.0.2.2 8081' >/dev/null 2>&1; then
-                network_ready=1
-                break
-              fi
-              sleep 1
-            done
-            if [ "$network_ready" != '1' ]; then
-              echo 'Android emulator could not reach FastAPI and Metro through 10.0.2.2.' >&2
-              adb shell ip route >&2 || true
-              adb shell getprop sys.boot_completed >&2 || true
-              exit 1
-            fi
-            echo 'Android emulator host networking is ready: 10.0.2.2:8000 and :8081 reachable.'
+            bash ./scripts/wait-for-android-host-network.sh
             adb reverse tcp:8081 tcp:8081
             bash ./scripts/run-mobile-native-e2e.sh
             bash ./scripts/run-cross-client-e2e.sh
