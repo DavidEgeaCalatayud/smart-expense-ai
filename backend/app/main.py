@@ -1,7 +1,7 @@
 from fastapi import FastAPI
 from fastapi.exceptions import RequestValidationError
-from fastapi.middleware.cors import CORSMiddleware
 from starlette.exceptions import HTTPException as StarletteHTTPException
+from starlette.middleware.cors import CORSMiddleware
 from starlette.middleware.trustedhost import TrustedHostMiddleware
 
 from app.core.api_errors import (
@@ -25,6 +25,7 @@ from app.routers.imports import router as imports_router
 from app.routers.intelligence import router as intelligence_router
 from app.routers.intelligence_v2 import router as intelligence_v2_router
 from app.routers.mobile_auth import router as mobile_auth_router
+from app.routers.reports import router as reports_router
 from app.routers.spending_forecast import router as spending_forecast_router
 from app.routers.sync import router as sync_router
 from app.routers.transactions import router as transactions_router
@@ -91,3 +92,4 @@ app.include_router(financial_assistant_router, prefix=API_V2_PREFIX)
 app.include_router(sync_router, prefix=API_V2_PREFIX)
 app.include_router(mobile_auth_router, prefix=API_V2_PREFIX)
 app.include_router(entitlements_router, prefix=API_V2_PREFIX)
+app.include_router(reports_router, prefix=API_V2_PREFIX)
