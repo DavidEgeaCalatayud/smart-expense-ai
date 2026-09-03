@@ -1,4 +1,6 @@
+import csv
 from collections.abc import Generator
+from io import StringIO
 from uuid import UUID
 
 import pytest
@@ -175,8 +177,24 @@ def test_premium_monthly_report_preserves_exact_money_and_safe_csv(client: TestC
     assert "totalExpenses,32.34" in csv_text
     assert "net,967.66" in csv_text
     assert "Outside month" not in csv_text
-    assert "' \t=SUM(1,1)" in csv_text
-    assert "'\t=spreadsheet-formula" in csv_text
+
+    csv_rows = list(csv.reader(StringIO(csv_text)))
+    transaction_header = [
+        "date",
+        "type",
+        "merchant",
+        "category",
+        "amount",
+        "paymentMethod",
+        "recurring",
+        "source",
+        "description",
+    ]
+    transaction_header_index = csv_rows.index(transaction_header)
+    transaction_rows = csv_rows[transaction_header_index + 1 :]
+    dangerous_row = next(row for row in transaction_rows if row[4] == "12.34")
+    assert dangerous_row[2] == "' \t=SUM(1,1)"
+    assert dangerous_row[8] == "'\t=spreadsheet-formula"
 
 
 def test_reports_are_account_isolated_and_validate_month(client: TestClient) -> None:
