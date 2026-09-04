@@ -1,4 +1,4 @@
-FROM python:3.12.14-alpine3.24
+FROM python:3.12.14-slim-bookworm
 
 ENV PYTHONDONTWRITEBYTECODE=1 \
     PYTHONUNBUFFERED=1 \
@@ -7,11 +7,13 @@ ENV PYTHONDONTWRITEBYTECODE=1 \
 WORKDIR /app
 
 COPY requirements.txt ./requirements.txt
-RUN apk upgrade --no-cache \
-    && apk add --no-cache libstdc++ libgomp \
-    && pip install --no-cache-dir -r requirements.txt \
-    && addgroup -S app \
-    && adduser -S -G app -h /app app
+RUN set -eux; \
+    apt-get update; \
+    apt-get upgrade -y --no-install-recommends; \
+    pip install --no-cache-dir -r requirements.txt; \
+    addgroup --system app; \
+    adduser --system --ingroup app --home /app app; \
+    rm -rf /var/lib/apt/lists/*
 
 COPY alembic.ini ./alembic.ini
 COPY alembic ./alembic
