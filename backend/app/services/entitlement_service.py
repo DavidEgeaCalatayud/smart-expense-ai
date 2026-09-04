@@ -39,7 +39,7 @@ class FeaturePolicy:
 
 
 FEATURE_POLICIES: dict[str, FeaturePolicy] = {
-    "advancedInsights": FeaturePolicy(premium_only=True, released=False),
+    "advancedInsights": FeaturePolicy(premium_only=True, released=True),
     "exportableReports": FeaturePolicy(premium_only=True, released=True),
 }
 

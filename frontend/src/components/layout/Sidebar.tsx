@@ -10,6 +10,7 @@ import {
   MessageSquareText,
   ScanSearch,
   ShieldCheck,
+  Sparkles,
   Tags,
   UserRound,
   WalletCards,
@@ -25,6 +26,7 @@ const navigationItems = [
   { icon: WalletCards, label: 'Budgets', to: ROUTES.budgets },
   { icon: FileSpreadsheet, label: 'Import CSV', to: ROUTES.imports },
   { icon: FileDown, label: 'Reports', to: ROUTES.reports },
+  { icon: Sparkles, label: 'Insights', to: ROUTES.insights },
   { icon: LineChart, label: 'Predictions', to: ROUTES.predictions },
   { icon: ScanSearch, label: 'Intelligence', to: ROUTES.alerts },
   { icon: MessageSquareText, label: 'Assistant', to: ROUTES.assistant },
@@ -98,7 +100,7 @@ export function Sidebar() {
         </div>
         <p className="mb-2 text-sm font-semibold">Account-isolated data</p>
         <p className="text-sm leading-6 text-slate-300">
-          Transaction, category, budget, report, intelligence and assistant queries are scoped to your authenticated user before financial data leaves the API.
+          Transaction, category, budget, report, insight, intelligence and assistant queries are scoped to your authenticated user before financial data leaves the API.
         </p>
       </div>
     </aside>

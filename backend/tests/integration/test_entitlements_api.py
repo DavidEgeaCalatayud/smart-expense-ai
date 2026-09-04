@@ -86,7 +86,7 @@ def test_new_account_gets_observe_only_free_policy(client: TestClient) -> None:
     }
 
 
-def test_premium_account_gets_released_reports_while_advanced_insights_remain_unreleased(
+def test_premium_account_gets_released_reports_and_advanced_insights(
     client: TestClient,
 ) -> None:
     user_id = register(client, "premium-entitlements@example.com")
@@ -117,7 +117,7 @@ def test_premium_account_gets_released_reports_while_advanced_insights_remain_un
     assert payload["features"] == {
         "advancedInsights": {
             "eligible": True,
-            "enabled": False,
+            "enabled": True,
         },
         "exportableReports": {
             "eligible": True,

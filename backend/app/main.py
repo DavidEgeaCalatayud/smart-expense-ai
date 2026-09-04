@@ -12,6 +12,7 @@ from app.core.api_errors import (
 )
 from app.core.config import settings
 from app.core.http_security import SecurityMiddleware
+from app.routers.advanced_insights import router as advanced_insights_router
 from app.routers.analytics import router as analytics_router
 from app.routers.analytics_v2 import router as analytics_v2_router
 from app.routers.auth import router as auth_router
@@ -94,3 +95,4 @@ app.include_router(sync_router, prefix=API_V2_PREFIX)
 app.include_router(mobile_auth_router, prefix=API_V2_PREFIX)
 app.include_router(entitlements_router, prefix=API_V2_PREFIX)
 app.include_router(reports_router, prefix=API_V2_PREFIX)
+app.include_router(advanced_insights_router, prefix=API_V2_PREFIX)
