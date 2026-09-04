@@ -149,7 +149,7 @@ export function AdvancedInsightsPage() {
                   <div className="flex flex-wrap items-start justify-between gap-3">
                     <div>
                       <p className="text-xs font-semibold uppercase tracking-wide text-slate-400">
-                        {insight.kind.replaceAll('_', ' ')}
+                        {insight.kind.replace(/_/g, ' ')}
                       </p>
                       <h2 className="mt-1 text-xl font-bold text-slate-950">{insight.title}</h2>
                     </div>
