@@ -249,7 +249,7 @@ Goal: prepare the project for real deployment.
 - [ ] Add staging deployment.
 - [ ] Add production TLS/domain/secrets configuration.
 - [ ] Add centralized security monitoring and alerting.
-- [ ] Add container image vulnerability scanning and image-level SBOM/provenance generation.
+- [x] Add blocking HIGH/CRITICAL container-image vulnerability scanning plus retained image-level CycloneDX SBOM and BuildKit provenance for the backend, frontend and hardened PostgreSQL runtimes.
 
 ## Long-Term Ideas
 
