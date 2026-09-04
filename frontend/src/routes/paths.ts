@@ -4,6 +4,7 @@ export const ROUTES = {
   categories: '/categories',
   budgets: '/budgets',
   imports: '/imports',
+  reports: '/reports',
   predictions: '/predictions',
   alerts: '/alerts',
   assistant: '/assistant',

@@ -10,6 +10,7 @@ import { ImportPage } from './pages/ImportPage';
 import { LoginPage } from './pages/LoginPage';
 import { PredictionsPage } from './pages/PredictionsPage';
 import { RegisterPage } from './pages/RegisterPage';
+import { ReportsPage } from './pages/ReportsPage';
 import { SecurityPage } from './pages/SecurityPage';
 import { TransactionsPage } from './pages/TransactionsPage';
 import { ROUTES } from './routes/paths';
@@ -48,6 +49,7 @@ function App() {
         <Route path={ROUTES.categories} element={<CategoriesPage />} />
         <Route path={ROUTES.budgets} element={<BudgetsPage />} />
         <Route path={ROUTES.imports} element={<ImportPage />} />
+        <Route path={ROUTES.reports} element={<ReportsPage />} />
         <Route path={ROUTES.predictions} element={<PredictionsPage />} />
         <Route path={ROUTES.alerts} element={<AlertsPage />} />
         <Route path={ROUTES.assistant} element={<FinancialAssistantPage />} />

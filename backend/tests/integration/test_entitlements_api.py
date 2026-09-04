@@ -86,7 +86,7 @@ def test_new_account_gets_observe_only_free_policy(client: TestClient) -> None:
     }
 
 
-def test_premium_account_gets_premium_policy_without_releasing_planned_features(
+def test_premium_account_gets_released_reports_while_advanced_insights_remain_unreleased(
     client: TestClient,
 ) -> None:
     user_id = register(client, "premium-entitlements@example.com")
@@ -121,7 +121,7 @@ def test_premium_account_gets_premium_policy_without_releasing_planned_features(
         },
         "exportableReports": {
             "eligible": True,
-            "enabled": False,
+            "enabled": True,
         },
     }
 
