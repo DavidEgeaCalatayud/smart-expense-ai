@@ -6,6 +6,8 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ### Added
 
+- Premium exportable monthly reports through authenticated `/api/v2/reports/monthly` and `/api/v2/reports/monthly.csv`, with exact Decimal summaries/category breakdowns, deterministic ordering, spreadsheet-formula injection protection, private no-store downloads and `exportableReports` entitlement gating.
+- `advanced-financial-insights-v1` and the protected **Advanced Insights** workspace, composing deterministic cash-flow, month-over-month expense change, budget pressure, category concentration and persisted Financial Intelligence evidence without introducing another model or invented forecast confidence.
 - `berka-real-data-v1`, a reproducible aggregate-only evaluator over the PKDD'99 Berka `account.asc`, `order.asc` and `trans.asc` relations with explicit `real_public_historical` provenance, source/archive SHA-256 fingerprints and no committed raw banking rows.
 - First committed observed-financial evidence report over 4,500 accounts / 1,056,320 transactions: 171,826 causal account-month forecast folds comparing previous-three-month mean vs day-15 run rate, plus permanent-order linkage/reference recurrence evidence with explicit censoring and non-generalization limits.
 - `docs/REAL_WORLD_EVIDENCE.md` and `docs/evidence/berka-real-data-v1.json`, separating public historical evidence from synthetic benchmark evidence and still-pending modern/private labels for classifier, anomaly usefulness and production recurrence quality.
@@ -75,6 +77,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ### Changed
 
+- `premium-entitlements-v1` now releases `exportableReports` and `advancedInsights` for eligible Premium accounts while quota enforcement remains `observe_only` and provider/store billing activation remains a separate concern.
 - Evidence hierarchy now distinguishes synthetic regression/development results, `berka-real-data-v1` public observed historical banking evidence, and still-pending modern/private independent labels; Berka results are intentionally not generalized to domains the source cannot label.
 - Real-data forecasting evidence now records that the previous-three-month mean outperforms the day-15 run rate on Berka by MAE and sMAPE, reinforcing the policy that more reactive/complex estimators require empirical promotion evidence.
 - Private evidence now treats independent category-label quality and observed suggestion behavior as separate measurements: acceptance/correction can only come from current-model `category_feedback.jsonl`, while accuracy/F1 come from independent labels; synthetic CI data is explicitly ineligible for a real-evidence claim.

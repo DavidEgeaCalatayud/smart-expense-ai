@@ -219,8 +219,8 @@ Goal: prepare the project for a subscription-based model.
 - [x] Add server-owned premium feature flags that distinguish plan eligibility from release-time enablement.
 - [x] Add a provider-neutral subscription-ready user model and include subscription state in privacy export.
 - [x] Complete payment-provider/store research and document the provider-independent billing architecture in `docs/payment-provider-decision.md`.
-- [ ] Add exportable reports.
-- [ ] Add advanced insights.
+- [x] Add Premium exportable monthly reports with deterministic CSV, exact Decimal summaries and entitlement gating.
+- [x] Add Premium deterministic Advanced Insights composed from existing financial reports, budgets and persisted intelligence evidence.
 
 ## Phase 7 - Production Readiness
 
