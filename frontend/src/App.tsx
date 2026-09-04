@@ -1,6 +1,7 @@
 import { Navigate, Outlet, Route, Routes } from 'react-router-dom';
 import { useAuth } from './auth/useAuth';
 import { AppShell } from './components/layout/AppShell';
+import { AdvancedInsightsPage } from './pages/AdvancedInsightsPage';
 import { AlertsPage } from './pages/AlertsPage';
 import { BudgetsPage } from './pages/BudgetsPage';
 import { CategoriesPage } from './pages/CategoriesPage';
@@ -50,6 +51,7 @@ function App() {
         <Route path={ROUTES.budgets} element={<BudgetsPage />} />
         <Route path={ROUTES.imports} element={<ImportPage />} />
         <Route path={ROUTES.reports} element={<ReportsPage />} />
+        <Route path={ROUTES.insights} element={<AdvancedInsightsPage />} />
         <Route path={ROUTES.predictions} element={<PredictionsPage />} />
         <Route path={ROUTES.alerts} element={<AlertsPage />} />
         <Route path={ROUTES.assistant} element={<FinancialAssistantPage />} />

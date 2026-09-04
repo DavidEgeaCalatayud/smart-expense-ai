@@ -5,6 +5,7 @@ export const ROUTES = {
   budgets: '/budgets',
   imports: '/imports',
   reports: '/reports',
+  insights: '/insights',
   predictions: '/predictions',
   alerts: '/alerts',
   assistant: '/assistant',
