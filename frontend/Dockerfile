@@ -14,9 +14,10 @@ RUN npm run build
 
 FROM nginx:1.30.4-alpine3.24-slim
 
-RUN apk upgrade --no-cache
+RUN apk upgrade --no-cache \
+    && rm -f /etc/nginx/conf.d/default.conf
 
-COPY nginx.conf /etc/nginx/conf.d/default.conf
+COPY nginx.conf /etc/nginx/nginx.conf
 COPY --from=build /app/dist /usr/share/nginx/html
 
 EXPOSE 80
