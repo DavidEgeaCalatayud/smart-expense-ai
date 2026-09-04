@@ -102,7 +102,7 @@ describe('AdvancedInsightsPage', () => {
     expect(screen.getByText('Monthly cash flow')).toBeInTheDocument();
     expect(screen.getByText('€200.00')).toBeInTheDocument();
     expect(screen.getByText('€100.00')).toBeInTheDocument();
-    expect(screen.getByText('No invented forecast confidence.')).toBeInTheDocument();
+    expect(screen.getByText(/No invented forecast confidence\./)).toBeInTheDocument();
   });
 
   it('does not misrepresent an entitlement lookup failure as a Free lock', async () => {
