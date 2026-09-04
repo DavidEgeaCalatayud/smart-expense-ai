@@ -19,6 +19,7 @@ export function ReportsPage() {
   const [month, setMonth] = useState(currentMonth);
   const [entitlements, setEntitlements] = useState<ReportEntitlements | null>(null);
   const [report, setReport] = useState<MonthlyReport | null>(null);
+  const [loadError, setLoadError] = useState<string | null>(null);
   const [status, setStatus] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [isDownloading, setIsDownloading] = useState(false);
@@ -31,6 +32,9 @@ export function ReportsPage() {
 
     const load = async () => {
       setIsLoading(true);
+      setEntitlements(null);
+      setReport(null);
+      setLoadError(null);
       setStatus(null);
       try {
         const nextEntitlements = await fetchReportEntitlements();
@@ -40,13 +44,11 @@ export function ReportsPage() {
           const nextReport = await fetchMonthlyReport(month);
           if (!active) return;
           setReport(nextReport);
-        } else {
-          setReport(null);
         }
       } catch (error) {
         if (!active) return;
         setReport(null);
-        setStatus(getApiErrorMessage(error, 'Unable to load reports.'));
+        setLoadError(getApiErrorMessage(error, 'Unable to load reports.'));
       } finally {
         if (active) setIsLoading(false);
       }
@@ -119,6 +121,13 @@ export function ReportsPage() {
         <section className="rounded-3xl border border-slate-200 bg-white p-8 text-sm text-slate-500 shadow-soft">
           Loading report access and monthly totals...
         </section>
+      ) : entitlements === null ? (
+        <section className="rounded-3xl border border-rose-200 bg-rose-50/60 p-7 shadow-soft" role="alert">
+          <h2 className="text-xl font-bold text-slate-950">Unable to verify report access</h2>
+          <p className="mt-2 max-w-2xl text-sm leading-6 text-slate-600">
+            {loadError ?? 'The report entitlement could not be checked. Try again after connectivity is restored.'}
+          </p>
+        </section>
       ) : !isEnabled ? (
         <section className="rounded-3xl border border-amber-200 bg-amber-50/60 p-7 shadow-soft">
           <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-amber-100 text-amber-700">
@@ -129,7 +138,7 @@ export function ReportsPage() {
             Exportable reports are released as a Premium feature. Your current account does not have this entitlement enabled. Billing checkout is not yet exposed in the product, so this screen does not simulate an upgrade or payment flow.
           </p>
           <p className="mt-4 text-xs font-semibold uppercase tracking-wide text-amber-800">
-            Plan: {entitlements?.planTier ?? 'unknown'} · Policy: {entitlements?.policyVersion ?? 'unavailable'}
+            Plan: {entitlements.planTier} · Policy: {entitlements.policyVersion}
           </p>
         </section>
       ) : report ? (
@@ -192,7 +201,14 @@ export function ReportsPage() {
             )}
           </section>
         </>
-      ) : null}
+      ) : (
+        <section className="rounded-3xl border border-rose-200 bg-rose-50/60 p-7 shadow-soft" role="alert">
+          <h2 className="text-xl font-bold text-slate-950">Report unavailable</h2>
+          <p className="mt-2 max-w-2xl text-sm leading-6 text-slate-600">
+            {loadError ?? 'The monthly report could not be loaded.'}
+          </p>
+        </section>
+      )}
     </>
   );
 }

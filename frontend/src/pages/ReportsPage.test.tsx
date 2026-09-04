@@ -37,6 +37,17 @@ describe('ReportsPage', () => {
     expect(screen.queryByRole('button', { name: 'Download CSV' })).not.toBeInTheDocument();
   });
 
+  it('does not misrepresent an entitlement lookup failure as a free-plan lock', async () => {
+    vi.mocked(fetchReportEntitlements).mockRejectedValue(new Error('network unavailable'));
+
+    render(<ReportsPage />);
+
+    expect(await screen.findByText('Unable to verify report access')).toBeInTheDocument();
+    expect(screen.queryByText('Premium report export')).not.toBeInTheDocument();
+    expect(screen.queryByText(/does not have this entitlement enabled/i)).not.toBeInTheDocument();
+    expect(fetchMonthlyReport).not.toHaveBeenCalled();
+  });
+
   it('renders exact premium totals and downloads the server CSV', async () => {
     vi.mocked(fetchReportEntitlements).mockResolvedValue({
       policyVersion: 'premium-entitlements-v1',
