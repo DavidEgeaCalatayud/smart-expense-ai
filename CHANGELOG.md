@@ -6,6 +6,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ### Added
 
+- Blocking container-image security for the backend, frontend and hardened PostgreSQL runtimes: fresh image builds, Trivy HIGH/CRITICAL OS/library scans with no vulnerability allowlist, retained full-image CycloneDX SBOMs, BuildKit max provenance/image digests and per-image diagnostic artifacts.
 - Premium exportable monthly reports through authenticated `/api/v2/reports/monthly` and `/api/v2/reports/monthly.csv`, with exact Decimal summaries/category breakdowns, deterministic ordering, spreadsheet-formula injection protection, private no-store downloads and `exportableReports` entitlement gating.
 - `advanced-financial-insights-v1` and the protected **Advanced Insights** workspace, composing deterministic cash-flow, month-over-month expense change, budget pressure, category concentration and persisted Financial Intelligence evidence without introducing another model or invented forecast confidence.
 - `berka-real-data-v1`, a reproducible aggregate-only evaluator over the PKDD'99 Berka `account.asc`, `order.asc` and `trans.asc` relations with explicit `real_public_historical` provenance, source/archive SHA-256 fingerprints and no committed raw banking rows.
@@ -103,7 +104,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 - Current strategy identifiers are consumed from the central registry by their owning implementations.
 - The FastAPI application version is centralized in `backend/app/version.py`; the application and CI import smoke check consume the same `APP_VERSION`.
 - The transaction list switches at the desktop breakpoint from cards to the existing dense table without changing server-side filters, pagination or mutation handlers.
-- Production-readiness tracking distinguishes completed application dependency SBOM generation from pending container image scanning/image-level SBOM work.
+- Production-readiness tracking now covers both reproducible dependency SBOM generation and blocking final-image scanning with retained image-level SBOM/provenance evidence.
 - README and roadmap present CSV historical import as implemented while keeping direct bank APIs and multi-currency/FX accounting future work.
 
 ### Fixed
