@@ -1,0 +1,217 @@
+name: Container image security
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: container-security-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  first-party-images:
+    name: Image security (${{ matrix.service }})
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - service: backend
+            context: backend
+          - service: frontend
+            context: frontend
+
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+      - name: Build image and capture max build provenance
+        env:
+          BUILDX_METADATA_PROVENANCE: max
+        run: |
+          set -euo pipefail
+          mkdir -p container-security
+          docker buildx build \
+            --pull \
+            --load \
+            --tag "smart-expense-ai-${{ matrix.service }}:${GITHUB_SHA}" \
+            --metadata-file "container-security/${{ matrix.service }}.provenance.json" \
+            "${{ matrix.context }}"
+
+      - name: Generate HIGH/CRITICAL vulnerability report
+        uses: aquasecurity/trivy-action@ed142fd0673e97e23eac54620cfb913e5ce36c25 # v0.36.0
+        with:
+          scan-type: image
+          image-ref: smart-expense-ai-${{ matrix.service }}:${{ github.sha }}
+          scanners: vuln
+          vuln-type: os,library
+          severity: HIGH,CRITICAL
+          ignore-unfixed: 'false'
+          format: json
+          output: container-security/${{ matrix.service }}.vulnerabilities.json
+          exit-code: '0'
+          version: v0.70.0
+
+      - name: Generate image CycloneDX SBOM
+        uses: aquasecurity/trivy-action@ed142fd0673e97e23eac54620cfb913e5ce36c25 # v0.36.0
+        with:
+          scan-type: image
+          image-ref: smart-expense-ai-${{ matrix.service }}:${{ github.sha }}
+          scanners: vuln
+          list-all-pkgs: 'true'
+          format: cyclonedx
+          output: container-security/${{ matrix.service }}.image.cdx.json
+          exit-code: '0'
+          version: v0.70.0
+
+      - name: Validate supply-chain evidence and vulnerability gate
+        run: |
+          python - <<'PY'
+          import json
+          from pathlib import Path
+
+          service = '${{ matrix.service }}'
+          root = Path('container-security')
+
+          provenance = json.loads((root / f'{service}.provenance.json').read_text())
+          digest = provenance.get('containerimage.digest', '')
+          assert isinstance(digest, str) and digest.startswith('sha256:'), 'missing image digest'
+          build_provenance = provenance.get('buildx.build.provenance')
+          assert isinstance(build_provenance, dict) and build_provenance, 'missing BuildKit provenance'
+          assert build_provenance.get('buildType'), 'missing provenance buildType'
+          assert build_provenance.get('materials'), 'missing provenance materials'
+
+          sbom = json.loads((root / f'{service}.image.cdx.json').read_text())
+          assert sbom.get('bomFormat') == 'CycloneDX', 'unexpected image SBOM format'
+          components = sbom.get('components') or []
+          assert components, 'image SBOM contains no components'
+
+          report = json.loads((root / f'{service}.vulnerabilities.json').read_text())
+          findings = []
+          for result in report.get('Results') or []:
+              target = result.get('Target', 'unknown')
+              for vulnerability in result.get('Vulnerabilities') or []:
+                  findings.append(
+                      (
+                          vulnerability.get('Severity', 'UNKNOWN'),
+                          vulnerability.get('VulnerabilityID', 'unknown'),
+                          vulnerability.get('PkgName', 'unknown'),
+                          vulnerability.get('InstalledVersion', 'unknown'),
+                          vulnerability.get('FixedVersion') or 'unfixed',
+                          target,
+                      )
+                  )
+
+          print(f'{service}: digest={digest}, components={len(components)}, HIGH/CRITICAL={len(findings)}')
+          if findings:
+              for severity, vuln_id, package, installed, fixed, target in findings[:50]:
+                  print(f'{severity} {vuln_id} {package} {installed} -> {fixed} ({target})')
+              if len(findings) > 50:
+                  print(f'... and {len(findings) - 50} additional HIGH/CRITICAL findings')
+              raise SystemExit(f'{service} image contains HIGH/CRITICAL vulnerabilities')
+          PY
+
+      - name: Upload image security evidence
+        if: always()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: container-security-${{ matrix.service }}
+          path: container-security/${{ matrix.service }}.*.json
+          retention-days: 14
+          if-no-files-found: warn
+
+  postgres-runtime:
+    name: Image security (postgres runtime)
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+      - name: Pull Compose PostgreSQL runtime image
+        run: |
+          set -euo pipefail
+          mkdir -p container-security
+          docker pull postgres:16-alpine
+          docker image inspect postgres:16-alpine > container-security/postgres.image-inspect.json
+
+      - name: Generate PostgreSQL HIGH/CRITICAL vulnerability report
+        uses: aquasecurity/trivy-action@ed142fd0673e97e23eac54620cfb913e5ce36c25 # v0.36.0
+        with:
+          scan-type: image
+          image-ref: postgres:16-alpine
+          scanners: vuln
+          vuln-type: os,library
+          severity: HIGH,CRITICAL
+          ignore-unfixed: 'false'
+          format: json
+          output: container-security/postgres.vulnerabilities.json
+          exit-code: '0'
+          version: v0.70.0
+
+      - name: Generate PostgreSQL image CycloneDX SBOM
+        uses: aquasecurity/trivy-action@ed142fd0673e97e23eac54620cfb913e5ce36c25 # v0.36.0
+        with:
+          scan-type: image
+          image-ref: postgres:16-alpine
+          scanners: vuln
+          list-all-pkgs: 'true'
+          format: cyclonedx
+          output: container-security/postgres.image.cdx.json
+          exit-code: '0'
+          version: v0.70.0
+
+      - name: Validate PostgreSQL runtime image
+        run: |
+          python - <<'PY'
+          import json
+          from pathlib import Path
+
+          root = Path('container-security')
+          inspect = json.loads((root / 'postgres.image-inspect.json').read_text())
+          assert isinstance(inspect, list) and inspect, 'missing PostgreSQL image inspect data'
+          digest = inspect[0].get('Id', '')
+          assert isinstance(digest, str) and digest.startswith('sha256:'), 'missing PostgreSQL image digest'
+
+          sbom = json.loads((root / 'postgres.image.cdx.json').read_text())
+          assert sbom.get('bomFormat') == 'CycloneDX', 'unexpected PostgreSQL SBOM format'
+          components = sbom.get('components') or []
+          assert components, 'PostgreSQL image SBOM contains no components'
+
+          report = json.loads((root / 'postgres.vulnerabilities.json').read_text())
+          findings = []
+          for result in report.get('Results') or []:
+              target = result.get('Target', 'unknown')
+              for vulnerability in result.get('Vulnerabilities') or []:
+                  findings.append(
+                      (
+                          vulnerability.get('Severity', 'UNKNOWN'),
+                          vulnerability.get('VulnerabilityID', 'unknown'),
+                          vulnerability.get('PkgName', 'unknown'),
+                          vulnerability.get('InstalledVersion', 'unknown'),
+                          vulnerability.get('FixedVersion') or 'unfixed',
+                          target,
+                      )
+                  )
+
+          print(f'postgres: digest={digest}, components={len(components)}, HIGH/CRITICAL={len(findings)}')
+          if findings:
+              for severity, vuln_id, package, installed, fixed, target in findings[:50]:
+                  print(f'{severity} {vuln_id} {package} {installed} -> {fixed} ({target})')
+              if len(findings) > 50:
+                  print(f'... and {len(findings) - 50} additional HIGH/CRITICAL findings')
+              raise SystemExit('PostgreSQL runtime image contains HIGH/CRITICAL vulnerabilities')
+          PY
+
+      - name: Upload PostgreSQL image security evidence
+        if: always()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: container-security-postgres
+          path: container-security/postgres.*.json
+          retention-days: 14
+          if-no-files-found: warn
