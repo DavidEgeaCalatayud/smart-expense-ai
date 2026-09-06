@@ -176,14 +176,18 @@ Signing material is deliberately absent from the repository. Production signing 
 
 Mobile CI continues to run Expo dependency validation, Jest, strict TypeScript, ESLint and Android export. Phase 5G additionally generates the Android project in production mode, asserts the native backup/transport policy, verifies SQLCipher integration and compiles a native debug APK with Java 17.
 
-## Remaining device-level validation
+## Native runtime certification
 
-The native build gate proves that the hardening modules link and compile, but it does not substitute for an emulator/device runtime test. Still pending as an explicit quality-gate item:
+The Android Native E2E gate now covers real SQLCipher migration, encrypted storage, offline process restart, reconnect, stale-version conflict resolution, forced WorkManager synchronization and account isolation. The same run also proves browser-create -> Android-pull and Android-offline-create -> server -> browser, with independent PostgreSQL absence/presence checks.
 
-- prove SQLCipher opens and survives process restart;
-- prove plaintext-to-encrypted migration with real files;
-- prove offline/reconnect/conflict flows on Android;
-- prove local data wipe on account switch/logout;
-- exercise the background task in a development build.
+See `docs/mobile-native-e2e.md` for the required success markers and historical certification evidence. Every executable change still requires a fresh successful run.
+
+## Distribution status
+
+The implemented Android feature phases are complete; production distribution is a separate gate. Mobile CI also compiles a release AAB with bundled JavaScript and shrinking. Its retained `android-compilation-only-aab-*` artifact uses a placeholder backend and the generated development signing configuration: **do not distribute it or upload it to Google Play**.
+
+Both EAS `preview` and `production` require an HTTPS API URL at configuration time and disable native cleartext traffic. E2E diagnostics are rejected for both distribution profiles. EAS environments are explicitly selected for each profile.
+
+Follow `docs/android-release.md` to link the actual EAS project, configure the deployed backend, create the signed APK/AAB and validate a physical-device release. No signed release or store publication is claimed by the build profiles alone.
 
 See `docs/mobile-offline-first.md`, `docs/mobile-auth-v1.md` and `docs/mobile-production-hardening-v1.md` for the architecture and security contracts.
