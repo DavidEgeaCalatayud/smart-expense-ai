@@ -13,6 +13,8 @@ Android implementation and native/cross-client E2E exist. They do not establish 
 
 ## Configure the actual environment
 
+The managed hosting proposal, account requirements and store submission sequence are in [production-deployment.md](production-deployment.md).
+
 1. Deploy FastAPI/PostgreSQL behind the project's supported HTTPS edge configuration. Verify database migrations, mobile auth and sync on this environment. Android is an offline-capable client, not an independent replacement for the server. Initial authentication and server-derived analytics require the backend.
 2. Authenticate the owner in EAS CLI and run `eas init` from `mobile/` to link an owner-controlled project. Commit the resulting public `extra.eas.projectId` metadata after verifying its ownership. The dynamic config preserves `extra.eas` from `app.json`. Never commit tokens or signing material.
 3. Set `EXPO_PUBLIC_API_BASE_URL` in the EAS `preview` and `production` environments to the actual HTTPS backend base URL (without `/api/v2`, credentials, query or fragment). This is public bundled configuration, not a secret. Use a plain-text EAS variable so local config evaluation can read it. The profiles explicitly select their respective environment.
@@ -41,6 +43,7 @@ Run this acceptance sequence against a disposable test account:
 6. Background the application and verify eventual synchronization; Android battery scheduling may defer it, so foreground sync must still work.
 7. Logout and switch accounts; verify previous financial data is absent. Exercise server-side session revocation and next-launch local cleanup.
 8. Install a newer build signed with the same key over the previous build without uninstalling; verify encrypted data and pending outbox survive the upgrade.
+9. With a disposable account, open Account and test account deletion. Cancellation, wrong password and offline failure must preserve the account. Successful deletion must revoke sessions, remove server records and clear local account data, including the pending outbox. Reopen the app and verify no previous records are visible.
 
 Record pass/fail per step, device model, Android version and build ID. Emulator certification cannot substitute for this release-variant/device evidence.
 
@@ -54,7 +57,7 @@ eas build --platform android --profile production
 
 The production profile auto-increments the remotely managed Android version. Record the build ID, source SHA, versionCode, AAB SHA-256 and certificate. An AAB is uploaded to Google Play; it is not installed directly like an APK. Use a Play internal testing track for the store-delivered acceptance pass before production rollout.
 
-Store publication additionally requires the owner's Play Console account/application, privacy policy URL, completed data-safety declaration, content rating, store listing and any account-specific testing requirements. Do not claim these are satisfied by repository tests. Submission and production rollout are separate deliberate actions; the commands above only build.
+Store publication additionally requires the owner's Play Console account/application, privacy policy URL, completed data-safety declaration, content rating, store listing and any account-specific testing requirements. Do not claim these are satisfied by repository tests. Submission and production rollout are separate deliberate actions; the commands above only build. The `internal` and `production` submission profiles create draft releases for review; follow the exact-build-ID submission and Play promotion procedure in the deployment runbook.
 
 ## Closure evidence
 

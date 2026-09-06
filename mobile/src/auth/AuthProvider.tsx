@@ -10,6 +10,8 @@ import {
 } from 'react';
 
 import { getMobileApiBaseUrl } from '../api/config';
+import { MobileApiClient } from '../api/client';
+import { deleteMobileAccount } from './accountDeletion';
 import {
   registerBackgroundSyncAsync,
   unregisterBackgroundSyncAsync,
@@ -25,6 +27,7 @@ import {
 } from './sessionManager';
 import {
   acknowledgeLocalWipeRequirement,
+  invalidateMobileSessionAndRequireLocalWipe,
   type MobileAuthUser,
 } from './secureCredentials';
 
@@ -36,6 +39,7 @@ interface AuthContextValue {
   login(email: string, password: string): Promise<void>;
   register(email: string, password: string, displayName: string): Promise<void>;
   logout(): Promise<void>;
+  deleteAccount(password: string, confirmation: string): Promise<void>;
   clearError(): void;
 }
 
@@ -51,6 +55,7 @@ function errorMessage(error: unknown): string {
 export function AuthProvider({ children }: PropsWithChildren) {
   const db = useSQLiteContext();
   const client = useMemo(() => new MobileAuthClient(getMobileApiBaseUrl()), []);
+  const api = useMemo(() => new MobileApiClient(getMobileApiBaseUrl()), []);
   const [user, setUser] = useState<MobileAuthUser | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -161,6 +166,23 @@ export function AuthProvider({ children }: PropsWithChildren) {
 
   const clearError = useCallback(() => setError(null), []);
 
+  const deleteAccount = useCallback(async (password: string, confirmation: string) => {
+    setIsSubmitting(true);
+    setError(null);
+    try {
+      await deleteMobileAccount(api, password, confirmation, async () => {
+        // The server already revoked every session. Persist the wipe marker immediately,
+        // without another network request between server deletion and device cleanup.
+        await invalidateMobileSessionAndRequireLocalWipe();
+        await clearLocalAccountData(db);
+        await acknowledgeLocalWipeRequirement();
+        setUser(null);
+      });
+    } finally {
+      setIsSubmitting(false);
+    }
+  }, [api, db]);
+
   const value = useMemo<AuthContextValue>(
     () => ({
       user,
@@ -170,9 +192,10 @@ export function AuthProvider({ children }: PropsWithChildren) {
       login,
       register,
       logout,
+      deleteAccount,
       clearError,
     }),
-    [user, isLoading, isSubmitting, error, login, register, logout, clearError],
+    [user, isLoading, isSubmitting, error, login, register, logout, deleteAccount, clearError],
   );
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;

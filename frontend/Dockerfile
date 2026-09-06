@@ -18,8 +18,11 @@ RUN apk upgrade --no-cache \
     && rm -f /etc/nginx/conf.d/default.conf
 
 COPY nginx.conf /etc/nginx/nginx.conf
+COPY nginx.conf /etc/nginx/render-source.conf
+COPY render-entrypoint.sh /docker-entrypoint.d/40-render.sh
+RUN chmod +x /docker-entrypoint.d/40-render.sh
 COPY --from=build /app/dist /usr/share/nginx/html
 
 EXPOSE 80
 
-HEALTHCHECK --interval=10s --timeout=3s --retries=5 CMD wget -qO- http://127.0.0.1/ >/dev/null || exit 1
+HEALTHCHECK --interval=10s --timeout=3s --retries=5 CMD wget -qO- "http://127.0.0.1:${PORT:-80}/" >/dev/null || exit 1

@@ -450,6 +450,8 @@ See [`docs/testing.md`](docs/testing.md), [`docs/REAL_WORLD_EVIDENCE.md`](docs/R
 
 - [`ROADMAP.md`](ROADMAP.md) — implemented vs future work.
 - [`CHANGELOG.md`](CHANGELOG.md) — Unreleased change log.
+- [`docs/production-deployment.md`](docs/production-deployment.md) — managed hosting proposal, owner inputs and store publication gates.
+- [`docs/android-release.md`](docs/android-release.md) — signed Android builds and physical-device acceptance.
 - [`docs/REAL_WORLD_EVIDENCE.md`](docs/REAL_WORLD_EVIDENCE.md) — public observed financial evidence, provenance, metrics and limitations.
 - [`docs/financial-assistant.md`](docs/financial-assistant.md) — stateless LLM/tool/evidence/privacy contract.
 - [`docs/analysis-contracts.md`](docs/analysis-contracts.md) — analytical identifiers and ownership.

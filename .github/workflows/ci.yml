@@ -59,6 +59,8 @@ jobs:
             backend/requirements-dev.txt
       - name: Install backend dependencies
         run: pip install -r requirements.txt -r requirements-dev.txt
+      - name: Validate deployment startup and edge configuration
+        run: python -m unittest discover -s ../scripts/tests -v
       - name: Apply migrations to a clean PostgreSQL database
         run: alembic upgrade head
       - name: Verify FastAPI imports
@@ -238,6 +240,12 @@ jobs:
         run: docker compose build
       - name: Start full stack
         run: docker compose up -d --wait --wait-timeout 120
+      - name: Verify Render edge configuration with real Nginx
+        run: |
+          docker compose run --rm --no-deps \
+            -e DEPLOYMENT_TARGET=render \
+            -e RENDER_BACKEND_HOST=backend \
+            -e PORT=10000 frontend nginx -t
       - name: Verify versioned API contract through Nginx
         run: |
           curl --fail --silent --show-error -D frontend-headers.txt http://localhost:5173/ -o /dev/null

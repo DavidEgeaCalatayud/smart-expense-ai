@@ -28,6 +28,7 @@ COPY alembic.ini ./alembic.ini
 COPY alembic ./alembic
 COPY app ./app
 COPY ml ./ml
+COPY deploy ./deploy
 
 RUN chown -R app:app /app /venv
 USER app

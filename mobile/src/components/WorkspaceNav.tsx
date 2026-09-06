@@ -10,7 +10,8 @@ export type WorkspaceName =
   | 'historical'
   | 'predictions'
   | 'suggestions'
-  | 'assistant';
+  | 'assistant'
+  | 'account';
 
 const ITEMS = [
   { key: 'transactions' as const, label: 'Transactions', href: '/' as const },
@@ -22,6 +23,7 @@ const ITEMS = [
   { key: 'predictions' as const, label: 'Predictions', href: '/predictions' as const },
   { key: 'suggestions' as const, label: 'Suggest', href: '/suggestions' as const },
   { key: 'assistant' as const, label: 'Assistant', href: '/assistant' as const },
+  { key: 'account' as const, label: 'Account', href: '/account' as const },
 ];
 
 export function WorkspaceNav({ active }: { active: WorkspaceName }) {

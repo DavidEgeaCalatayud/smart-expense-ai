@@ -1,6 +1,6 @@
 from collections.abc import Generator
 from datetime import date
-from uuid import UUID
+from uuid import UUID, uuid4
 
 import pytest
 from fastapi.testclient import TestClient
@@ -256,12 +256,23 @@ def test_privacy_export_includes_only_owner_category_suggestion_feedback(
     assert "suggestion-other@example.com" not in response.text
 
 
+@pytest.mark.parametrize("session_kind", ["web", "mobile"])
 def test_account_deletion_requires_confirmation_and_cascades_all_user_data(
-    client: TestClient,
+    client: TestClient, session_kind: str,
 ) -> None:
     registered = register(client)
     user_id = UUID(str(registered["user"]["id"]))
     create_suggested_transaction(client, "MERCADONA DELETE 3921")
+    device_id = str(uuid4())
+    mobile = client.post(
+        f"{API_V2}/auth/mobile/login",
+        json={"email": "owner@example.com", "password": PASSWORD, "deviceId": device_id},
+    )
+    assert mobile.status_code == 200
+    mobile_tokens = mobile.json()
+    if session_kind == "mobile":
+        client.cookies.clear()
+        client.headers["Authorization"] = f"Bearer {mobile_tokens['accessToken']}"
 
     with Session(engine) as db:
         assert db.scalar(
@@ -316,6 +327,7 @@ def test_account_deletion_requires_confirmation_and_cascades_all_user_data(
         json={"password": "wrong-password", "confirmation": "DELETE"},
     )
     assert wrong_password.status_code == 403
+    assert client.get(f"{API}/auth/me").status_code == 200
 
     response = client.request(
         "DELETE",
@@ -325,6 +337,11 @@ def test_account_deletion_requires_confirmation_and_cascades_all_user_data(
     assert response.status_code == 204
     assert settings.auth_cookie_name not in client.cookies
     assert client.get(f"{API}/auth/me").status_code == 401
+    revoked_refresh = client.post(
+        f"{API_V2}/auth/mobile/refresh",
+        json={"refreshToken": mobile_tokens["refreshToken"], "deviceId": device_id},
+    )
+    assert revoked_refresh.status_code == 401
 
     with Session(engine) as db:
         assert db.get(User, user_id) is None
