@@ -5,8 +5,9 @@ describe('Android distribution configuration', () => {
   const originalEnv = process.env;
 
   beforeEach(() => {
-    process.env = { ...originalEnv };
-    delete process.env.EXPO_PUBLIC_E2E_MODE;
+    // Expo's Babel transform can inline `delete process.env.EXPO_PUBLIC_*`.
+    // Replace the test environment explicitly, including under the E2E runner.
+    process.env = { ...originalEnv, EXPO_PUBLIC_E2E_MODE: '' };
   });
 
   afterEach(() => {
