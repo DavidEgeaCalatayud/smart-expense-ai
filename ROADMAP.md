@@ -198,7 +198,8 @@ Goal: evolve the project into a multi-client financial platform with an Android-
 - [x] Add background synchronization only after foreground sync correctness is proven.
 - [x] Add account-switch/device-isolation tests.
 - [x] Add mobile security/privacy review and ensure no backend/provider secrets are shipped in the application.
-- [x] Add Android development/release build pipeline, signing strategy and distributable AAB artifact.
+- [x] Add Android development/release build profiles and managed signing strategy.
+- [ ] Produce and validate the signed distribution APK/AAB against the deployed HTTPS backend; record the build ID, certificate and physical-device acceptance evidence.
 - [x] Add Android offline/reconnect/conflict E2E coverage to the required quality gate.
 - [x] Keep the architecture portable to a future iOS client without making iOS a Phase 5 release blocker.
 

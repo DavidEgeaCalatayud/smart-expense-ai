@@ -4,6 +4,13 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+### Android release readiness
+
+- Harden preview and production native transport consistently; reject missing/non-HTTPS API configuration and E2E diagnostic mode before distribution compilation.
+- Select explicit EAS preview/production environments and compile/retain a clearly labelled compilation-only release AAB in Mobile CI.
+- Replace obsolete pending native-E2E documentation and separate completed implementation from externally configured signed distribution and device acceptance.
+
+
 ### Added
 
 - Blocking container-image security for the backend, frontend and hardened PostgreSQL runtimes: fresh image builds, Trivy HIGH/CRITICAL OS/library scans with no vulnerability allowlist, retained full-image CycloneDX SBOMs, BuildKit max provenance/image digests and per-image diagnostic artifacts.

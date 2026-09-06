@@ -89,19 +89,13 @@ Mobile CI must continue to validate the JavaScript/TypeScript chain and now also
 
 This native build proves that the selected Expo modules/config plugins link together. It does not, by itself, prove runtime database encryption/migration or WorkManager scheduling on a device.
 
-## Deliberately pending device E2E
+## Native runtime gate and distribution boundary
 
-A required emulator/device E2E should still prove:
+The former device-E2E gap is implemented in the required Android Native E2E workflow. It covers encrypted migration, offline persistence through process death, reconnect, stale-version conflicts, logout/account switching and forced WorkManager synchronization. It also runs the real browser/Android bridge in the same job. See `mobile-native-e2e.md` for evidence and success markers.
 
-- encrypted database opens and survives process restart;
-- legacy plaintext -> SQLCipher migration preserves data and removes the plaintext file;
-- offline transaction creation survives process termination;
-- reconnect pushes the durable mutation and receives authoritative state;
-- stale web/mobile edits surface an explicit conflict;
-- account switching/logging out removes the previous local account data;
-- the background task can be triggered in a development build without becoming a correctness dependency.
+Mobile CI additionally compiles `:app:bundleRelease`, exercising the bundled JavaScript and release shrinker. That artifact is compilation evidence only: it uses an unreachable placeholder API and the generated development signing configuration. A signed distribution build requires a deployed HTTPS API, actual EAS project and managed signing credentials; follow `android-release.md`.
 
-Until that E2E is part of the required gate, Phase 5G's device-E2E roadmap item remains open.
+Both preview and production now disable cleartext native transport and reject missing/non-HTTPS API configuration or E2E diagnostic mode before compilation.
 
 ## iOS portability
 

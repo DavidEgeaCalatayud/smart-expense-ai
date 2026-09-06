@@ -6,13 +6,14 @@
     "e2e-test": {
       "withoutCredentials": true,
       "env": {
-        "APP_ENV": "preview"
+        "APP_ENV": "test"
       },
       "android": {
         "buildType": "apk"
       }
     },
     "preview": {
+      "environment": "preview",
       "distribution": "internal",
       "env": {
         "APP_ENV": "preview"
@@ -22,6 +23,7 @@
       }
     },
     "production": {
+      "environment": "production",
       "autoIncrement": true,
       "env": {
         "APP_ENV": "production"
