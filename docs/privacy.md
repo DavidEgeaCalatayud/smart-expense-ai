@@ -46,7 +46,7 @@ Because privacy exports contain financial information, users should store downlo
 
 ## 5. Account deletion
 
-Authenticated users can permanently delete their account from the Security page or through `DELETE /api/v1/auth/account`.
+Authenticated users can permanently delete their account from the web Security page, the Android Account screen, or through `DELETE /api/v1/auth/account`. Public instructions for users who do not have the Android app are provided by `/account-deletion.html` once the frontend is deployed. This resource still requires the operator's completed privacy/contact link and actual retention exceptions before publication.
 
 Deletion requires:
 
@@ -57,6 +57,8 @@ Deletion requires:
 The user row is deleted transactionally. Database foreign keys use cascade deletion for user-owned transactions, financial-intelligence findings, scan records and historical-analysis snapshots. The authentication cookie is cleared after successful deletion.
 
 This operation is intentionally irreversible at the application layer.
+
+Android requires a successful online server response before clearing local account data. It then persists the existing durable wipe marker, discards credentials and clears the local database/outbox. If local cleanup is interrupted, the marker remains for the next startup to retry. A failed deletion request does not itself clear the device's financial records. These application controls do not define infrastructure log or backup retention.
 
 ## 6. Security controls relevant to privacy
 

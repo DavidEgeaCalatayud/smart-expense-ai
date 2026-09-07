@@ -46,6 +46,7 @@ function AuthenticatedStack() {
           <Stack.Screen name="predictions" />
           <Stack.Screen name="suggestions" />
           <Stack.Screen name="assistant" />
+          <Stack.Screen name="account" />
         </Stack.Protected>
         <Stack.Protected guard={user === null}>
           <Stack.Screen name="sign-in" />

@@ -1,0 +1,35 @@
+# Hosting budget: 0 EUR/year. Review workspace billing/overages before applying.
+# One Free web service; PostgreSQL is supplied separately on Neon Free.
+# Never provision Render's expiring Free PostgreSQL database for durable data.
+services:
+  - type: web
+    name: smart-expense-free
+    runtime: docker
+    region: frankfurt
+    plan: free
+    numInstances: 1
+    dockerContext: .
+    dockerfilePath: ./deploy/render-free/Dockerfile
+    autoDeployTrigger: "off"
+    healthCheckPath: /health
+    envVars:
+      - key: APP_ENV
+        value: staging
+      - key: APP_DEBUG
+        value: "false"
+      - key: AUTH_COOKIE_SECURE
+        value: "true"
+      - key: PORT
+        value: "10000"
+      - key: JWT_SECRET
+        generateValue: true
+      - key: DATABASE_URL
+        sync: false
+      - key: OPENAI_API_KEY
+        value: ""
+      - key: WEB_CONCURRENCY
+        value: "1"
+      - key: OMP_NUM_THREADS
+        value: "1"
+      - key: OPENBLAS_NUM_THREADS
+        value: "1"
