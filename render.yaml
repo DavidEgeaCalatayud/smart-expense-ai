@@ -1,17 +1,17 @@
-# Deployment proposal. Creating these resources incurs Render compute/storage
-# charges. Connect the owner's workspace and confirm its quote before applying.
+# Hosting budget: 0 EUR/year. Review workspace billing/overages before applying.
+# One Free web service; PostgreSQL is supplied separately on Neon Free.
+# Never provision Render's expiring Free PostgreSQL database for durable data.
 services:
-  - type: pserv
-    name: smart-expense-api
+  - type: web
+    name: smart-expense-free
     runtime: docker
     region: frankfurt
-    plan: 1c-2g
+    plan: free
     numInstances: 1
-    dockerContext: ./backend
-    dockerfilePath: ./backend/Dockerfile
+    dockerContext: .
+    dockerfilePath: ./deploy/render-free/Dockerfile
     autoDeployTrigger: "off"
-    preDeployCommand: python deploy/render_start.py migrate
-    dockerCommand: python deploy/render_start.py serve
+    healthCheckPath: /health
     envVars:
       - key: APP_ENV
         value: staging
@@ -19,43 +19,17 @@ services:
         value: "false"
       - key: AUTH_COOKIE_SECURE
         value: "true"
-      - key: FRONTEND_ORIGIN
-        sync: false
+      - key: PORT
+        value: "10000"
       - key: JWT_SECRET
         generateValue: true
       - key: DATABASE_URL
-        fromDatabase:
-          name: smart-expense-db
-          property: connectionString
-
-  - type: web
-    name: smart-expense-web
-    runtime: docker
-    region: frankfurt
-    plan: 0.5c-512mb
-    numInstances: 1
-    dockerContext: ./frontend
-    dockerfilePath: ./frontend/Dockerfile
-    autoDeployTrigger: "off"
-    healthCheckPath: /health
-    envVars:
-      - key: DEPLOYMENT_TARGET
-        value: render
-      - key: PORT
-        value: "10000"
-      - key: RENDER_BACKEND_HOST
-        fromService:
-          name: smart-expense-api
-          type: pserv
-          property: host
-
-databases:
-  - name: smart-expense-db
-    region: frankfurt
-    plan: 0.1c-256mb
-    postgresMajorVersion: "16"
-    databaseName: smart_expense_ai
-    user: smart_expense_user
-    diskSizeGB: 5
-    storageAutoscalingEnabled: false
-    ipAllowList: []
+        sync: false
+      - key: OPENAI_API_KEY
+        value: ""
+      - key: WEB_CONCURRENCY
+        value: "1"
+      - key: OMP_NUM_THREADS
+        value: "1"
+      - key: OPENBLAS_NUM_THREADS
+        value: "1"

@@ -24,10 +24,16 @@ jobs:
         include:
           - service: backend
             context: backend
+            dockerfile: backend/Dockerfile
           - service: frontend
             context: frontend
+            dockerfile: frontend/Dockerfile
           - service: postgres
             context: postgres
+            dockerfile: postgres/Dockerfile
+          - service: render-free
+            context: .
+            dockerfile: deploy/render-free/Dockerfile
 
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
@@ -43,7 +49,12 @@ jobs:
             --load \
             --tag "smart-expense-ai-${{ matrix.service }}:${GITHUB_SHA}" \
             --metadata-file "container-security/${{ matrix.service }}.provenance.json" \
+            --file "${{ matrix.dockerfile }}" \
             "${{ matrix.context }}"
+
+      - name: Exercise Free runtime with TLS PostgreSQL and 512 MiB memory
+        if: matrix.service == 'render-free'
+        run: bash scripts/test-render-free-container.sh "smart-expense-ai-render-free:${GITHUB_SHA}"
 
       - name: Generate HIGH/CRITICAL vulnerability report
         uses: aquasecurity/trivy-action@ed142fd0673e97e23eac54620cfb913e5ce36c25 # v0.36.0
