@@ -3,6 +3,11 @@ module.exports = ({ config }) => {
   const buildEnvironment = process.env;
   const appEnvironment = buildEnvironment.APP_ENV || 'development';
   const isDistribution = ['preview', 'production'].includes(appEnvironment);
+  const standalonePreview = buildEnvironment.ANDROID_STANDALONE_PREVIEW === '1';
+
+  if (standalonePreview && appEnvironment !== 'preview') {
+    throw new Error('Standalone Android preview requires APP_ENV=preview');
+  }
 
   // Fail at build configuration time, rather than shipping an app that cannot
   // reach its backend when __DEV__ is false.
@@ -23,6 +28,11 @@ module.exports = ({ config }) => {
 
   return {
     ...config,
+    ...(standalonePreview ? {
+      name: 'Smart Expense AI Preview',
+      scheme: 'smartexpenseai-preview',
+      android: { ...config.android, package: 'com.davidegea.smartexpenseai.preview' },
+    } : {}),
     plugins: [
       ...(config.plugins ?? []),
       [

@@ -7,7 +7,7 @@ describe('Android distribution configuration', () => {
   beforeEach(() => {
     // Expo's Babel transform can inline `delete process.env.EXPO_PUBLIC_*`.
     // Replace the test environment explicitly, including under the E2E runner.
-    process.env = { ...originalEnv, EXPO_PUBLIC_E2E_MODE: '' };
+    process.env = { ...originalEnv, EXPO_PUBLIC_E2E_MODE: '', ANDROID_STANDALONE_PREVIEW: '' };
   });
 
   afterEach(() => {
@@ -43,6 +43,30 @@ describe('Android distribution configuration', () => {
     process.env.EXPO_PUBLIC_API_BASE_URL = 'https://api.example.test';
     process.env.EXPO_PUBLIC_E2E_MODE = '1';
     expect(() => configure({ config: app.expo })).toThrow('must not enable E2E diagnostics');
+  });
+
+  it('isolates the temporary preview signing identity from the future Play application', () => {
+    process.env.APP_ENV = 'preview';
+    process.env.EXPO_PUBLIC_API_BASE_URL = 'https://smart-expense-free.onrender.com';
+    process.env.ANDROID_STANDALONE_PREVIEW = '1';
+    const preview = configure({ config: app.expo });
+    expect(preview.android.package).toBe('com.davidegea.smartexpenseai.preview');
+    expect(preview.android.allowBackup).toBe(false);
+    expect(preview.name).toBe('Smart Expense AI Preview');
+    expect(preview.scheme).toBe('smartexpenseai-preview');
+
+    process.env.ANDROID_STANDALONE_PREVIEW = '';
+    process.env.APP_ENV = 'production';
+    const production = configure({ config: app.expo });
+    expect(production.android.package).toBe(app.expo.android.package);
+    expect(production.scheme).toBe(app.expo.scheme);
+    expect(production.name).toBe(app.expo.name);
+  });
+
+  it.each(['development', 'test', 'ci', 'production'])('rejects temporary preview signing identity in %s', (environment) => {
+    process.env.APP_ENV = environment;
+    process.env.ANDROID_STANDALONE_PREVIEW = '1';
+    expect(() => configure({ config: app.expo })).toThrow('requires APP_ENV=preview');
   });
 
   it.each(['development', 'test', 'ci'])('preserves emulator HTTP for %s', (environment) => {

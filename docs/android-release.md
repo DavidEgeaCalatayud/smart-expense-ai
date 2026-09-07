@@ -2,14 +2,25 @@
 
 ## Current boundary
 
-Android implementation and native/cross-client E2E exist. They do not establish that a signed release has been delivered. No deployed API URL, linked EAS project ID or signing certificate is recorded in the repository as of this change. Do not invent these values or treat an example URL as a working service.
+The HTTPS backend is deployed at `https://smart-expense-free.onrender.com`, backed by Neon PostgreSQL. PR #103 records the live API, authentication, synchronization, deletion and redeployment-persistence checks. A linked EAS project and permanent Android signing identity are still pending. Native/cross-client E2E alone does not establish that an official signed release has been delivered.
 
 | Artifact | Purpose | Distribution |
 | --- | --- | --- |
 | Native E2E debug APK | Emulator + Metro certification | Test harness only |
 | Mobile CI release AAB | Bundling, native release linking and shrinking | Compilation evidence only; placeholder API and development signing |
+| Standalone preview APK | Direct installation against the live Render backend | Separate `.preview` package, one-off signing key; not for Play |
 | EAS preview APK | Physical-device acceptance, no Metro | Managed signing and real HTTPS API required |
 | EAS production AAB | Google Play upload | Managed upload key, production API and store setup required |
+
+## Direct-install preview without an EAS account
+
+The `Installable Android preview` workflow builds a release APK containing its JavaScript, both ARM64 and x86_64 native libraries, SQLCipher, and the live HTTPS backend URL. It verifies the actual APK signature and manifest, and launches that same signed APK in an Android 35 emulator without Metro before publishing a download.
+
+Run the workflow manually to retain a seven-day Actions artifact, or push to an intentional `android-preview/…` branch to create a durable GitHub **prerelease** with the APK, SHA-256 and public build metadata. Only that branch prefix publishes downloads; ordinary development and main pushes do not. Standard hosted runners in this public repository are used; this adds no hosting service or paid EAS build.
+
+This is a one-off testing edition named **Smart Expense AI Preview**, package `com.davidegea.smartexpenseai.preview`. Its random signing key is destroyed at the end of the build; no private signing material is published. Subsequent previews cannot update it in place and require reinstalling. **Synchronize pending offline data before uninstalling.** The permanent Play package remains `com.davidegea.smartexpenseai`. Both clients use the same server account, so synchronized data is available after logging in to the future official app.
+
+Download `smart-expense-ai-preview.apk` on an ARM64 Android device, open it, and allow installation from that downloader if Android asks. This APK does not require Expo Go. Physical-device acceptance, durable update signing and Play Console publication remain separate pending steps. Do not upload this preview or the Mobile CI compilation artifact to Play.
 
 ## Configure the actual environment
 
