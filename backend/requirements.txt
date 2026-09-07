@@ -5,7 +5,7 @@ pydantic-settings==2.15.0
 python-dotenv==1.2.3
 SQLAlchemy==2.0.52
 alembic==1.19.1
-psycopg[binary]==3.3.4
+psycopg[binary]==3.3.5
 PyJWT==2.13.0
 pwdlib[argon2]==0.3.1
 scikit-learn==1.9.0
