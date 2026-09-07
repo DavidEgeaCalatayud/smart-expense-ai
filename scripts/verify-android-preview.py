@@ -22,8 +22,17 @@ for attribute in ('allowBackup', 'usesCleartextTraffic'):
 if re.search(r'android:debuggable\b[^\n]*=\(type 0x12\)(?!0x0\b)', manifest):
     raise SystemExit('APK must not be debuggable')
 certificate = os.environ['PREVIEW_CERT_SHA256'].lower()
-if f'Signer #1 certificate SHA-256 digest: {certificate}' not in signature:
-    raise SystemExit('APK signature differs from the generated preview certificate')
+# apksigner can label signers by number or by supported SDK range (v3.1).
+# Compare the actual fingerprints, not the presentation of the signer label.
+signer_digests = {
+    value.replace(':', '').lower()
+    for value in re.findall(
+        r'^Signer[^\n]* certificate SHA-256 digest:\s*([0-9a-fA-F:]+)\s*$',
+        signature, re.MULTILINE,
+    )
+}
+if signer_digests != {certificate}:
+    raise SystemExit(f'APK certificate mismatch: expected {certificate}; found {sorted(signer_digests)}')
 if 'Android Debug' in signature:
     raise SystemExit('Do not distribute an APK with the default debug certificate')
 

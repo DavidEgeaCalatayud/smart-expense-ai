@@ -50,11 +50,21 @@ GRADLE
 )
 
 mkdir -p dist/android-preview
-cp mobile/android/app/build/outputs/apk/release/app-release.apk \
-  dist/android-preview/smart-expense-ai-preview.apk
 preview_build_tools="$(find "${ANDROID_HOME:?}/build-tools" -mindepth 1 -maxdepth 1 -type d | sort -V | tail -n 1)"
+# Sign the final artifact explicitly as well, independently of AGP's selected
+# signing variant. apksigner replaces existing signer blocks, then verifies the
+# final bytes against the certificate exported from this exact keystore below.
+"$preview_build_tools/zipalign" -P 16 -f 4 \
+  mobile/android/app/build/outputs/apk/release/app-release.apk \
+  "$preview_signing_dir/aligned.apk"
+"$preview_build_tools/apksigner" sign \
+  --ks "$PREVIEW_KEYSTORE_PATH" --ks-key-alias standalone-preview \
+  --ks-pass env:PREVIEW_STORE_PASSWORD --key-pass env:PREVIEW_STORE_PASSWORD \
+  --out dist/android-preview/smart-expense-ai-preview.apk \
+  "$preview_signing_dir/aligned.apk"
 "$preview_build_tools/apksigner" verify --verbose --print-certs \
-  dist/android-preview/smart-expense-ai-preview.apk > dist/android-preview/signature.txt
+  dist/android-preview/smart-expense-ai-preview.apk | tee dist/android-preview/signature.txt
+"$preview_build_tools/zipalign" -c -P 16 4 dist/android-preview/smart-expense-ai-preview.apk
 keytool -exportcert -keystore "$PREVIEW_KEYSTORE_PATH" -storepass:env PREVIEW_STORE_PASSWORD \
   -alias standalone-preview -file "$preview_signing_dir/certificate.der"
 export PREVIEW_CERT_SHA256="$(sha256sum "$preview_signing_dir/certificate.der" | cut -d ' ' -f 1)"

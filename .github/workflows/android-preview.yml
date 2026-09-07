@@ -73,6 +73,9 @@ jobs:
         with:
           name: preview-diagnostics
           path: |
+            dist/android-preview/signature.txt
+            dist/android-preview/apk-metadata.txt
+            dist/android-preview/build-info.json
             dist/android-preview/launch.xml
             dist/android-preview/launch-failure.log
           if-no-files-found: ignore
