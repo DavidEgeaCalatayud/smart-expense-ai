@@ -22,12 +22,13 @@ for attribute in ('allowBackup', 'usesCleartextTraffic'):
 if re.search(r'android:debuggable\b[^\n]*=\(type 0x12\)(?!0x0\b)', manifest):
     raise SystemExit('APK must not be debuggable')
 certificate = os.environ['PREVIEW_CERT_SHA256'].lower()
-# apksigner can label signers by number or by supported SDK range (v3.1).
+# apksigner labels signers by number, supported SDK range, or signature scheme
+# (e.g. the SDK output "V3.0 Signer: certificate SHA-256 digest: ...").
 # Compare the actual fingerprints, not the presentation of the signer label.
 signer_digests = {
     value.replace(':', '').lower()
     for value in re.findall(
-        r'^Signer[^\n]* certificate SHA-256 digest:\s*([0-9a-fA-F:]+)\s*$',
+        r'^(?:V\d+(?:\.\d+)*\s+)?Signer[^\n]* certificate SHA-256 digest:\s*([0-9a-fA-F:]+)\s*$',
         signature, re.MULTILINE,
     )
 }

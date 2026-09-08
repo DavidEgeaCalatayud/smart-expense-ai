@@ -41,6 +41,7 @@ jobs:
           npm run test --workspace=@smart-expense-ai/mobile -- --runTestsByPath __tests__/appConfig.test.ts
           npm run typecheck --workspace=@smart-expense-ai/mobile
           bash -n scripts/build-android-preview.sh scripts/smoke-android-preview.sh
+          python -m unittest discover -s scripts/tests -p test_android_preview_verifier.py -v
       - name: Build, sign and inspect the preview APK
         run: bash scripts/build-android-preview.sh
       - name: Enable emulator acceleration
@@ -67,7 +68,7 @@ jobs:
           path: dist/android-preview/
           if-no-files-found: error
           retention-days: 7
-      - name: Save failed launch diagnostics
+      - name: Save verification diagnostics on failure
         if: failure()
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
@@ -80,6 +81,14 @@ jobs:
             dist/android-preview/launch-failure.log
           if-no-files-found: ignore
           retention-days: 7
+      - name: Retain failed build for diagnosis without publishing a release
+        if: failure()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: unverified-preview-build
+          path: dist/android-preview/smart-expense-ai-preview.apk
+          if-no-files-found: ignore
+          retention-days: 1
 
   publish:
     name: Publish preview download
