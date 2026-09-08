@@ -1,5 +1,7 @@
 import * as BackgroundTask from 'expo-background-task';
 import * as TaskManager from 'expo-task-manager';
+import * as credentials from '../src/auth/secureCredentials';
+import { pauseAndDrainSessionWork, resumeSessionWork } from '../src/auth/sessionWork';
 
 import {
   BACKGROUND_SYNC_MINIMUM_INTERVAL_MINUTES,
@@ -37,6 +39,27 @@ const mockRegisterTaskAsync = jest.mocked(BackgroundTask.registerTaskAsync);
 const mockUnregisterTaskAsync = jest.mocked(BackgroundTask.unregisterTaskAsync);
 
 describe('background sync scheduler', () => {
+  afterEach(() => { jest.restoreAllMocks(); resumeSessionWork(); });
+
+  it('drains a headless task even while its initial credential lookup is still pending', async () => {
+    let release!: (user: null) => void;
+    const lookup = new Promise<null>((resolve) => { release = resolve; });
+    jest.spyOn(credentials, 'getMobileUser').mockReturnValue(lookup);
+    jest.spyOn(credentials, 'getAccessToken').mockResolvedValue('test-access');
+    jest.spyOn(credentials, 'getRefreshToken').mockResolvedValue('test-refresh');
+    const task = mockDefineTask.mock.calls[0]![1] as () => Promise<unknown>;
+    const running = task();
+    await Promise.resolve();
+    let drained = false;
+    const closing = pauseAndDrainSessionWork().then(() => { drained = true; });
+    await Promise.resolve();
+    await Promise.resolve();
+    expect(drained).toBe(false);
+    release(null);
+    await Promise.all([running, closing]);
+    expect(drained).toBe(true);
+  });
+
   beforeEach(() => {
     mockIsTaskRegisteredAsync.mockReset();
     mockGetStatusAsync.mockReset();

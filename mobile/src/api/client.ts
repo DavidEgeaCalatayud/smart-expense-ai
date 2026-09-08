@@ -59,13 +59,12 @@ export class MobileApiClient {
     }
 
     this.refreshPromise = (async () => {
-      const refreshToken = await getRefreshToken();
-      if (!refreshToken) {
-        throw new MobileApiHttpError(401, 'authentication_required', 'Authentication required');
-      }
-
-      const deviceId = await getOrCreateDeviceId();
       try {
+        const refreshToken = await getRefreshToken();
+        if (!refreshToken) {
+          throw new MobileApiHttpError(401, 'authentication_required', 'Authentication required');
+        }
+        const deviceId = await getOrCreateDeviceId();
         const refreshed = await this.authClient.refresh(refreshToken, deviceId);
         await saveMobileSession(
           {

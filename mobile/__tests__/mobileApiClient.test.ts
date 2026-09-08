@@ -16,6 +16,24 @@ function response(status: number): Response {
 
 afterEach(() => { jest.restoreAllMocks(); });
 
+it('can rotate credentials after a failed SecureStore read instead of retaining a rejected refresh', async () => {
+  jest.spyOn(credentials, 'getAccessToken').mockResolvedValue('expired-access');
+  jest.spyOn(credentials, 'getRefreshToken').mockRejectedValueOnce(new Error('Store unavailable'))
+    .mockResolvedValue('refresh-after-recovery');
+  jest.spyOn(identity, 'getOrCreateDeviceId').mockResolvedValue('device-1');
+  jest.spyOn(credentials, 'saveMobileSession').mockResolvedValue();
+  const refresh = jest.spyOn(MobileAuthClient.prototype, 'refresh').mockResolvedValue({
+    accessToken: 'fresh-access', refreshToken: 'fresh-refresh', tokenType: 'Bearer', expiresIn: 900,
+    user: { id: 'account-1', email: 'test@example.test', displayName: 'Test' },
+  });
+  jest.spyOn(globalThis, 'fetch').mockImplementation(async (_url, init) =>
+    response(new Headers(init?.headers).get('Authorization') === 'Bearer fresh-access' ? 200 : 401));
+  const client = new MobileApiClient('https://api.example.test');
+  await expect(client.request('/api/v2/analytics/summary')).rejects.toThrow('Store unavailable');
+  await expect(client.request('/api/v2/analytics/summary')).resolves.toEqual({ success: true });
+  expect(refresh).toHaveBeenCalledTimes(1);
+});
+
 it('shares one token rotation across parallel workspaces and a delayed stale 401, including CSV', async () => {
   let accessToken = 'expired-access';
   const rotation = deferred<MobileTokenResponse>();
