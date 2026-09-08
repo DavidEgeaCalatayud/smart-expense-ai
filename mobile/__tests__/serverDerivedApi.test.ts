@@ -2,6 +2,38 @@ import { MobileApiClient } from '../src/api/client';
 import { ServerDerivedApi } from '../src/api/serverDerivedApi';
 
 describe('ServerDerivedApi', () => {
+  it('does not request premium workspaces for an account without enabled access', async () => {
+    const api = client();
+    const request = jest.spyOn(MobileApiClient.prototype, 'request').mockResolvedValue({
+      planTier: 'free', features: { exportableReports: { enabled: false }, advancedInsights: { enabled: false } },
+    });
+    expect((await api.getReportsWorkspace('2026-09')).report).toBeNull();
+    expect((await api.getInsightsWorkspace('2026-09')).insights).toBeNull();
+    expect(request.mock.calls.map(([path]) => path)).toEqual(['/api/v2/entitlements', '/api/v2/entitlements']);
+  });
+
+  it('propagates an entitlement lookup failure instead of claiming the user has a free plan', async () => {
+    const failure = new Error('Entitlements unavailable');
+    jest.spyOn(MobileApiClient.prototype, 'request').mockRejectedValue(failure);
+    await expect(client().getReportsWorkspace('2026-09')).rejects.toBe(failure);
+  });
+
+  it('loads authorized report and insights contracts and preserves the server CSV', async () => {
+    const request = jest.spyOn(MobileApiClient.prototype, 'request')
+      .mockResolvedValueOnce({ features: { exportableReports: { enabled: true } } })
+      .mockResolvedValueOnce({ month: '2026-09', totalIncome: '12.34' })
+      .mockResolvedValueOnce({ features: { advancedInsights: { enabled: true } } })
+      .mockResolvedValueOnce({ month: '2026-09', insights: [] });
+    const text = jest.spyOn(MobileApiClient.prototype, 'requestText').mockResolvedValue('category,total\r\nFood,12.34\r\n');
+    const api = client();
+    expect((await api.getReportsWorkspace('2026-09')).report?.totalIncome).toBe('12.34');
+    expect((await api.getInsightsWorkspace('2026-09')).insights?.month).toBe('2026-09');
+    expect(await api.getMonthlyReportCsv('2026-09')).toBe('category,total\r\nFood,12.34\r\n');
+    expect(request.mock.calls.map(([path]) => path)).toEqual(['/api/v2/entitlements',
+      '/api/v2/reports/monthly?month=2026-09', '/api/v2/entitlements', '/api/v2/insights/advanced?month=2026-09']);
+    expect(text).toHaveBeenCalledWith('/api/v2/reports/monthly.csv?month=2026-09');
+  });
+
   afterEach(() => {
     jest.restoreAllMocks();
   });

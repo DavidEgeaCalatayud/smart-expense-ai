@@ -9,6 +9,10 @@
   "engines": {
     "node": ">=22.13.0"
   },
+  "overrides": {
+    "react": "19.2.3",
+    "react-test-renderer": "19.2.3"
+  },
   "scripts": {
     "mobile:start": "npm run start --workspace=@smart-expense-ai/mobile",
     "mobile:android": "npm run android --workspace=@smart-expense-ai/mobile",

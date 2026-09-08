@@ -1,14 +1,14 @@
 appId: com.davidegea.smartexpenseai
 ---
 - launchApp
-- assertVisible: "Offline-first transactions"
+- assertVisible: "Your transactions"
 - tapOn: "Merchant"
 - inputText: "Offline Coffee"
 - hideKeyboard
 - tapOn: "Amount"
 - inputText: "12.34"
 - hideKeyboard
-- tapOn: "Save offline"
+- tapOn: "Save transaction"
 - extendedWaitUntil:
     visible: "Offline Coffee"
     timeout: 10000

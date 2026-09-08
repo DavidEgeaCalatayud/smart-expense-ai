@@ -1,5 +1,8 @@
 import { getOrCreateDeviceId } from '../auth/deviceIdentity';
 import { MobileAuthClient } from '../auth/mobileAuthClient';
+import { getMobileApiBaseUrl } from './config';
+import { fetchWithTimeout } from './fetchWithTimeout';
+import { reportServerReachability } from './serverReachability';
 import {
   getAccessToken,
   getRefreshToken,
@@ -99,18 +102,26 @@ export class MobileApiClient {
       headers.set('Authorization', `Bearer ${token}`);
     }
 
-    return fetch(`${this.baseUrl}${path}`, {
-      ...init,
-      headers,
-    });
+    try {
+      const response = await fetchWithTimeout(`${this.baseUrl}${path}`, { ...init, headers });
+      reportServerReachability(response.status < 500 && response.status !== 429);
+      return response;
+    } catch (error) {
+      reportServerReachability(false);
+      throw error;
+    }
   }
 
-  async request<T>(path: string, init: RequestInit = {}): Promise<T> {
+  private async authenticatedResponse(path: string, init: RequestInit): Promise<Response> {
     const accessToken = await getAccessToken();
     let response = await this.execute(path, init, accessToken);
 
     if (response.status === 401 && accessToken) {
-      const refreshedAccessToken = await this.refreshAccessToken();
+      // Another concurrent workspace may already have rotated the same token.
+      const currentToken = await getAccessToken();
+      const refreshedAccessToken = currentToken && currentToken !== accessToken
+        ? currentToken
+        : await this.refreshAccessToken();
       response = await this.execute(path, init, refreshedAccessToken);
     }
 
@@ -118,9 +129,24 @@ export class MobileApiClient {
       throw await parseApiError(response);
     }
 
+    return response;
+  }
+
+  async requestText(path: string, init: RequestInit = {}): Promise<string> {
+    return (await this.authenticatedResponse(path, init)).text();
+  }
+
+  async request<T>(path: string, init: RequestInit = {}): Promise<T> {
+    const response = await this.authenticatedResponse(path, init);
     if (response.status === 204) {
       return undefined as T;
     }
     return (await response.json()) as T;
   }
+}
+
+let sharedClient: MobileApiClient | null = null;
+export function getSharedMobileApiClient(): MobileApiClient {
+  sharedClient ??= new MobileApiClient(getMobileApiBaseUrl());
+  return sharedClient;
 }

@@ -2,8 +2,8 @@ import * as BackgroundTask from 'expo-background-task';
 import * as SQLite from 'expo-sqlite';
 import * as TaskManager from 'expo-task-manager';
 
-import { MobileApiClient } from '../api/client';
-import { getMobileApiBaseUrl } from '../api/config';
+import { getSharedMobileApiClient } from '../api/client';
+import { isSessionWorkAllowed, runSessionWork } from '../auth/sessionWork';
 import {
   getAccessToken,
   getMobileUser,
@@ -20,6 +20,7 @@ export const BACKGROUND_SYNC_TASK_NAME = 'smart-expense-ai-background-sync-v1';
 export const BACKGROUND_SYNC_MINIMUM_INTERVAL_MINUTES = 60;
 
 TaskManager.defineTask(BACKGROUND_SYNC_TASK_NAME, async () => {
+  if (!isSessionWorkAllowed()) return BackgroundTask.BackgroundTaskResult.Success;
   const [user, accessToken, refreshToken] = await Promise.all([
     getMobileUser(),
     getAccessToken(),
@@ -37,10 +38,11 @@ TaskManager.defineTask(BACKGROUND_SYNC_TASK_NAME, async () => {
 
   const db = await SQLite.openDatabaseAsync(DATABASE_NAME);
   try {
-    await initializeDatabase(db);
-    await bindLocalAccount(db, user.id);
-    const apiClient = new MobileApiClient(getMobileApiBaseUrl());
-    await runForegroundSync(db, new SyncClient(apiClient));
+    await runSessionWork(async () => {
+      await initializeDatabase(db);
+      await bindLocalAccount(db, user.id);
+      await runForegroundSync(db, new SyncClient(getSharedMobileApiClient()));
+    });
     return BackgroundTask.BackgroundTaskResult.Success;
   } catch {
     // The foreground path remains authoritative. Do not log financial payloads or tokens from a

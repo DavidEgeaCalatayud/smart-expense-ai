@@ -1,7 +1,7 @@
 appId: com.davidegea.smartexpenseai
 ---
 - launchApp
-- assertVisible: "Offline-first transactions"
+- assertVisible: "Your transactions"
 - tapOn: "Sign out"
 - extendedWaitUntil:
     visible: "Welcome back"
@@ -16,15 +16,15 @@ appId: com.davidegea.smartexpenseai
 - hideKeyboard
 - tapOn: "Submit create account"
 - extendedWaitUntil:
-    visible: "Offline-first transactions"
+    visible: "Your transactions"
     timeout: 20000
 - assertVisible: ${E2E_EMAIL_B}
 - extendedWaitUntil:
-    visible: "0 queued · 0 failed · 0 conflicts"
+    visible: "All changes synchronized"
     timeout: 15000
 - assertNotVisible: "Conflicts need a decision"
 - scrollUntilVisible:
-    element: "No local transactions yet.*"
+    element: "No transactions yet.*"
     direction: DOWN
     timeout: 15000
-- assertVisible: "No local transactions yet.*"
+- assertVisible: "No transactions yet.*"

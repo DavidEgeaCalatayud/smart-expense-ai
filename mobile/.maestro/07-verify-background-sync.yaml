@@ -2,7 +2,7 @@ appId: com.davidegea.smartexpenseai
 ---
 - launchApp
 - extendedWaitUntil:
-    visible: "Offline-first transactions"
+    visible: "Your transactions"
     timeout: 15000
 - scrollUntilVisible:
     element: "Background Worker Coffee"

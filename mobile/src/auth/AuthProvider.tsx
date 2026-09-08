@@ -10,7 +10,8 @@ import {
 } from 'react';
 
 import { getMobileApiBaseUrl } from '../api/config';
-import { MobileApiClient } from '../api/client';
+import { getSharedMobileApiClient } from '../api/client';
+import { pauseAndDrainSessionWork, resumeSessionWork } from './sessionWork';
 import { deleteMobileAccount } from './accountDeletion';
 import {
   registerBackgroundSyncAsync,
@@ -55,7 +56,7 @@ function errorMessage(error: unknown): string {
 export function AuthProvider({ children }: PropsWithChildren) {
   const db = useSQLiteContext();
   const client = useMemo(() => new MobileAuthClient(getMobileApiBaseUrl()), []);
-  const api = useMemo(() => new MobileApiClient(getMobileApiBaseUrl()), []);
+  const api = useMemo(() => getSharedMobileApiClient(), []);
   const [user, setUser] = useState<MobileAuthUser | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -74,6 +75,7 @@ export function AuthProvider({ children }: PropsWithChildren) {
         }
         if (restored.user) {
           await bindLocalAccount(db, restored.user.id);
+          resumeSessionWork();
         }
         if (!cancelled) {
           setUser(restored.user);
@@ -116,6 +118,7 @@ export function AuthProvider({ children }: PropsWithChildren) {
       try {
         const authenticated = await loginMobileSession(client, email.trim(), password);
         await bindLocalAccount(db, authenticated.id);
+        resumeSessionWork();
         setUser(authenticated);
       } catch (loginError) {
         setError(errorMessage(loginError));
@@ -139,6 +142,7 @@ export function AuthProvider({ children }: PropsWithChildren) {
           displayName.trim(),
         );
         await bindLocalAccount(db, authenticated.id);
+        resumeSessionWork();
         setUser(authenticated);
       } catch (registerError) {
         setError(errorMessage(registerError));
@@ -154,6 +158,7 @@ export function AuthProvider({ children }: PropsWithChildren) {
     setIsSubmitting(true);
     setError(null);
     try {
+      await pauseAndDrainSessionWork();
       // logoutMobileSession persists the wipe requirement before credentials are discarded.
       await logoutMobileSession(client);
       await clearLocalAccountData(db);
@@ -169,8 +174,11 @@ export function AuthProvider({ children }: PropsWithChildren) {
   const deleteAccount = useCallback(async (password: string, confirmation: string) => {
     setIsSubmitting(true);
     setError(null);
+    let deleted = false;
     try {
+      await pauseAndDrainSessionWork();
       await deleteMobileAccount(api, password, confirmation, async () => {
+        deleted = true;
         // The server already revoked every session. Persist the wipe marker immediately,
         // without another network request between server deletion and device cleanup.
         await invalidateMobileSessionAndRequireLocalWipe();
@@ -179,6 +187,7 @@ export function AuthProvider({ children }: PropsWithChildren) {
         setUser(null);
       });
     } finally {
+      if (!deleted) resumeSessionWork();
       setIsSubmitting(false);
     }
   }, [api, db]);

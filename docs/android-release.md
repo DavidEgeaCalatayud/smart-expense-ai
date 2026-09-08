@@ -38,6 +38,10 @@ Official references: [EAS configuration](https://docs.expo.dev/build/eas-json/),
 
 ## Build and accept the preview APK
 
+Version 0.3.0 adds automatic online refresh and offline cache recovery, Reports, Advanced Insights and budget progress. It adds native Network, FileSystem and Sharing dependencies, so a new APK build is required; the 0.2.0 preview cannot acquire these changes through a web deployment. The package's local Android versionCode is 2; production EAS builds continue to manage their own incrementing version.
+
+For this version, also verify reconnect **without tapping Refresh**, a web-created transaction appearing when Android opens Transactions, authenticated CSV sharing on an entitled account, and the Premium restriction on a free account. Confirm cached month selections and pending-change indicators are accurate offline. These are acceptance requirements, not claims of completed physical-device testing.
+
 From `mobile/`, after the exact source revision passes repository CI and Android Native E2E:
 
 ```bash

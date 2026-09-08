@@ -11,13 +11,50 @@ import type {
   SpendingForecastResponse,
   TransactionSummaryV2,
   UpcomingPaymentsResponse,
+  ReportEntitlements,
+  MonthlyReport,
+  AdvancedInsightsResponse,
+  BudgetMonth,
 } from '@smart-expense-ai/api-contracts';
 
-import { MobileApiClient } from './client';
-import { getMobileApiBaseUrl } from './config';
+import { MobileApiClient, getSharedMobileApiClient } from './client';
 
 export class ServerDerivedApi {
   constructor(private readonly client: MobileApiClient) {}
+
+  getEntitlements(): Promise<ReportEntitlements> {
+    return this.client.request('/api/v2/entitlements');
+  }
+
+  getMonthlyReport(month: string): Promise<MonthlyReport> {
+    return this.client.request(`/api/v2/reports/monthly?month=${encodeURIComponent(month)}`);
+  }
+
+  getMonthlyReportCsv(month: string): Promise<string> {
+    return this.client.requestText(`/api/v2/reports/monthly.csv?month=${encodeURIComponent(month)}`);
+  }
+
+  getAdvancedInsights(month: string): Promise<AdvancedInsightsResponse> {
+    return this.client.request(`/api/v2/insights/advanced?month=${encodeURIComponent(month)}`);
+  }
+
+  async getReportsWorkspace(month: string) {
+    const entitlements = await this.getEntitlements();
+    const report = entitlements.features.exportableReports?.enabled
+      ? await this.getMonthlyReport(month) : null;
+    return { entitlements, report };
+  }
+
+  async getInsightsWorkspace(month: string) {
+    const entitlements = await this.getEntitlements();
+    const insights = entitlements.features.advancedInsights?.enabled
+      ? await this.getAdvancedInsights(month) : null;
+    return { entitlements, insights };
+  }
+
+  getBudgetProgress(month: string): Promise<BudgetMonth> {
+    return this.client.request(`/api/v2/budgets?month=${encodeURIComponent(month)}`);
+  }
 
   getSummary(): Promise<TransactionSummaryV2> {
     return this.client.request<TransactionSummaryV2>('/api/v2/analytics/summary');
@@ -113,5 +150,5 @@ export class ServerDerivedApi {
 }
 
 export function createServerDerivedApi(): ServerDerivedApi {
-  return new ServerDerivedApi(new MobileApiClient(getMobileApiBaseUrl()));
+  return new ServerDerivedApi(getSharedMobileApiClient());
 }

@@ -5,7 +5,7 @@ import type { SQLiteDatabase } from 'expo-sqlite';
 
 import { runKeyedTransaction } from '../../database/keyedTransaction';
 import type { LocalBudgetRow, LocalCategoryRow } from '../../database/types';
-import { enqueueMutation, type OutboxRow } from '../../sync/outboxRepository';
+import { assertEntityNotSending, enqueueMutation, type OutboxRow } from '../../sync/outboxRepository';
 import {
   budgetMonthForSync,
   validateBudgetLimitAmount,
@@ -104,21 +104,6 @@ export async function createOfflineBudget(
 ): Promise<string> {
   const month = validateBudgetMonth(input.month);
   const limitMinor = validateBudgetLimitAmount(input.limitAmount);
-  await validateCategory(db, input.categoryId);
-
-  const duplicate = input.categoryId === null
-    ? await db.getFirstAsync<{ id: string }>(
-        'SELECT id FROM budgets WHERE month = ? AND category_id IS NULL LIMIT 1',
-        month,
-      )
-    : await db.getFirstAsync<{ id: string }>(
-        'SELECT id FROM budgets WHERE month = ? AND category_id = ? LIMIT 1',
-        month,
-        input.categoryId,
-      );
-  if (duplicate) {
-    throw new Error('A budget already exists for this month and scope');
-  }
 
   const id = Crypto.randomUUID();
   const now = new Date().toISOString();
@@ -134,6 +119,22 @@ export async function createOfflineBudget(
   };
 
   await runKeyedTransaction(db, async (txn) => {
+    await validateCategory(txn, input.categoryId);
+
+    const duplicate = input.categoryId === null
+      ? await txn.getFirstAsync<{ id: string }>(
+          'SELECT id FROM budgets WHERE month = ? AND category_id IS NULL LIMIT 1',
+          month,
+        )
+      : await txn.getFirstAsync<{ id: string }>(
+          'SELECT id FROM budgets WHERE month = ? AND category_id = ? LIMIT 1',
+          month,
+          input.categoryId,
+        );
+    if (duplicate) {
+      throw new Error('A budget already exists for this month and scope');
+    }
+
     await txn.runAsync(
       `INSERT INTO budgets (
          id, category_id, month, limit_minor, server_version,
@@ -156,14 +157,15 @@ export async function updateOfflineBudget(
   budgetId: string,
   limitAmount: string,
 ): Promise<void> {
-  const budget = await findBudget(db, budgetId);
-  if (budget.sync_status === 'conflict') {
-    throw new Error('Resolve this budget conflict before editing it again');
-  }
-  const limitMinor = validateBudgetLimitAmount(limitAmount);
-  const now = new Date().toISOString();
-
   await runKeyedTransaction(db, async (txn) => {
+    await assertEntityNotSending(txn, 'budget', budgetId);
+    const budget = await findBudget(txn, budgetId);
+    if (budget.sync_status === 'conflict') {
+      throw new Error('Resolve this budget conflict before editing it again');
+    }
+    const limitMinor = validateBudgetLimitAmount(limitAmount);
+    const now = new Date().toISOString();
+
     await txn.runAsync(
       `UPDATE budgets
        SET limit_minor = ?, sync_status = 'pending', updated_at = ?
@@ -185,13 +187,14 @@ export async function deleteOfflineBudget(
   db: SQLiteDatabase,
   budgetId: string,
 ): Promise<void> {
-  const budget = await findBudget(db, budgetId);
-  if (budget.sync_status === 'conflict') {
-    throw new Error('Resolve this budget conflict before deleting it');
-  }
-  const now = new Date().toISOString();
-
   await runKeyedTransaction(db, async (txn) => {
+    await assertEntityNotSending(txn, 'budget', budgetId);
+    const budget = await findBudget(txn, budgetId);
+    if (budget.sync_status === 'conflict') {
+      throw new Error('Resolve this budget conflict before deleting it');
+    }
+    const now = new Date().toISOString();
+
     const existingMutation = await txn.getFirstAsync<OutboxRow>(
       `SELECT * FROM sync_outbox
        WHERE entity_type = 'budget' AND entity_id = ?

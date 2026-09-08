@@ -5,7 +5,7 @@ import type { SQLiteDatabase } from 'expo-sqlite';
 
 import { runKeyedTransaction } from '../../database/keyedTransaction';
 import type { LocalTransactionRow } from '../../database/types';
-import { enqueueMutation, type OutboxRow } from '../../sync/outboxRepository';
+import { assertEntityNotSending, enqueueMutation, type OutboxRow } from '../../sync/outboxRepository';
 import { validateOfflineTransactionInput } from './validation';
 
 interface EditableTransactionRow extends LocalTransactionRow {
@@ -56,21 +56,22 @@ export async function updateOfflineTransaction(
   transactionId: string,
   input: OfflineTransactionEditInput,
 ): Promise<void> {
-  const current = await getEditableTransaction(db, transactionId);
-  if (current.sync_status === 'conflict') {
-    throw new Error('Resolve this transaction conflict before editing it again');
-  }
-
-  const validated = validateOfflineTransactionInput({
-    merchant: input.merchant,
-    amount: input.amount,
-    categoryName: current.category_name,
-    transactionDate: input.transactionDate,
-  });
-  const now = new Date().toISOString();
-  const payload = payloadFor(current, validated.merchant, validated.amountMinor, validated.transactionDate);
-
   await runKeyedTransaction(db, async (txn) => {
+    await assertEntityNotSending(txn, 'transaction', transactionId);
+    const current = await getEditableTransaction(txn, transactionId);
+    if (current.sync_status === 'conflict') {
+      throw new Error('Resolve this transaction conflict before editing it again');
+    }
+
+    const validated = validateOfflineTransactionInput({
+      merchant: input.merchant,
+      amount: input.amount,
+      categoryName: current.category_name,
+      transactionDate: input.transactionDate,
+    });
+    const now = new Date().toISOString();
+    const payload = payloadFor(current, validated.merchant, validated.amountMinor, validated.transactionDate);
+
     const existingMutation = await txn.getFirstAsync<OutboxRow>(
       `SELECT * FROM sync_outbox
        WHERE entity_type = 'transaction' AND entity_id = ?
@@ -123,13 +124,14 @@ export async function deleteOfflineTransaction(
   db: SQLiteDatabase,
   transactionId: string,
 ): Promise<void> {
-  const current = await getEditableTransaction(db, transactionId);
-  if (current.sync_status === 'conflict') {
-    throw new Error('Resolve this transaction conflict before deleting it');
-  }
-  const now = new Date().toISOString();
-
   await runKeyedTransaction(db, async (txn) => {
+    await assertEntityNotSending(txn, 'transaction', transactionId);
+    const current = await getEditableTransaction(txn, transactionId);
+    if (current.sync_status === 'conflict') {
+      throw new Error('Resolve this transaction conflict before deleting it');
+    }
+    const now = new Date().toISOString();
+
     const existingMutation = await txn.getFirstAsync<OutboxRow>(
       `SELECT * FROM sync_outbox
        WHERE entity_type = 'transaction' AND entity_id = ?

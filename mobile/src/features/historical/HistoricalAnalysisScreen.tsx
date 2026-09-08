@@ -3,6 +3,8 @@ import { useCallback, useMemo, useState } from 'react';
 import { ActivityIndicator, Pressable, StyleSheet, Text, View } from 'react-native';
 
 import { MobileApiHttpError } from '../../api/client';
+import { DataFreshness } from '../../components/DataFreshness';
+import { useOnlineAction } from '../../api/useOnlineAction';
 import { createServerDerivedApi } from '../../api/serverDerivedApi';
 import { useCachedServerResource } from '../../api/useCachedServerResource';
 import { ServerWorkspaceShell, serverWorkspaceStyles as s } from '../../components/ServerWorkspaceShell';
@@ -13,6 +15,7 @@ interface HistoricalData {
 
 export function HistoricalAnalysisScreen() {
   const api = useMemo(() => createServerDerivedApi(), []);
+  const online = useOnlineAction();
   const [isRunning, setIsRunning] = useState(false);
   const [runError, setRunError] = useState<string | null>(null);
   const loader = useCallback(async (): Promise<HistoricalData> => {
@@ -39,7 +42,7 @@ export function HistoricalAnalysisScreen() {
     setIsRunning(true);
     setRunError(null);
     try {
-      await api.runHistoricalAnalysis(12);
+      await online.run(() => api.runHistoricalAnalysis(12));
       await refresh();
     } catch (reason) {
       setRunError(reason instanceof Error ? reason.message : 'Unable to run historical analysis');
@@ -54,23 +57,23 @@ export function HistoricalAnalysisScreen() {
     <ServerWorkspaceShell
       active="historical"
       title="Historical Analysis"
-      subtitle="historical-v2.2 is executed and persisted on FastAPI. Android displays the latest evidence and can request a fresh 12-month analysis without reimplementing recurrence, outlier or trend algorithms."
+      subtitle="Explore changes in your finances over time and run a fresh analysis of the last 12 months."
       isRefreshing={isRefreshing || isRunning}
       onRefresh={() => void refresh().catch(() => undefined)}
     >
       {isLoading && !data ? <ActivityIndicator size="large" /> : null}
       {error ? <Text style={isCachedFallback ? s.metadata : s.error}>{error}</Text> : null}
       {runError ? <Text style={s.error}>{runError}</Text> : null}
-      {cachedAt ? <Text style={s.metadata}>Latest local snapshot: {cachedAt}</Text> : null}
+      <DataFreshness cachedAt={cachedAt} isCachedFallback={isCachedFallback} />
 
       <Pressable
         accessibilityRole="button"
-        disabled={isRunning || isCachedFallback}
+        disabled={isRunning || !online.hasNetwork || isCachedFallback}
         onPress={() => void runAnalysis()}
         style={({ pressed }) => [
           s.primaryButton,
           pressed && styles.pressed,
-          (isRunning || isCachedFallback) && styles.disabled,
+          (isRunning || !online.hasNetwork || isCachedFallback) && styles.disabled,
         ]}
       >
         <Text style={s.primaryButtonText}>{isRunning ? 'Analyzing…' : 'Run 12-month analysis'}</Text>

@@ -61,8 +61,8 @@ export function AuthFormScreen({ mode }: AuthFormScreenProps) {
             <Text style={styles.title}>{isRegister ? 'Create account' : 'Welcome back'}</Text>
             <Text style={styles.subtitle}>
               {isRegister
-                ? 'Your mobile session is secured independently from the web session.'
-                : 'Sign in to unlock your offline financial workspace on this device.'}
+                ? 'Use one account to manage your finances on your phone and the web.'
+                : 'Sign in to your finances, with automatic updates online and saved data offline.'}
             </Text>
           </View>
 
@@ -138,7 +138,7 @@ export function AuthFormScreen({ mode }: AuthFormScreenProps) {
           </View>
 
           <Text style={styles.securityNote}>
-            Access and refresh credentials stay in the device secure store, never in SQLite.
+            Your sign-in details are stored securely on this device.
           </Text>
         </ScrollView>
       </KeyboardAvoidingView>

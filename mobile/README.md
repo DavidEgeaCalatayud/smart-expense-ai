@@ -4,7 +4,7 @@ Android-first React Native client for the Smart Expense AI multi-client platform
 
 ## Current status
 
-The mobile package includes the Expo/SQLite foundation, native authentication, foreground synchronization, offline-first transaction/category/budget workspaces, server-derived financial workspaces and the Phase 5G native hardening layer:
+The mobile package includes the Expo/SQLite foundation, native authentication, automatic online synchronization, offline-capable transaction/category/budget workspaces, server-derived financial workspaces and native privacy hardening:
 
 - Expo SDK 57 + Expo Router;
 - strict TypeScript;
@@ -40,6 +40,20 @@ The mobile package includes the Expo/SQLite foundation, native authentication, f
 - EAS preview APK and production AAB profiles without committed signing credentials.
 
 FastAPI/PostgreSQL remains the financial authority. SQLite stores the local replica, pending user intent and explicitly read-only cached server snapshots.
+
+## Online experience (0.3.0)
+
+One authenticated `OnlineSyncProvider` refreshes the account when opening a workspace, returning to the foreground or regaining network access. Transaction, category and budget writes commit locally before requesting an immediate push. The existing bootstrap/delta protocol refreshes the editable replica; no competing REST mutation path or financial calculation is introduced.
+
+The account status distinguishes Internet loss, an unreachable server, synchronization in progress, pending edits and conflicts. A successful HTTP response alone never means that pending edits were synchronized. There is no periodic foreground polling to keep a free hosting instance awake. Requests allow a bounded 60-second wait for a cold server.
+
+Focused financial workspaces refresh their authenticated server snapshots after synchronization. Offline they show the last encrypted snapshot with its saved timestamp; reconnecting refreshes the visible workspace automatically. Old filter responses cannot replace the selected month. Authorization failures clear the affected cache entry. New assistant queries, scans, suggestions and report exports require connectivity and synchronize pending edits first.
+
+Reports and Advanced Insights use the existing server entitlements. Accounts without access see the same Premium restriction as the web; Android does not change the account plan. Authorized users can inspect monthly report totals and evidence-based insight cards, and export the authenticated CSV through Android's share sheet. Budget spending and remaining amounts come from the server's monthly progress contract.
+
+Concurrent sync requests share a coordinator, foreground/background runs are serialized, and outbox batches are claimed atomically. An entity already being sent cannot have its payload edited or removed before acknowledgment. Local mutations read the server version inside their write transaction. Logout drains in-flight account work before wiping the encrypted replica and cache.
+
+Regression coverage includes coalescing, reconnect, stale responses, cached fallback, revoked access, shared token rotation, concurrent mutation claiming and account-work draining. The native E2E harness also checks navigation to the new workspaces, automatic sync on open, and cache/reconnect behavior while the emulator's network is disabled and restored.
 
 ## Native Android development
 
@@ -126,9 +140,12 @@ The following Android workspaces call existing authenticated FastAPI contracts r
 - **Historical Analysis** — latest/run `historical-v2.2` snapshots;
 - **Predictions** — `recurring-calendar-v1` and `spending-forecast-v1`;
 - **Category Suggestions** — advisory user-history/`tfidf-logreg-v1` preview;
-- **Financial Assistant** — stateless evidence-grounded `/api/v2/assistant/query`.
+- **Financial Assistant** — stateless evidence-grounded `/api/v2/assistant/query`;
+- **Reports** — monthly JSON report and authenticated CSV download;
+- **Advanced Insights** — monthly evidence cards from `/api/v2/insights/advanced`;
+- **Budgets** — exact progress from the existing `/api/v2/budgets` contract.
 
-Dashboard, Intelligence, Historical Analysis and Predictions may retain the latest successful response in `server_cache` solely for read-only offline presentation. Financial Assistant answers and category suggestion previews remain transient.
+Dashboard, Intelligence, Historical Analysis, Predictions, Reports, Advanced Insights and budget progress may retain successful responses in `server_cache` solely for read-only offline presentation. Financial Assistant answers and category suggestion previews remain transient.
 
 ## SQLCipher and local privacy
 

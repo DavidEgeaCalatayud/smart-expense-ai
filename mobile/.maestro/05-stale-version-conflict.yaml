@@ -17,7 +17,7 @@ appId: com.davidegea.smartexpenseai
 - eraseText: 50
 - inputText: "Local Coffee"
 - hideKeyboard
-- tapOn: "Save offline edit"
+- tapOn: "Save changes"
 - scrollUntilVisible:
     element: "Conflicts need a decision"
     direction: UP
@@ -35,10 +35,10 @@ appId: com.davidegea.smartexpenseai
     direction: DOWN
     timeout: 10000
 - scrollUntilVisible:
-    element: "Synchronization"
+    element: "Online"
     direction: UP
     timeout: 10000
 - extendedWaitUntil:
-    visible: "0 queued · 0 failed · 0 conflicts"
+    visible: "All changes synchronized"
     timeout: 15000
 - assertNotVisible: "Conflicts need a decision"

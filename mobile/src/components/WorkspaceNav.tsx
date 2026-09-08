@@ -11,6 +11,8 @@ export type WorkspaceName =
   | 'predictions'
   | 'suggestions'
   | 'assistant'
+  | 'reports'
+  | 'advanced-insights'
   | 'account';
 
 const ITEMS = [
@@ -23,6 +25,8 @@ const ITEMS = [
   { key: 'predictions' as const, label: 'Predictions', href: '/predictions' as const },
   { key: 'suggestions' as const, label: 'Suggest', href: '/suggestions' as const },
   { key: 'assistant' as const, label: 'Assistant', href: '/assistant' as const },
+  { key: 'reports' as const, label: 'Reports', href: '/reports' as const },
+  { key: 'advanced-insights' as const, label: 'Insights', href: '/advanced-insights' as const },
   { key: 'account' as const, label: 'Account', href: '/account' as const },
 ];
 

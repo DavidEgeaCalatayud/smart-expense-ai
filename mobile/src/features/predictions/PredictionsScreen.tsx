@@ -5,6 +5,7 @@ import type {
 import { useCallback, useMemo } from 'react';
 import { ActivityIndicator, Text, View } from 'react-native';
 
+import { DataFreshness } from '../../components/DataFreshness';
 import { createServerDerivedApi } from '../../api/serverDerivedApi';
 import { useCachedServerResource } from '../../api/useCachedServerResource';
 import { ServerWorkspaceShell, serverWorkspaceStyles as s } from '../../components/ServerWorkspaceShell';
@@ -30,13 +31,13 @@ export function PredictionsScreen() {
     <ServerWorkspaceShell
       active="predictions"
       title="Predictions"
-      subtitle="recurring-calendar-v1 and spending-forecast-v1 stay server-owned. Android shows deterministic projections, assumptions and backtest evidence without inventing confidence or running forecasting models locally."
+      subtitle="Plan for upcoming payments and see how your spending may develop, with assumptions and limitations."
       isRefreshing={isRefreshing}
       onRefresh={() => void refresh().catch(() => undefined)}
     >
       {isLoading && !data ? <ActivityIndicator size="large" /> : null}
       {error ? <Text style={isCachedFallback ? s.metadata : s.error}>{error}</Text> : null}
-      {cachedAt ? <Text style={s.metadata}>Latest local snapshot: {cachedAt}</Text> : null}
+      <DataFreshness cachedAt={cachedAt} isCachedFallback={isCachedFallback} />
 
       {data ? (
         <>

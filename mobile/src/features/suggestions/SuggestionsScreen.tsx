@@ -2,11 +2,13 @@ import type { CategorySuggestionPreviewResponse } from '@smart-expense-ai/api-co
 import { useMemo, useState } from 'react';
 import { Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
 
+import { useOnlineAction } from '../../api/useOnlineAction';
 import { createServerDerivedApi } from '../../api/serverDerivedApi';
 import { ServerWorkspaceShell, serverWorkspaceStyles as s } from '../../components/ServerWorkspaceShell';
 
 export function SuggestionsScreen() {
   const api = useMemo(() => createServerDerivedApi(), []);
+  const online = useOnlineAction();
   const [merchant, setMerchant] = useState('');
   const [type, setType] = useState<'expense' | 'income'>('expense');
   const [suggestion, setSuggestion] = useState<CategorySuggestionPreviewResponse | null>(null);
@@ -20,7 +22,7 @@ export function SuggestionsScreen() {
     setError(null);
     setSuggestion(null);
     try {
-      setSuggestion(await api.previewCategorySuggestion(normalized, type));
+      setSuggestion(await online.run(() => api.previewCategorySuggestion(normalized, type)));
     } catch (reason) {
       setError(reason instanceof Error ? reason.message : 'No category suggestion is available');
     } finally {
@@ -32,13 +34,15 @@ export function SuggestionsScreen() {
     <ServerWorkspaceShell
       active="suggestions"
       title="Category Suggestions"
-      subtitle="Suggestions are server-backed and advisory only. The classifier or user-history signal never changes a transaction automatically; you decide whether to use the proposed category."
-      isRefreshing={false}
+      subtitle="Find a suggested category for a merchant. You choose whether to use it; your transactions are never changed automatically."
+      isRefreshing={isSubmitting}
       onRefresh={() => {
         setSuggestion(null);
         setError(null);
+        void online.syncNow().catch(() => undefined);
       }}
     >
+      {!online.hasNetwork ? <Text style={s.metadata}>Connect to request a new result.</Text> : null}
       <View style={s.section}>
         <TextInput
           accessibilityLabel="Suggestion merchant"
@@ -62,12 +66,12 @@ export function SuggestionsScreen() {
         </View>
         <Pressable
           accessibilityRole="button"
-          disabled={isSubmitting || !merchant.trim()}
+          disabled={isSubmitting || !online.hasNetwork || !merchant.trim()}
           onPress={() => void preview()}
           style={({ pressed }) => [
             s.primaryButton,
             pressed && styles.pressed,
-            (isSubmitting || !merchant.trim()) && styles.disabled,
+            (isSubmitting || !online.hasNetwork || !merchant.trim()) && styles.disabled,
           ]}
         >
           <Text style={s.primaryButtonText}>{isSubmitting ? 'Checking…' : 'Ask for suggestion'}</Text>

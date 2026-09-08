@@ -68,6 +68,30 @@ export function listPendingMutations(
   );
 }
 
+export async function claimPendingMutations(db: SQLiteDatabase, limit = 50): Promise<OutboxRow[]> {
+  return runKeyedTransaction(db, async (txn) => {
+    const rows = await listPendingMutations(txn, limit);
+    for (const row of rows) {
+      await txn.runAsync(
+        `UPDATE sync_outbox SET status = 'sending', attempt_count = attempt_count + 1,
+         last_error = NULL, updated_at = ? WHERE mutation_id = ?`,
+        new Date().toISOString(), row.mutation_id,
+      );
+    }
+    return rows;
+  });
+}
+
+export async function assertEntityNotSending(
+  db: SQLiteDatabase, entityType: SyncMutation['entityType'], entityId: string,
+): Promise<void> {
+  const row = await db.getFirstAsync<{ mutation_id: string }>(
+    "SELECT mutation_id FROM sync_outbox WHERE entity_type = ? AND entity_id = ? AND status = 'sending' LIMIT 1",
+    entityType, entityId,
+  );
+  if (row) throw new Error('This item is being synchronized. Please try again in a moment.');
+}
+
 export function getOutboxMutation(
   db: SQLiteDatabase,
   mutationId: string,

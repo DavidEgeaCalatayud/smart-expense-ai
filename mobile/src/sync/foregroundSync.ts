@@ -5,8 +5,7 @@ import { MobileApiHttpError } from '../api/client';
 import { getOrCreateDeviceId } from '../auth/deviceIdentity';
 import { applyBootstrapPage, applyChangesAndCursor } from './applyChanges';
 import {
-  listPendingMutations,
-  markMutationsSending,
+  claimPendingMutations,
   outboxRowToMutation,
   requeueMutations,
   resetInterruptedMutations,
@@ -68,13 +67,12 @@ async function pushOutbox(
   let pushed = 0;
 
   while (true) {
-    const rows = await listPendingMutations(db, PUSH_BATCH_SIZE);
+    const rows = await claimPendingMutations(db, PUSH_BATCH_SIZE);
     if (rows.length === 0) {
       return pushed;
     }
 
     const mutationIds = rows.map((row) => row.mutation_id);
-    await markMutationsSending(db, mutationIds);
 
     try {
       const response = await withTransientRetry(() =>
@@ -143,7 +141,7 @@ async function pullDeltas(
   }
 }
 
-export async function runForegroundSync(
+async function performForegroundSync(
   db: SQLiteDatabase,
   client: SyncClient,
 ): Promise<ForegroundSyncResult> {
@@ -184,4 +182,13 @@ export async function runForegroundSync(
     }
     throw error;
   }
+}
+
+// Background and foreground can share a JS runtime while using different
+// SQLite handles. Serialize their outbox claims across those handles.
+let syncTail: Promise<unknown> = Promise.resolve();
+export function runForegroundSync(db: SQLiteDatabase, client: SyncClient): Promise<ForegroundSyncResult> {
+  const result = syncTail.then(() => performForegroundSync(db, client));
+  syncTail = result.catch(() => undefined);
+  return result;
 }

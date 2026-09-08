@@ -4,7 +4,7 @@ import type { SQLiteDatabase } from 'expo-sqlite';
 
 import { runKeyedTransaction } from '../../database/keyedTransaction';
 import type { LocalCategoryRow } from '../../database/types';
-import { enqueueMutation, type OutboxRow } from '../../sync/outboxRepository';
+import { assertEntityNotSending, enqueueMutation, type OutboxRow } from '../../sync/outboxRepository';
 import { normalizeCategoryName, normalizedCategoryKey } from './validation';
 
 export type CategoryTransactionType = 'expense' | 'income';
@@ -96,7 +96,6 @@ export async function createOfflineCategory(
   input: { name: string; transactionType: CategoryTransactionType },
 ): Promise<string> {
   const name = normalizeCategoryName(input.name);
-  await assertNameAvailable(db, name, input.transactionType, null);
   const id = Crypto.randomUUID();
   const now = new Date().toISOString();
   const category: LocalCategoryRow = {
@@ -113,6 +112,7 @@ export async function createOfflineCategory(
   };
 
   await runKeyedTransaction(db, async (txn) => {
+    await assertNameAvailable(txn, name, input.transactionType, null);
     await txn.runAsync(
       `INSERT INTO categories (
          id, name, normalized_name, transaction_type, system_category, archived,
@@ -135,18 +135,19 @@ export async function renameOfflineCategory(
   categoryId: string,
   nextNameInput: string,
 ): Promise<void> {
-  const category = await findCategory(db, categoryId);
-  if (category.system_category === 1) {
-    throw new Error('System categories are read-only');
-  }
-  if (category.sync_status === 'conflict') {
-    throw new Error('Resolve this category conflict before editing it again');
-  }
-  const nextName = normalizeCategoryName(nextNameInput);
-  await assertNameAvailable(db, nextName, category.transaction_type, category.id);
-  const now = new Date().toISOString();
-
   await runKeyedTransaction(db, async (txn) => {
+    await assertEntityNotSending(txn, 'category', categoryId);
+    const category = await findCategory(txn, categoryId);
+    if (category.system_category === 1) {
+      throw new Error('System categories are read-only');
+    }
+    if (category.sync_status === 'conflict') {
+      throw new Error('Resolve this category conflict before editing it again');
+    }
+    const nextName = normalizeCategoryName(nextNameInput);
+    await assertNameAvailable(txn, nextName, category.transaction_type, category.id);
+    const now = new Date().toISOString();
+
     await txn.runAsync(
       `UPDATE categories
        SET name = ?, normalized_name = ?, sync_status = 'pending', updated_at = ?
@@ -165,31 +166,32 @@ export async function setOfflineCategoryArchived(
   categoryId: string,
   archived: boolean,
 ): Promise<void> {
-  const category = await findCategory(db, categoryId);
-  if (category.system_category === 1) {
-    throw new Error('System categories are read-only');
-  }
-  if (category.sync_status === 'conflict') {
-    throw new Error('Resolve this category conflict before changing its lifecycle');
-  }
-  if ((category.archived === 1) === archived) {
-    return;
-  }
-
-  if (archived) {
-    const usage = await db.getFirstAsync<{ count: number }>(
-      'SELECT COUNT(*) AS count FROM transactions WHERE category_id = ?',
-      category.id,
-    );
-    if ((usage?.count ?? 0) > 0) {
-      throw new Error('Reassign transactions before archiving this category');
-    }
-  } else {
-    await assertNameAvailable(db, category.name, category.transaction_type, category.id);
-  }
-
-  const now = new Date().toISOString();
   await runKeyedTransaction(db, async (txn) => {
+    await assertEntityNotSending(txn, 'category', categoryId);
+    const category = await findCategory(txn, categoryId);
+    if (category.system_category === 1) {
+      throw new Error('System categories are read-only');
+    }
+    if (category.sync_status === 'conflict') {
+      throw new Error('Resolve this category conflict before changing its lifecycle');
+    }
+    if ((category.archived === 1) === archived) {
+      return;
+    }
+
+    if (archived) {
+      const usage = await txn.getFirstAsync<{ count: number }>(
+        'SELECT COUNT(*) AS count FROM transactions WHERE category_id = ?',
+        category.id,
+      );
+      if ((usage?.count ?? 0) > 0) {
+        throw new Error('Reassign transactions before archiving this category');
+      }
+    } else {
+      await assertNameAvailable(txn, category.name, category.transaction_type, category.id);
+    }
+
+    const now = new Date().toISOString();
     await txn.runAsync(
       `UPDATE categories
        SET archived = ?, sync_status = 'pending', updated_at = ?
