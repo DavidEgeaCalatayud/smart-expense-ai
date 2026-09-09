@@ -1,0 +1,94 @@
+appId: com.davidegea.smartexpenseai
+---
+# This is the same deep link used by the widget and launcher shortcut.
+- openLink: "smartexpenseai://transactions?quickAdd=income"
+- extendedWaitUntil:
+    visible: "New transaction"
+    timeout: 20000
+- tapOn: "Amount"
+- inputText: "2400.05"
+- tapOn: "Merchant"
+- inputText: "Native Salary"
+- hideKeyboard
+- tapOn: "Category"
+- scrollUntilVisible:
+    element: "New category.*"
+    direction: DOWN
+    timeout: 10000
+- tapOn: "New category.*"
+- tapOn: "New category name"
+- eraseText: 30
+- inputText: "Native Income"
+- hideKeyboard
+- scrollUntilVisible:
+    element: "Payment method"
+    direction: DOWN
+    timeout: 10000
+- tapOn: "Payment method"
+- tapOn: "Bank transfer"
+- tapOn: "Description"
+- inputText: "Monthly native payroll"
+- hideKeyboard
+- scrollUntilVisible:
+    element: "Recurring transaction"
+    direction: DOWN
+    timeout: 10000
+- tapOn: "Recurring transaction"
+- scrollUntilVisible:
+    element: "Save transaction"
+    direction: DOWN
+    timeout: 10000
+- tapOn: "Save transaction"
+- extendedWaitUntil:
+    visible: "Native Salary"
+    timeout: 20000
+- scrollUntilVisible:
+    element: "All changes synchronized"
+    direction: UP
+    timeout: 30000
+- tapOn: "Search transactions"
+- inputText: "Monthly native payroll"
+- hideKeyboard
+- assertVisible: "Native Salary"
+- assertNotVisible: "Native Bridge Coffee"
+- tapOn: "Filters and sort"
+- scrollUntilVisible:
+    element: "Transaction type"
+    direction: DOWN
+    timeout: 10000
+- tapOn: "Transaction type"
+- tapOn: "Income"
+- tapOn: "Recurring"
+- tapOn: "Recurring only"
+- scrollUntilVisible:
+    element: "Sort"
+    direction: DOWN
+    timeout: 10000
+- tapOn: "Sort"
+- tapOn: "Highest amount"
+- scrollUntilVisible:
+    element: "Show transactions"
+    direction: DOWN
+    timeout: 10000
+- tapOn: "Show transactions"
+- assertVisible: "Native Salary"
+- assertVisible: "Monthly native payroll"
+- tapOn:
+    id: "tab-home"
+- extendedWaitUntil:
+    visible: "Spent this month.*"
+    timeout: 30000
+- scrollUntilVisible:
+    element: "Recent transactions"
+    direction: DOWN
+    timeout: 15000
+- assertVisible: "Native Salary"
+- tapOn:
+    id: "tab-insights"
+- assertVisible: "A clearer view of where your money is going."
+- tapOn:
+    id: "tab-more"
+- scrollUntilVisible:
+    element: "Account & security"
+    direction: DOWN
+    timeout: 10000

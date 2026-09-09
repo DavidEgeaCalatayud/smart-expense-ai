@@ -1,7 +1,9 @@
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { useSQLiteContext } from 'expo-sqlite';
 
 import type { LocalTransactionRow } from '../../database/types';
+import { runSessionWork } from '../../auth/sessionWork';
+import type { TransactionFilters } from '../../repositories/transactionRepository';
 import { SqliteTransactionRepository } from '../../repositories/transactionRepository';
 import { createOfflineTransaction } from './createOfflineTransaction';
 import {
@@ -11,61 +13,36 @@ import {
 } from './offlineTransactionMutations';
 import type { OfflineTransactionFormInput } from './validation';
 
-export function useTransactions() {
+export function useTransactions(filters: TransactionFilters = {}, limit = 100, offset = 0) {
   const db = useSQLiteContext();
   const [transactions, setTransactions] = useState<LocalTransactionRow[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [isSaving, setIsSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  const reload = useCallback(async () => {
-    setError(null);
-    try {
-      const repository = new SqliteTransactionRepository(db);
-      setTransactions(await repository.listRecent());
-    } catch (caught) {
-      setError(caught instanceof Error ? caught.message : 'Could not load local transactions');
-    } finally {
-      setIsLoading(false);
-    }
-  }, [db]);
+  const generation = useRef(0);
+  const filterKey = JSON.stringify(filters);
+
+  const reload = useCallback(() => {
+    const request = ++generation.current;
+    return Promise.resolve().then(() => new SqliteTransactionRepository(db)
+      .list(JSON.parse(filterKey) as TransactionFilters, limit, offset))
+      .then((rows) => { if (generation.current === request) { setTransactions(rows); setError(null); } })
+      .catch((caught: unknown) => { if (generation.current === request) { setTransactions([]); setError(caught instanceof Error ? caught.message : 'Could not load transactions'); } })
+      .finally(() => { if (generation.current === request) setIsLoading(false); });
+  }, [db, filterKey, limit, offset]);
 
   useEffect(() => {
-    let active = true;
-
-    const loadInitialTransactions = async () => {
-      try {
-        const repository = new SqliteTransactionRepository(db);
-        const rows = await repository.listRecent();
-        if (active) {
-          setTransactions(rows);
-        }
-      } catch (caught) {
-        if (active) {
-          setError(
-            caught instanceof Error ? caught.message : 'Could not load local transactions',
-          );
-        }
-      } finally {
-        if (active) {
-          setIsLoading(false);
-        }
-      }
-    };
-
-    void loadInitialTransactions();
-
-    return () => {
-      active = false;
-    };
-  }, [db]);
+    void reload();
+    return () => { generation.current += 1; };
+  }, [reload]);
 
   const create = useCallback(
     async (input: OfflineTransactionFormInput) => {
       setIsSaving(true);
       setError(null);
       try {
-        await createOfflineTransaction(db, input);
+        await runSessionWork(() => createOfflineTransaction(db, input));
         await reload();
       } catch (caught) {
         const message = caught instanceof Error ? caught.message : 'Could not save transaction';
@@ -83,7 +60,7 @@ export function useTransactions() {
       setIsSaving(true);
       setError(null);
       try {
-        await updateOfflineTransaction(db, transactionId, input);
+        await runSessionWork(() => updateOfflineTransaction(db, transactionId, input));
         await reload();
       } catch (caught) {
         const message = caught instanceof Error ? caught.message : 'Could not update transaction';
@@ -101,7 +78,7 @@ export function useTransactions() {
       setIsSaving(true);
       setError(null);
       try {
-        await deleteOfflineTransaction(db, transactionId);
+        await runSessionWork(() => deleteOfflineTransaction(db, transactionId));
         await reload();
       } catch (caught) {
         const message = caught instanceof Error ? caught.message : 'Could not delete transaction';

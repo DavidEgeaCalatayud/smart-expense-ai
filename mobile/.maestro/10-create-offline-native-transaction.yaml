@@ -1,19 +1,21 @@
 appId: com.davidegea.smartexpenseai
 ---
 - launchApp
+- openLink: "smartexpenseai://transactions"
 - extendedWaitUntil:
     visible: "Your transactions"
     timeout: 15000
-- scrollUntilVisible:
-    element: "Merchant"
-    direction: UP
-    timeout: 10000
+- tapOn: "\\+ Add"
 - tapOn: "Merchant"
 - inputText: "Native Bridge Coffee"
 - hideKeyboard
 - tapOn: "Amount"
 - inputText: "34.56"
 - hideKeyboard
+- scrollUntilVisible:
+    element: "Save transaction"
+    direction: DOWN
+    timeout: 10000
 - tapOn: "Save transaction"
 - extendedWaitUntil:
     visible: "Native Bridge Coffee"

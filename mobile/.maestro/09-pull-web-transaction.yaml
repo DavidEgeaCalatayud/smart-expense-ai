@@ -2,6 +2,7 @@ appId: com.davidegea.smartexpenseai
 ---
 - stopApp
 - launchApp
+- openLink: "smartexpenseai://transactions"
 - extendedWaitUntil:
     visible: "Your transactions"
     timeout: 15000
@@ -10,7 +11,7 @@ appId: com.davidegea.smartexpenseai
     direction: DOWN
     timeout: 30000
 - assertVisible: "Web Bridge Coffee"
-- assertVisible: "23[.]45 €"
+- assertVisible: ".*23[.]45 €"
 - scrollUntilVisible:
     element: "Synced"
     direction: DOWN

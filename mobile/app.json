@@ -2,14 +2,14 @@
   "expo": {
     "name": "Smart Expense AI",
     "slug": "smart-expense-ai-mobile",
-    "version": "0.3.0",
+    "version": "0.4.0",
     "orientation": "portrait",
     "scheme": "smartexpenseai",
     "userInterfaceStyle": "automatic",
     "newArchEnabled": true,
     "android": {
       "package": "com.davidegea.smartexpenseai",
-      "versionCode": 2,
+      "versionCode": 3,
       "allowBackup": false,
       "predictiveBackGestureEnabled": false
     },
@@ -26,7 +26,15 @@
         {
           "useSQLCipher": true
         }
-      ]
+      ],
+      [
+        "expo-local-authentication",
+        {
+          "faceIDPermission": "Use Face ID to unlock your private financial data."
+        }
+      ],
+      "expo-notifications",
+      "./plugins/withQuickAddWidget"
     ],
     "experiments": {
       "typedRoutes": true

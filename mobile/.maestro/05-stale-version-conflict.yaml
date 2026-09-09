@@ -9,20 +9,24 @@ appId: com.davidegea.smartexpenseai
 - assertVisible: "Offline Coffee"
 - tapOn: "Edit"
 - scrollUntilVisible:
-    element: "Edit local transaction"
+    element: "Edit transaction"
     direction: UP
     timeout: 10000
-- assertVisible: "Edit local transaction"
+- assertVisible: "Edit transaction"
 - tapOn: "Merchant"
 - eraseText: 50
 - inputText: "Local Coffee"
 - hideKeyboard
+- scrollUntilVisible:
+    element: "Save changes"
+    direction: DOWN
+    timeout: 10000
 - tapOn: "Save changes"
 - scrollUntilVisible:
     element: "Conflicts need a decision"
     direction: UP
     timeout: 30000
-- assertVisible: "transaction · stale_version"
+- assertVisible: "This transaction changed on another device."
 - assertVisible: "Use server"
 - assertVisible: "Retry mine"
 - tapOn: "Use server"

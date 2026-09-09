@@ -9,6 +9,7 @@ import {
   useState,
 } from 'react';
 
+import { changePasswordSession } from './changePasswordSession';
 import { getMobileApiBaseUrl } from '../api/config';
 import { getSharedMobileApiClient } from '../api/client';
 import { pauseAndDrainSessionWork, resumeSessionWork } from './sessionWork';
@@ -40,6 +41,7 @@ interface AuthContextValue {
   login(email: string, password: string): Promise<void>;
   register(email: string, password: string, displayName: string): Promise<void>;
   logout(): Promise<void>;
+  changePassword(currentPassword: string, newPassword: string): Promise<void>;
   deleteAccount(password: string, confirmation: string): Promise<void>;
   clearError(): void;
 }
@@ -169,6 +171,14 @@ export function AuthProvider({ children }: PropsWithChildren) {
     }
   }, [client, db]);
 
+  const changePassword = useCallback(async (currentPassword: string, newPassword: string) => {
+    if (!user) throw new Error('Sign in before changing your password.');
+    setIsSubmitting(true);
+    setError(null);
+    try { await changePasswordSession(db, api, client, user, currentPassword, newPassword, setUser); }
+    finally { setIsSubmitting(false); }
+  }, [api, client, db, user]);
+
   const clearError = useCallback(() => setError(null), []);
 
   const deleteAccount = useCallback(async (password: string, confirmation: string) => {
@@ -202,9 +212,10 @@ export function AuthProvider({ children }: PropsWithChildren) {
       register,
       logout,
       deleteAccount,
+      changePassword,
       clearError,
     }),
-    [user, isLoading, isSubmitting, error, login, register, logout, deleteAccount, clearError],
+    [user, isLoading, isSubmitting, error, login, register, logout, deleteAccount, changePassword, clearError],
   );
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;

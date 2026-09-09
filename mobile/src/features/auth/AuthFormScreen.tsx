@@ -10,8 +10,7 @@ import {
   Text,
   TextInput,
   View,
-} from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
+ SafeAreaView } from '../../ui/primitives';
 
 import { useAuth } from '../../auth/AuthProvider';
 import { E2eLegacyMigrationDiagnostic } from './E2eLegacyMigrationDiagnostic';

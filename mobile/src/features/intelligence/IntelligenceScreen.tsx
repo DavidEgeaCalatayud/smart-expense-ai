@@ -4,8 +4,9 @@ import type {
   IntelligenceSummaryResponse,
 } from '@smart-expense-ai/api-contracts';
 import { useCallback, useMemo, useState } from 'react';
-import { ActivityIndicator, Pressable, StyleSheet, Text, View } from 'react-native';
+import { ActivityIndicator, Pressable, StyleSheet, Text, View } from '../../ui/primitives';
 
+import { FindingHeading } from '../../components/FinancialVisuals';
 import { DataFreshness } from '../../components/DataFreshness';
 import { useOnlineAction } from '../../api/useOnlineAction';
 import { createServerDerivedApi } from '../../api/serverDerivedApi';
@@ -97,7 +98,6 @@ export function IntelligenceScreen() {
             <Text style={s.body}>{data.summary.missingRecurringCount} missing recurring payments</Text>
             <Text style={s.body}>{data.summary.duplicateSubscriptionCount} duplicate subscriptions</Text>
             <Text style={s.body}>{data.summary.anomalyCount} anomaly findings</Text>
-            <Text style={s.metadata}>Rule contract: {data.summary.ruleVersion}</Text>
             <Text style={s.metadata}>Last scan: {data.summary.lastScanAt ?? 'Never'}</Text>
           </View>
 
@@ -117,21 +117,13 @@ export function IntelligenceScreen() {
           <View style={s.section}>
             <Text style={s.sectionTitle}>Findings</Text>
             {data.findings.length === 0 ? (
-              <Text style={s.empty}>No persisted findings for this account.</Text>
+              <Text style={s.empty}>No findings to review yet. Run a scan after adding transactions.</Text>
             ) : (
               data.findings.map((finding) => (
                 <View key={finding.id} style={s.card}>
-                  <View style={styles.findingHeader}>
-                    <Text style={s.cardTitle}>{finding.title}</Text>
-                    <Text style={styles.badge}>{finding.severity.toUpperCase()}</Text>
-                  </View>
+                  <FindingHeading finding={finding} />
                   <Text style={s.body}>{finding.explanation}</Text>
-                  <Text style={s.metadata}>
-                    {finding.type} · {finding.status} · {finding.ruleVersion}
-                  </Text>
-                  <Text style={s.metadata} numberOfLines={3}>
-                    Evidence: {JSON.stringify(finding.evidence)}
-                  </Text>
+                  <Text style={s.metadata}>{finding.status === 'open' ? 'Ready for your review' : finding.status === 'resolved' ? 'Reviewed and resolved' : 'Dismissed'}</Text>
                   <View style={styles.actions}>
                     {finding.status === 'open' ? (
                       <>

@@ -1,446 +1,125 @@
 import { minorUnitsToDecimal } from '@smart-expense-ai/domain-types';
-import { useState } from 'react';
-import {
-  ActivityIndicator,
-  Alert,
-  FlatList,
-  Pressable,
-  StyleSheet,
-  Text,
-  TextInput,
-  View,
-} from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
-
-import { useAuth } from '../../auth/AuthProvider';
-import { WorkspaceNav } from '../../components/WorkspaceNav';
+import { useLocalSearchParams, useRouter } from 'expo-router';
+import { useSQLiteContext } from 'expo-sqlite';
+import { useCallback, useEffect, useState } from 'react';
+import { ActivityIndicator, Alert, FlatList, Pressable, StyleSheet, Text, TextInput, View , SafeAreaView } from '../../ui/primitives';
 import { ConnectionStatus } from '../../components/ConnectionStatus';
-import type { LocalTransactionRow } from '../../database/types';
+import { serverWorkspaceStyles as s } from '../../components/ServerWorkspaceShell';
+import type { LocalCategoryRow, LocalTransactionRow } from '../../database/types';
+import { SqliteCategoryRepository } from '../../repositories/categoryRepository';
+import type { TransactionFilters as Filters } from '../../repositories/transactionRepository';
 import { useConflicts } from '../../sync/useConflicts';
 import { useForegroundSync } from '../../sync/useForegroundSync';
+import { TransactionEditor } from './TransactionEditor';
+import { TransactionFilters } from './TransactionFilters';
 import { useTransactions } from './useTransactions';
+import type { OfflineTransactionFormInput } from './validation';
 
-function todayIsoDate(): string {
-  return new Date().toISOString().slice(0, 10);
-}
-
-const STATUS_LABEL = {
-  synced: 'Synced',
-  pending: 'Pending sync',
-  failed: 'Needs attention',
-  conflict: 'Conflict',
-} as const;
-
-function TransactionItem({
-  item,
-  disabled,
-  onEdit,
-  onDelete,
-}: {
-  item: LocalTransactionRow;
-  disabled: boolean;
-  onEdit(item: LocalTransactionRow): void;
-  onDelete(item: LocalTransactionRow): void;
-}) {
-  return (
-    <View style={styles.card}>
-      <View style={styles.cardHeader}>
-        <Text style={styles.merchant}>{item.merchant}</Text>
-        <Text style={styles.amount}>{minorUnitsToDecimal(item.amount_minor)} €</Text>
-      </View>
-      <Text style={styles.metadata}>
-        {item.category_name} · {item.transaction_date}
-      </Text>
-      <View style={styles.cardFooter}>
-        <Text style={styles.syncState}>{STATUS_LABEL[item.sync_status]}</Text>
-        <View style={styles.cardActions}>
-          <Pressable disabled={disabled} onPress={() => onEdit(item)}>
-            <Text style={styles.actionText}>Edit</Text>
-          </Pressable>
-          <Pressable disabled={disabled} onPress={() => onDelete(item)}>
-            <Text style={styles.deleteText}>Delete</Text>
+const STATUS_LABEL = { synced: 'Synced', pending: 'Pending sync', failed: 'Needs attention', conflict: 'Conflict' } as const;
+export function TransactionScreen() {
+  const db = useSQLiteContext();
+  const router = useRouter();
+  const { quickAdd } = useLocalSearchParams<{ quickAdd?: string }>();
+  const [filters, setFilters] = useState<Filters>({});
+  const [page, setPage] = useState(0);
+  const [filterOpen, setFilterOpen] = useState(false);
+  const [editor, setEditor] = useState(false);
+  const [editing, setEditing] = useState<LocalTransactionRow | null>(null);
+  const [initialType, setInitialType] = useState<'expense' | 'income'>('expense');
+  const [categories, setCategories] = useState<LocalCategoryRow[]>([]);
+  const [actionError, setActionError] = useState<string | null>(null);
+  const { transactions, isLoading, isSaving, error, reload, create, update, remove } = useTransactions(filters, 51, page * 50);
+  const reloadAll = useCallback(async () => {
+    await reload();
+    setCategories(await new SqliteCategoryRepository(db).listManaged());
+  }, [db, reload]);
+  const { isSyncing, syncNow, refreshHealth, revision, error: syncError } = useForegroundSync(reloadAll);
+  const { conflicts, isResolving, error: conflictError, reload: reloadConflicts, resolveWithServer, retryMine } = useConflicts(async () => { await reloadAll(); await refreshHealth(); });
+  useEffect(() => { void reloadConflicts().catch(() => undefined); }, [revision, reloadConflicts]);
+  const linkType = quickAdd === 'expense' || quickAdd === 'income' ? quickAdd : null;
+  const closeEditor = () => { setEditor(false); setEditing(null); router.setParams({ quickAdd: undefined }); };
+  const changeFilters = (value: Filters) => { setPage(0); setFilters(value); };
+  const refresh = () => { void syncNow().then(reloadAll).then(reloadConflicts).catch(() => undefined); };
+  const saved = async (input: OfflineTransactionFormInput) => {
+    setActionError(null);
+    try {
+      if (editing) await update(editing.id, input); else await create(input);
+      closeEditor();
+      await refreshHealth();
+      refresh();
+    } catch (caught) {
+      setActionError(caught instanceof Error ? caught.message : 'Unable to save transaction');
+      throw caught;
+    }
+  };
+  const requestDelete = (item: LocalTransactionRow) => Alert.alert('Delete transaction?', `${item.merchant} · ${minorUnitsToDecimal(item.amount_minor)} €`, [
+    { text: 'Cancel', style: 'cancel' },
+    { text: 'Delete', style: 'destructive', onPress: () => { void remove(item.id).then(refreshHealth).then(refresh).catch(() => undefined); } },
+  ]);
+  const busy = isSaving || isResolving;
+  const activeFilters = Object.entries(filters).filter(([key, value]) => key !== 'search' && value !== undefined).length;
+  return <SafeAreaView edges={['top', 'left', 'right']} style={styles.safeArea}>
+    <FlatList data={transactions.slice(0, 50)} keyExtractor={(item) => item.id} refreshing={isSyncing} onRefresh={refresh}
+      keyboardShouldPersistTaps="handled" contentContainerStyle={styles.content}
+      ListHeaderComponent={<View style={{ gap: 16 }}>
+        <View style={[s.row, { justifyContent: 'space-between', alignItems: 'center' }]}>
+          <View><Text style={styles.title}>Activity</Text><Text style={s.metadata}>Your transactions</Text></View>
+          <Pressable accessibilityRole="button" onPress={() => { setInitialType('expense'); setEditing(null); setActionError(null); setEditor(true); }} style={s.primaryButton}>
+            <Text style={s.primaryButtonText}>+ Add</Text>
           </Pressable>
         </View>
-      </View>
-    </View>
-  );
+        <ConnectionStatus onRefresh={refresh} />
+        <View style={s.row}><TextInput accessibilityLabel="Search transactions" placeholder="Search transactions" value={filters.search ?? ''}
+          onChangeText={(search) => changeFilters({ ...filters, search })} style={[s.input, { flex: 1 }]} autoCorrect={false} />
+          <Pressable accessibilityRole="button" accessibilityLabel="Filters and sort" style={s.secondaryButton} onPress={() => setFilterOpen(true)}>
+            <Text>Filters{activeFilters ? ` (${activeFilters})` : ''}</Text>
+          </Pressable>
+        </View>
+        <Pressable accessibilityRole="button" accessibilityLabel="Filter dates" onPress={() => setFilterOpen(true)} style={[s.secondaryButton, { alignSelf: 'flex-start' }]}>
+          <Text>{filters.month ? new Date(`${filters.month}-15T12:00:00`).toLocaleDateString('en-GB', { month: 'long', year: 'numeric' }) : filters.dateFrom || filters.dateTo ? 'Date range' : 'All dates'} ▾</Text>
+        </Pressable>
+        {activeFilters > 0 || filters.search ? <Pressable accessibilityRole="button" style={{ paddingVertical: 8 }} onPress={() => changeFilters({})}><Text style={styles.link}>Clear search and filters</Text></Pressable> : null}
+        {syncError ? <Text style={s.metadata}>{syncError}</Text> : null}
+        {error && !editor ? <Text style={s.error}>{error}</Text> : null}
+        {conflicts.length > 0 ? <View style={s.section}>
+          <Text style={s.sectionTitle}>Conflicts need a decision</Text>
+          {conflicts.map((conflict) => <View key={conflict.id} style={[s.card, { backgroundColor: '#fff7ed' }]}>
+            <Text style={s.body}>This {conflict.entity_type} changed on another device.</Text>
+            <View style={s.row}>
+              <Pressable accessibilityRole="button" disabled={isResolving} style={s.secondaryButton}
+                onPress={() => void resolveWithServer(conflict.id).then(syncNow).then(reloadConflicts).catch(() => undefined)}><Text>Use server</Text></Pressable>
+              {conflict.reason === 'stale_version' && conflict.local_payload_json ? <Pressable accessibilityRole="button" disabled={isResolving} style={s.primaryButton}
+                onPress={() => void retryMine(conflict.id).then(syncNow).then(reloadConflicts).catch(() => undefined)}><Text style={s.primaryButtonText}>Retry mine</Text></Pressable> : null}
+            </View>
+          </View>)}
+          {conflictError ? <Text style={s.error}>{conflictError}</Text> : null}
+        </View> : null}
+        {isLoading ? <ActivityIndicator /> : null}
+      </View>}
+      renderItem={({ item }) => <View style={s.card}>
+        <View style={s.row}><Text style={[s.cardTitle, { flex: 1 }]}>{item.merchant}</Text>
+          <Text style={[s.cardTitle, item.transaction_type === 'income' && styles.link]}>{item.transaction_type === 'income' ? '+' : '−'}{minorUnitsToDecimal(item.amount_minor)} €</Text></View>
+        <Text style={s.metadata}>{item.category_name} · {item.transaction_date} · {item.payment_method.replace('_', ' ')}{item.is_recurring ? ' · Recurring' : ''}</Text>
+        {item.description ? <Text style={s.body}>{item.description}</Text> : null}
+        <View style={[s.row, { alignItems: 'center' }]}><Text style={[s.metadata, { flex: 1 }]}>{STATUS_LABEL[item.sync_status]}</Text>
+          <Pressable accessibilityRole="button" disabled={busy || item.sync_status === 'conflict'} style={styles.action}
+            onPress={() => { setEditing(item); setActionError(null); setEditor(true); }}><Text style={styles.link}>Edit</Text></Pressable>
+          <Pressable accessibilityRole="button" disabled={busy || item.sync_status === 'conflict'} style={styles.action} onPress={() => requestDelete(item)}><Text style={{ color: '#b42318' }}>Delete</Text></Pressable>
+        </View>
+      </View>}
+      ListEmptyComponent={isLoading ? null : <Text style={s.empty}>{Object.values(filters).some((v) => v !== undefined && v !== '') ? 'No transactions match. Try clearing a filter.' : 'No transactions yet. Add your first expense or income.'}</Text>}
+      ListFooterComponent={<View style={[s.row, { justifyContent: 'space-between', paddingVertical: 12 }]}>
+        {page > 0 ? <Pressable accessibilityRole="button" style={s.secondaryButton} onPress={() => setPage(page - 1)}><Text>Previous page</Text></Pressable> : <View />}
+        {transactions.length > 50 ? <Pressable accessibilityRole="button" style={s.secondaryButton} onPress={() => setPage(page + 1)}><Text>Next page</Text></Pressable> : null}
+      </View>}
+    />
+    {filterOpen ? <TransactionFilters filters={filters} categories={categories} onChange={changeFilters} onClose={() => setFilterOpen(false)} /> : null}
+    {editor || linkType ? <TransactionEditor item={editing} initialType={linkType ?? initialType} categories={categories.filter((c) => c.archived === 0)} saving={busy}
+      error={actionError} onSave={saved} onClose={closeEditor} /> : null}
+  </SafeAreaView>;
 }
-
-export function TransactionScreen() {
-  const { user, logout, isSubmitting: isAuthSubmitting } = useAuth();
-  const { transactions, isLoading, isSaving, error, reload, create, update, remove } =
-    useTransactions();
-  const {
-    isSyncing,
-    health,
-    error: syncError,
-    syncNow,
-    refreshHealth,
-  } = useForegroundSync(reload);
-  const {
-    conflicts,
-    isResolving,
-    error: conflictError,
-    reload: reloadConflicts,
-    resolveWithServer,
-    retryMine,
-  } = useConflicts(async () => {
-    await reload();
-    await refreshHealth();
-  });
-
-  const [merchant, setMerchant] = useState('');
-  const [amount, setAmount] = useState('');
-  const [categoryName, setCategoryName] = useState('General');
-  const [transactionDate, setTransactionDate] = useState(todayIsoDate());
-  const [editingId, setEditingId] = useState<string | null>(null);
-
-  const resetForm = () => {
-    setEditingId(null);
-    setMerchant('');
-    setAmount('');
-    setCategoryName('General');
-    setTransactionDate(todayIsoDate());
-  };
-
-  const submit = async () => {
-    try {
-      if (editingId) {
-        await update(editingId, { merchant, amount, transactionDate });
-      } else {
-        await create({ merchant, amount, categoryName, transactionDate });
-      }
-      resetForm();
-      await refreshHealth();
-      void syncNow().then(reloadConflicts).catch(() => {
-        // The transaction remains durable and pending while offline.
-      });
-    } catch {
-      // Error state is owned by the hooks and rendered below.
-    }
-  };
-
-  const beginEdit = (item: LocalTransactionRow) => {
-    if (item.sync_status === 'conflict') {
-      return;
-    }
-    setEditingId(item.id);
-    setMerchant(item.merchant);
-    setAmount(minorUnitsToDecimal(item.amount_minor));
-    setCategoryName(item.category_name);
-    setTransactionDate(item.transaction_date);
-  };
-
-  const requestDelete = (item: LocalTransactionRow) => {
-    Alert.alert('Delete transaction?', `${item.merchant} · ${minorUnitsToDecimal(item.amount_minor)} €`, [
-      { text: 'Cancel', style: 'cancel' },
-      {
-        text: 'Delete',
-        style: 'destructive',
-        onPress: () => {
-          void (async () => {
-            try {
-              await remove(item.id);
-              if (editingId === item.id) {
-                resetForm();
-              }
-              await refreshHealth();
-              void syncNow().then(reloadConflicts).catch(() => {
-                // Offline delete intent remains durable in the outbox.
-              });
-            } catch {
-              // Hook state renders the error.
-            }
-          })();
-        },
-      },
-    ]);
-  };
-
-  const busy = isSaving || isResolving;
-  const issueCount = health.failed + health.conflicts;
-
-  return (
-    <SafeAreaView style={styles.safeArea}>
-      <FlatList
-        data={transactions}
-        refreshing={isSyncing}
-        onRefresh={() => { void syncNow().then(reloadConflicts).catch(() => undefined); }}
-        keyExtractor={(item) => item.id}
-        renderItem={({ item }) => (
-          <TransactionItem
-            item={item}
-            disabled={busy}
-            onEdit={beginEdit}
-            onDelete={requestDelete}
-          />
-        )}
-        contentContainerStyle={styles.content}
-        ListHeaderComponent={
-          <View style={styles.header}>
-            <View style={styles.accountRow}>
-              <View style={styles.accountIdentity}>
-                <Text style={styles.eyebrow}>SMART EXPENSE AI · MOBILE</Text>
-                <Text style={styles.accountName}>{user?.displayName}</Text>
-                <Text style={styles.accountEmail}>{user?.email}</Text>
-              </View>
-              <Pressable
-                accessibilityRole="button"
-                disabled={isAuthSubmitting || busy}
-                onPress={() => void logout()}
-                style={({ pressed }) => [
-                  styles.logoutButton,
-                  pressed && styles.buttonPressed,
-                  (isAuthSubmitting || busy) && styles.buttonDisabled,
-                ]}
-              >
-                <Text style={styles.logoutText}>Sign out</Text>
-              </Pressable>
-            </View>
-
-            <WorkspaceNav active="transactions" />
-
-            <Text style={styles.title}>Your transactions</Text>
-            <Text style={styles.subtitle}>
-              Manage your expenses from your phone or the web. Changes sync automatically when connected,
-              and you can keep working offline.
-            </Text>
-
-        <ConnectionStatus onRefresh={() => { void syncNow().then(reloadConflicts).catch(() => undefined); }} />
-        {syncError ? <Text style={styles.error}>{syncError}</Text> : null}
-
-            {conflicts.length > 0 ? (
-              <View style={styles.conflictSection}>
-                <Text style={styles.conflictTitle}>Conflicts need a decision</Text>
-                {conflicts.map((conflict) => (
-                  <View key={conflict.id} style={styles.conflictCard}>
-                    <Text style={styles.conflictEntity}>
-                      {conflict.entity_type} · {conflict.reason}
-                    </Text>
-                    <Text style={styles.conflictHint} numberOfLines={1}>
-                      {conflict.entity_id}
-                    </Text>
-                    <View style={styles.conflictActions}>
-                      <Pressable
-                        disabled={isResolving}
-                        onPress={() =>
-                          void resolveWithServer(conflict.id)
-                            .then(() => syncNow())
-                            .then(reloadConflicts)
-                            .catch(() => undefined)
-                        }
-                        style={styles.secondaryButton}
-                      >
-                        <Text style={styles.secondaryButtonText}>Use server</Text>
-                      </Pressable>
-                      {conflict.reason === 'stale_version' && conflict.local_payload_json ? (
-                        <Pressable
-                          disabled={isResolving}
-                          onPress={() =>
-                            void retryMine(conflict.id)
-                              .then(() => syncNow())
-                              .then(reloadConflicts)
-                              .catch(() => undefined)
-                          }
-                          style={styles.button}
-                        >
-                          <Text style={styles.buttonText}>Retry mine</Text>
-                        </Pressable>
-                      ) : null}
-                    </View>
-                  </View>
-                ))}
-                {conflictError ? <Text style={styles.error}>{conflictError}</Text> : null}
-              </View>
-            ) : null}
-
-            <View style={styles.form}>
-              <Text style={styles.formTitle}>
-                {editingId ? 'Edit local transaction' : 'New transaction'}
-              </Text>
-              <TextInput
-                accessibilityLabel="Merchant"
-                placeholder="Merchant"
-                value={merchant}
-                onChangeText={setMerchant}
-                style={styles.input}
-                maxLength={120}
-              />
-              <TextInput
-                accessibilityLabel="Amount"
-                placeholder="Amount (e.g. 21,35)"
-                value={amount}
-                onChangeText={setAmount}
-                keyboardType="decimal-pad"
-                style={styles.input}
-              />
-              <TextInput
-                accessibilityLabel="Category"
-                editable={!editingId}
-                placeholder="Category"
-                value={categoryName}
-                onChangeText={setCategoryName}
-                style={[styles.input, editingId ? styles.inputDisabled : null]}
-                maxLength={80}
-              />
-              <TextInput
-                accessibilityLabel="Transaction date"
-                placeholder="YYYY-MM-DD"
-                value={transactionDate}
-                onChangeText={setTransactionDate}
-                style={styles.input}
-                maxLength={10}
-              />
-              <Pressable
-                accessibilityRole="button"
-                disabled={isSaving || isResolving}
-                onPress={() => void submit()}
-                style={({ pressed }) => [
-                  styles.button,
-                  pressed && styles.buttonPressed,
-                  (isSaving || isResolving) && styles.buttonDisabled,
-                ]}
-              >
-                <Text style={styles.buttonText}>
-                  {isSaving ? 'Saving…' : editingId ? 'Save changes' : 'Save transaction'}
-                </Text>
-              </Pressable>
-              {editingId ? (
-                <Pressable accessibilityRole="button" onPress={resetForm} style={styles.secondaryButton}>
-                  <Text style={styles.secondaryButtonText}>Cancel edit</Text>
-                </Pressable>
-              ) : null}
-              {error ? <Text style={styles.error}>{error}</Text> : null}
-            </View>
-
-            <View style={styles.sectionHeader}>
-              <Text style={styles.sectionTitle}>Stored on this device</Text>
-              {isLoading ? <ActivityIndicator /> : issueCount > 0 ? (
-                <Text style={styles.issueCount}>{issueCount} need attention</Text>
-              ) : null}
-            </View>
-          </View>
-        }
-        ListEmptyComponent={
-          isLoading ? null : (
-            <Text style={styles.empty}>
-              No transactions yet. Add your first expense or refresh to check your account.
-            </Text>
-          )
-        }
-      />
-    </SafeAreaView>
-  );
-}
-
 const styles = StyleSheet.create({
-  safeArea: { flex: 1, backgroundColor: '#f6f7f9' },
-  content: { padding: 20, gap: 12 },
-  header: { gap: 14 },
-  accountRow: {
-    alignItems: 'center',
-    flexDirection: 'row',
-    gap: 16,
-    justifyContent: 'space-between',
-  },
-  accountIdentity: { flex: 1, gap: 2 },
-  eyebrow: { fontSize: 12, fontWeight: '700', letterSpacing: 1.2 },
-  accountName: { fontSize: 16, fontWeight: '700' },
-  accountEmail: { fontSize: 12, opacity: 0.6 },
-  logoutButton: {
-    borderColor: '#c9ced6',
-    borderRadius: 10,
-    borderWidth: 1,
-    paddingHorizontal: 12,
-    paddingVertical: 9,
-  },
-  logoutText: { fontSize: 13, fontWeight: '700' },
-  title: { fontSize: 32, fontWeight: '800' },
-  subtitle: { fontSize: 15, lineHeight: 22, opacity: 0.7 },
-  syncPanel: {
-    alignItems: 'center',
-    backgroundColor: '#ffffff',
-    borderRadius: 14,
-    flexDirection: 'row',
-    gap: 12,
-    justifyContent: 'space-between',
-    padding: 14,
-  },
-  syncSummary: { flex: 1, gap: 3 },
-  syncTitle: { fontSize: 15, fontWeight: '800' },
-  syncMeta: { fontSize: 12, opacity: 0.65 },
-  syncButton: {
-    backgroundColor: '#111827',
-    borderRadius: 10,
-    paddingHorizontal: 12,
-    paddingVertical: 10,
-  },
-  syncButtonText: { color: '#ffffff', fontSize: 13, fontWeight: '700' },
-  conflictSection: { gap: 8 },
-  conflictTitle: { fontSize: 16, fontWeight: '800' },
-  conflictCard: { backgroundColor: '#fff7ed', borderRadius: 12, gap: 6, padding: 12 },
-  conflictEntity: { fontSize: 13, fontWeight: '800' },
-  conflictHint: { fontSize: 11, opacity: 0.6 },
-  conflictActions: { flexDirection: 'row', gap: 8 },
-  form: { gap: 10, marginTop: 4 },
-  formTitle: { fontSize: 16, fontWeight: '800' },
-  input: {
-    backgroundColor: '#ffffff',
-    borderColor: '#d9dde3',
-    borderRadius: 12,
-    borderWidth: 1,
-    fontSize: 16,
-    paddingHorizontal: 14,
-    paddingVertical: 13,
-  },
-  inputDisabled: { opacity: 0.55 },
-  button: {
-    alignItems: 'center',
-    backgroundColor: '#111827',
-    borderRadius: 12,
-    paddingHorizontal: 14,
-    paddingVertical: 12,
-  },
-  secondaryButton: {
-    alignItems: 'center',
-    borderColor: '#c9ced6',
-    borderRadius: 12,
-    borderWidth: 1,
-    paddingHorizontal: 14,
-    paddingVertical: 11,
-  },
-  secondaryButtonText: { fontSize: 14, fontWeight: '700' },
-  buttonPressed: { opacity: 0.82 },
-  buttonDisabled: { opacity: 0.5 },
-  buttonText: { color: '#ffffff', fontSize: 14, fontWeight: '700' },
-  error: { color: '#b42318', fontSize: 14 },
-  sectionHeader: {
-    alignItems: 'center',
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    marginTop: 12,
-  },
-  sectionTitle: { fontSize: 19, fontWeight: '700' },
-  issueCount: { fontSize: 12, fontWeight: '700', opacity: 0.65 },
-  card: {
-    backgroundColor: '#ffffff',
-    borderRadius: 14,
-    gap: 5,
-    padding: 16,
-  },
-  cardHeader: { flexDirection: 'row', justifyContent: 'space-between', gap: 12 },
-  merchant: { flex: 1, fontSize: 17, fontWeight: '700' },
-  amount: { fontSize: 17, fontWeight: '800' },
-  metadata: { fontSize: 13, opacity: 0.65 },
-  cardFooter: {
-    alignItems: 'center',
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    marginTop: 4,
-  },
-  syncState: { fontSize: 12, fontWeight: '700', opacity: 0.6 },
-  cardActions: { flexDirection: 'row', gap: 14 },
-  actionText: { fontSize: 12, fontWeight: '700' },
-  deleteText: { color: '#b42318', fontSize: 12, fontWeight: '700' },
-  empty: { fontSize: 14, lineHeight: 21, opacity: 0.65, paddingVertical: 12 },
+  safeArea: { flex: 1, backgroundColor: '#f6f7f9' }, content: { padding: 20, gap: 12 },
+  title: { fontSize: 32, fontWeight: '800' }, link: { color: '#125c47', fontWeight: '700' },
+  action: { minHeight: 44, minWidth: 48, justifyContent: 'center', alignItems: 'center' },
 });

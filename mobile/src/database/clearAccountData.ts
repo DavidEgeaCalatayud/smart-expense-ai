@@ -1,8 +1,10 @@
 import type { SQLiteDatabase } from 'expo-sqlite';
 
+import { clearFinancialNotifications } from '../notifications/nativeNotifications';
 import { runKeyedTransaction } from './keyedTransaction';
 
 export async function clearLocalAccountData(db: SQLiteDatabase): Promise<void> {
+  await clearFinancialNotifications().catch(() => undefined);
   await runKeyedTransaction(db, async (txn) => {
     await txn.execAsync('DELETE FROM server_cache');
     await txn.execAsync('DELETE FROM sync_conflicts');
