@@ -1,5 +1,5 @@
 import Constants from 'expo-constants';
-import { Link } from 'expo-router';
+import { Link } from '../../ui/Link';
 import { useState } from 'react';
 import { Linking, Pressable, Text, View } from '../../ui/primitives';
 import notices from '../../../assets/third-party-notices.json';

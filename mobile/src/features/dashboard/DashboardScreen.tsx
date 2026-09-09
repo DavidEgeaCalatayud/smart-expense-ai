@@ -1,5 +1,5 @@
 import { minorUnitsToDecimal } from '@smart-expense-ai/domain-types';
-import { Link } from 'expo-router';
+import { Link } from '../../ui/Link';
 import { useCallback, useMemo } from 'react';
 import { ActivityIndicator, Pressable, StyleSheet, Text, View } from '../../ui/primitives';
 import { useAuth } from '../../auth/AuthProvider';

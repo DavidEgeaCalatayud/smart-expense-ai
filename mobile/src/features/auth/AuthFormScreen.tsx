@@ -1,4 +1,4 @@
-import { Link } from 'expo-router';
+import { Link } from '../../ui/Link';
 import { useState } from 'react';
 import {
   ActivityIndicator,

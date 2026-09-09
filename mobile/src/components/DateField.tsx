@@ -14,7 +14,7 @@ export function DateField({ label, value, onChange, disabled = false, optional =
     else setOpen(true);
   };
   return <View style={{ gap: 6 }}><Text style={s.metadata}>{label}</Text>
-    <Pressable accessibilityRole="button" accessibilityLabel={label} disabled={disabled} style={s.input} onPress={choose}>
+    <Pressable accessibilityRole="button" accessibilityLabel={label} testID={`date-${label.toLowerCase().replaceAll(' ', '-')}`} disabled={disabled} style={s.input} onPress={choose}>
       <Text>{value ? date.toLocaleDateString('en-GB', { day: 'numeric', month: 'long', year: 'numeric' }) : 'Any date'} ▣</Text>
     </Pressable>
     {optional && value ? <Pressable accessibilityRole="button" accessibilityLabel={`Clear ${label.toLowerCase()}`} onPress={() => onChange(undefined)} style={{ paddingVertical: 10 }}><Text style={{ color: '#125c47' }}>Clear date</Text></Pressable> : null}

@@ -10,7 +10,7 @@ export function ChoiceField<T extends string>({ label, value, options, onChange,
   const [open, setOpen] = useState(false);
   return <View style={{ gap: 6 }}>
     <Text style={s.metadata}>{label}</Text>
-    <Pressable accessibilityRole="button" accessibilityLabel={label} disabled={disabled}
+    <Pressable accessibilityRole="button" accessibilityLabel={label} testID={`choice-${label.toLowerCase().replaceAll(' ', '-')}`} disabled={disabled}
       style={s.input} onPress={() => setOpen(true)}>
       <Text style={s.body}>{options.find((option) => option.value === value)?.label ?? 'Choose…'} ▾</Text>
     </Pressable>

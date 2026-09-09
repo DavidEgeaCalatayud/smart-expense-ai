@@ -1,5 +1,6 @@
 import Ionicons from '../ui/Icon';
-import { Link, usePathname, useRouter } from 'expo-router';
+import { usePathname, useRouter } from 'expo-router';
+import { Link } from '../ui/Link';
 import { Fragment, useEffect, useState } from 'react';
 import { Keyboard, Pressable, StyleSheet, Text, View } from '../ui/primitives';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';

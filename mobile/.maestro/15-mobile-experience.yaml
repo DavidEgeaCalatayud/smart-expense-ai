@@ -10,7 +10,8 @@ appId: com.davidegea.smartexpenseai
 - tapOn: "Merchant"
 - inputText: "Native Salary"
 - hideKeyboard
-- tapOn: "Category"
+- tapOn:
+    id: "choice-category"
 - scrollUntilVisible:
     element: "New category.*"
     direction: DOWN
@@ -24,7 +25,11 @@ appId: com.davidegea.smartexpenseai
     element: "Payment method"
     direction: DOWN
     timeout: 10000
-- tapOn: "Payment method"
+- tapOn:
+    id: "date-transaction-date"
+- tapOn: "OK"
+- tapOn:
+    id: "choice-payment-method"
 - tapOn: "Bank transfer"
 - tapOn: "Description"
 - inputText: "Monthly native payroll"
@@ -56,15 +61,18 @@ appId: com.davidegea.smartexpenseai
     element: "Transaction type"
     direction: DOWN
     timeout: 10000
-- tapOn: "Transaction type"
+- tapOn:
+    id: "choice-transaction-type"
 - tapOn: "Income"
-- tapOn: "Recurring"
+- tapOn:
+    id: "choice-recurring"
 - tapOn: "Recurring only"
 - scrollUntilVisible:
     element: "Sort"
     direction: DOWN
     timeout: 10000
-- tapOn: "Sort"
+- tapOn:
+    id: "choice-sort"
 - tapOn: "Highest amount"
 - scrollUntilVisible:
     element: "Show transactions"

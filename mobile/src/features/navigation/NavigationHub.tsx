@@ -1,5 +1,6 @@
 import Ionicons from '../../ui/Icon';
-import { Link, type Href } from 'expo-router';
+import type { Href } from 'expo-router';
+import { Link } from '../../ui/Link';
 import { Pressable, Text, View } from '../../ui/primitives';
 import { ServerWorkspaceShell, serverWorkspaceStyles as s } from '../../components/ServerWorkspaceShell';
 import { useOnlineSync } from '../../sync/OnlineSyncProvider';

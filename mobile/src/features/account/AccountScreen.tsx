@@ -1,4 +1,4 @@
-import { Link } from 'expo-router';
+import { Link } from '../../ui/Link';
 import { useCallback, useState } from 'react';
 import { ActivityIndicator, Alert, Pressable, Switch, Text, TextInput, View } from '../../ui/primitives';
 import { getSharedMobileApiClient } from '../../api/client';
