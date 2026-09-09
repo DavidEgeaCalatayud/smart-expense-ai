@@ -2,7 +2,7 @@ appId: com.davidegea.smartexpenseai
 ---
 - launchApp
 - extendedWaitUntil:
-    visible: "Offline-first transactions"
+    visible: "Your transactions"
     timeout: 15000
 - tapOn: "Merchant"
 - inputText: "Background Worker Coffee"
@@ -10,7 +10,7 @@ appId: com.davidegea.smartexpenseai
 - tapOn: "Amount"
 - inputText: "7.89"
 - hideKeyboard
-- tapOn: "Save offline"
+- tapOn: "Save transaction"
 - scrollUntilVisible:
     element: "Background Worker Coffee"
     direction: DOWN

@@ -1,10 +1,11 @@
 import { minorUnitsToDecimal } from '@smart-expense-ai/domain-types';
-import { useMemo, useState } from 'react';
+import { useCallback, useMemo, useState } from 'react';
 import {
   ActivityIndicator,
   Alert,
   Pressable,
   ScrollView,
+  RefreshControl,
   StyleSheet,
   Text,
   TextInput,
@@ -12,8 +13,12 @@ import {
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
+import { createServerDerivedApi } from '../../api/serverDerivedApi';
+import { useCachedServerResource } from '../../api/useCachedServerResource';
+import { DataFreshness } from '../../components/DataFreshness';
 import { useAuth } from '../../auth/AuthProvider';
 import { WorkspaceNav } from '../../components/WorkspaceNav';
+import { ConnectionStatus } from '../../components/ConnectionStatus';
 import { useConflicts } from '../../sync/useConflicts';
 import { useForegroundSync } from '../../sync/useForegroundSync';
 import { useBudgets } from './useBudgets';
@@ -33,6 +38,12 @@ function localCurrentMonth(): string {
 export function BudgetScreen() {
   const { user, logout, isSubmitting: isAuthSubmitting } = useAuth();
   const [month, setMonth] = useState(localCurrentMonth());
+  const api = useMemo(() => createServerDerivedApi(), []);
+  const progressLoader = useCallback(async () => {
+    if (!/^\d{4}-(0[1-9]|1[0-2])$/.test(month)) throw new Error('Enter a month as YYYY-MM.');
+    return api.getBudgetProgress(month);
+  }, [api, month]);
+  const progress = useCachedServerResource(`server:budget-progress:v1:${month}`, progressLoader);
   const {
     budgets,
     expenseCategories,
@@ -54,7 +65,6 @@ export function BudgetScreen() {
   } = useConflicts(reload);
   const {
     isSyncing,
-    health,
     error: syncError,
     syncNow,
     refreshHealth,
@@ -112,12 +122,13 @@ export function BudgetScreen() {
     ]);
   };
 
-  const busy = isSaving || isSyncing || isResolving;
+  const busy = isSaving || isResolving;
   const budgetConflicts = conflicts.filter((conflict) => conflict.entity_type === 'budget');
 
   return (
     <SafeAreaView style={styles.safeArea}>
-      <ScrollView contentContainerStyle={styles.content}>
+      <ScrollView contentContainerStyle={styles.content}
+        refreshControl={<RefreshControl refreshing={isSyncing} onRefresh={() => { void syncNow().catch(() => undefined); }} />}>
         <View style={styles.accountRow}>
           <View style={styles.accountIdentity}>
             <Text style={styles.eyebrow}>SMART EXPENSE AI · MOBILE</Text>
@@ -138,26 +149,11 @@ export function BudgetScreen() {
         <View style={styles.heading}>
           <Text style={styles.title}>Budgets</Text>
           <Text style={styles.subtitle}>
-            Budget definitions are editable offline using exact integer minor units. Spending progress
-            remains a server-derived calculation and is not reimplemented here.
+            Set monthly limits and track your spending. Changes sync across your phone and the web.
           </Text>
         </View>
 
-        <View style={styles.syncPanel}>
-          <View style={styles.syncSummary}>
-            <Text style={styles.syncTitle}>{isSyncing ? 'Synchronizing…' : 'Synchronization'}</Text>
-            <Text style={styles.syncMeta}>
-              {health.queued} queued · {health.failed} failed · {health.conflicts} conflicts
-            </Text>
-          </View>
-          <Pressable
-            disabled={busy}
-            onPress={() => void syncNow().then(reloadConflicts).catch(() => undefined)}
-            style={[styles.primaryButton, busy && styles.disabled]}
-          >
-            <Text style={styles.primaryButtonText}>Sync now</Text>
-          </Pressable>
-        </View>
+        <ConnectionStatus refreshing={progress.isRefreshing} onRefresh={() => { void progress.refresh().catch(() => undefined); }} />
         {syncError ? <Text style={styles.error}>{syncError}</Text> : null}
 
         {budgetConflicts.length > 0 ? (
@@ -246,7 +242,7 @@ export function BudgetScreen() {
           />
           <Pressable disabled={busy} onPress={() => void submit()} style={styles.primaryButton}>
             <Text style={styles.primaryButtonText}>
-              {isSaving ? 'Saving…' : editingId ? 'Save limit' : 'Create offline'}
+              {isSaving ? 'Saving…' : editingId ? 'Save limit' : 'Create budget'}
             </Text>
           </Pressable>
           {editingId ? (
@@ -263,10 +259,15 @@ export function BudgetScreen() {
         </View>
 
         {budgets.length === 0 && !isLoading ? (
-          <Text style={styles.empty}>No local budget definitions for this month.</Text>
+          <Text style={styles.empty}>No budgets for this month.</Text>
         ) : null}
 
+        <DataFreshness cachedAt={progress.cachedAt} isCachedFallback={progress.isCachedFallback} />
+        {progress.error ? <Text style={styles.error}>{progress.error}</Text> : null}
         {budgets.map((budget) => {
+          const serverBudgets = progress.data?.month === month
+            ? [progress.data.totalBudget, ...progress.data.categoryBudgets] : [];
+          const spending = serverBudgets.find((item) => item?.id === budget.id);
           const label = budget.category_name ?? 'Overall monthly budget';
           return (
             <View key={budget.id} style={styles.card}>
@@ -280,6 +281,12 @@ export function BudgetScreen() {
                 </View>
                 <Text style={styles.amount}>{minorUnitsToDecimal(budget.limit_minor)} €</Text>
               </View>
+              {spending && budget.sync_status === 'synced' ? <View>
+                <Text style={styles.muted}>Spent: {spending.spentAmount} € · Remaining: {spending.remainingAmount} €</Text>
+                <Text style={[styles.muted, spending.overBudget && styles.error]}>
+                  {spending.percentUsed}% used · {spending.daysRemaining} days remaining
+                </Text>
+              </View> : null}
               <View style={styles.actions}>
                 <Pressable
                   disabled={busy || budget.sync_status === 'conflict'}

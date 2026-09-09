@@ -3,6 +3,7 @@ import {
   ActivityIndicator,
   Pressable,
   ScrollView,
+  RefreshControl,
   StyleSheet,
   Text,
   TextInput,
@@ -12,6 +13,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { useAuth } from '../../auth/AuthProvider';
 import { WorkspaceNav } from '../../components/WorkspaceNav';
+import { ConnectionStatus } from '../../components/ConnectionStatus';
 import { useConflicts } from '../../sync/useConflicts';
 import { useForegroundSync } from '../../sync/useForegroundSync';
 import type { CategoryTransactionType } from './offlineCategoryMutations';
@@ -38,7 +40,6 @@ export function CategoryScreen() {
   } = useConflicts(reload);
   const {
     isSyncing,
-    health,
     error: syncError,
     syncNow,
     refreshHealth,
@@ -71,12 +72,13 @@ export function CategoryScreen() {
     }
   };
 
-  const busy = isSaving || isSyncing || isResolving;
+  const busy = isSaving || isResolving;
   const categoryConflicts = conflicts.filter((conflict) => conflict.entity_type === 'category');
 
   return (
     <SafeAreaView style={styles.safeArea}>
-      <ScrollView contentContainerStyle={styles.content}>
+      <ScrollView contentContainerStyle={styles.content}
+        refreshControl={<RefreshControl refreshing={isSyncing} onRefresh={() => { void syncNow().catch(() => undefined); }} />}>
         <View style={styles.accountRow}>
           <View style={styles.accountIdentity}>
             <Text style={styles.eyebrow}>SMART EXPENSE AI · MOBILE</Text>
@@ -97,26 +99,12 @@ export function CategoryScreen() {
         <View style={styles.heading}>
           <Text style={styles.title}>Categories</Text>
           <Text style={styles.subtitle}>
-            System categories are replicated read-only. Your own categories can be created, renamed,
-            archived and restored offline.
+            Organize your income and expenses. Create, rename or archive your own categories,
+            with changes shared across your devices.
           </Text>
         </View>
 
-        <View style={styles.syncPanel}>
-          <View style={styles.syncSummary}>
-            <Text style={styles.syncTitle}>{isSyncing ? 'Synchronizing…' : 'Synchronization'}</Text>
-            <Text style={styles.syncMeta}>
-              {health.queued} queued · {health.failed} failed · {health.conflicts} conflicts
-            </Text>
-          </View>
-          <Pressable
-            disabled={busy}
-            onPress={() => void syncNow().then(reloadConflicts).catch(() => undefined)}
-            style={[styles.primaryButton, busy && styles.disabled]}
-          >
-            <Text style={styles.primaryButtonText}>Sync now</Text>
-          </Pressable>
-        </View>
+        <ConnectionStatus onRefresh={() => { void syncNow().then(reloadConflicts).catch(() => undefined); }} />
         {syncError ? <Text style={styles.error}>{syncError}</Text> : null}
 
         {categoryConflicts.length > 0 ? (
@@ -188,7 +176,7 @@ export function CategoryScreen() {
           ) : null}
           <Pressable disabled={busy} onPress={() => void submit()} style={styles.primaryButton}>
             <Text style={styles.primaryButtonText}>
-              {isSaving ? 'Saving…' : editingId ? 'Save rename' : 'Create offline'}
+              {isSaving ? 'Saving…' : editingId ? 'Save rename' : 'Create category'}
             </Text>
           </Pressable>
           {editingId ? (
@@ -200,7 +188,7 @@ export function CategoryScreen() {
         </View>
 
         <View style={styles.sectionHeader}>
-          <Text style={styles.sectionTitle}>Replicated categories</Text>
+          <Text style={styles.sectionTitle}>Your categories</Text>
           {isLoading ? <ActivityIndicator /> : null}
         </View>
 
@@ -270,7 +258,7 @@ export function CategoryScreen() {
                   )}
                 </View>
               ) : (
-                <Text style={styles.readOnly}>Read-only server category</Text>
+                <Text style={styles.readOnly}>Built-in category</Text>
               )}
               {!isArchived && !isSystem && category.transaction_count > 0 ? (
                 <Text style={styles.warning}>Reassign transactions before archiving.</Text>

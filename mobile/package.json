@@ -1,6 +1,6 @@
 {
   "name": "@smart-expense-ai/mobile",
-  "version": "0.2.0",
+  "version": "0.3.0",
   "private": true,
   "main": "index.ts",
   "scripts": {
@@ -25,6 +25,9 @@
     "expo-constants": "~57.0.16",
     "expo-crypto": "~57.0.2",
     "expo-linking": "~57.0.8",
+    "expo-network": "~57.0.1",
+    "expo-file-system": "~57.0.6",
+    "expo-sharing": "~57.0.18",
     "expo-router": "~57.0.17",
     "expo-secure-store": "~57.0.2",
     "expo-sqlite": "~57.0.1",
@@ -40,10 +43,12 @@
   "devDependencies": {
     "@types/jest": "^29.5.14",
     "@types/react": "~19.2.2",
+    "@types/react-test-renderer": "19.1.0",
     "eslint": "^9.39.1",
     "eslint-config-expo": "~57.0.2",
     "jest": "^29.7.0",
     "jest-expo": "~57.0.5",
+    "react-test-renderer": "19.2.3",
     "typescript": "~6.0.3"
   },
   "jest": {

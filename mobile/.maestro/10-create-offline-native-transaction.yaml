@@ -2,7 +2,7 @@ appId: com.davidegea.smartexpenseai
 ---
 - launchApp
 - extendedWaitUntil:
-    visible: "Offline-first transactions"
+    visible: "Your transactions"
     timeout: 15000
 - scrollUntilVisible:
     element: "Merchant"
@@ -14,7 +14,7 @@ appId: com.davidegea.smartexpenseai
 - tapOn: "Amount"
 - inputText: "34.56"
 - hideKeyboard
-- tapOn: "Save offline"
+- tapOn: "Save transaction"
 - extendedWaitUntil:
     visible: "Native Bridge Coffee"
     timeout: 10000

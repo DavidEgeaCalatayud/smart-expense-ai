@@ -1,0 +1,40 @@
+appId: com.davidegea.smartexpenseai
+---
+- openLink: "smartexpenseai://categories"
+- extendedWaitUntil:
+    visible: "New category"
+    timeout: 30000
+- tapOn: "Category name"
+- inputText: "Online Native Category"
+- hideKeyboard
+- tapOn: "Create category"
+- extendedWaitUntil:
+    visible: "All changes synchronized"
+    timeout: 30000
+- openLink: "smartexpenseai://budgets"
+- extendedWaitUntil:
+    visible: "New budget"
+    timeout: 30000
+- tapOn: "Budget limit"
+- inputText: "100.00"
+- hideKeyboard
+- tapOn: "Create budget"
+- scrollUntilVisible:
+    element: "Spent: 0[.]00 €.*"
+    direction: DOWN
+    timeout: 30000
+- openLink: "smartexpenseai://reports"
+- extendedWaitUntil:
+    visible: "Reports require Premium access"
+    timeout: 30000
+- openLink: "smartexpenseai://advanced-insights"
+- extendedWaitUntil:
+    visible: "Advanced Insights require Premium access"
+    timeout: 30000
+- openLink: "smartexpenseai://dashboard"
+- extendedWaitUntil:
+    visible: "Balance"
+    timeout: 30000
+- extendedWaitUntil:
+    visible: "Updated:.*"
+    timeout: 30000

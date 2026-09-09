@@ -15,6 +15,6 @@ appId: com.davidegea.smartexpenseai
 - hideKeyboard
 - tapOn: "Submit create account"
 - extendedWaitUntil:
-    visible: "Offline-first transactions"
+    visible: "Your transactions"
     timeout: 20000
 - assertVisible: ${E2E_EMAIL_A}

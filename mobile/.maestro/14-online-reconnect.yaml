@@ -1,0 +1,13 @@
+appId: com.davidegea.smartexpenseai
+---
+# No refresh tap: the network listener must trigger synchronization and reload this workspace.
+- extendedWaitUntil:
+    visible: "Online"
+    timeout: 90000
+- extendedWaitUntil:
+    visible: "All changes synchronized"
+    timeout: 30000
+- extendedWaitUntil:
+    visible: "Updated:.*"
+    timeout: 30000
+- assertVisible: "Balance"

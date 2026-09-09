@@ -7,7 +7,7 @@ import type { SQLiteDatabase } from 'expo-sqlite';
  * native connection, which has not received this database's PRAGMA key. Keeping BEGIN/COMMIT on
  * the supplied connection preserves both encryption state and atomicity.
  */
-export async function runKeyedTransaction<T>(
+async function executeTransaction<T>(
   db: SQLiteDatabase,
   task: (transaction: SQLiteDatabase) => Promise<T>,
 ): Promise<T> {
@@ -24,4 +24,20 @@ export async function runKeyedTransaction<T>(
     }
     throw error;
   }
+}
+
+const transactionTails = new WeakMap<SQLiteDatabase, Promise<unknown>>();
+
+export function runKeyedTransaction<T>(
+  db: SQLiteDatabase,
+  task: (transaction: SQLiteDatabase) => Promise<T>,
+): Promise<T> {
+  const previous = transactionTails.get(db) ?? Promise.resolve();
+  const result = previous.then(() => executeTransaction(db, task));
+  const tail = result.catch(() => undefined);
+  transactionTails.set(db, tail);
+  void tail.then(() => {
+    if (transactionTails.get(db) === tail) transactionTails.delete(db);
+  });
+  return result;
 }

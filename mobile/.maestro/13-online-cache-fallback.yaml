@@ -1,0 +1,10 @@
+appId: com.davidegea.smartexpenseai
+---
+# The host disables the emulator's Wi-Fi and mobile data without stopping Metro's adb tunnel.
+- extendedWaitUntil:
+    visible: "Offline mode"
+    timeout: 30000
+- assertVisible: "Balance"
+- extendedWaitUntil:
+    visible: "Saved data:.*"
+    timeout: 30000

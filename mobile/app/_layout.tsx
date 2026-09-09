@@ -8,6 +8,7 @@ import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { AuthProvider, useAuth } from '../src/auth/AuthProvider';
 import { DATABASE_NAME } from '../src/database/constants';
 import { initializeDatabase } from '../src/database/initializeDatabase';
+import { OnlineSyncProvider } from '../src/sync/OnlineSyncProvider';
 
 function AppFallback() {
   return (
@@ -25,7 +26,7 @@ function AuthenticatedStack() {
   }
 
   return (
-    <>
+    <OnlineSyncProvider key={user?.id ?? 'signed-out'}>
       <StatusBar style="auto" />
       <Stack
         screenOptions={{
@@ -46,6 +47,8 @@ function AuthenticatedStack() {
           <Stack.Screen name="predictions" />
           <Stack.Screen name="suggestions" />
           <Stack.Screen name="assistant" />
+          <Stack.Screen name="reports" />
+          <Stack.Screen name="advanced-insights" />
           <Stack.Screen name="account" />
         </Stack.Protected>
         <Stack.Protected guard={user === null}>
@@ -53,7 +56,7 @@ function AuthenticatedStack() {
           <Stack.Screen name="register" />
         </Stack.Protected>
       </Stack>
-    </>
+    </OnlineSyncProvider>
   );
 }
 

@@ -2,11 +2,13 @@ import type { FinancialAssistantAnswer } from '@smart-expense-ai/api-contracts';
 import { useMemo, useState } from 'react';
 import { ActivityIndicator, Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
 
+import { useOnlineAction } from '../../api/useOnlineAction';
 import { createServerDerivedApi } from '../../api/serverDerivedApi';
 import { ServerWorkspaceShell, serverWorkspaceStyles as s } from '../../components/ServerWorkspaceShell';
 
 export function AssistantScreen() {
   const api = useMemo(() => createServerDerivedApi(), []);
+  const online = useOnlineAction();
   const [question, setQuestion] = useState('');
   const [answer, setAnswer] = useState<FinancialAssistantAnswer | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -18,7 +20,7 @@ export function AssistantScreen() {
     setIsSubmitting(true);
     setError(null);
     try {
-      setAnswer(await api.queryAssistant(normalized));
+      setAnswer(await online.run(() => api.queryAssistant(normalized)));
     } catch (reason) {
       setError(reason instanceof Error ? reason.message : 'Unable to query Financial Assistant');
     } finally {
@@ -30,10 +32,15 @@ export function AssistantScreen() {
     <ServerWorkspaceShell
       active="assistant"
       title="Financial Assistant"
-      subtitle="Stateless, evidence-grounded assistant. Questions are sent to the existing FastAPI boundary; Android stores no conversation history and never receives provider credentials."
-      isRefreshing={false}
-      onRefresh={() => setAnswer(null)}
+      subtitle="Ask about your finances using the latest information in your account. This conversation is not saved on your phone."
+      isRefreshing={isSubmitting}
+      onRefresh={() => {
+        setAnswer(null);
+        setError(null);
+        void online.syncNow().catch(() => undefined);
+      }}
     >
+      {!online.hasNetwork ? <Text style={s.metadata}>Connect to request a new result.</Text> : null}
       <View style={s.section}>
         <Text style={s.sectionTitle}>Ask about your finances</Text>
         <TextInput
@@ -47,18 +54,18 @@ export function AssistantScreen() {
         />
         <Pressable
           accessibilityRole="button"
-          disabled={isSubmitting || !question.trim()}
+          disabled={isSubmitting || !online.hasNetwork || !question.trim()}
           onPress={() => void submit()}
           style={({ pressed }) => [
             s.primaryButton,
             pressed && styles.pressed,
-            (isSubmitting || !question.trim()) && styles.disabled,
+            (isSubmitting || !online.hasNetwork || !question.trim()) && styles.disabled,
           ]}
         >
           {isSubmitting ? (
             <ActivityIndicator color="#ffffff" />
           ) : (
-            <Text style={s.primaryButtonText}>Ask server assistant</Text>
+            <Text style={s.primaryButtonText}>Ask assistant</Text>
           )}
         </Pressable>
         {error ? <Text style={s.error}>{error}</Text> : null}

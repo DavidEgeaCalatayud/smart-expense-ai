@@ -2,6 +2,7 @@ import type { MonthlyExpensePointV2, TransactionSummaryV2 } from '@smart-expense
 import { useCallback, useMemo } from 'react';
 import { ActivityIndicator, Text, View } from 'react-native';
 
+import { DataFreshness } from '../../components/DataFreshness';
 import { createServerDerivedApi } from '../../api/serverDerivedApi';
 import { useCachedServerResource } from '../../api/useCachedServerResource';
 import { ServerWorkspaceShell, serverWorkspaceStyles as s } from '../../components/ServerWorkspaceShell';
@@ -28,13 +29,13 @@ export function DashboardScreen() {
     <ServerWorkspaceShell
       active="dashboard"
       title="Dashboard"
-      subtitle="Read-only analytics calculated by FastAPI from the authoritative PostgreSQL account state. Android renders the contract but does not recompute financial totals."
+      subtitle="Your balance, income and spending, updated from your account. Pull down to refresh."
       isRefreshing={isRefreshing}
       onRefresh={() => void refresh().catch(() => undefined)}
     >
       {isLoading && !data ? <ActivityIndicator size="large" /> : null}
       {error ? <Text style={isCachedFallback ? s.metadata : s.error}>{error}</Text> : null}
-      {cachedAt ? <Text style={s.metadata}>Latest local snapshot: {cachedAt}</Text> : null}
+      <DataFreshness cachedAt={cachedAt} isCachedFallback={isCachedFallback} />
 
       {data ? (
         <>

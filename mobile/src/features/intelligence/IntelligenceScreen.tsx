@@ -6,6 +6,8 @@ import type {
 import { useCallback, useMemo, useState } from 'react';
 import { ActivityIndicator, Pressable, StyleSheet, Text, View } from 'react-native';
 
+import { DataFreshness } from '../../components/DataFreshness';
+import { useOnlineAction } from '../../api/useOnlineAction';
 import { createServerDerivedApi } from '../../api/serverDerivedApi';
 import { useCachedServerResource } from '../../api/useCachedServerResource';
 import { ServerWorkspaceShell, serverWorkspaceStyles as s } from '../../components/ServerWorkspaceShell';
@@ -17,6 +19,7 @@ interface IntelligenceData {
 
 export function IntelligenceScreen() {
   const api = useMemo(() => createServerDerivedApi(), []);
+  const online = useOnlineAction();
   const [isActing, setIsActing] = useState(false);
   const [actionError, setActionError] = useState<string | null>(null);
   const loader = useCallback(async (): Promise<IntelligenceData> => {
@@ -40,7 +43,7 @@ export function IntelligenceScreen() {
     setIsActing(true);
     setActionError(null);
     try {
-      await api.runIntelligenceScan();
+      await online.run(() => api.runIntelligenceScan());
       await refresh();
     } catch (reason) {
       setActionError(reason instanceof Error ? reason.message : 'Unable to run intelligence scan');
@@ -53,7 +56,7 @@ export function IntelligenceScreen() {
     setIsActing(true);
     setActionError(null);
     try {
-      await api.updateFindingStatus(findingId, status);
+      await online.run(() => api.updateFindingStatus(findingId, status));
       await refresh();
     } catch (reason) {
       setActionError(reason instanceof Error ? reason.message : 'Unable to update finding');
@@ -66,14 +69,14 @@ export function IntelligenceScreen() {
     <ServerWorkspaceShell
       active="intelligence"
       title="Financial Intelligence"
-      subtitle="Persisted rules-v2 findings remain server-owned. Android can request a scan and review findings, but it does not port anomaly or recurrence rules onto the device."
+      subtitle="Review unusual spending, recurring payments and subscriptions. Run a scan to check your latest activity."
       isRefreshing={isRefreshing || isActing}
       onRefresh={() => void refresh().catch(() => undefined)}
     >
       {isLoading && !data ? <ActivityIndicator size="large" /> : null}
       {error ? <Text style={isCachedFallback ? s.metadata : s.error}>{error}</Text> : null}
       {actionError ? <Text style={s.error}>{actionError}</Text> : null}
-      {cachedAt ? <Text style={s.metadata}>Latest local snapshot: {cachedAt}</Text> : null}
+      <DataFreshness cachedAt={cachedAt} isCachedFallback={isCachedFallback} />
 
       {data ? (
         <>
@@ -89,7 +92,7 @@ export function IntelligenceScreen() {
           </View>
 
           <View style={s.card}>
-            <Text style={s.cardTitle}>rules-v2 summary</Text>
+            <Text style={s.cardTitle}>Activity summary</Text>
             <Text style={s.body}>{data.summary.recurringCount} recurring patterns</Text>
             <Text style={s.body}>{data.summary.missingRecurringCount} missing recurring payments</Text>
             <Text style={s.body}>{data.summary.duplicateSubscriptionCount} duplicate subscriptions</Text>
@@ -100,15 +103,15 @@ export function IntelligenceScreen() {
 
           <Pressable
             accessibilityRole="button"
-            disabled={isActing || isCachedFallback}
+            disabled={isActing || !online.hasNetwork || isCachedFallback}
             onPress={() => void runScan()}
             style={({ pressed }) => [
               s.primaryButton,
               pressed && styles.pressed,
-              (isActing || isCachedFallback) && styles.disabled,
+              (isActing || !online.hasNetwork || isCachedFallback) && styles.disabled,
             ]}
           >
-            <Text style={s.primaryButtonText}>{isActing ? 'Running…' : 'Run server scan'}</Text>
+            <Text style={s.primaryButtonText}>{isActing ? 'Running…' : 'Run scan'}</Text>
           </Pressable>
 
           <View style={s.section}>
@@ -133,14 +136,14 @@ export function IntelligenceScreen() {
                     {finding.status === 'open' ? (
                       <>
                         <Pressable
-                          disabled={isActing || isCachedFallback}
+                          disabled={isActing || !online.hasNetwork || isCachedFallback}
                           onPress={() => void updateStatus(finding.id, 'resolved')}
                           style={s.secondaryButton}
                         >
                           <Text style={s.secondaryButtonText}>Resolve</Text>
                         </Pressable>
                         <Pressable
-                          disabled={isActing || isCachedFallback}
+                          disabled={isActing || !online.hasNetwork || isCachedFallback}
                           onPress={() => void updateStatus(finding.id, 'dismissed')}
                           style={s.secondaryButton}
                         >
@@ -149,7 +152,7 @@ export function IntelligenceScreen() {
                       </>
                     ) : (
                       <Pressable
-                        disabled={isActing || isCachedFallback}
+                        disabled={isActing || !online.hasNetwork || isCachedFallback}
                         onPress={() => void updateStatus(finding.id, 'open')}
                         style={s.secondaryButton}
                       >

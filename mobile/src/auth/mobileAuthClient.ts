@@ -1,4 +1,5 @@
 import type { MobileAuthUser } from './secureCredentials';
+import { fetchWithTimeout } from '../api/fetchWithTimeout';
 
 export interface MobileTokenResponse {
   user: MobileAuthUser;
@@ -39,7 +40,7 @@ export class MobileAuthClient {
     if (init.body !== undefined) {
       headers.set('Content-Type', 'application/json');
     }
-    const response = await fetch(`${this.baseUrl}${path}`, { ...init, headers });
+    const response = await fetchWithTimeout(`${this.baseUrl}${path}`, { ...init, headers });
     if (!response.ok) {
       throw new MobileAuthHttpError(response.status, await responseMessage(response));
     }
@@ -77,7 +78,7 @@ export class MobileAuthClient {
   }
 
   async logout(refreshToken: string, deviceId: string): Promise<void> {
-    const response = await fetch(`${this.baseUrl}/api/v2/auth/mobile/logout`, {
+    const response = await fetchWithTimeout(`${this.baseUrl}/api/v2/auth/mobile/logout`, {
       method: 'POST',
       headers: {
         Accept: 'application/json',

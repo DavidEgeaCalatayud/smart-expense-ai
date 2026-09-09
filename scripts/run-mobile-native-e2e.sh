@@ -391,5 +391,19 @@ run_flow verify-background-sync mobile/.maestro/07-verify-background-sync.yaml
 start_backend
 run_flow account-isolation mobile/.maestro/08-account-isolation.yaml
 
+# 8. Use real online workspaces, then lose and regain the emulator's network.
+# The API remains healthy; this exercises the native connectivity listener and cached dashboard.
+run_flow online-workspaces mobile/.maestro/12-online-workspaces.yaml
+adb shell svc wifi disable
+adb shell svc data disable
+if ! run_flow online-cache-fallback mobile/.maestro/13-online-cache-fallback.yaml; then
+  adb shell svc wifi enable
+  adb shell svc data enable
+  exit 1
+fi
+adb shell svc wifi enable
+adb shell svc data enable
+run_flow online-reconnect mobile/.maestro/14-online-reconnect.yaml
+
 assert_encrypted_database_header
-echo 'Android native E2E invariants passed: SQLCipher migration, durable offline restart, reconnect sync, stale-version resolution, WorkManager background sync and account isolation.'
+echo 'Android native E2E invariants passed: SQLCipher migration, durable offline restart, automatic reconnect sync, stale-version resolution, WorkManager background sync, account isolation, online workspaces and connectivity-driven cache fallback.'

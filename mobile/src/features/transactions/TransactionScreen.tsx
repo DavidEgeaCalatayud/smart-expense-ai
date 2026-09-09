@@ -14,6 +14,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { useAuth } from '../../auth/AuthProvider';
 import { WorkspaceNav } from '../../components/WorkspaceNav';
+import { ConnectionStatus } from '../../components/ConnectionStatus';
 import type { LocalTransactionRow } from '../../database/types';
 import { useConflicts } from '../../sync/useConflicts';
 import { useForegroundSync } from '../../sync/useForegroundSync';
@@ -72,7 +73,6 @@ export function TransactionScreen() {
   const {
     isSyncing,
     health,
-    lastResult,
     error: syncError,
     syncNow,
     refreshHealth,
@@ -157,13 +157,15 @@ export function TransactionScreen() {
     ]);
   };
 
-  const busy = isSaving || isSyncing || isResolving;
+  const busy = isSaving || isResolving;
   const issueCount = health.failed + health.conflicts;
 
   return (
     <SafeAreaView style={styles.safeArea}>
       <FlatList
         data={transactions}
+        refreshing={isSyncing}
+        onRefresh={() => { void syncNow().then(reloadConflicts).catch(() => undefined); }}
         keyExtractor={(item) => item.id}
         renderItem={({ item }) => (
           <TransactionItem
@@ -198,39 +200,14 @@ export function TransactionScreen() {
 
             <WorkspaceNav active="transactions" />
 
-            <Text style={styles.title}>Offline-first transactions</Text>
+            <Text style={styles.title}>Your transactions</Text>
             <Text style={styles.subtitle}>
-              SQLite is the local workspace. Foreground sync pushes durable local intent and pulls
-              the authoritative FastAPI/PostgreSQL state without reimplementing financial rules.
+              Manage your expenses from your phone or the web. Changes sync automatically when connected,
+              and you can keep working offline.
             </Text>
 
-            <View style={styles.syncPanel}>
-              <View style={styles.syncSummary}>
-                <Text style={styles.syncTitle}>{isSyncing ? 'Synchronizing…' : 'Synchronization'}</Text>
-                <Text style={styles.syncMeta}>
-                  {health.queued} queued · {health.failed} failed · {health.conflicts} conflicts
-                </Text>
-                {lastResult ? (
-                  <Text style={styles.syncMeta}>
-                    Last run: {lastResult.pushedMutations} pushed ·{' '}
-                    {lastResult.bootstrapChanges + lastResult.pulledChanges} received
-                  </Text>
-                ) : null}
-              </View>
-              <Pressable
-                accessibilityRole="button"
-                disabled={busy}
-                onPress={() => void syncNow().then(reloadConflicts).catch(() => undefined)}
-                style={({ pressed }) => [
-                  styles.syncButton,
-                  pressed && styles.buttonPressed,
-                  busy && styles.buttonDisabled,
-                ]}
-              >
-                <Text style={styles.syncButtonText}>Sync now</Text>
-              </Pressable>
-            </View>
-            {syncError ? <Text style={styles.error}>{syncError}</Text> : null}
+        <ConnectionStatus onRefresh={() => { void syncNow().then(reloadConflicts).catch(() => undefined); }} />
+        {syncError ? <Text style={styles.error}>{syncError}</Text> : null}
 
             {conflicts.length > 0 ? (
               <View style={styles.conflictSection}>
@@ -325,7 +302,7 @@ export function TransactionScreen() {
                 ]}
               >
                 <Text style={styles.buttonText}>
-                  {isSaving ? 'Saving…' : editingId ? 'Save offline edit' : 'Save offline'}
+                  {isSaving ? 'Saving…' : editingId ? 'Save changes' : 'Save transaction'}
                 </Text>
               </Pressable>
               {editingId ? (
@@ -347,7 +324,7 @@ export function TransactionScreen() {
         ListEmptyComponent={
           isLoading ? null : (
             <Text style={styles.empty}>
-              No local transactions yet. Synced web transactions will appear here after a pull.
+              No transactions yet. Add your first expense or refresh to check your account.
             </Text>
           )
         }

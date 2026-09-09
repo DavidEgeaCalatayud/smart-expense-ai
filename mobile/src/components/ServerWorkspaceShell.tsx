@@ -1,7 +1,7 @@
 import type { ReactNode } from 'react';
 import {
-  ActivityIndicator,
   Pressable,
+  RefreshControl,
   ScrollView,
   StyleSheet,
   Text,
@@ -11,6 +11,8 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { useAuth } from '../auth/AuthProvider';
 import { WorkspaceNav, type WorkspaceName } from './WorkspaceNav';
+import { ConnectionStatus } from './ConnectionStatus';
+import { useOnlineSync } from '../sync/OnlineSyncProvider';
 
 export function ServerWorkspaceShell({
   active,
@@ -28,10 +30,12 @@ export function ServerWorkspaceShell({
   children: ReactNode;
 }) {
   const { user, logout, isSubmitting } = useAuth();
+  const { isSyncing } = useOnlineSync();
 
   return (
     <SafeAreaView style={styles.safeArea}>
-      <ScrollView contentContainerStyle={styles.content}>
+      <ScrollView contentContainerStyle={styles.content}
+        refreshControl={<RefreshControl refreshing={isRefreshing || isSyncing} onRefresh={onRefresh} />}>
         <View style={styles.accountRow}>
           <View style={styles.accountIdentity}>
             <Text style={styles.eyebrow}>SMART EXPENSE AI · MOBILE</Text>
@@ -53,28 +57,13 @@ export function ServerWorkspaceShell({
         </View>
 
         <WorkspaceNav active={active} />
+        <ConnectionStatus onRefresh={onRefresh} refreshing={isRefreshing} />
 
         <View style={styles.titleRow}>
           <View style={styles.titleCopy}>
             <Text style={styles.title}>{title}</Text>
             <Text style={styles.subtitle}>{subtitle}</Text>
           </View>
-          <Pressable
-            accessibilityRole="button"
-            disabled={isRefreshing}
-            onPress={onRefresh}
-            style={({ pressed }) => [
-              styles.refreshButton,
-              pressed && styles.pressed,
-              isRefreshing && styles.disabled,
-            ]}
-          >
-            {isRefreshing ? (
-              <ActivityIndicator color="#ffffff" />
-            ) : (
-              <Text style={styles.refreshButtonText}>Refresh</Text>
-            )}
-          </Pressable>
         </View>
 
         {children}
