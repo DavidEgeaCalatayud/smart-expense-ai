@@ -38,6 +38,7 @@ appId: com.davidegea.smartexpenseai
     id: "choice-app-appearance"
 - tapOn: "Dark"
 - assertVisible: "EUR · Euro"
+- takeScreenshot: mobile-dark-settings
 - tapOn:
     id: "choice-app-appearance"
 - tapOn: "Light"

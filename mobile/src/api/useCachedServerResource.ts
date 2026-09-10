@@ -8,7 +8,7 @@ import { useOnlineSync } from '../sync/OnlineSyncProvider';
 import { MobileApiHttpError } from './client';
 
 function messageFromError(error: unknown): string {
-  return error instanceof Error ? error.message : 'Unable to load server data';
+  return error instanceof MobileApiHttpError ? error.message : 'Unable to refresh this section. Try again shortly.';
 }
 
 export function useCachedServerResource<T>(cacheKey: string, loader: () => Promise<T>) {

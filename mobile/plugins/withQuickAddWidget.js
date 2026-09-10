@@ -1,4 +1,4 @@
-const { withAndroidManifest, withDangerousMod } = require('expo/config-plugins');
+const { withAndroidManifest, withDangerousMod, withMainActivity } = require('expo/config-plugins');
 const fs = require('node:fs/promises');
 const path = require('node:path');
 
@@ -6,6 +6,25 @@ module.exports = function withQuickAddWidget(config) {
   const packageName = config.android.package;
   const scheme = Array.isArray(config.scheme) ? config.scheme[0] : config.scheme;
   if (!/^[a-zA-Z0-9_.]+$/.test(packageName) || !/^[a-zA-Z0-9-]+$/.test(scheme)) throw new Error('Invalid quick add package or scheme');
+  config = withMainActivity(config, (mod) => {
+    let source = mod.modResults.contents;
+    if (mod.modResults.language !== 'kt') throw new Error('Incoming links require the generated Kotlin MainActivity');
+    if (!source.includes('override fun onNewIntent(')) {
+      const declaration = /class MainActivity\s*:\s*ReactActivity\(\)\s*\{/;
+      if (!declaration.test(source)) throw new Error('Unable to configure incoming links in MainActivity');
+      source = source.replace('import android.os.Bundle', 'import android.os.Bundle\nimport android.content.Intent');
+      source = source.replace(declaration, `$&
+  // Retain links arriving before React starts listening, so getInitialURL sees the
+  // latest intent after the encrypted database and authentication finish loading.
+  override fun onNewIntent(intent: Intent) {
+    setIntent(intent)
+    super.onNewIntent(intent)
+  }
+`);
+      mod.modResults.contents = source;
+    }
+    return mod;
+  });
   config = withAndroidManifest(config, (mod) => {
     const application = mod.modResults.manifest.application[0];
     application.receiver ??= [];

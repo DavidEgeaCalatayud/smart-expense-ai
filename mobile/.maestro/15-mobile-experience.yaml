@@ -81,11 +81,13 @@ appId: com.davidegea.smartexpenseai
 - tapOn: "Show transactions"
 - assertVisible: "Native Salary"
 - assertVisible: "Monthly native payroll"
+- takeScreenshot: mobile-activity
 - tapOn:
     id: "tab-home"
 - extendedWaitUntil:
     visible: "Spent this month.*"
     timeout: 30000
+- takeScreenshot: mobile-home
 - scrollUntilVisible:
     element: "Recent transactions"
     direction: DOWN
@@ -94,6 +96,7 @@ appId: com.davidegea.smartexpenseai
 - tapOn:
     id: "tab-insights"
 - assertVisible: "A clearer view of where your money is going."
+- takeScreenshot: mobile-insights
 - tapOn:
     id: "tab-more"
 - scrollUntilVisible:
