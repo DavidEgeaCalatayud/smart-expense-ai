@@ -12,6 +12,11 @@
       "package": "com.davidegea.smartexpenseai",
       "versionCode": 3,
       "icon": "./assets/icon.png",
+      "adaptiveIcon": {
+        "foregroundImage": "./assets/adaptive-icon-foreground.png",
+        "backgroundImage": "./assets/adaptive-icon-background.png",
+        "monochromeImage": "./assets/adaptive-icon-monochrome.png"
+      },
       "allowBackup": false,
       "predictiveBackGestureEnabled": false
     },
@@ -35,7 +40,22 @@
           "faceIDPermission": "Use Face ID to unlock your private financial data."
         }
       ],
-      "expo-notifications",
+      [
+        "expo-notifications",
+        {
+          "icon": "./assets/notification-icon.png",
+          "color": "#00D9D0"
+        }
+      ],
+      [
+        "expo-splash-screen",
+        {
+          "backgroundColor": "#071B36",
+          "image": "./assets/adaptive-icon-foreground.png",
+          "imageWidth": 220,
+          "resizeMode": "contain"
+        }
+      ],
       "./plugins/withQuickAddWidget"
     ],
     "experiments": {
