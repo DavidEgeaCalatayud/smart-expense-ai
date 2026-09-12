@@ -14,8 +14,8 @@
       "icon": "./assets/icon.png",
       "adaptiveIcon": {
         "foregroundImage": "./assets/adaptive-icon-foreground.png",
-        "backgroundImage": "./assets/adaptive-icon-background.png",
-        "monochromeImage": "./assets/notification-icon.png"
+        "backgroundColor": "#0B4F6C",
+        "monochromeImage": "./assets/adaptive-icon-monochrome.png"
       },
       "allowBackup": false,
       "predictiveBackGestureEnabled": false
