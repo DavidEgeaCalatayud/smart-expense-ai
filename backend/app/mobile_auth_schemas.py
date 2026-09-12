@@ -1,3 +1,4 @@
+from datetime import datetime
 from typing import Literal
 from uuid import UUID
 
@@ -35,3 +36,11 @@ class MobileTokenResponse(BaseModel):
     accessToken: str
     expiresIn: int
     refreshToken: str
+
+
+class MobileSessionInfo(BaseModel):
+    id: UUID
+    current: bool
+    createdAt: datetime
+    lastSeenAt: datetime
+    expiresAt: datetime

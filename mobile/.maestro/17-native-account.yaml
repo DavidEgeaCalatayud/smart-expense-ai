@@ -1,0 +1,44 @@
+appId: com.davidegea.smartexpenseai
+---
+- openLink: "smartexpenseai://account"
+- extendedWaitUntil:
+    visible: "Biometric app lock"
+    timeout: 30000
+- scrollUntilVisible:
+    element: "Enable notifications"
+    direction: DOWN
+    timeout: 10000
+- tapOn: "Enable notifications"
+- tapOn:
+    text: "Allow"
+    optional: true
+- extendedWaitUntil:
+    visible: "Budget thresholds.*"
+    timeout: 30000
+- scrollUntilVisible:
+    element: "New password"
+    direction: DOWN
+    timeout: 10000
+- assertVisible: "New password"
+- scrollUntilVisible:
+    element: "Export my data"
+    direction: DOWN
+    timeout: 10000
+- assertVisible: "Export my data"
+- scrollUntilVisible:
+    element: "This device"
+    direction: DOWN
+    timeout: 30000
+- assertVisible: "This device"
+- openLink: "smartexpenseai://settings"
+- extendedWaitUntil:
+    visible: "App appearance"
+    timeout: 20000
+- tapOn:
+    id: "choice-app-appearance"
+- tapOn: "Dark"
+- assertVisible: "EUR · Euro"
+- takeScreenshot: mobile-dark-settings
+- tapOn:
+    id: "choice-app-appearance"
+- tapOn: "Light"

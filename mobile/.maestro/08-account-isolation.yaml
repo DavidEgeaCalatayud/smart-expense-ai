@@ -1,7 +1,11 @@
 appId: com.davidegea.smartexpenseai
 ---
 - launchApp
-- assertVisible: "Your transactions"
+- openLink: "smartexpenseai://account"
+- scrollUntilVisible:
+    element: "Sign out"
+    direction: DOWN
+    timeout: 15000
 - tapOn: "Sign out"
 - extendedWaitUntil:
     visible: "Welcome back"
@@ -16,9 +20,11 @@ appId: com.davidegea.smartexpenseai
 - hideKeyboard
 - tapOn: "Submit create account"
 - extendedWaitUntil:
-    visible: "Your transactions"
+    visible: "Your month, at a glance."
     timeout: 20000
-- assertVisible: ${E2E_EMAIL_B}
+- tapOn:
+    id: "tab-activity"
+- assertVisible: "Your transactions"
 - extendedWaitUntil:
     visible: "All changes synchronized"
     timeout: 15000

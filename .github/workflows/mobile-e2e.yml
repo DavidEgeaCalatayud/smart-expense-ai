@@ -232,6 +232,17 @@ jobs:
             bash ./scripts/run-mobile-native-e2e.sh
             bash ./scripts/run-cross-client-e2e.sh
 
+      - name: Save mobile interface captures
+        if: always()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: android-mobile-interface
+          path: |
+            ${{ runner.temp }}/maestro-results/mobile-experience/**/screenshots/*.png
+            ${{ runner.temp }}/maestro-results/native-account/**/screenshots/*.png
+          if-no-files-found: ignore
+          retention-days: 7
+
       - name: Upload native E2E diagnostics on failure
         if: failure()
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1

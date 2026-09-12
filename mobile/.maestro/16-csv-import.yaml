@@ -1,0 +1,43 @@
+appId: com.davidegea.smartexpenseai
+---
+- openLink: "smartexpenseai://imports"
+- extendedWaitUntil:
+    visible: "Choose CSV file"
+    timeout: 20000
+- tapOn: "Choose CSV file"
+- tapOn:
+    text: "Show roots"
+    optional: true
+- tapOn:
+    text: "Downloads"
+    optional: true
+- scrollUntilVisible:
+    element: "smart-expense-native.csv"
+    direction: DOWN
+    timeout: 15000
+- tapOn: "smart-expense-native.csv"
+- extendedWaitUntil:
+    visible: "Match your statement columns.*"
+    timeout: 30000
+- scrollUntilVisible:
+    element: "Preview import"
+    direction: DOWN
+    timeout: 20000
+- tapOn: "Preview import"
+- scrollUntilVisible:
+    element: "Import 2 transactions"
+    direction: DOWN
+    timeout: 30000
+- tapOn: "Import 2 transactions"
+- extendedWaitUntil:
+    visible: "Imported 2 transactions.*"
+    timeout: 30000
+- tapOn:
+    id: "tab-activity"
+- tapOn: "Search transactions"
+- inputText: "CSV Native"
+- hideKeyboard
+- extendedWaitUntil:
+    visible: "CSV Native Groceries"
+    timeout: 30000
+- assertVisible: "CSV Native Train"

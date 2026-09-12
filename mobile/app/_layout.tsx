@@ -8,6 +8,10 @@ import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { AuthProvider, useAuth } from '../src/auth/AuthProvider';
 import { DATABASE_NAME } from '../src/database/constants';
 import { initializeDatabase } from '../src/database/initializeDatabase';
+import { AppPreferencesProvider, useAppPreferences } from '../src/preferences/AppPreferences';
+import { NotificationObserver } from '../src/notifications/NotificationObserver';
+import { AppLockProvider } from '../src/security/AppLockProvider';
+import { BottomNavigation } from '../src/components/WorkspaceNav';
 import { OnlineSyncProvider } from '../src/sync/OnlineSyncProvider';
 
 function AppFallback() {
@@ -20,6 +24,7 @@ function AppFallback() {
 
 function AuthenticatedStack() {
   const { user, isLoading } = useAuth();
+  const { dark } = useAppPreferences();
 
   if (isLoading) {
     return <AppFallback />;
@@ -27,7 +32,10 @@ function AuthenticatedStack() {
 
   return (
     <OnlineSyncProvider key={user?.id ?? 'signed-out'}>
-      <StatusBar style="auto" />
+      <NotificationObserver />
+      <AppLockProvider>
+      <StatusBar style={dark ? 'light' : 'dark'} />
+      <View style={{ flex: 1 }}>
       <Stack
         screenOptions={{
           headerShown: false,
@@ -39,6 +47,11 @@ function AuthenticatedStack() {
       >
         <Stack.Protected guard={user !== null}>
           <Stack.Screen name="index" />
+          <Stack.Screen name="transactions" />
+          <Stack.Screen name="insights" />
+          <Stack.Screen name="more" />
+          <Stack.Screen name="imports" />
+          <Stack.Screen name="settings" />
           <Stack.Screen name="categories" />
           <Stack.Screen name="budgets" />
           <Stack.Screen name="dashboard" />
@@ -56,6 +69,9 @@ function AuthenticatedStack() {
           <Stack.Screen name="register" />
         </Stack.Protected>
       </Stack>
+      {user ? <BottomNavigation /> : null}
+      </View>
+      </AppLockProvider>
     </OnlineSyncProvider>
   );
 }
@@ -63,6 +79,7 @@ function AuthenticatedStack() {
 export default function RootLayout() {
   return (
     <SafeAreaProvider>
+      <AppPreferencesProvider>
       <Suspense fallback={<AppFallback />}>
         <SQLiteProvider
           databaseName={DATABASE_NAME}
@@ -74,6 +91,7 @@ export default function RootLayout() {
           </AuthProvider>
         </SQLiteProvider>
       </Suspense>
+      </AppPreferencesProvider>
     </SafeAreaProvider>
   );
 }

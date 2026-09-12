@@ -33,7 +33,7 @@ appId: com.davidegea.smartexpenseai
     timeout: 30000
 - openLink: "smartexpenseai://dashboard"
 - extendedWaitUntil:
-    visible: "Balance"
+    visible: "Balance ·.*"
     timeout: 30000
 - extendedWaitUntil:
     visible: "Updated:.*"

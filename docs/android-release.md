@@ -38,7 +38,7 @@ Official references: [EAS configuration](https://docs.expo.dev/build/eas-json/),
 
 ## Build and accept the preview APK
 
-Version 0.3.0 adds automatic online refresh and offline cache recovery, Reports, Advanced Insights and budget progress. It adds native Network, FileSystem and Sharing dependencies, so a new APK build is required; the 0.2.0 preview cannot acquire these changes through a web deployment. The package's local Android versionCode is 2; production EAS builds continue to manage their own incrementing version.
+Version 0.4.0 adds Home, bottom navigation, rich transactions and filters, CSV import, account security, biometric lock, notifications and quick-add widget/shortcuts. It adds native authentication, notifications, screen capture protection, document and date pickers, so a new APK build is required; an earlier preview cannot acquire these changes through a web deployment. The package's local Android versionCode is 3; production EAS builds continue to manage their own incrementing version. Feature details and automated coverage are in [mobile-experience-v2.md](mobile-experience-v2.md).
 
 For this version, also verify reconnect **without tapping Refresh**, a web-created transaction appearing when Android opens Transactions, authenticated CSV sharing on an entitled account, and the Premium restriction on a free account. Confirm cached month selections and pending-change indicators are accurate offline. These are acceptance requirements, not claims of completed physical-device testing.
 
@@ -63,6 +63,8 @@ Run this acceptance sequence against a disposable test account:
 9. With a disposable account, open Account and test account deletion. Cancellation, wrong password and offline failure must preserve the account. Successful deletion must revoke sessions, remove server records and clear local account data, including the pending outbox. Reopen the app and verify no previous records are visible.
 
 Record pass/fail per step, device model, Android version and build ID. Emulator certification cannot substitute for this release-variant/device evidence.
+
+For 0.4.0, also check fingerprint cancellation, locking after backgrounding, quick-add from a cold start, Android widget placement, notification permission and delivery with the device's battery restrictions, and real bank CSV selection/preview. These physical-device checks remain owner acceptance tasks.
 
 ## Build the production AAB
 
