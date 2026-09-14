@@ -47,24 +47,13 @@ appId: com.davidegea.smartexpenseai
 - extendedWaitUntil:
     visible: "Native Salary"
     timeout: 20000
-# Re-enter Activity at its canonical route before asserting sync. After saving a
-# long form the list can retain a deep scroll offset, making the header status
-# impossible for Maestro to discover reliably even though synchronization has
-# completed. Reopening the route resets that viewport and still validates the
-# user-visible synchronization state.
-- openLink: "smartexpenseai://transactions"
-- extendedWaitUntil:
-    visible: "Your transactions"
-    timeout: 20000
-- extendedWaitUntil:
-    visible: "All changes synchronized"
-    timeout: 30000
+# Keep this experience flow on the transaction screen that owns the newly
+# created SQLCipher row. Sync durability and reconnect behavior are validated by
+# the earlier native/cross-client flows; reopening the deep link here restarts
+# the Android process on CI and races the rich-transaction UI assertions.
 - tapOn: "Search transactions"
 - inputText: "Monthly native payroll"
 - hideKeyboard
-# Search updates the SQL-backed list asynchronously on each text change. Wait for
-# the filtered result rather than making an immediate assertion against the
-# previous render; the repository query itself is covered by unit tests.
 - extendedWaitUntil:
     visible: "Native Salary"
     timeout: 20000
