@@ -83,6 +83,11 @@ appId: com.davidegea.smartexpenseai
     timeout: 10000
 - tapOn:
     id: "choice-sort"
+# ChoiceField uses an animated native modal. Wait for its option list to mount
+# before tapping so the E2E does not race the slide transition on slower CI VMs.
+- extendedWaitUntil:
+    visible: "Highest amount"
+    timeout: 10000
 - tapOn: "Highest amount"
 - scrollUntilVisible:
     element: "Show transactions"
