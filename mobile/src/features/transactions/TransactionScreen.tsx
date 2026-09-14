@@ -37,7 +37,11 @@ export function TransactionScreen() {
   const { conflicts, isResolving, error: conflictError, reload: reloadConflicts, resolveWithServer, retryMine } = useConflicts(async () => { await reloadAll(); await refreshHealth(); });
   useEffect(() => { void reloadConflicts().catch(() => undefined); }, [revision, reloadConflicts]);
   const linkType = quickAdd === 'expense' || quickAdd === 'income' ? quickAdd : null;
-  const closeEditor = () => { setEditor(false); setEditing(null); router.setParams({ quickAdd: undefined }); };
+  const closeEditor = () => {
+    setEditor(false);
+    setEditing(null);
+    if (linkType) router.replace('/transactions'); else router.setParams({ quickAdd: undefined });
+  };
   const changeFilters = (value: Filters) => { setPage(0); setFilters(value); };
   const refresh = () => { void syncNow().then(reloadAll).then(reloadConflicts).catch(() => undefined); };
   const saved = async (input: OfflineTransactionFormInput) => {
