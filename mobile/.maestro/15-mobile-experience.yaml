@@ -81,8 +81,10 @@ appId: com.davidegea.smartexpenseai
     element: "Sort"
     direction: DOWN
     timeout: 10000
-- tapOn:
-    id: "choice-sort"
+# Tap the visible value itself. On the tall filter sheet Maestro can resolve the
+# button accessibility id before the final scroll settles; tapping its rendered
+# value uses the same control while avoiding a stale accessibility coordinate.
+- tapOn: "Newest.*"
 # ChoiceField uses an animated native modal. Wait for its option list to mount
 # before tapping so the E2E does not race the slide transition on slower CI VMs.
 - extendedWaitUntil:
