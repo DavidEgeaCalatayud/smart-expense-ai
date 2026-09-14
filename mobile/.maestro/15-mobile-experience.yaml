@@ -47,12 +47,18 @@ appId: com.davidegea.smartexpenseai
 - extendedWaitUntil:
     visible: "Native Salary"
     timeout: 20000
-# Keep this experience flow in the same Android process. Saving the long form
-# preserves its deep scroll offset, so explicitly return to the Activity header
-# instead of reopening the deep link and racing process/reconnect state.
-- scrollUntilVisible:
-    element: "Search transactions"
-    direction: UP
+# Saving the long form can preserve a nested scroll position that Maestro cannot
+# reliably unwind. Use the persistent bottom navigation to remount Activity in
+# the same Android process instead of reopening the deep link.
+- tapOn:
+    id: "tab-home"
+- extendedWaitUntil:
+    visible: "Your month, at a glance."
+    timeout: 20000
+- tapOn:
+    id: "tab-activity"
+- extendedWaitUntil:
+    visible: "Search transactions"
     timeout: 20000
 - extendedWaitUntil:
     visible: "All changes synchronized"
