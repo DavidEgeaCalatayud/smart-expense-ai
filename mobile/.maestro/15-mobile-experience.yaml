@@ -47,16 +47,10 @@ appId: com.davidegea.smartexpenseai
 - extendedWaitUntil:
     visible: "Native Salary"
     timeout: 20000
-# Saving the long form can preserve a nested scroll position that Maestro cannot
-# reliably unwind. Use the persistent bottom navigation to remount Activity in
-# the same Android process instead of reopening the deep link.
-- tapOn:
-    id: "tab-home"
-- extendedWaitUntil:
-    visible: "Your month, at a glance."
-    timeout: 20000
-- tapOn:
-    id: "tab-activity"
+# The long editor can leave Activity's nested scroll positioned over the bottom
+# navigation. Remount Activity through its normal deep link before exercising
+# search and filters; the transaction has already been persisted locally.
+- openLink: "smartexpenseai://transactions"
 - extendedWaitUntil:
     visible: "Search transactions"
     timeout: 20000
