@@ -5,13 +5,13 @@
     "version": "0.4.0",
     "orientation": "portrait",
     "scheme": "smartexpenseai",
-    "icon": "./assets/icon.png",
+    "icon": "./assets/adaptive-icon-foreground.png",
     "userInterfaceStyle": "automatic",
     "newArchEnabled": true,
     "android": {
       "package": "com.davidegea.smartexpenseai",
       "versionCode": 3,
-      "icon": "./assets/icon.png",
+      "icon": "./assets/adaptive-icon-foreground.png",
       "adaptiveIcon": {
         "foregroundImage": "./assets/adaptive-icon-foreground.png",
         "backgroundColor": "#0B4F6C",
