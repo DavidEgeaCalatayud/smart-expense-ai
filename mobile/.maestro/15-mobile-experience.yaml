@@ -47,10 +47,16 @@ appId: com.davidegea.smartexpenseai
 - extendedWaitUntil:
     visible: "Native Salary"
     timeout: 20000
-# Keep this experience flow on the transaction screen that owns the newly
-# created SQLCipher row. Sync durability and reconnect behavior are validated by
-# the earlier native/cross-client flows; reopening the deep link here restarts
-# the Android process on CI and races the rich-transaction UI assertions.
+# Keep this experience flow in the same Android process. Saving the long form
+# preserves its deep scroll offset, so explicitly return to the Activity header
+# instead of reopening the deep link and racing process/reconnect state.
+- scrollUntilVisible:
+    element: "Search transactions"
+    direction: UP
+    timeout: 20000
+- extendedWaitUntil:
+    visible: "All changes synchronized"
+    timeout: 30000
 - tapOn: "Search transactions"
 - inputText: "Monthly native payroll"
 - hideKeyboard
