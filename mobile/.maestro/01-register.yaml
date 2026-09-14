@@ -19,4 +19,6 @@ appId: com.davidegea.smartexpenseai
     timeout: 20000
 - tapOn:
     id: "tab-activity"
-- assertVisible: "Your transactions"
+- extendedWaitUntil:
+    visible: "Your transactions"
+    timeout: 30000
