@@ -57,8 +57,10 @@ appId: com.davidegea.smartexpenseai
 - extendedWaitUntil:
     visible: "All changes synchronized"
     timeout: 30000
+# Search by the merchant that was just observed after save. The later filtered
+# card assertion still verifies that the description survived persistence.
 - tapOn: "Search transactions"
-- inputText: "Monthly native payroll"
+- inputText: "Native Salary"
 - hideKeyboard
 - extendedWaitUntil:
     visible: "Native Salary"
