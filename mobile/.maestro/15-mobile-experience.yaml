@@ -62,7 +62,12 @@ appId: com.davidegea.smartexpenseai
 - tapOn: "Search transactions"
 - inputText: "Monthly native payroll"
 - hideKeyboard
-- assertVisible: "Native Salary"
+# Search updates the SQL-backed list asynchronously on each text change. Wait for
+# the filtered result rather than making an immediate assertion against the
+# previous render; the repository query itself is covered by unit tests.
+- extendedWaitUntil:
+    visible: "Native Salary"
+    timeout: 20000
 - assertNotVisible: "Native Bridge Coffee"
 - tapOn: "Filters and sort"
 - scrollUntilVisible:
