@@ -5,17 +5,16 @@
     "version": "0.4.0",
     "orientation": "portrait",
     "scheme": "smartexpenseai",
-    "icon": "./assets/adaptive-icon-foreground.png",
+    "icon": "./assets/icon.png",
     "userInterfaceStyle": "automatic",
     "newArchEnabled": true,
     "android": {
       "package": "com.davidegea.smartexpenseai",
       "versionCode": 3,
-      "icon": "./assets/adaptive-icon-foreground.png",
+      "icon": "./assets/icon.png",
       "adaptiveIcon": {
-        "foregroundImage": "./assets/adaptive-icon-foreground.png",
-        "backgroundColor": "#0B4F6C",
-        "monochromeImage": "./assets/adaptive-icon-monochrome.png"
+        "foregroundImage": "./assets/icon.png",
+        "backgroundColor": "#0B4F6C"
       },
       "allowBackup": false,
       "predictiveBackGestureEnabled": false
@@ -51,7 +50,7 @@
         "expo-splash-screen",
         {
           "backgroundColor": "#071B36",
-          "image": "./assets/adaptive-icon-foreground.png",
+          "image": "./assets/icon.png",
           "imageWidth": 220,
           "resizeMode": "contain"
         }
