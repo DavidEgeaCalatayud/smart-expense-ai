@@ -47,9 +47,17 @@ appId: com.davidegea.smartexpenseai
 - extendedWaitUntil:
     visible: "Native Salary"
     timeout: 20000
-- scrollUntilVisible:
-    element: "All changes synchronized"
-    direction: UP
+# Re-enter Activity at its canonical route before asserting sync. After saving a
+# long form the list can retain a deep scroll offset, making the header status
+# impossible for Maestro to discover reliably even though synchronization has
+# completed. Reopening the route resets that viewport and still validates the
+# user-visible synchronization state.
+- openLink: "smartexpenseai://transactions"
+- extendedWaitUntil:
+    visible: "Your transactions"
+    timeout: 20000
+- extendedWaitUntil:
+    visible: "All changes synchronized"
     timeout: 30000
 - tapOn: "Search transactions"
 - inputText: "Monthly native payroll"
