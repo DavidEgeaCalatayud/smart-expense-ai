@@ -94,7 +94,17 @@ appId: com.davidegea.smartexpenseai
     element: "Show transactions"
     direction: DOWN
     timeout: 10000
+# React Native's development warning banner can overlap the bottom action while
+# Maestro still considers it visible. Move the modal content one viewport step
+# farther up so the real button is unobstructed before tapping it.
+- swipe:
+    start: 50%, 78%
+    end: 50%, 48%
+    duration: 400
 - tapOn: "Show transactions"
+- extendedWaitUntil:
+    visible: "Search transactions"
+    timeout: 10000
 - assertVisible: "Native Salary"
 - assertVisible: "Monthly native payroll"
 - takeScreenshot: mobile-activity
