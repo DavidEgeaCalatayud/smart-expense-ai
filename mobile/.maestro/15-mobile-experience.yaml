@@ -102,11 +102,11 @@ appId: com.davidegea.smartexpenseai
     end: 50%, 48%
     duration: 400
 - tapOn: "Show transactions"
-# Applying filters preserves Activity's nested scroll offset. The result exists
-# above that offset, so bring the filtered card into view before asserting it.
+# The filtered transaction list is rendered after the filter controls in the
+# Activity scroll content. Continue downward from the preserved filter offset.
 - scrollUntilVisible:
     element: "Native Salary"
-    direction: UP
+    direction: DOWN
     timeout: 20000
 - assertVisible: "Native Salary"
 - assertVisible: "Monthly native payroll"
