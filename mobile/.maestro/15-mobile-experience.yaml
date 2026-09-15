@@ -77,12 +77,13 @@ appId: com.davidegea.smartexpenseai
 - tapOn:
     id: "choice-recurring"
 - tapOn: "Recurring only"
+# Bring the action below Sort into view first. On the tall CI emulator, merely
+# making Sort 100% visible leaves its button under the persistent bottom nav,
+# so the tap is consumed without opening the ChoiceField menu.
 - scrollUntilVisible:
-    element: "Sort"
+    element: "Show transactions"
     direction: DOWN
     timeout: 10000
-# Use the stable accessibility id for the ChoiceField. Tapping its rendered
-# value can resolve the adjacent native date-order control on tall CI devices.
 - tapOn:
     id: "choice-sort"
 - extendedWaitUntil:
