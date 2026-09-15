@@ -10,7 +10,7 @@ export function DateField({ label, value, onChange, disabled = false, optional =
   const date = new Date(`${value ?? localDate()}T12:00:00`);
   const change = (selected?: Date) => { setOpen(false); if (selected) onChange(localDate(selected)); };
   const choose = () => {
-    if (Platform.OS === 'android') DateTimePickerAndroid.open({ value: date, mode: 'date', onChange: (event, selected) => { if (event.type === 'set') change(selected); } });
+    if (Platform.OS === 'android') DateTimePickerAndroid.open({ value: date, mode: 'date', onValueChange: (_event, selected) => change(selected) });
     else setOpen(true);
   };
   return <View style={{ gap: 6 }}><Text style={s.metadata}>{label}</Text>
@@ -18,6 +18,6 @@ export function DateField({ label, value, onChange, disabled = false, optional =
       <Text>{value ? date.toLocaleDateString('en-GB', { day: 'numeric', month: 'long', year: 'numeric' }) : 'Any date'} ▣</Text>
     </Pressable>
     {optional && value ? <Pressable accessibilityRole="button" accessibilityLabel={`Clear ${label.toLowerCase()}`} onPress={() => onChange(undefined)} style={{ paddingVertical: 10 }}><Text style={{ color: '#125c47' }}>Clear date</Text></Pressable> : null}
-    {open ? <DateTimePicker value={date} mode="date" onChange={(_, selected) => change(selected)} /> : null}
+    {open ? <DateTimePicker value={date} mode="date" onValueChange={(_, selected) => change(selected)} /> : null}
   </View>;
 }
