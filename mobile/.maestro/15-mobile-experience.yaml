@@ -102,14 +102,12 @@ appId: com.davidegea.smartexpenseai
     end: 50%, 48%
     duration: 400
 - tapOn: "Show transactions"
-# The filtered list can inherit an unreachable nested-scroll offset after the
-# modal closes. Remount Activity again; the search/filter state is persisted by
-# the screen and this avoids depending on Maestro traversing that stale offset.
-- openLink: "smartexpenseai://transactions"
+# Do not reopen the same Activity deep link here. Android may route it to the
+# existing screen without resetting its nested scroll position, which makes the
+# header assertion nondeterministic. Validate the filtered result directly.
 - extendedWaitUntil:
-    visible: "Search transactions"
+    visible: "Native Salary"
     timeout: 20000
-- assertVisible: "Native Salary"
 - assertVisible: "Monthly native payroll"
 - takeScreenshot: mobile-activity
 - tapOn:
