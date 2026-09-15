@@ -102,12 +102,13 @@ appId: com.davidegea.smartexpenseai
     end: 50%, 48%
     duration: 400
 - tapOn: "Show transactions"
-# Do not reopen the same Activity deep link here. Android may route it to the
-# existing screen without resetting its nested scroll position, which makes the
-# header assertion nondeterministic. Validate the filtered result directly.
-- extendedWaitUntil:
-    visible: "Native Salary"
+# Applying filters preserves Activity's nested scroll offset. The result exists
+# above that offset, so bring the filtered card into view before asserting it.
+- scrollUntilVisible:
+    element: "Native Salary"
+    direction: UP
     timeout: 20000
+- assertVisible: "Native Salary"
 - assertVisible: "Monthly native payroll"
 - takeScreenshot: mobile-activity
 - tapOn:
