@@ -102,13 +102,13 @@ appId: com.davidegea.smartexpenseai
     end: 50%, 48%
     duration: 400
 - tapOn: "Show transactions"
-# Closing the filter sheet preserves Activity's previous scroll offset. Restore
-# the header before asserting the filtered result rather than assuming the
-# search field is already inside the viewport.
-- scrollUntilVisible:
-    element: "Search transactions"
-    direction: UP
-    timeout: 15000
+# The filtered list can inherit an unreachable nested-scroll offset after the
+# modal closes. Remount Activity again; the search/filter state is persisted by
+# the screen and this avoids depending on Maestro traversing that stale offset.
+- openLink: "smartexpenseai://transactions"
+- extendedWaitUntil:
+    visible: "Search transactions"
+    timeout: 20000
 - assertVisible: "Native Salary"
 - assertVisible: "Monthly native payroll"
 - takeScreenshot: mobile-activity
