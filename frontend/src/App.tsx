@@ -43,8 +43,8 @@ function App() {
   return (
     <Routes>
       <Route path={ROUTES.login} element={<LoginPage />} />
-      <Route path={ROUTES.forgotPassword} element={<PasswordRecoveryPage mode="request" />} />
-      <Route path={ROUTES.resetPassword} element={<PasswordRecoveryPage mode="reset" />} />
+      <Route path={ROUTES.forgotPassword} element={<PasswordRecoveryPage key="request" mode="request" />} />
+      <Route path={ROUTES.resetPassword} element={<PasswordRecoveryPage key="reset" mode="reset" />} />
       <Route path={ROUTES.register} element={<RegisterPage />} />
 
       <Route element={<ProtectedWorkspace />}>

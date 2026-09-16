@@ -218,7 +218,7 @@ def test_cross_origin_request_rejected_and_account_deletion_cascades(client, mai
     register(client)
     raw = request_link(client, mail)
     assert client.post(f"{ROOT}/confirm", json={"token": raw, "newPassword": NEW}, headers={"Origin": "https://evil.example"}).status_code == 403
-    assert client.request("DELETE", "/api/v1/auth/account", json={"password": OLD}).status_code == 204
+    assert client.request("DELETE", "/api/v1/auth/account", json={"password": OLD, "confirmation": "DELETE"}).status_code == 204
     assert confirm(client, raw).status_code == 400
     with SessionLocal() as db:
         assert db.scalar(select(PasswordResetToken)) is None

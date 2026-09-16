@@ -5,7 +5,7 @@ import { MobileAuthClient } from '../src/auth/mobileAuthClient';
 
 let mockToken: string | undefined;
 jest.mock('expo-router', () => ({ useLocalSearchParams: () => ({ token: mockToken }) }));
-jest.mock('../src/ui/primitives', () => { const rn = jest.requireActual('react-native'); return { ...rn, SafeAreaView: rn.View }; });
+jest.mock('../src/ui/primitives', () => { const rn = jest.requireActual('react-native'); return { ActivityIndicator: rn.ActivityIndicator, KeyboardAvoidingView: rn.KeyboardAvoidingView, Platform: rn.Platform, Pressable: rn.Pressable, SafeAreaView: rn.View, ScrollView: rn.ScrollView, StyleSheet: rn.StyleSheet, Text: rn.Text, TextInput: rn.TextInput };  });
 jest.mock('../src/ui/Link', () => ({ Link: 'Link' }));
 jest.mock('../src/api/config', () => ({ getMobileApiBaseUrl: () => 'https://api.example.test' }));
 let renderer: ReactTestRenderer;
