@@ -2,7 +2,7 @@ import { Stack } from 'expo-router';
 import { SQLiteProvider } from 'expo-sqlite';
 import { StatusBar } from 'expo-status-bar';
 import { Suspense } from 'react';
-import { ActivityIndicator, Platform, StyleSheet, View } from 'react-native';
+import { ActivityIndicator, LogBox, Platform, StyleSheet, View } from 'react-native';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 
 import { AuthProvider, useAuth } from '../src/auth/AuthProvider';
@@ -13,6 +13,13 @@ import { NotificationObserver } from '../src/notifications/NotificationObserver'
 import { AppLockProvider } from '../src/security/AppLockProvider';
 import { BottomNavigation } from '../src/components/WorkspaceNav';
 import { OnlineSyncProvider } from '../src/sync/OnlineSyncProvider';
+
+// Debug-only LogBox banners can cover persistent navigation targets on the
+// headless Android emulator. Keep warnings in the runner logs, but suppress the
+// visual overlay only for the explicit E2E build used by Maestro.
+if (process.env.EXPO_PUBLIC_E2E_MODE === '1') {
+  LogBox.ignoreAllLogs();
+}
 
 function AppFallback() {
   return (

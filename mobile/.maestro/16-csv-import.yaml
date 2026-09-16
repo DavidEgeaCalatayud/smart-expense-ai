@@ -32,11 +32,8 @@ appId: com.davidegea.smartexpenseai
 - extendedWaitUntil:
     visible: "Imported 2 transactions.*"
     timeout: 30000
-# The React Native development warning banner overlaps the center of the
-# Activity tab on the CI emulator. Tap the unobstructed lower part of the
-# persistent tab instead; release builds do not render this banner.
 - tapOn:
-    point: "25%,97%"
+    id: "tab-activity"
 - extendedWaitUntil:
     visible: "Search transactions"
     timeout: 20000
