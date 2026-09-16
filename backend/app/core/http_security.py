@@ -6,10 +6,8 @@ from starlette.middleware.base import BaseHTTPMiddleware, RequestResponseEndpoin
 from starlette.responses import JSONResponse, Response
 
 from app.core.config import settings
+from app.core.security_monitoring import emit_security_event
 
-
-security_logger = logging.getLogger("smart_expense.security")
-security_logger.setLevel(logging.INFO)
 
 UNSAFE_METHODS = {"POST", "PUT", "PATCH", "DELETE"}
 
@@ -22,16 +20,13 @@ def log_security_event(
     user_id: UUID | None = None,
     level: int = logging.INFO,
 ) -> None:
-    """Log a security event without credentials, tokens, emails, or request bodies."""
-    request_id = getattr(request.state, "request_id", "unavailable")
-    user_fragment = f" user_id={user_id}" if user_id is not None else ""
-    security_logger.log(
-        level,
-        "security_event=%s outcome=%s request_id=%s%s",
-        event,
-        outcome,
-        request_id,
-        user_fragment,
+    """Emit a security event without credentials, tokens, emails, request bodies, or IPs."""
+    emit_security_event(
+        event=event,
+        outcome=outcome,
+        request_id=getattr(request.state, "request_id", "unavailable"),
+        user_id=user_id,
+        level=level,
     )
 
 
@@ -46,7 +41,24 @@ class SecurityMiddleware(BaseHTTPMiddleware):
 
         response = self._reject_cross_site_request(request)
         if response is None:
-            response = await call_next(request)
+            try:
+                response = await call_next(request)
+            except Exception:
+                log_security_event(
+                    request,
+                    "unhandled_exception",
+                    "error",
+                    level=logging.ERROR,
+                )
+                raise
+
+        if response.status_code >= 500:
+            log_security_event(
+                request,
+                "server_error_response",
+                "observed",
+                level=logging.ERROR,
+            )
 
         self._apply_headers(response, request_id, request.url.path)
         return response

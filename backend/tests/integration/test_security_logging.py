@@ -1,3 +1,4 @@
+import json
 import logging
 
 import pytest
@@ -26,8 +27,21 @@ def test_authentication_security_logs_exclude_credentials(caplog) -> None:
         )
 
     assert response.status_code in {201, 409}
+    security_events = [
+        json.loads(message)
+        for message in caplog.messages
+        if message.startswith("{")
+    ]
+    registration_events = [
+        event for event in security_events if event.get("event") == "registration"
+    ]
+    assert registration_events
+    event = registration_events[-1]
+    assert event["schemaVersion"] == "security-event-v1"
+    assert event["outcome"] in {"success", "rejected"}
+    assert event["requestId"] == response.headers["X-Request-ID"]
+
     messages = "\n".join(caplog.messages)
-    assert "security_event=registration" in messages
     assert email not in messages
     assert password not in messages
     assert "smart_expense_session" not in messages
