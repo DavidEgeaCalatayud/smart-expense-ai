@@ -1,7 +1,7 @@
 import Ionicons from '../../ui/Icon';
 import type { Href } from 'expo-router';
 import { Link } from '../../ui/Link';
-import { Pressable, Text, View } from '../../ui/primitives';
+import { Pressable, StyleSheet, Text, View } from '../../ui/primitives';
 import { ServerWorkspaceShell, serverWorkspaceStyles as s } from '../../components/ServerWorkspaceShell';
 import { useOnlineSync } from '../../sync/OnlineSyncProvider';
 
@@ -30,7 +30,7 @@ export function NavigationHub({ area }: { area: 'insights' | 'more' }) {
     subtitle={area === 'insights' ? 'A clearer view of where your money is going.' : 'Your tools, preferences and account.'}
     isRefreshing={isSyncing} onRefresh={() => void syncNow().catch(() => undefined)}>
     {(area === 'insights' ? insights : more).map(([title, description, href, icon]) =>
-      <Link key={href} href={href as Href} asChild><Pressable accessibilityRole="button" style={[s.card, { flexDirection: 'row', alignItems: 'center', gap: 14 }]}>
+      <Link key={href} href={href as Href} asChild><Pressable accessibilityRole="button" style={StyleSheet.flatten([s.card, { flexDirection: 'row', alignItems: 'center', gap: 14 }])}>
         <Ionicons name={icon} size={26} color="#125c47" />
         <View style={{ flex: 1, gap: 4 }}><Text style={s.cardTitle}>{title}</Text><Text style={s.metadata}>{description}</Text></View>
         <Ionicons name="chevron-forward" size={18} color="#596575" />
