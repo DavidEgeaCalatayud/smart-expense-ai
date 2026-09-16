@@ -74,7 +74,7 @@ class RenderEdgeTests(unittest.TestCase):
         self.assertIn("listen 10000;", config)
         self.assertIn("http://private-api-abcd:8000", config)
         self.assertNotIn("http://backend:8000", config)
-        self.assertEqual(config.count("limit_req zone="), 5)
+        self.assertEqual(config.count("limit_req zone="), 6)
         self.assertIn("proxy_set_header Host $host;", config)
         self.assertIn("try_files $uri $uri/ /index.html;", config)
         self.assertIn("proxy_set_header X-Forwarded-Proto https;", config)

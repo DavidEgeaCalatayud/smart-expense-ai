@@ -45,7 +45,7 @@ class FreeConfigurationTests(unittest.TestCase):
 
     def test_edge_keeps_limits_and_routes_with_loopback_upstream_and_unprivileged_paths(self):
         actual = runtime.render_nginx((ROOT / "frontend/nginx.conf").read_text(), "10000")
-        self.assertEqual(actual.count("limit_req zone="), 5)
+        self.assertEqual(actual.count("limit_req zone="), 6)
         self.assertIn("http://127.0.0.1:8000", actual)
         self.assertNotIn("http://backend:8000", actual)
         self.assertNotIn("user nginx;", actual)

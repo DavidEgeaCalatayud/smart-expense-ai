@@ -16,6 +16,7 @@ from app.routers.advanced_insights import router as advanced_insights_router
 from app.routers.analytics import router as analytics_router
 from app.routers.analytics_v2 import router as analytics_v2_router
 from app.routers.auth import router as auth_router
+from app.routers.password_reset import router as password_reset_router
 from app.routers.budgets import router as budgets_router
 from app.routers.categories import router as categories_router
 from app.routers.category_suggestions import router as category_suggestions_router
@@ -74,6 +75,7 @@ def health_check() -> dict[str, str]:
 
 
 app.include_router(auth_router, prefix=API_V1_PREFIX)
+app.include_router(password_reset_router, prefix=API_V1_PREFIX)
 app.include_router(categories_router, prefix=API_V1_PREFIX)
 app.include_router(transactions_router, prefix=API_V1_PREFIX)
 app.include_router(analytics_router, prefix=API_V1_PREFIX)

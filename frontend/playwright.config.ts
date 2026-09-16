@@ -16,7 +16,8 @@ export default defineConfig({
   },
   webServer: [
     {
-      command: 'cd ../backend && python -m uvicorn app.main:app --host 127.0.0.1 --port 8000',
+      command: 'cd ../backend && python -m uvicorn e2e_app:app --host 127.0.0.1 --port 8000 --no-access-log',
+      env: { APP_ENV: 'test', E2E_RECOVERY_OUTBOX: '/tmp/smart-expense-recovery-outbox' },
       url: 'http://localhost:8000/health',
       reuseExistingServer: true,
       timeout: 120_000,

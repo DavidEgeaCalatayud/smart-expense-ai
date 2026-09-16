@@ -1,8 +1,9 @@
 from functools import lru_cache
 from pathlib import Path
 from typing import Literal
+from urllib.parse import urlsplit
 
-from pydantic import field_validator, model_validator
+from pydantic import EmailStr, Field, SecretStr, field_validator, model_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
@@ -28,6 +29,14 @@ class Settings(BaseSettings):
     mobile_refresh_token_days: int = 30
     auth_cookie_name: str = "smart_expense_session"
     auth_cookie_secure: bool = False
+    password_reset_ttl_minutes: int = Field(default=20, ge=15, le=30)
+    password_reset_public_url: str | None = None
+    email_provider: Literal["disabled", "brevo", "resend"] = "disabled"
+    email_api_key: SecretStr | None = None
+    email_from_address: EmailStr | None = None
+    email_from_name: str = "Smart Expense AI"
+    # Only trust X-Real-IP from these peers; Nginx must overwrite that header.
+    auth_trusted_proxy_ips: str = "127.0.0.1,::1"
     openai_api_key: str | None = None
     financial_assistant_model: str = "gpt-5.6-terra"
     financial_assistant_reasoning_effort: Literal["none", "low", "medium", "high", "xhigh", "max"] = "low"
@@ -56,7 +65,7 @@ class Settings(BaseSettings):
             raise ValueError("JWT_SECRET must contain at least 32 bytes")
         return value
 
-    @field_validator("openai_api_key", mode="before")
+    @field_validator("openai_api_key", "email_api_key", "email_from_address", "password_reset_public_url", mode="before")
     @classmethod
     def normalize_optional_api_key(cls, value: object) -> object:
         if isinstance(value, str) and not value.strip():
@@ -81,6 +90,25 @@ class Settings(BaseSettings):
             raise ValueError("FINANCIAL_ASSISTANT_MAX_TOOL_CALLS must be at least 1")
         if self.financial_assistant_max_output_tokens < 256:
             raise ValueError("FINANCIAL_ASSISTANT_MAX_OUTPUT_TOKENS must be at least 256")
+        return self
+
+    @model_validator(mode="after")
+    def validate_recovery_configuration(self) -> "Settings":
+        if self.password_reset_public_url:
+            parsed = urlsplit(self.password_reset_public_url)
+            local_http = parsed.scheme == "http" and parsed.hostname in {"localhost", "127.0.0.1"}
+            if (not parsed.hostname or parsed.username or parsed.password or parsed.query
+                    or parsed.fragment or parsed.path != "/reset-password"
+                    or (parsed.scheme != "https" and not local_http)
+                    or (self.app_env in {"production", "staging"} and parsed.scheme != "https")):
+                raise ValueError("PASSWORD_RESET_PUBLIC_URL must be a trusted HTTPS /reset-password URL")
+        if self.email_provider != "disabled":
+            if not self.email_api_key or not self.email_api_key.get_secret_value().strip():
+                raise ValueError("EMAIL_API_KEY is required when email is enabled")
+            if not self.email_from_address or not self.password_reset_public_url:
+                raise ValueError("EMAIL_FROM_ADDRESS and PASSWORD_RESET_PUBLIC_URL are required")
+        if any(char in self.email_from_name for char in "\r\n<>"):
+            raise ValueError("EMAIL_FROM_NAME contains invalid characters")
         return self
 
     @property

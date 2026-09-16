@@ -19,7 +19,7 @@ esac
 source_config="${1:-/etc/nginx/render-source.conf}"
 target_config="${2:-/etc/nginx/nginx.conf}"
 # Substitute only validated deployment values. Do not expand Nginx variables
-# such as $host, $uri or $request_id, and retain all five auth rate-limit routes.
+# such as $host, $uri or $request_id, and retain all auth rate-limit routes.
 sed \
   -e "s@http://backend:8000@http://$backend_host:8000@g" \
   -e "s/listen 80;/listen $port;/" \

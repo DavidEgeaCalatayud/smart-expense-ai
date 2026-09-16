@@ -8,8 +8,11 @@ from app.models.mobile_auth import MobileRefreshToken, MobileSession
 from app.models.sync import SyncChange, SyncDevice, SyncMutation
 from app.models.transaction import Transaction
 from app.models.user import User
+from app.models.password_reset import AuthRateLimit, PasswordResetToken
 
 __all__ = [
+    "AuthRateLimit",
+    "PasswordResetToken",
     "Budget",
     "Category",
     "CategorySuggestion",

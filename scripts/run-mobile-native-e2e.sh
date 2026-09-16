@@ -23,6 +23,7 @@ SERVER_HELPER='scripts/mobile-e2e-server-helper.py'
 
 mkdir -p "$MAESTRO_RESULTS"
 export MAESTRO_CLI_NO_ANALYTICS=1
+export E2E_RECOVERY_OUTBOX=${E2E_RECOVERY_OUTBOX:-/tmp/smart-expense-recovery-outbox}
 
 e2e_email_a="mobile-e2e-${GITHUB_RUN_ID:-local}-${GITHUB_RUN_ATTEMPT:-1}-a@example.com"
 e2e_email_b="mobile-e2e-${GITHUB_RUN_ID:-local}-${GITHUB_RUN_ATTEMPT:-1}-b@example.com"
@@ -61,7 +62,7 @@ start_backend() {
   stop_backend
   (
     cd backend
-    nohup python -m uvicorn app.main:app --host 0.0.0.0 --port 8000 \
+    nohup python -m uvicorn e2e_app:app --no-access-log --host 0.0.0.0 --port 8000 \
       >> "$BACKEND_LOG" 2>&1 &
     echo $! > "$BACKEND_PID_FILE"
   )
@@ -344,6 +345,13 @@ assert_encrypted_database_header
 adb shell pm clear "$PACKAGE_ID" > /dev/null
 adb reverse tcp:8081 tcp:8081 >/dev/null
 prewarm_android_bundle
+
+# Exercise the same email request and one-use confirmation from native public routes.
+python scripts/recovery-e2e-helper.py register
+run_flow password-recovery-request mobile/.maestro/18-password-recovery-request.yaml
+recovery_token="$(python scripts/recovery-e2e-helper.py token)"
+run_flow password-recovery-confirm -e E2E_RESET_TOKEN="$recovery_token" mobile/.maestro/19-password-recovery-confirm.yaml
+python scripts/recovery-e2e-helper.py verify
 
 # 1. Real FastAPI registration creates account A and the initial account boundary.
 run_flow register mobile/.maestro/01-register.yaml

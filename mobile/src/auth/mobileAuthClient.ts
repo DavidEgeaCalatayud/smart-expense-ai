@@ -1,5 +1,5 @@
 import type { MobileAuthUser } from './secureCredentials';
-import { fetchWithTimeout } from '../api/fetchWithTimeout';
+import { ApiTimeoutError, apiCancellationVersion, fetchWithTimeout } from '../api/fetchWithTimeout';
 
 export interface MobileTokenResponse {
   user: MobileAuthUser;
@@ -44,7 +44,7 @@ export class MobileAuthClient {
     if (!response.ok) {
       throw new MobileAuthHttpError(response.status, await responseMessage(response));
     }
-    return (await response.json()) as T;
+    return response.status === 204 ? undefined as T : (await response.json()) as T;
   }
 
   register(input: {
@@ -59,14 +59,38 @@ export class MobileAuthClient {
     });
   }
 
-  login(input: {
+  async login(input: {
     email: string;
     password: string;
     deviceId: string;
   }): Promise<MobileTokenResponse> {
-    return this.jsonRequest('/api/v2/auth/mobile/login', {
-      method: 'POST',
-      body: JSON.stringify(input),
+    const cancellation = apiCancellationVersion();
+    for (let attempt = 0; ; attempt += 1) {
+      if (apiCancellationVersion() !== cancellation) {
+        throw Object.assign(new Error('Authentication cancelled.'), { name: 'AbortError' });
+      }
+      try {
+        return await this.jsonRequest<MobileTokenResponse>('/api/v2/auth/mobile/login', {
+          method: 'POST', body: JSON.stringify(input),
+        });
+      } catch (error) {
+        const transient = error instanceof ApiTimeoutError || error instanceof TypeError ||
+          (error instanceof MobileAuthHttpError && [502, 503, 504].includes(error.status));
+        if (attempt > 0 || !transient) throw error;
+      }
+      await new Promise((resolve) => setTimeout(resolve, 1500));
+    }
+  }
+
+  requestPasswordReset(email: string): Promise<{ message: string }> {
+    return this.jsonRequest('/api/v1/auth/password-reset/request', {
+      method: 'POST', body: JSON.stringify({ email: email.trim() }),
+    });
+  }
+
+  confirmPasswordReset(token: string, newPassword: string): Promise<void> {
+    return this.jsonRequest('/api/v1/auth/password-reset/confirm', {
+      method: 'POST', body: JSON.stringify({ token, newPassword }),
     });
   }
 

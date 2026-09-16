@@ -102,6 +102,8 @@ export function AuthFormScreen({ mode }: AuthFormScreenProps) {
               value={password}
             />
 
+            {!isRegister && <Link href="/forgot-password" asChild><Pressable accessibilityRole="link" disabled={isSubmitting}><Text style={styles.linkText}>Forgot your password?</Text></Pressable></Link>}
+            {isSubmitting && !isRegister && <Text accessibilityLiveRegion="polite" style={styles.subtitle}>Connecting securely… The server may need up to two minutes to wake up.</Text>}
             {error ? <Text style={styles.error}>{error}</Text> : null}
 
             <Pressable
