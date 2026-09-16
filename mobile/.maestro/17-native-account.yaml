@@ -12,9 +12,11 @@ appId: com.davidegea.smartexpenseai
 - tapOn:
     text: "Allow"
     optional: true
-- extendedWaitUntil:
-    visible: "Budget thresholds.*"
+- scrollUntilVisible:
+    element: "Budget thresholds.*"
+    direction: DOWN
     timeout: 30000
+- assertVisible: "Budget thresholds.*"
 - scrollUntilVisible:
     element: "New password"
     direction: DOWN
