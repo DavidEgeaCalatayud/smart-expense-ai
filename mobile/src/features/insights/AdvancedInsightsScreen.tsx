@@ -1,5 +1,7 @@
+import { ProgressMeter, money } from '../../components/FinancialVisuals';
+import Icon from '../../ui/Icon';
 import { useCallback, useMemo, useState } from 'react';
-import { ActivityIndicator, Text, View } from 'react-native';
+import { ActivityIndicator, Text, View } from '../../ui/primitives';
 
 import { createServerDerivedApi } from '../../api/serverDerivedApi';
 import { useCachedServerResource } from '../../api/useCachedServerResource';
@@ -27,17 +29,25 @@ export function AdvancedInsightsScreen() {
         <Text style={s.metadata}>Current plan: {resource.data.entitlements.planTier}</Text></View>
     ) : null}
     {result && result.month === month ? <>
-      {result.insights.map((insight) => <View key={insight.id} style={s.card}>
+      {result.insights.map((insight) => {
+        const metrics = insight.evidence.flatMap((entry) => entry.metrics);
+        const headline = metrics.find((metric) => metric.key === 'expenseChangePercent')
+          ?? metrics.find((metric) => metric.format === 'percent') ?? metrics.find((metric) => metric.key === 'net')
+          ?? metrics.find((metric) => metric.format === 'currency' || metric.format === 'count');
+        return <View key={insight.id} style={[s.card, { gap: 14, padding: 20 }]}>
+        <View style={[s.row, { alignItems: 'center' }]}><Icon name={insight.kind === 'budget_pressure' ? 'wallet-outline' : insight.kind === 'expense_change' ? 'trending-up-outline' : 'sparkles-outline'} size={28} color={insight.priority === 'attention' ? '#b42318' : '#125c47'} />
+        <Text style={[s.cardTitle, { flex: 1 }]}>{insight.title}</Text></View>
+        {headline ? <Text style={{ fontSize: 36, fontWeight: '800', color: insight.priority === 'attention' ? '#b42318' : '#125c47' }}>{headline.format === 'currency' ? money(headline.value) : `${Number(headline.value) > 0 && insight.kind === 'expense_change' ? '+' : ''}${headline.value}${headline.format === 'percent' ? '%' : ''}`}</Text> : null}
+        {headline?.format === 'percent' && ['budget_pressure', 'category_concentration'].includes(insight.kind) ? <ProgressMeter label={headline.label} percent={headline.value} /> : null}
         <Text style={s.metadata}>{insight.priority === 'attention' ? 'Needs attention'
           : insight.priority === 'positive' ? 'Positive trend' : 'For your information'}</Text>
-        <Text style={s.cardTitle}>{insight.title}</Text>
         <Text style={s.body}>{insight.summary}</Text>
         {insight.evidence.map((evidence, index) => <View key={`${evidence.reference}:${index}`}>
           {evidence.metrics.map((metric) => <Text key={metric.key} style={s.metadata}>
             {metric.label}: {metric.value}{metric.format === 'currency' ? ' €' : metric.format === 'percent' ? '%' : ''}
           </Text>)}
         </View>)}
-      </View>)}
+      </View>; })}
       {result.insights.length === 0 ? <Text style={s.empty}>No insights for this month yet.</Text> : null}
       {result.limitations.length > 0 ? <View style={s.card}><Text style={s.cardTitle}>About these insights</Text>
         {result.limitations.map((text) => <Text key={text} style={s.body}>{text}</Text>)}</View> : null}

@@ -5,7 +5,7 @@
     "noUncheckedIndexedAccess": true,
     "noImplicitOverride": true,
     "moduleResolution": "bundler",
-    "types": ["jest"]
+    "types": ["jest", "node"]
   },
   "include": [
     "app/**/*.ts",

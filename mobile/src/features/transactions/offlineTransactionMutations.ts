@@ -6,17 +6,14 @@ import type { SQLiteDatabase } from 'expo-sqlite';
 import { runKeyedTransaction } from '../../database/keyedTransaction';
 import type { LocalTransactionRow } from '../../database/types';
 import { assertEntityNotSending, enqueueMutation, type OutboxRow } from '../../sync/outboxRepository';
-import { validateOfflineTransactionInput } from './validation';
+import { validateOfflineTransactionInput, type OfflineTransactionFormInput } from './validation';
+import { resolveTransactionCategory } from './createOfflineTransaction';
 
 interface EditableTransactionRow extends LocalTransactionRow {
   category_name: string;
 }
 
-export interface OfflineTransactionEditInput {
-  merchant: string;
-  amount: string;
-  transactionDate: string;
-}
+export type OfflineTransactionEditInput = Omit<OfflineTransactionFormInput, 'categoryName'> & { categoryName?: string };
 
 async function getEditableTransaction(
   db: SQLiteDatabase,
@@ -36,21 +33,6 @@ async function getEditableTransaction(
   return row;
 }
 
-function payloadFor(row: EditableTransactionRow, merchant: string, amountMinor: number, date: string) {
-  return {
-    merchant,
-    description: row.description,
-    categoryId: row.category_id,
-    amount: minorUnitsToDecimal(amountMinor),
-    currency: row.currency,
-    transactionDate: date,
-    transactionType: row.transaction_type,
-    paymentMethod: row.payment_method,
-    isRecurring: row.is_recurring === 1,
-    source: row.source,
-  } as const;
-}
-
 export async function updateOfflineTransaction(
   db: SQLiteDatabase,
   transactionId: string,
@@ -66,11 +48,22 @@ export async function updateOfflineTransaction(
     const validated = validateOfflineTransactionInput({
       merchant: input.merchant,
       amount: input.amount,
-      categoryName: current.category_name,
+      categoryName: input.categoryName ?? current.category_name,
+      categoryId: input.categoryId ?? (input.categoryName ? undefined : current.category_id),
+      transactionType: input.transactionType ?? current.transaction_type,
+      paymentMethod: input.paymentMethod ?? current.payment_method,
+      description: input.description ?? current.description,
+      isRecurring: input.isRecurring ?? current.is_recurring === 1,
       transactionDate: input.transactionDate,
     });
     const now = new Date().toISOString();
-    const payload = payloadFor(current, validated.merchant, validated.amountMinor, validated.transactionDate);
+    const categoryId = await resolveTransactionCategory(txn, validated, now, current.category_id);
+    const payload = {
+      merchant: validated.merchant, description: validated.description, categoryId,
+      amount: minorUnitsToDecimal(validated.amountMinor), currency: current.currency,
+      transactionDate: validated.transactionDate, transactionType: validated.transactionType,
+      paymentMethod: validated.paymentMethod, isRecurring: validated.isRecurring, source: current.source,
+    };
 
     const existingMutation = await txn.getFirstAsync<OutboxRow>(
       `SELECT * FROM sync_outbox
@@ -84,11 +77,14 @@ export async function updateOfflineTransaction(
     await txn.runAsync(
       `UPDATE transactions
        SET merchant = ?, amount_minor = ?, transaction_date = ?,
+           description = ?, category_id = ?, transaction_type = ?, payment_method = ?, is_recurring = ?,
            sync_status = 'pending', updated_at = ?
        WHERE id = ?`,
       validated.merchant,
       validated.amountMinor,
       validated.transactionDate,
+      validated.description, categoryId, validated.transactionType, validated.paymentMethod,
+      validated.isRecurring ? 1 : 0,
       now,
       transactionId,
     );

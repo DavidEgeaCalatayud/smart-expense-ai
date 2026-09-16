@@ -95,3 +95,16 @@ echo 'Cross-client server presence verified: Native Bridge Coffee reached Postgr
 )
 
 echo 'Cross-client E2E invariants passed: browser create -> Android pull and Android offline create -> server -> browser read.'
+
+# Exercise the mobile product layer after the original cross-client isolation assertions.
+run_flow mobile-experience mobile/.maestro/15-mobile-experience.yaml
+cat > /tmp/smart-expense-native.csv <<'CSV'
+date,merchant,amount,category
+2026-09-09,CSV Native Groceries,-13.25,General
+2026-09-09,CSV Native Train,-4.10,General
+CSV
+adb push /tmp/smart-expense-native.csv /sdcard/Download/smart-expense-native.csv
+run_flow csv-import mobile/.maestro/16-csv-import.yaml
+server_helper_b wait-present --merchant 'CSV Native Groceries' --timeout-seconds 60
+server_helper_b wait-present --merchant 'CSV Native Train' --timeout-seconds 60
+run_flow native-account mobile/.maestro/17-native-account.yaml

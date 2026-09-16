@@ -1,5 +1,2 @@
-import { TransactionScreen } from '../src/features/transactions/TransactionScreen';
-
-export default function HomeRoute() {
-  return <TransactionScreen />;
-}
+import { DashboardScreen } from '../src/features/dashboard/DashboardScreen';
+export default function HomeRoute() { return <DashboardScreen />; }

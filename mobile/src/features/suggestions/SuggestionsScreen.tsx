@@ -1,6 +1,6 @@
 import type { CategorySuggestionPreviewResponse } from '@smart-expense-ai/api-contracts';
 import { useMemo, useState } from 'react';
-import { Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
+import { Pressable, StyleSheet, Text, TextInput, View } from '../../ui/primitives';
 
 import { useOnlineAction } from '../../api/useOnlineAction';
 import { createServerDerivedApi } from '../../api/serverDerivedApi';

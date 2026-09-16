@@ -1,0 +1,138 @@
+appId: com.davidegea.smartexpenseai
+---
+# This is the same deep link used by the widget and launcher shortcut.
+- openLink: "smartexpenseai://transactions?quickAdd=income"
+- extendedWaitUntil:
+    visible: "New transaction"
+    timeout: 20000
+- tapOn: "Amount"
+- inputText: "2400.05"
+- tapOn: "Merchant"
+- inputText: "Native Salary"
+- hideKeyboard
+- tapOn:
+    id: "choice-category"
+- scrollUntilVisible:
+    element: "New category.*"
+    direction: DOWN
+    timeout: 10000
+- tapOn: "New category.*"
+- tapOn: "New category name"
+- eraseText: 30
+- inputText: "Native Income"
+- hideKeyboard
+- scrollUntilVisible:
+    element: "Payment method"
+    direction: DOWN
+    timeout: 10000
+- tapOn:
+    id: "date-transaction-date"
+- tapOn: "OK"
+- tapOn:
+    id: "choice-payment-method"
+- tapOn: "Bank transfer"
+- tapOn: "Description"
+- inputText: "Monthly native payroll"
+- hideKeyboard
+- scrollUntilVisible:
+    element: "Recurring transaction"
+    direction: DOWN
+    timeout: 10000
+- tapOn: "Recurring transaction"
+- scrollUntilVisible:
+    element: "Save transaction"
+    direction: DOWN
+    timeout: 10000
+- tapOn: "Save transaction"
+- extendedWaitUntil:
+    visible: "Native Salary"
+    timeout: 20000
+# The long editor can leave Activity's nested scroll positioned over the bottom
+# navigation. Remount Activity through its normal deep link before exercising
+# search and filters; the transaction has already been persisted locally.
+- openLink: "smartexpenseai://transactions"
+- extendedWaitUntil:
+    visible: "Search transactions"
+    timeout: 20000
+- extendedWaitUntil:
+    visible: "All changes synchronized"
+    timeout: 30000
+# Search by the merchant that was just observed after save. The later filtered
+# card assertion still verifies that the description survived persistence.
+- tapOn: "Search transactions"
+- inputText: "Native Salary"
+- hideKeyboard
+- extendedWaitUntil:
+    visible: "Native Salary"
+    timeout: 20000
+- assertNotVisible: "Native Bridge Coffee"
+- tapOn: "Filters and sort"
+- scrollUntilVisible:
+    element: "Transaction type"
+    direction: DOWN
+    timeout: 10000
+- tapOn:
+    id: "choice-transaction-type"
+- tapOn: "Income"
+- tapOn:
+    id: "choice-recurring"
+- tapOn: "Recurring only"
+# Bring the action below Sort into view first. On the tall CI emulator, merely
+# making Sort 100% visible leaves its button under the persistent bottom nav,
+# so the tap is consumed without opening the ChoiceField menu.
+- scrollUntilVisible:
+    element: "Show transactions"
+    direction: DOWN
+    timeout: 10000
+- tapOn:
+    id: "choice-sort"
+- extendedWaitUntil:
+    visible: "Highest amount"
+    timeout: 10000
+- tapOn: "Highest amount"
+- scrollUntilVisible:
+    element: "Show transactions"
+    direction: DOWN
+    timeout: 10000
+# React Native's development warning banner can overlap the bottom action while
+# Maestro still considers it visible. Move the modal content one viewport step
+# farther up so the real button is unobstructed before tapping it.
+- swipe:
+    start: 50%, 78%
+    end: 50%, 48%
+    duration: 400
+- tapOn: "Show transactions"
+# The filtered transaction list is rendered after the filter controls in the
+# Activity scroll content. Continue downward from the preserved filter offset.
+- scrollUntilVisible:
+    element: "Native Salary"
+    direction: DOWN
+    timeout: 20000
+- assertVisible: "Native Salary"
+- assertVisible: "Monthly native payroll"
+- takeScreenshot: mobile-activity
+# Closing the filter sheet restores focus to the search field on Android, which
+# can reopen the IME and intentionally hide BottomNavigation. Dismiss it before
+# exercising the persistent primary tabs.
+- hideKeyboard
+- tapOn:
+    id: "tab-home"
+- extendedWaitUntil:
+    visible: "Spent this month.*"
+    timeout: 30000
+- takeScreenshot: mobile-home
+- scrollUntilVisible:
+    element: "Recent transactions"
+    direction: DOWN
+    timeout: 15000
+- assertVisible: "Native Salary"
+- tapOn:
+    id: "tab-insights"
+- assertVisible: "A clearer view of where your money is going."
+- takeScreenshot: mobile-insights
+- tapOn:
+    id: "tab-more"
+- scrollUntilVisible:
+    element: "Account & security"
+    direction: DOWN
+    timeout: 10000

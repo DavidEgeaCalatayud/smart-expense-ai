@@ -1,4 +1,4 @@
-import { Link } from 'expo-router';
+import { Link } from '../../ui/Link';
 import { useState } from 'react';
 import {
   ActivityIndicator,
@@ -10,8 +10,7 @@ import {
   Text,
   TextInput,
   View,
-} from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
+ SafeAreaView } from '../../ui/primitives';
 
 import { useAuth } from '../../auth/AuthProvider';
 import { E2eLegacyMigrationDiagnostic } from './E2eLegacyMigrationDiagnostic';

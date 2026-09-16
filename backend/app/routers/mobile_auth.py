@@ -1,13 +1,19 @@
 import logging
+from datetime import datetime, timezone
 
 from fastapi import APIRouter, Depends, HTTPException, Request, status
+from sqlalchemy import select
 from sqlalchemy.orm import Session
 
+from app.auth.dependencies import get_current_user
+from app.models.mobile_auth import MobileSession
+from app.models.user import User
 from app.core.config import settings
 from app.core.http_security import log_security_event
-from app.core.security import create_mobile_access_token
+from app.core.security import create_mobile_access_token, decode_mobile_access_token
 from app.db.session import get_db
 from app.mobile_auth_schemas import (
+    MobileSessionInfo,
     MobileLoginRequest,
     MobileLogoutRequest,
     MobileRefreshRequest,
@@ -153,3 +159,37 @@ def mobile_logout(
         "mobile_logout",
         "success" if revoked else "already_invalid",
     )
+
+
+@router.get("/sessions", response_model=list[MobileSessionInfo])
+def mobile_sessions(
+    request: Request,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+) -> list[MobileSessionInfo]:
+    # Authentication has already validated the bearer/cookie. Decode only to identify
+    # the current mobile session; never return token hashes, tokens or device identifiers.
+    authorization = request.headers.get("authorization", "")
+    scheme, _, token = authorization.partition(" ")
+    claims = decode_mobile_access_token(token.strip()) if scheme.lower() == "bearer" else None
+    sessions = db.scalars(
+        select(MobileSession)
+        .where(
+            MobileSession.user_id == current_user.id,
+            MobileSession.session_version == current_user.session_version,
+            MobileSession.revoked_at.is_(None),
+            MobileSession.expires_at > datetime.now(timezone.utc),
+        )
+        .order_by(MobileSession.last_seen_at.desc(), MobileSession.id)
+        .limit(100)
+    ).all()
+    return [
+        MobileSessionInfo(
+            id=session.id,
+            current=claims is not None and claims.session_id == session.id,
+            createdAt=session.created_at,
+            lastSeenAt=session.last_seen_at,
+            expiresAt=session.expires_at,
+        )
+        for session in sessions
+    ]

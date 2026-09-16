@@ -1,13 +1,19 @@
 appId: com.davidegea.smartexpenseai
 ---
 - launchApp
+- openLink: "smartexpenseai://transactions"
 - assertVisible: "Your transactions"
+- tapOn: "\\+ Add"
 - tapOn: "Merchant"
 - inputText: "Offline Coffee"
 - hideKeyboard
 - tapOn: "Amount"
 - inputText: "12.34"
 - hideKeyboard
+- scrollUntilVisible:
+    element: "Save transaction"
+    direction: DOWN
+    timeout: 10000
 - tapOn: "Save transaction"
 - extendedWaitUntil:
     visible: "Offline Coffee"

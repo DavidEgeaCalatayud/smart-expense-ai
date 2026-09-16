@@ -1,4 +1,4 @@
-import { Text } from 'react-native';
+import { Text } from '../ui/primitives';
 import { useOnlineSync } from '../sync/OnlineSyncProvider';
 import { serverWorkspaceStyles as s } from './ServerWorkspaceShell';
 

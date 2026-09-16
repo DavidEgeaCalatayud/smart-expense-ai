@@ -188,3 +188,32 @@ def test_web_and_mobile_jwt_audiences_are_not_interchangeable(client: TestClient
     client.cookies.set("smart_expense_session", str(mobile["accessToken"]))
     mobile_as_web_cookie = client.get("/api/v1/auth/me")
     assert mobile_as_web_cookie.status_code == 401
+
+
+def test_mobile_sessions_are_private_active_and_identify_current_device(client: TestClient) -> None:
+    assert client.get("/api/v2/auth/mobile/sessions").status_code == 401
+    first = mobile_register(client)
+    device_id = str(uuid4())
+    second = client.post("/api/v2/auth/mobile/login", json={
+        "email": "mobile@example.com", "password": "correct-horse-battery-staple",
+        "deviceId": device_id,
+    }).json()
+    other = client.post("/api/v2/auth/mobile/register", json={
+        "email": "other@example.com", "password": "correct-horse-battery-staple",
+        "displayName": "Other", "deviceId": str(uuid4()),
+    }).json()
+    response = client.get("/api/v2/auth/mobile/sessions", headers=bearer(first["accessToken"]))
+    assert response.status_code == 200
+    sessions = response.json()
+    assert len(sessions) == 2
+    assert sum(session["current"] for session in sessions) == 1
+    assert all(set(session) == {"id", "current", "createdAt", "lastSeenAt", "expiresAt"} for session in sessions)
+    other_sessions = client.get("/api/v2/auth/mobile/sessions", headers=bearer(other["accessToken"])).json()
+    assert len(other_sessions) == 1
+    assert other_sessions[0]["id"] not in {session["id"] for session in sessions}
+    assert client.post("/api/v2/auth/mobile/logout", json={
+        "refreshToken": second["refreshToken"], "deviceId": device_id,
+    }).status_code == 204
+    remaining = client.get("/api/v2/auth/mobile/sessions", headers=bearer(first["accessToken"])).json()
+    assert len(remaining) == 1
+    assert remaining[0]["current"] is True

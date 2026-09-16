@@ -1,6 +1,6 @@
 import { useSQLiteContext } from 'expo-sqlite';
 import { useEffect, useState } from 'react';
-import { StyleSheet, Text, View } from 'react-native';
+import { StyleSheet, Text, View } from '../../ui/primitives';
 
 const LEGACY_MIGRATION_COMPLETION_TABLE = '__smart_expense_sqlcipher_plaintext_migration_v1';
 const LEGACY_MIGRATION_PROBE_MERCHANT = 'Legacy Migration Probe';

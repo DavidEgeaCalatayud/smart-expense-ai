@@ -1,8 +1,9 @@
 import type { HistoricalAnalysisResponseV22 } from '@smart-expense-ai/api-contracts';
 import { useCallback, useMemo, useState } from 'react';
-import { ActivityIndicator, Pressable, StyleSheet, Text, View } from 'react-native';
+import { ActivityIndicator, Pressable, StyleSheet, Text, View } from '../../ui/primitives';
 
 import { MobileApiHttpError } from '../../api/client';
+import { MonthBars } from '../../components/FinancialVisuals';
 import { DataFreshness } from '../../components/DataFreshness';
 import { useOnlineAction } from '../../api/useOnlineAction';
 import { createServerDerivedApi } from '../../api/serverDerivedApi';
@@ -65,6 +66,10 @@ export function HistoricalAnalysisScreen() {
       {error ? <Text style={isCachedFallback ? s.metadata : s.error}>{error}</Text> : null}
       {runError ? <Text style={s.error}>{runError}</Text> : null}
       <DataFreshness cachedAt={cachedAt} isCachedFallback={isCachedFallback} />
+      {analysis ? <View style={s.card}><Text style={s.sectionTitle}>Monthly spending</Text>
+        <MonthBars points={analysis.monthlySpend} />
+        <Text style={s.metadata}>Lighter bars show an incomplete month.</Text>
+      </View> : null}
 
       <Pressable
         accessibilityRole="button"

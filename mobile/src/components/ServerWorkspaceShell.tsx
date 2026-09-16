@@ -1,13 +1,11 @@
 import type { ReactNode } from 'react';
 import {
-  Pressable,
   RefreshControl,
   ScrollView,
   StyleSheet,
   Text,
   View,
-} from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
+ SafeAreaView } from '../ui/primitives';
 
 import { useAuth } from '../auth/AuthProvider';
 import { WorkspaceNav, type WorkspaceName } from './WorkspaceNav';
@@ -29,31 +27,19 @@ export function ServerWorkspaceShell({
   onRefresh(): void;
   children: ReactNode;
 }) {
-  const { user, logout, isSubmitting } = useAuth();
+  const { user } = useAuth();
   const { isSyncing } = useOnlineSync();
 
   return (
-    <SafeAreaView style={styles.safeArea}>
-      <ScrollView contentContainerStyle={styles.content}
+    <SafeAreaView edges={['top', 'left', 'right']} style={styles.safeArea}>
+      <ScrollView keyboardShouldPersistTaps="handled" contentContainerStyle={styles.content}
         refreshControl={<RefreshControl refreshing={isRefreshing || isSyncing} onRefresh={onRefresh} />}>
         <View style={styles.accountRow}>
           <View style={styles.accountIdentity}>
-            <Text style={styles.eyebrow}>SMART EXPENSE AI · MOBILE</Text>
+            <Text style={styles.eyebrow}>SMART EXPENSE AI</Text>
             <Text style={styles.accountName}>{user?.displayName}</Text>
-            <Text style={styles.accountEmail}>{user?.email}</Text>
           </View>
-          <Pressable
-            accessibilityRole="button"
-            disabled={isSubmitting || isRefreshing}
-            onPress={() => void logout()}
-            style={({ pressed }) => [
-              styles.secondaryButton,
-              pressed && styles.pressed,
-              (isSubmitting || isRefreshing) && styles.disabled,
-            ]}
-          >
-            <Text style={styles.secondaryButtonText}>Sign out</Text>
-          </Pressable>
+
         </View>
 
         <WorkspaceNav active={active} />

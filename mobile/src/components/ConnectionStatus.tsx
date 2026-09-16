@@ -1,4 +1,4 @@
-import { ActivityIndicator, Pressable, StyleSheet, Text, View } from 'react-native';
+import { ActivityIndicator, Pressable, StyleSheet, Text, View } from '../ui/primitives';
 
 import { useOnlineSync } from '../sync/OnlineSyncProvider';
 
