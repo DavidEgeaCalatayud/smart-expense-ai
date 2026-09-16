@@ -17,6 +17,9 @@ appId: com.davidegea.smartexpenseai
     direction: DOWN
     timeout: 10000
 - tapOn: "Save transaction"
+- extendedWaitUntil:
+    notVisible: "New transaction"
+    timeout: 15000
 - scrollUntilVisible:
     element: "Background Worker Coffee"
     direction: DOWN
