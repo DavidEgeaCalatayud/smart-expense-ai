@@ -111,6 +111,10 @@ appId: com.davidegea.smartexpenseai
 - assertVisible: "Native Salary"
 - assertVisible: "Monthly native payroll"
 - takeScreenshot: mobile-activity
+# Closing the filter sheet restores focus to the search field on Android, which
+# can reopen the IME and intentionally hide BottomNavigation. Dismiss it before
+# exercising the persistent primary tabs.
+- hideKeyboard
 - tapOn:
     id: "tab-home"
 - extendedWaitUntil:
