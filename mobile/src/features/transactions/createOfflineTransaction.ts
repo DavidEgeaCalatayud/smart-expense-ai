@@ -26,57 +26,23 @@ export async function createOfflineTransaction(
   let categoryId = '';
 
   await runKeyedTransaction(db, async (txn) => {
-    const existingCategory = await txn.getFirstAsync<LocalCategoryRow>(
-      `SELECT * FROM categories
-       WHERE normalized_name = ? AND transaction_type = 'expense' AND archived = 0
-       LIMIT 1`,
-      validated.normalizedCategoryName,
-    );
-
-    if (existingCategory) {
-      categoryId = existingCategory.id;
-    } else {
-      categoryId = Crypto.randomUUID();
-      await txn.runAsync(
-        `INSERT INTO categories (
-           id, name, normalized_name, transaction_type, system_category, archived,
-           server_version, sync_status, created_at, updated_at
-         ) VALUES (?, ?, ?, 'expense', 0, 0, NULL, 'pending', ?, ?)`,
-        categoryId,
-        validated.categoryName,
-        validated.normalizedCategoryName,
-        now,
-        now,
-      );
-
-      const categoryMutation: CategoryUpsertMutation = {
-        mutationId: Crypto.randomUUID(),
-        entityId: categoryId,
-        entityType: 'category',
-        operation: 'upsert',
-        baseVersion: null,
-        clientOccurredAt: now,
-        payload: {
-          name: validated.categoryName,
-          transactionType: 'expense',
-          systemCategory: false,
-          archived: false,
-        },
-      };
-      await enqueueMutation(txn, categoryMutation, now);
-    }
+    categoryId = await resolveTransactionCategory(txn, validated, now);
 
     await txn.runAsync(
       `INSERT INTO transactions (
          id, merchant, description, category_id, amount_minor, currency,
          transaction_date, transaction_type, payment_method, is_recurring,
          source, server_version, sync_status, created_at, updated_at
-       ) VALUES (?, ?, '', ?, ?, 'EUR', ?, 'expense', 'card', 0, 'manual', NULL, 'pending', ?, ?)`,
+       ) VALUES (?, ?, ?, ?, ?, 'EUR', ?, ?, ?, ?, 'manual', NULL, 'pending', ?, ?)`,
       transactionId,
       validated.merchant,
+      validated.description,
       categoryId,
       validated.amountMinor,
       validated.transactionDate,
+      validated.transactionType,
+      validated.paymentMethod,
+      validated.isRecurring ? 1 : 0,
       now,
       now,
     );
@@ -90,14 +56,14 @@ export async function createOfflineTransaction(
       clientOccurredAt: now,
       payload: {
         merchant: validated.merchant,
-        description: '',
+        description: validated.description,
         categoryId,
         amount: minorUnitsToDecimal(validated.amountMinor),
         currency: 'EUR',
         transactionDate: validated.transactionDate,
-        transactionType: 'expense',
-        paymentMethod: 'card',
-        isRecurring: false,
+        transactionType: validated.transactionType,
+        paymentMethod: validated.paymentMethod,
+        isRecurring: validated.isRecurring,
         source: 'manual',
       },
     };
@@ -105,4 +71,63 @@ export async function createOfflineTransaction(
   });
 
   return { transactionId, categoryId };
+}
+
+export async function resolveTransactionCategory(
+  txn: SQLiteDatabase,
+  validated: ReturnType<typeof validateOfflineTransactionInput>,
+  now: string,
+  allowArchivedId?: string,
+): Promise<string> {
+  let categoryId = '';
+    const selected = validated.categoryId ? await txn.getFirstAsync<LocalCategoryRow>(
+      'SELECT * FROM categories WHERE id = ?', validated.categoryId,
+    ) : null;
+    if (validated.categoryId && (!selected || selected.transaction_type !== validated.transactionType ||
+      (selected.archived === 1 && selected.id !== allowArchivedId))) {
+      throw new Error('Choose an available category for this transaction type');
+    }
+    const existingCategory = selected ?? await txn.getFirstAsync<LocalCategoryRow>(
+      `SELECT * FROM categories
+       WHERE normalized_name = ? AND transaction_type = ? AND archived = 0
+       LIMIT 1`,
+      validated.normalizedCategoryName,
+      validated.transactionType,
+    );
+
+    if (existingCategory) {
+      categoryId = existingCategory.id;
+    } else {
+      categoryId = Crypto.randomUUID();
+      await txn.runAsync(
+        `INSERT INTO categories (
+           id, name, normalized_name, transaction_type, system_category, archived,
+           server_version, sync_status, created_at, updated_at
+         ) VALUES (?, ?, ?, ?, 0, 0, NULL, 'pending', ?, ?)`,
+        categoryId,
+        validated.categoryName,
+        validated.normalizedCategoryName,
+        validated.transactionType,
+        now,
+        now,
+      );
+
+      const categoryMutation: CategoryUpsertMutation = {
+        mutationId: Crypto.randomUUID(),
+        entityId: categoryId,
+        entityType: 'category',
+        operation: 'upsert',
+        baseVersion: null,
+        clientOccurredAt: now,
+        payload: {
+          name: validated.categoryName,
+          transactionType: validated.transactionType,
+          systemCategory: false,
+          archived: false,
+        },
+      };
+      await enqueueMutation(txn, categoryMutation, now);
+    }
+
+  return categoryId;
 }

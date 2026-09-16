@@ -2,6 +2,7 @@ import * as BackgroundTask from 'expo-background-task';
 import * as SQLite from 'expo-sqlite';
 import * as TaskManager from 'expo-task-manager';
 
+import { refreshFinancialNotifications } from '../notifications/notificationService';
 import { getSharedMobileApiClient } from '../api/client';
 import { isSessionWorkAllowed, runSessionWork } from '../auth/sessionWork';
 import {
@@ -39,6 +40,7 @@ TaskManager.defineTask(BACKGROUND_SYNC_TASK_NAME, async () => {
         await initializeDatabase(db);
         await bindLocalAccount(db, user.id);
         await runForegroundSync(db, new SyncClient(getSharedMobileApiClient()));
+        await refreshFinancialNotifications(db, user.id).catch(() => undefined);
         return BackgroundTask.BackgroundTaskResult.Success;
       } finally {
         await db.closeAsync();

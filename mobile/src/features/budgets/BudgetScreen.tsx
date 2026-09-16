@@ -10,8 +10,7 @@ import {
   Text,
   TextInput,
   View,
-} from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
+ SafeAreaView } from '../../ui/primitives';
 
 import { createServerDerivedApi } from '../../api/serverDerivedApi';
 import { useCachedServerResource } from '../../api/useCachedServerResource';

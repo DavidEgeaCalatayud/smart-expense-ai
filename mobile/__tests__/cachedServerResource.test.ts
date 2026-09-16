@@ -97,7 +97,7 @@ describe('focused online workspaces and cached fallback', () => {
     await act(async () => { await state().refresh().catch(() => undefined); });
     expect(state().data).toEqual(snapshot.value);
     expect(state().isCachedFallback).toBe(true);
-    expect(state().error).toContain('Network request failed');
+    expect(state().error).toBe('Unable to refresh this section. Try again shortly.');
   });
 
   it('does not use cached premium data after the server denies access', async () => {

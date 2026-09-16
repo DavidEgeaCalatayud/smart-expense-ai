@@ -1,6 +1,7 @@
 appId: com.davidegea.smartexpenseai
 ---
 - launchApp
+- openLink: "smartexpenseai://transactions"
 - extendedWaitUntil:
     visible: "Your transactions"
     timeout: 15000

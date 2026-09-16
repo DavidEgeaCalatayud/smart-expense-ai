@@ -1,5 +1,5 @@
 import { useCallback, useMemo, useState } from 'react';
-import { ActivityIndicator, Pressable, Text, View } from 'react-native';
+import { ActivityIndicator, Pressable, Text, View } from '../../ui/primitives';
 
 import { createServerDerivedApi } from '../../api/serverDerivedApi';
 import { useCachedServerResource } from '../../api/useCachedServerResource';
