@@ -5,12 +5,13 @@ import {
   KeyboardAvoidingView,
   Platform,
   Pressable,
+  SafeAreaView,
   ScrollView,
   StyleSheet,
   Text,
   TextInput,
   View,
- SafeAreaView } from '../../ui/primitives';
+} from '../../ui/primitives';
 
 import { useAuth } from '../../auth/AuthProvider';
 import { E2eLegacyMigrationDiagnostic } from './E2eLegacyMigrationDiagnostic';
@@ -102,6 +103,23 @@ export function AuthFormScreen({ mode }: AuthFormScreenProps) {
               value={password}
             />
 
+            {!isRegister ? (
+              <Link href="/forgot-password" asChild>
+                <Pressable
+                  accessibilityLabel="Forgot password link"
+                  accessibilityRole="link"
+                  disabled={isSubmitting}
+                  testID="forgot-password-link"
+                >
+                  <Text style={styles.linkText}>Forgot your password?</Text>
+                </Pressable>
+              </Link>
+            ) : null}
+            {isSubmitting && !isRegister ? (
+              <Text accessibilityLiveRegion="polite" style={styles.subtitle}>
+                Connecting securely… The server may need up to two minutes to wake up.
+              </Text>
+            ) : null}
             {error ? <Text style={styles.error}>{error}</Text> : null}
 
             <Pressable

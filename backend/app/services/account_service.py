@@ -12,6 +12,7 @@ from app.models.import_batch import ImportBatch
 from app.models.intelligence import IntelligenceFinding, IntelligenceScan
 from app.models.transaction import Transaction
 from app.models.user import User
+from app.services.password_reset_service import invalidate_account_sessions
 from app.privacy_schemas import (
     PrivacyExportBudget,
     PrivacyExportCategorySuggestion,
@@ -37,13 +38,14 @@ class PasswordReuseError(ValueError):
 
 
 def change_password(db: Session, user: User, current_password: str, new_password: str) -> None:
-    if not verify_password(current_password, user.password_hash):
+    user = db.scalar(select(User).where(User.id == user.id).with_for_update().execution_options(populate_existing=True))
+    if user is None or not verify_password(current_password, user.password_hash):
         raise InvalidCurrentPasswordError("Current password is incorrect")
     if verify_password(new_password, user.password_hash):
         raise PasswordReuseError("New password must be different from the current password")
 
     user.password_hash = hash_password(new_password)
-    user.session_version += 1
+    invalidate_account_sessions(db, user, datetime.now(timezone.utc))
     db.commit()
     db.refresh(user)
 

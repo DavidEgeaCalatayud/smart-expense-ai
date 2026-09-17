@@ -74,6 +74,8 @@ function AuthenticatedStack() {
         <Stack.Protected guard={user === null}>
           <Stack.Screen name="sign-in" />
           <Stack.Screen name="register" />
+          <Stack.Screen name="forgot-password" />
+          <Stack.Screen name="reset-password" />
         </Stack.Protected>
       </Stack>
       {user ? <BottomNavigation /> : null}

@@ -8,6 +8,7 @@ import { CategoriesPage } from './pages/CategoriesPage';
 import { DashboardPage } from './pages/DashboardPage';
 import { FinancialAssistantPage } from './pages/FinancialAssistantPage';
 import { ImportPage } from './pages/ImportPage';
+import { PasswordRecoveryPage } from './pages/PasswordRecoveryPage';
 import { LoginPage } from './pages/LoginPage';
 import { PredictionsPage } from './pages/PredictionsPage';
 import { RegisterPage } from './pages/RegisterPage';
@@ -42,6 +43,8 @@ function App() {
   return (
     <Routes>
       <Route path={ROUTES.login} element={<LoginPage />} />
+      <Route path={ROUTES.forgotPassword} element={<PasswordRecoveryPage key="request" mode="request" />} />
+      <Route path={ROUTES.resetPassword} element={<PasswordRecoveryPage key="reset" mode="reset" />} />
       <Route path={ROUTES.register} element={<RegisterPage />} />
 
       <Route element={<ProtectedWorkspace />}>

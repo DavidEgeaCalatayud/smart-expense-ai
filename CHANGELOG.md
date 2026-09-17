@@ -1,5 +1,11 @@
 All notable changes to Smart Expense AI will be documented in this file.
 
+## Authentication reliability and password recovery
+
+- Shared one-use email password recovery for web and Android, 20-minute hashed tokens, PostgreSQL abuse limits and atomic web/mobile session revocation.
+- Public recovery screens and one controlled login retry for server cold starts.
+- Interchangeable Brevo/Resend adapters, disabled until provider credentials and a verified sender are configured. See [deployment and security notes](docs/password-recovery.md).
+
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/). The project has not yet declared a stable semantic-version release, so existing repository history is not retroactively presented as fabricated releases. Git history and merged pull requests remain the authoritative record for work completed before changelog adoption.
 
 ## [Unreleased]

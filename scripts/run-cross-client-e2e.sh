@@ -1,5 +1,6 @@
 #!/usr/bin/env bash
 set -euo pipefail
+export E2E_RECOVERY_OUTBOX=${E2E_RECOVERY_OUTBOX:-/tmp/smart-expense-recovery-outbox}
 
 PACKAGE_ID='com.davidegea.smartexpenseai'
 MAESTRO_RESULTS="${RUNNER_TEMP:-/tmp}/maestro-results"
@@ -51,7 +52,7 @@ start_backend() {
   stop_backend
   (
     cd backend
-    nohup python -m uvicorn app.main:app --host 0.0.0.0 --port 8000 \
+    nohup python -m uvicorn e2e_app:app --no-access-log --host 0.0.0.0 --port 8000 \
       >> "$BACKEND_LOG" 2>&1 &
     echo $! > "$BACKEND_PID_FILE"
   )

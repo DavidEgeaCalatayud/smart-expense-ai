@@ -51,6 +51,7 @@ export function LoginPage() {
           Access only the financial data that belongs to your account.
         </p>
 
+        {(isSubmitting || isLoading) && <p role="status" className="mt-4 text-sm text-slate-500">Connecting securely… The server may need up to two minutes to wake up.</p>}
         {error && <ApiErrorAlert error={error} className="mt-5" />}
 
         <form className="mt-6 space-y-5" onSubmit={handleSubmit}>
@@ -66,9 +67,13 @@ export function LoginPage() {
             />
           </label>
 
-          <label className="block text-sm font-semibold text-slate-700">
-            Password
+          <div>
+            <div className="flex items-center justify-between text-sm">
+              <label htmlFor="login-password" className="font-semibold text-slate-700">Password</label>
+              <Link to={ROUTES.forgotPassword} className="font-medium text-brand-700 hover:underline">Forgot password?</Link>
+            </div>
             <input
+              id="login-password"
               type="password"
               required
               autoComplete="current-password"
@@ -76,7 +81,7 @@ export function LoginPage() {
               onChange={(event) => setPassword(event.target.value)}
               className="mt-2 w-full rounded-2xl border border-slate-200 px-4 py-3 font-normal outline-none transition focus:border-brand-400 focus:ring-4 focus:ring-brand-50"
             />
-          </label>
+          </div>
 
           <button
             type="submit"
