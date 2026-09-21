@@ -1,8 +1,45 @@
 # Smart Expense AI
 
-Smart Expense AI is a personal-finance application built around persisted transaction data, account isolation, exact monetary arithmetic and explainable analysis. Machine-learning output is introduced as user-controlled assistance or evaluated challengers rather than silently rewriting financial records.
+[![CI](https://github.com/DavidEgeaCalatayud/smart-expense-ai/actions/workflows/ci.yml/badge.svg)](https://github.com/DavidEgeaCalatayud/smart-expense-ai/actions/workflows/ci.yml)
 
-The product does **not** simulate financial facts. Transactions, budgets, dashboard metrics, actionable findings, historical snapshots, recurring-payment projections, month-end forecasts and category-suggestion feedback come from PostgreSQL-backed workflows and reproducible algorithms. The Financial Assistant may use an LLM to choose bounded read-only tools and explain those backend-produced facts, but the model is not the source of truth for money, budgets, findings or historical analysis.
+Production-minded personal-finance platform built around persisted transaction data, exact monetary arithmetic, account isolation and explainable analysis. It combines a **FastAPI + PostgreSQL backend**, a **React + TypeScript web client** and an **Expo / React Native Android client**.
+
+**Live deployment:** https://smart-expense-free.onrender.com
+
+## Engineering at a glance
+
+| Area | Implementation |
+| --- | --- |
+| Backend | Python, FastAPI, SQLAlchemy 2, Alembic, PostgreSQL |
+| Web | React, TypeScript, Vite, Vitest, Playwright |
+| Mobile | React Native, Expo, TypeScript, Android |
+| Analysis | Deterministic financial rules, historical analysis, forecasting baselines and evaluated ML challengers |
+| Security | Argon2, HttpOnly sessions, scoped ownership, rate limiting, dependency audits and SBOM generation |
+| Delivery | Docker, GitHub Actions, Android preview/release validation and Render deployment |
+
+```text
+React web / React Native mobile
+              |
+              v
+        FastAPI API
+              |
+      +-------+--------+
+      |                |
+      v                v
+PostgreSQL       analysis services
+                 rules / history /
+                 forecast / assistant
+```
+
+### Engineering highlights
+
+- Exact financial calculations use PostgreSQL `NUMERIC` and Python `Decimal`, with explicit API money contracts.
+- Analytical features distinguish deterministic production evidence from offline ML challengers instead of silently promoting experimental models.
+- CI covers backend/frontend/mobile validation, security audits, SBOM generation, benchmarks and Android release paths.
+- Authentication, privacy export/deletion and user-owned data are enforced server-side.
+- The public Render deployment is a live demonstration environment; local Docker Compose remains the reproducible development path.
+
+The product does **not** simulate financial facts. Transactions, budgets, dashboard metrics, findings, historical snapshots, recurring-payment projections and forecasts come from persisted workflows and reproducible algorithms. The optional Financial Assistant can explain bounded backend-produced evidence, but it is not the source of truth for financial data.
 
 ## Current capabilities
 
