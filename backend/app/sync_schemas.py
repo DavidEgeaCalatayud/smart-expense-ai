@@ -10,21 +10,32 @@ from pydantic import BaseModel, Field, field_validator, model_validator
 
 
 SYNC_PROTOCOL_VERSION = "sync-v1"
-SyncEntityType = Literal["transaction", "category", "budget"]
+SyncEntityType = Literal[
+    "transaction",
+    "category",
+    "budget",
+    "financial_account",
+    "financial_account_snapshot",
+]
 SyncOperation = Literal["upsert", "delete"]
 SyncMutationStatus = Literal["applied", "duplicate", "conflict", "rejected"]
 
-_MONEY_PATTERN = re.compile(r"^\d+(?:\.\d{1,2})?$")
+_MONEY_PATTERN = re.compile(r"^-?\d+(?:\.\d{1,2})?$")
 
 
-def _validate_positive_money_string(value: object, field_name: str) -> str:
+def _validate_money_string(value: object, field_name: str, *, positive: bool = False) -> str:
     if not isinstance(value, str) or not _MONEY_PATTERN.fullmatch(value):
-        raise ValueError(f"{field_name} must be a positive decimal string with at most two decimals")
+        qualifier = "positive " if positive else ""
+        raise ValueError(
+            f"{field_name} must be a {qualifier}decimal string with at most two decimals"
+        )
     try:
         amount = Decimal(value)
     except InvalidOperation as exc:
         raise ValueError(f"{field_name} is not a valid decimal amount") from exc
-    if amount <= 0 or amount.as_tuple().exponent < -2 or amount >= Decimal("10000000000"):
+    if positive and amount <= 0:
+        raise ValueError(f"{field_name} must be positive")
+    if amount.as_tuple().exponent < -2 or abs(amount) >= Decimal("10000000000"):
         raise ValueError(f"{field_name} is outside the supported NUMERIC(12,2) range")
     return value
 
@@ -44,7 +55,7 @@ class TransactionSyncPayload(BaseModel):
     @field_validator("amount", mode="before")
     @classmethod
     def validate_amount(cls, value: object) -> str:
-        return _validate_positive_money_string(value, "amount")
+        return _validate_money_string(value, "amount", positive=True)
 
     @field_validator("transactionDate")
     @classmethod
@@ -78,7 +89,7 @@ class BudgetSyncPayload(BaseModel):
     @field_validator("limitAmount", mode="before")
     @classmethod
     def validate_limit_amount(cls, value: object) -> str:
-        return _validate_positive_money_string(value, "limitAmount")
+        return _validate_money_string(value, "limitAmount", positive=True)
 
     @field_validator("month")
     @classmethod
@@ -90,6 +101,42 @@ class BudgetSyncPayload(BaseModel):
         if parsed.isoformat() != value or parsed.day != 1:
             raise ValueError("month must use YYYY-MM-01")
         return value
+
+
+class FinancialAccountSyncPayload(BaseModel):
+    name: str = Field(..., min_length=1, max_length=120)
+    institution: str | None = Field(default=None, max_length=120)
+    accountType: Literal["checking", "savings", "broker", "wallet", "cash", "other"]
+    purpose: Literal[
+        "daily",
+        "savings",
+        "emergency_fund",
+        "opportunities",
+        "investment",
+        "other",
+    ]
+    currentBalance: str
+    currency: Literal["EUR"]
+    includeInNetWorth: bool
+    archived: bool
+    balanceUpdatedAt: datetime
+
+    @field_validator("currentBalance", mode="before")
+    @classmethod
+    def validate_current_balance(cls, value: object) -> str:
+        return _validate_money_string(value, "currentBalance")
+
+
+class FinancialAccountSnapshotSyncPayload(BaseModel):
+    financialAccountId: UUID
+    balance: str
+    recordedAt: datetime
+    source: Literal["manual", "open_banking", "import"]
+
+    @field_validator("balance", mode="before")
+    @classmethod
+    def validate_balance(cls, value: object) -> str:
+        return _validate_money_string(value, "balance")
 
 
 class SyncMutationRequest(BaseModel):
