@@ -50,6 +50,29 @@ class PrivacyExportCategorySuggestion(BaseModel):
     updatedAt: datetime
 
 
+class PrivacyExportFinancialAccount(BaseModel):
+    id: str
+    name: str
+    institution: str | None
+    accountType: str
+    purpose: str
+    currentBalance: str
+    currency: str
+    includeInNetWorth: bool
+    archived: bool
+    balanceUpdatedAt: datetime
+    createdAt: datetime
+    updatedAt: datetime
+
+
+class PrivacyExportFinancialAccountBalanceSnapshot(BaseModel):
+    id: str
+    financialAccountId: str
+    balance: str
+    recordedAt: datetime
+    source: str
+
+
 class PrivacyExportSubscription(BaseModel):
     planTier: str
     subscriptionStatus: str
@@ -61,4 +84,8 @@ class PrivacyExportResponseWithImports(PrivacyExportResponse):
     customCategories: list[PrivacyExportCustomCategory] = Field(default_factory=list)
     budgets: list[PrivacyExportBudget] = Field(default_factory=list)
     categorySuggestions: list[PrivacyExportCategorySuggestion] = Field(default_factory=list)
+    financialAccounts: list[PrivacyExportFinancialAccount] = Field(default_factory=list)
+    financialAccountBalanceSnapshots: list[PrivacyExportFinancialAccountBalanceSnapshot] = Field(
+        default_factory=list
+    )
     subscription: PrivacyExportSubscription | None = None
