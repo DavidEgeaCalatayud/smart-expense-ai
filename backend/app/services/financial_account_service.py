@@ -177,7 +177,11 @@ def record_financial_account_balance(
 ) -> tuple[FinancialAccountResponse, FinancialAccountBalanceSnapshotResponse] | None:
     account = db.scalar(
         select(FinancialAccount)
-        .where(FinancialAccount.id == account_id, FinancialAccount.user_id == user_id)
+        .where(
+            FinancialAccount.id == account_id,
+            FinancialAccount.user_id == user_id,
+            FinancialAccount.archived.is_(False),
+        )
         .with_for_update()
     )
     if account is None:
