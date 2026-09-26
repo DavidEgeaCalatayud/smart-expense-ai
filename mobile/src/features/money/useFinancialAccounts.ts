@@ -172,7 +172,9 @@ export function useFinancialAccounts() {
   }, [loadRows]);
 
   const create = useCallback(async (input: FinancialAccountFormInput) => {
-    await mutate(() => createOfflineFinancialAccount(db, input));
+    await mutate(async () => {
+      await createOfflineFinancialAccount(db, input);
+    });
   }, [db, mutate]);
 
   const updateMetadata = useCallback(async (
