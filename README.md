@@ -1,46 +1,504 @@
 # Smart Expense AI
 
-Smart Expense AI is a privacy-focused personal finance workspace for tracking transactions, budgets, net worth, reports, forecasts, explainable financial intelligence, and grounded assistant workflows across web and Android.
+[![CI](https://github.com/DavidEgeaCalatayud/smart-expense-ai/actions/workflows/ci.yml/badge.svg)](https://github.com/DavidEgeaCalatayud/smart-expense-ai/actions/workflows/ci.yml)
 
-The project is intentionally self-hostable and keeps user-scoped financial data behind authenticated FastAPI APIs. Web and Android clients share exact monetary contracts; the Android app uses a SQLCipher-backed offline-first replica and synchronization engine.
+Production-minded personal-finance platform built around persisted transaction data, exact monetary arithmetic, account isolation and explainable analysis. It combines a **FastAPI + PostgreSQL backend**, a **React + TypeScript web client** and an **Expo / React Native Android client**.
 
-## Highlights
+**Live deployment:** https://smart-expense-free.onrender.com
 
-- Authenticated transaction management with exact decimal money contracts.
-- Manual **Mi dinero / Net worth** workspace for banks, brokers, wallets and cash without connecting external institutions.
-- Purpose-aware balances: day-to-day, savings, emergency fund, opportunities, investments and other.
-- Immutable manual balance snapshots and historical net-worth evolution.
-- Android offline-first net-worth editing through the encrypted local database and `sync-v1` replication.
-- Budgets, CSV import, reports, forecasts, historical analysis and advanced insights.
-- Explainable financial-intelligence findings with persisted evidence.
-- Grounded Financial Assistant tools that read server-computed facts instead of inventing financial values.
-- Account privacy export and deletion workflows.
-- PostgreSQL + FastAPI backend, React web frontend and Expo/React Native Android client.
+## Engineering at a glance
 
-## Repository layout
+| Area | Implementation |
+| --- | --- |
+| Backend | Python, FastAPI, SQLAlchemy 2, Alembic, PostgreSQL |
+| Web | React, TypeScript, Vite, Vitest, Playwright |
+| Mobile | React Native, Expo, TypeScript, Android |
+| Analysis | Deterministic financial rules, historical analysis, forecasting baselines and evaluated ML challengers |
+| Security | Argon2, HttpOnly sessions, scoped ownership, rate limiting, dependency audits and SBOM generation |
+| Delivery | Docker, GitHub Actions, Android preview/release validation and Render deployment |
 
 ```text
-backend/        FastAPI, SQLAlchemy, Alembic, PostgreSQL services and tests
-frontend/       React web application
-mobile/         Expo / React Native Android application
-shared/         Shared API and domain contracts
-docs/           Product and engineering documentation
+React web / React Native mobile
+              |
+              v
+        FastAPI API
+              |
+      +-------+--------+
+      |                |
+      v                v
+PostgreSQL       analysis services
+                 rules / history /
+                 forecast / assistant
 ```
 
-## Manual net worth architecture
+### Engineering highlights
 
-`FinancialAccount` stores the current manually maintained balance and classification metadata. `FinancialAccountBalanceSnapshot` stores immutable historical balance observations. Updating a balance never overwrites the historical series.
+- Exact financial calculations use PostgreSQL `NUMERIC` and Python `Decimal`, with explicit API money contracts.
+- Analytical features distinguish deterministic production evidence from offline ML challengers instead of silently promoting experimental models.
+- CI covers backend/frontend/mobile validation, security audits, SBOM generation, benchmarks and Android release paths.
+- Authentication, privacy export/deletion and user-owned data are enforced server-side.
+- The public Render deployment is a live demonstration environment; local Docker Compose remains the reproducible development path.
 
-The initial contract is EUR-only and deliberately avoids Open Banking credentials. Web writes use the authenticated API directly; Android writes first to encrypted SQLite and synchronize through the same server authority. The sync journal replicates both current account state and server-authored balance snapshots so a new Android installation can reconstruct historical net worth.
+The product does **not** simulate financial facts. Transactions, budgets, dashboard metrics, findings, historical snapshots, recurring-payment projections and forecasts come from persisted workflows and reproducible algorithms. The optional Financial Assistant can explain bounded backend-produced evidence, but it is not the source of truth for financial data.
 
-## Development
+## Current capabilities
 
-See the component-specific documentation under `backend/`, `frontend/`, `mobile/` and `docs/` for local setup, testing and deployment details.
+### Persistent finance core
 
-## Security and privacy
+- PostgreSQL persistence through SQLAlchemy 2 and Alembic.
+- Authenticated per-user transaction ownership.
+- Transaction CRUD with server-side pagination, search, filters and sorting.
+- Guided authenticated CSV history import with mapping, validation, normalization, per-user duplicate fingerprints and transactional import batches.
+- User-managed custom categories with system/user ownership, explicit type, case-insensitive conflicts, rename, archive/reassign and restore semantics.
+- Persisted monthly overall and per-expense-category budgets with `Decimal` limits and server-calculated progress.
+- Server-side summary/monthly analytics.
+- PostgreSQL `NUMERIC(12,2)` and Python `Decimal` for financial calculations.
+- Decimal-string monetary contracts in `/api/v2` and integer-cent frontend arithmetic.
+- Backwards-compatible `/api/v1` serialization for existing clients.
+- Typed frontend API errors preserving safe backend messages, validation details and request IDs.
 
-Financial records are scoped to the authenticated user. Android local financial data is stored in the SQLCipher-backed database, and privacy export includes manual financial accounts and their balance history. See [SECURITY.md](SECURITY.md) for the security model and reporting guidance.
+CSV ingestion deliberately accepts EUR only until a real FX/multi-currency accounting model exists. See [`docs/csv-import.md`](docs/csv-import.md).
 
-## License
+### Accounts, privacy and security
 
-See [LICENSE](LICENSE).
+- Registration, login and logout.
+- Argon2 password hashing.
+- Signed JWT sessions in HttpOnly, SameSite=Lax cookies.
+- Issuer/audience/expiry/session-version validation.
+- Password rotation with server-side session revocation and current-session rotation.
+- Authenticated `privacy-export-v1` and confirmed account deletion.
+- Privacy export covers transactions, intelligence/history records, import batches, custom categories, budgets and category-suggestion feedback, always scoped by authenticated user ownership.
+- Trusted-host validation, restricted CORS and cross-site mutation protection.
+- Nginx authentication rate limiting and browser security headers.
+- `pip-audit`, `npm audit` and reproducible CycloneDX backend/frontend dependency SBOMs in CI.
+
+### Actionable financial intelligence — `rules-v2`
+
+The persisted findings engine uses canonical merchants, recurring streams and chronological baselines. Current finding types are:
+
+```text
+recurring_pattern
+recurring_payment_missing
+duplicate_subscription
+spending_anomaly
+frequency_anomaly
+```
+
+Highlights include lifecycle/calendar-aware recurrence, missed-payment evidence, duplicate-subscription signals, prior-only merchant amount anomalies using `merchant_mad_plus_extreme_iqr_v1`, frequency anomalies and persisted review states.
+
+### Offline anomaly challenger — `isolation-forest-v1`
+
+The repository evaluates an IsolationForest challenger without wiring it into the product engine. `rules-v2` remains authoritative for persisted findings.
+
+```text
+strictly prior transaction state
+        -> causal-transaction-features-v1
+        -> fit history only
+        -> calibrate score threshold on a later labelled range
+        -> evaluate on later validation/holdout rows
+        -> compare rules-v2 / isolation-forest-v1 / union hybrid
+```
+
+Features include current amount, prior merchant median and robust deviation, days since previous purchase, merchant frequency, current-month and rolling-seven-day merchant counts, prior amount CV and prior history depth. Reports use identical labelled support and expose precision, recall, F1, false positives per 100 and history-depth slices.
+
+The documented hybrid `rules-v2-or-isolation-forest-v1` is an evaluation policy only. Every challenger report keeps `replaceProductionRules=false`; synthetic performance does not authorize a production replacement and no fraud claim is made.
+
+See [`docs/isolation-forest-challenger.md`](docs/isolation-forest-challenger.md).
+
+### Historical analysis — `historical-v2.2`
+
+Historical analysis is a separate persisted diagnostic layer. It includes complete-month trend analysis, partial-month handling, auditable merchant canonicalization, recurrence segmentation under `lifecycle-v1`, missed expected occurrences, chronological merchant amount outliers, category shifts and versioned snapshots.
+
+### Upcoming recurring payments — `recurring-calendar-v1`
+
+The protected **Predictions** workspace turns established `historical-v2.2` recurrence evidence into a visible upcoming-payment calendar without introducing another recurrence model.
+
+```text
+historical-v2.2 recurring profile
+        -> cadence / lifecycle / amount / price evidence
+        -> recurring-calendar-v1
+        -> upcoming payments + overdue schedules
+```
+
+Future items use deterministic `expected`, `likely` or `price_changed` evidence states. Overdue schedules are kept separate and excluded from `expectedTotal`. Dormant/missing streams are not rolled forward until new activity re-establishes them, and price-continuity streams project the latest observed price regime.
+
+See [`docs/upcoming-payments.md`](docs/upcoming-payments.md).
+
+### Month-end spending forecast — `spending-forecast-v1`
+
+Predictions also exposes three transparent estimates of total expense spending at month end:
+
+```text
+A. previous three complete months mean
+B. current-month calendar-day run rate
+C. recurrence-aware variable run rate + recurring-calendar-v1 future charges
+```
+
+The recurrence-aware baseline keeps already-observed spending exactly once, removes qualified recurring transactions from the variable-spend numerator and adds only future recurring occurrences through month end. Recurrence identity comes from the existing `historical-v2.2` / `lifecycle-v1` pipeline rather than a manual recurring flag or a second estimator.
+
+Every forecast is causal at `asOf`: transactions after that date are discarded before any feature or recurrence evidence is built. Historical error is measured with fixed day-15 chronological walk-forward folds. All three baselines use identical support and report MAE, sMAPE and signed bias beside the estimate.
+
+`spending-forecast-v1` is deterministic baseline evidence, not calibrated probability. A future forecasting ML challenger can enter the product only if it consistently improves transparent baselines on the same chronological folds/support.
+
+See [`docs/spending-forecast.md`](docs/spending-forecast.md).
+
+### User-controlled category suggestions — `tfidf-logreg-v1`
+
+The classifier is a production **suggestion** path, not automatic categorization.
+
+```text
+merchant descriptor
+      |
+      +--> authenticated user's prior canonical-merchant feedback
+      |          |
+      |          +--> active visible compatible category
+      |
+      +--> otherwise global word + character TF-IDF
+                    |
+                    v
+             Logistic Regression
+                    |
+                    v
+          compatible system category
+```
+
+Global model contract:
+
+```text
+modelVersion   = tfidf-logreg-v1
+featurePolicy  = merchant_descriptor_only_v1
+```
+
+The suggestion API is `POST /api/v2/category-suggestions/preview`. A suggestion never changes the selected transaction category until the user explicitly accepts it or chooses another category. V2 writes persist transaction + suggestion decision atomically. Account-owned categories are learned only from that account's feedback and are never injected into the global taxonomy.
+
+Raw `predict_proba` values remain evaluation primitives only. `productConfidenceEnabled=false` remains explicit until representative real labelled data supports a calibrated confidence policy.
+
+### Financial Assistant v1
+
+The protected **Assistant** workspace adds stateless natural-language questions over the existing financial services.
+
+```text
+user question
+     |
+     v
+POST /api/v2/assistant/query
+     |
+     v
+FinancialAssistantService
+     |
+     +--> LLM provider: tool selection + explanation only
+     |
+     +--> six bounded read-only tools
+              |
+              +--> transaction analytics / Decimal period comparison
+              +--> budgets
+              +--> persisted rules-v2 findings
+              +--> latest persisted historical-v2.2 snapshot
+              +--> bounded transaction search
+              |
+              v
+          evidence JSON
+     |
+     v
+backend evidence whitelist
+     |
+     v
+answer + canonical evidence + limitations + requestId
+```
+
+V1 tools are:
+
+```text
+get_financial_summary
+compare_periods
+get_budget_progress
+get_financial_findings
+get_historical_insights
+search_transactions
+```
+
+No tool accepts `userId`; scope is always derived from the authenticated backend session. `compare_periods` calculates differences, percentages and category deltas with server-side `Decimal` arithmetic. Findings and historical tools are read-only: asking a question does not trigger an intelligence scan or create a historical snapshot.
+
+The final evidence list is not trusted directly from model text. The backend resolves model-selected `(source, reference)` pairs against references emitted by tools actually executed in the request, drops invented references and adds a limitation when grounding is incomplete.
+
+The default OpenAI adapter uses the Responses API, strict function schemas, structured output and `store=false`; provider access is optional and the rest of the application starts normally without an API key. Financial Assistant v1 does not persist chat history, use RAG/embeddings/vector storage, perform autonomous financial mutations or use multi-agent/model-routing frameworks.
+
+Privacy boundary: if an external LLM provider is configured, it necessarily processes the question and bounded tool output required to answer it. The application omits its internal authenticated user ID from provider schemas and does not persist local assistant threads, but operators must still evaluate the provider's current data-processing/retention terms.
+
+See [`docs/financial-assistant.md`](docs/financial-assistant.md).
+
+### Category-classifier evidence
+
+`financial-benchmark-v1` contains complete synthetic category labels. Chronological repeated-merchant performance is intentionally complemented by a canonical merchant-group-disjoint cold-start slice:
+
+```text
+merchant-group holdout
+samples                     382
+evaluation merchant groups    9
+train/evaluation overlap       0
+accuracy                0.400524
+macro-F1                0.201242
+weighted-F1             0.254513
+```
+
+Synthetic probability diagnostics on the separate calibration protocol are:
+
+| Method | Multiclass Brier | ECE |
+| --- | ---: | ---: |
+| Raw logistic probabilities | 0.018193 | 0.082021 |
+| Platt scaling | 0.008871 | 0.004624 |
+| Isotonic calibration | 0.009156 | 0.004711 |
+
+These are synthetic development diagnostics, not real-world banking accuracy. See [`ai/category-classifier/README.md`](ai/category-classifier/README.md).
+
+### Privacy-safe independent/private evaluation
+
+`private-real-data-v1` is a local/offline harness for evaluating the deployed classifier, `rules-v2` and `historical-v2.2` against independently labelled transactions without committing financial records.
+
+Private data remains under ignored `data/private/`. Reports contain aggregate support/metrics plus a SHA-256 dataset fingerprint and deliberately omit raw merchants, transaction IDs and row-level errors.
+
+See [`docs/private-evaluation.md`](docs/private-evaluation.md).
+
+### Public observed financial evidence — `berka-real-data-v1`
+
+The repository now also contains a reproducible **real public historical** evidence run over the PKDD'99 Berka banking dataset. Raw source rows are not committed; the versioned report stores only aggregate metrics, provenance and SHA-256 fingerprints.
+
+Observed coverage includes 4,500 accounts and 1,056,320 real transactions from 1993-1998. On **171,826 causal account-month folds**, the previous-three-month mean beats the day-15 run rate on both MAE and sMAPE:
+
+| Baseline | MAE | sMAPE | Bias |
+| --- | ---: | ---: | ---: |
+| Previous 3 months | **8,856.30** | **55.1532%** | -580.13 |
+| Day-15 run rate | 11,102.60 | 66.2022% | +4,526.65 |
+
+The run rate wins only 35.24% of folds. This is useful negative evidence: a more reactive estimator is not automatically better on observed banking behavior.
+
+Berka also provides an independent `order.asc` relation for permanent orders and realized transfers in `trans.asc`. 5,788 of 6,471 permanent orders link to observed transfers (89.45%). A transparent prior-only standing-order reference baseline reaches precision 0.9970 / recall 1.0000 / F1 0.9985 over its explicitly censored active-observation window. That result describes **standing bank orders**, not every merchant subscription, and is not presented as a `historical-v2.2` production score.
+
+Berka cannot validate modern merchant-text classification, suggestion acceptance/correction or subjective anomaly usefulness. Those remain modern/private evidence requirements.
+
+See [`docs/REAL_WORLD_EVIDENCE.md`](docs/REAL_WORLD_EVIDENCE.md) and the aggregate report [`docs/evidence/berka-real-data-v1.json`](docs/evidence/berka-real-data-v1.json).
+
+## Evaluation methodology
+
+The repository favors chronological, leakage-aware evaluation over random time-series splitting.
+
+Evidence hierarchy:
+
+```text
+small fixture -> regression protection
+financial-benchmark-v1 -> synthetic development evidence
+spending-forecast-benchmark-v1 -> deterministic forecast regression evidence
+anomaly-challenger-benchmark-v1 -> causal ML-vs-rules regression evidence
+berka-real-data-v1 -> public observed historical banking evidence
+private-real-data-v1 harness -> mechanism for independent/private evidence
+modern independent / private labelled results -> strongest product-specific evidence
+```
+
+A green synthetic benchmark is not represented as real-world validation, and Berka evidence is not generalized beyond the labels and banking products the source actually contains.
+
+## Analysis contracts: single source of truth
+
+Stable identifiers crossing code, API, benchmark and documentation boundaries live in:
+
+```text
+backend/app/analysis_contracts.py
+```
+
+Current contracts include:
+
+```text
+rules-v2
+historical-v2.2
+recurring-calendar-v1
+spending-forecast-v1
+berka-real-data-v1
+merchant_mad_plus_extreme_iqr_v1
+isolation-forest-v1
+causal-transaction-features-v1
+rules-v2-or-isolation-forest-v1
+lifecycle-v1
+tfidf-logreg-v1
+merchant_descriptor_only_v1
+```
+
+Ownership and change rules are documented in [`docs/analysis-contracts.md`](docs/analysis-contracts.md), with CI consistency tests. Financial Assistant v1 composes these domain contracts but is not itself an analytical model/version contract.
+
+## Not implemented yet
+
+- Verified password reset/recovery through an email/token delivery channel.
+- MFA.
+- Automatic category assignment or per-user classifier retraining.
+- User-facing calibrated category confidence.
+- Automatic/background intelligence scans.
+- Persistent assistant threads, assistant memory, RAG/vector search, autonomous financial actions or multi-model routing.
+- Direct bank API integrations.
+- Multi-currency/FX accounting and foreign-currency CSV import.
+- Probabilistic fraud detection.
+- Production anomaly ML replacement: `isolation-forest-v1` remains an offline challenger and `rules-v2` stays the product engine until representative real labelled evidence justifies any promotion.
+- Modern/private independent validation for `tfidf-logreg-v1`, `rules-v2`, `historical-v2.2`, recurrence-aware forecasting and the IsolationForest challenger. `berka-real-data-v1` now provides public observed evidence for transparent forecast baselines and standing-order regularity, but it is not a substitute for modern product-specific labels.
+- Category-level spending forecasting and forecast warning thresholds.
+- Production forecasting ML; any challenger must first beat the deterministic baselines on the same causal folds/support.
+- Production staging/TLS/centralized monitoring.
+- Container-image vulnerability scanning and image-level SBOM/provenance generation.
+
+## Quick start with Docker
+
+```bash
+docker compose up --build
+```
+
+Open `http://localhost:5173`.
+
+Financial Assistant is optional. Without `OPENAI_API_KEY`, the application remains operational and only `POST /api/v2/assistant/query` returns `503 financial_assistant_not_configured`. To enable the OpenAI adapter, set the backend-only variables documented in `.env.example` / [`docs/financial-assistant.md`](docs/financial-assistant.md) before starting Compose.
+
+Production Compose path:
+
+```text
+Browser
+  |
+  v
+Nginx + React :5173
+  |
+  v
+FastAPI :8000 (internal)
+  |  authenticated transaction/category/budget/import APIs
+  |  category suggestion + persisted feedback
+  |  rules-v2 findings
+  |  historical-v2.2 diagnostics
+  |  recurring-calendar-v1 upcoming payments
+  |  spending-forecast-v1 month-end baselines/backtests
+  |  Financial Assistant -> optional external LLM provider
+  v
+PostgreSQL 16 :5432 (internal)
+```
+
+`OPENAI_API_KEY` is forwarded only to the backend container and is not compiled into the frontend. `isolation-forest-v1` is intentionally absent from the production path above; it exists only in offline evaluation tooling.
+
+Stop with `docker compose down`. Use `docker compose down -v` only when intentionally deleting the database volume.
+
+## Architecture
+
+```text
+React + TypeScript
+        |
+        v
+Nginx reverse proxy
+        |
+        v
+FastAPI /api/v1 + /api/v2
+        |
+        +--> transaction/category/budget/import services
+        +--> category suggestions -> user feedback / tfidf-logreg-v1
+        +--> rules-v2 findings
+        +--> historical-v2.2
+        +--> recurring-calendar-v1
+        +--> spending-forecast-v1 -> deterministic baselines + walk-forward errors
+        +--> Financial Assistant
+                  |
+                  +--> bounded read-only domain tools
+                  +--> optional OpenAI Responses provider
+        |
+        v
+SQLAlchemy 2 -> PostgreSQL NUMERIC
+
+Evaluation tooling
+        +--> financial-benchmark-v1
+        +--> spending-forecast-benchmark-v1
+        +--> anomaly-challenger-benchmark-v1 -> rules-v2 vs isolation-forest-v1 vs union
+        +--> berka-real-data-v1 -> public observed historical banking evidence
+        +--> chronological / cold-start / calibration reports
+        +--> private-real-data-v1 aggregate-only local evaluation
+```
+
+See [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md).
+
+## Repository structure
+
+```text
+smart-expense-ai/
+├── frontend/        # React + TypeScript, Vitest, Playwright, Nginx
+├── backend/         # FastAPI, persistence, ML runtime, LLM provider boundary, evaluation, tests
+│   ├── app/
+│   ├── ml/
+│   ├── benchmark/
+│   ├── datasets/
+│   ├── scripts/
+│   └── tests/
+├── data/private/    # local real-data evaluation; contents ignored except README
+├── ai/              # model cards
+├── docs/
+├── .github/workflows/
+├── compose.yaml
+├── ROADMAP.md
+├── CHANGELOG.md
+├── SECURITY.md
+├── LICENSE
+└── README.md
+```
+
+## Main API groups
+
+```text
+/api/v1/auth/*
+/api/v1/categories
+/api/v2/transactions
+/api/v2/category-suggestions/preview
+/api/v2/assistant/query
+/api/v2/analytics/*
+/api/v2/imports/*
+/api/v2/budgets
+/api/v2/intelligence/*
+```
+
+Forecast endpoint:
+
+```text
+GET /api/v2/analytics/spending-forecast?asOf=YYYY-MM-DD
+```
+
+There is deliberately no IsolationForest product endpoint. Full HTTP contract: [`docs/api.md`](docs/api.md).
+
+## Testing and CI
+
+Backend:
+
+```bash
+cd backend
+pip install -r requirements.txt -r requirements-dev.txt
+pytest
+```
+
+Frontend quality chain:
+
+```bash
+cd frontend
+npm ci
+npm run test
+npm run typecheck
+npm run lint
+npm run build
+```
+
+GitHub Actions gates PostgreSQL migrations, critical Playwright E2E, Docker Compose, dependency security audits, Financial benchmark, Lifecycle diagnostic, Category classifier benchmark, **Spending forecast benchmark**, **Anomaly challenger benchmark** and CycloneDX SBOM generation. Assistant regressions cover strict no-identity tool schemas, backend-owned account scope, Decimal period comparisons, invented-evidence filtering, provider-unavailable behavior, protected UI rendering and a browser request body containing only the question. Berka unit regressions separately protect parsing, day-15 causality, per-account observation boundaries, safe ZIP handling, provenance and committed aggregate-report privacy without requiring the raw dataset in CI.
+
+See [`docs/testing.md`](docs/testing.md), [`docs/REAL_WORLD_EVIDENCE.md`](docs/REAL_WORLD_EVIDENCE.md), [`docs/financial-assistant.md`](docs/financial-assistant.md), [`docs/upcoming-payments.md`](docs/upcoming-payments.md), [`docs/spending-forecast.md`](docs/spending-forecast.md) and [`docs/isolation-forest-challenger.md`](docs/isolation-forest-challenger.md).
+
+## Documentation and governance
+
+- [`ROADMAP.md`](ROADMAP.md) — implemented vs future work.
+- [`CHANGELOG.md`](CHANGELOG.md) — Unreleased change log.
+- [`docs/production-deployment.md`](docs/production-deployment.md) — 0 EUR hosting proposal (Render Free + Neon Free), owner inputs and publication gates.
+- [`docs/android-release.md`](docs/android-release.md) — signed Android builds and physical-device acceptance.
+- [`docs/REAL_WORLD_EVIDENCE.md`](docs/REAL_WORLD_EVIDENCE.md) — public observed financial evidence, provenance, metrics and limitations.
+- [`docs/financial-assistant.md`](docs/financial-assistant.md) — stateless LLM/tool/evidence/privacy contract.
+- [`docs/analysis-contracts.md`](docs/analysis-contracts.md) — analytical identifiers and ownership.
+- [`docs/private-evaluation.md`](docs/private-evaluation.md) — local independent/private evaluation contract.
+- [`docs/upcoming-payments.md`](docs/upcoming-payments.md) — recurring calendar projection semantics.
+- [`docs/spending-forecast.md`](docs/spending-forecast.md) — deterministic forecast/backtest contract.
+- [`docs/isolation-forest-challenger.md`](docs/isolation-forest-challenger.md) — causal anomaly challenger model/evaluation contract.
+- [`docs/api.md`](docs/api.md) — HTTP contracts.
+- [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md) — implemented architecture.
+- [`docs/DATA_MODEL.md`](docs/DATA_MODEL.md) — persistence model.
+- [`docs/testing.md`](docs/testing.md) — verification layers.
+- [`SECURITY.md`](SECURITY.md) — vulnerability reporting/security policy.
+- [`LICENSE`](LICENSE) — MIT license.
