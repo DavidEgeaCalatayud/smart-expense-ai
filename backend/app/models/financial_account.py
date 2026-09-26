@@ -5,7 +5,20 @@ from decimal import Decimal
 from typing import TYPE_CHECKING
 from uuid import UUID, uuid4
 
-from sqlalchemy import Boolean, CheckConstraint, DateTime, ForeignKey, Index, Numeric, String, func, text, true
+from sqlalchemy import (
+    BigInteger,
+    Boolean,
+    CheckConstraint,
+    DateTime,
+    FetchedValue,
+    ForeignKey,
+    Index,
+    Numeric,
+    String,
+    func,
+    text,
+    true,
+)
 from sqlalchemy.dialects.postgresql import UUID as PG_UUID
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
@@ -27,6 +40,7 @@ class FinancialAccount(Base):
             name="ck_financial_accounts_purpose",
         ),
         CheckConstraint("currency = 'EUR'", name="ck_financial_accounts_currency_eur"),
+        CheckConstraint("sync_version > 0", name="ck_financial_accounts_sync_version_positive"),
         Index("ix_financial_accounts_user_active", "user_id", "archived"),
     )
 
@@ -56,6 +70,12 @@ class FinancialAccount(Base):
         server_default=text("false"),
     )
     balance_updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
+    sync_version: Mapped[int] = mapped_column(
+        BigInteger,
+        nullable=False,
+        server_default=text("1"),
+        server_onupdate=FetchedValue(),
+    )
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True),
         nullable=False,
