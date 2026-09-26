@@ -1,6 +1,7 @@
 import type {
   BudgetSyncPayload,
   CategorySyncPayload,
+  FinancialAccountSyncPayload,
   SyncChange,
   SyncMutation,
   TransactionSyncPayload,
@@ -21,7 +22,13 @@ const TABLE_BY_ENTITY = {
   transaction: 'transactions',
   category: 'categories',
   budget: 'budgets',
+  financial_account: 'financial_accounts',
 } as const;
+
+function localFinancialAccountPayload(conflict: StoredConflictRow): FinancialAccountSyncPayload | null {
+  if (conflict.entity_type !== 'financial_account' || !conflict.local_payload_json) return null;
+  return JSON.parse(conflict.local_payload_json) as FinancialAccountSyncPayload;
+}
 
 function serverChangeFromConflict(conflict: StoredConflictRow): SyncChange {
   const changedAt = new Date().toISOString();
@@ -43,33 +50,23 @@ function serverChangeFromConflict(conflict: StoredConflictRow): SyncChange {
   switch (conflict.entity_type) {
     case 'transaction':
       return {
-        cursor: 'conflict-resolution',
-        entityType: 'transaction',
-        entityId: conflict.entity_id,
-        operation: 'upsert',
-        version,
-        changedAt,
-        payload: payload as TransactionSyncPayload,
+        cursor: 'conflict-resolution', entityType: 'transaction', entityId: conflict.entity_id,
+        operation: 'upsert', version, changedAt, payload: payload as TransactionSyncPayload,
       };
     case 'category':
       return {
-        cursor: 'conflict-resolution',
-        entityType: 'category',
-        entityId: conflict.entity_id,
-        operation: 'upsert',
-        version,
-        changedAt,
-        payload: payload as CategorySyncPayload,
+        cursor: 'conflict-resolution', entityType: 'category', entityId: conflict.entity_id,
+        operation: 'upsert', version, changedAt, payload: payload as CategorySyncPayload,
       };
     case 'budget':
       return {
-        cursor: 'conflict-resolution',
-        entityType: 'budget',
-        entityId: conflict.entity_id,
-        operation: 'upsert',
-        version,
-        changedAt,
-        payload: payload as BudgetSyncPayload,
+        cursor: 'conflict-resolution', entityType: 'budget', entityId: conflict.entity_id,
+        operation: 'upsert', version, changedAt, payload: payload as BudgetSyncPayload,
+      };
+    case 'financial_account':
+      return {
+        cursor: 'conflict-resolution', entityType: 'financial_account', entityId: conflict.entity_id,
+        operation: 'upsert', version, changedAt, payload: payload as FinancialAccountSyncPayload,
       };
   }
 }
@@ -88,27 +85,34 @@ function retryMutationFromConflict(conflict: StoredConflictRow): SyncMutation {
 
   switch (conflict.entity_type) {
     case 'transaction':
-      return {
-        ...metadata,
-        entityType: 'transaction',
-        operation: 'upsert',
-        payload: payload as TransactionSyncPayload,
-      };
+      return { ...metadata, entityType: 'transaction', operation: 'upsert', payload: payload as TransactionSyncPayload };
     case 'category':
-      return {
-        ...metadata,
-        entityType: 'category',
-        operation: 'upsert',
-        payload: payload as CategorySyncPayload,
-      };
+      return { ...metadata, entityType: 'category', operation: 'upsert', payload: payload as CategorySyncPayload };
     case 'budget':
-      return {
-        ...metadata,
-        entityType: 'budget',
-        operation: 'upsert',
-        payload: payload as BudgetSyncPayload,
-      };
+      return { ...metadata, entityType: 'budget', operation: 'upsert', payload: payload as BudgetSyncPayload };
+    case 'financial_account': {
+      const localPayload = payload as FinancialAccountSyncPayload;
+      const serverPayload = conflict.server_payload_json
+        ? JSON.parse(conflict.server_payload_json) as FinancialAccountSyncPayload
+        : null;
+      const retryPayload = serverPayload?.currentBalance === localPayload.currentBalance
+        ? { ...localPayload, balanceSnapshotId: null, balanceUpdatedAt: serverPayload.balanceUpdatedAt }
+        : localPayload;
+      return { ...metadata, entityType: 'financial_account', operation: 'upsert', payload: retryPayload };
+    }
   }
+}
+
+async function removePendingBalanceSnapshot(
+  db: SQLiteDatabase,
+  conflict: StoredConflictRow,
+): Promise<void> {
+  const localPayload = localFinancialAccountPayload(conflict);
+  if (!localPayload?.balanceSnapshotId) return;
+  await db.runAsync(
+    'DELETE FROM financial_account_snapshots WHERE id = ? AND pending = 1',
+    localPayload.balanceSnapshotId,
+  );
 }
 
 export async function resolveConflictWithServer(
@@ -116,10 +120,9 @@ export async function resolveConflictWithServer(
   conflictId: number,
 ): Promise<void> {
   const conflict = await getUnresolvedConflict(db, conflictId);
-  if (!conflict) {
-    return;
-  }
+  if (!conflict) return;
   await runKeyedTransaction(db, async (txn) => {
+    await removePendingBalanceSnapshot(txn, conflict);
     await applySyncChange(txn, serverChangeFromConflict(conflict), { force: true });
     await markConflictResolved(txn, conflictId);
   });
@@ -130,9 +133,7 @@ export async function retryConflictWithLocalValue(
   conflictId: number,
 ): Promise<void> {
   const conflict = await getUnresolvedConflict(db, conflictId);
-  if (!conflict) {
-    return;
-  }
+  if (!conflict) return;
   if (conflict.reason !== 'stale_version') {
     throw new Error('Only stale-version conflicts can safely retry the local value');
   }
@@ -140,6 +141,14 @@ export async function retryConflictWithLocalValue(
   const now = new Date().toISOString();
 
   await runKeyedTransaction(db, async (txn) => {
+    if (
+      conflict.entity_type === 'financial_account'
+      && mutation.entityType === 'financial_account'
+      && mutation.operation === 'upsert'
+      && mutation.payload.balanceSnapshotId === null
+    ) {
+      await removePendingBalanceSnapshot(txn, conflict);
+    }
     await txn.runAsync(
       `UPDATE ${TABLE_BY_ENTITY[conflict.entity_type]}
        SET sync_status = 'pending', server_version = ?, updated_at = ?
