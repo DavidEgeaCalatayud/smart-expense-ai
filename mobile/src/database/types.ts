@@ -70,6 +70,8 @@ export interface LocalFinancialAccountSnapshotRow {
   id: string;
   financial_account_id: string;
   balance_minor: number;
+  include_in_net_worth: 0 | 1;
+  archived: 0 | 1;
   recorded_at: string;
   source: FinancialAccountSnapshotSource;
   pending: 0 | 1;
