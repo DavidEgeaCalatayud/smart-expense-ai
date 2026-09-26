@@ -1,6 +1,7 @@
 import type {
   BudgetSyncPayload,
   CategorySyncPayload,
+  FinancialAccountSyncPayload,
   SyncMutation,
   TransactionSyncPayload,
 } from '@smart-expense-ai/api-contracts';
@@ -116,9 +117,7 @@ export async function markMutationsSending(
   db: SQLiteDatabase,
   mutationIds: readonly string[],
 ): Promise<void> {
-  if (mutationIds.length === 0) {
-    return;
-  }
+  if (mutationIds.length === 0) return;
   const now = new Date().toISOString();
   await runKeyedTransaction(db, async (txn) => {
     for (const mutationId of mutationIds) {
@@ -139,9 +138,7 @@ export async function requeueMutations(
   mutationIds: readonly string[],
   error: string,
 ): Promise<void> {
-  if (mutationIds.length === 0) {
-    return;
-  }
+  if (mutationIds.length === 0) return;
   const now = new Date().toISOString();
   await runKeyedTransaction(db, async (txn) => {
     for (const mutationId of mutationIds) {
@@ -185,11 +182,7 @@ export function outboxRowToMutation(row: OutboxRow): SyncMutation {
   };
 
   if (row.operation === 'delete') {
-    return {
-      ...metadata,
-      entityType: row.entity_type,
-      operation: 'delete',
-    };
+    return { ...metadata, entityType: row.entity_type, operation: 'delete' };
   }
 
   if (!row.payload_json) {
@@ -199,25 +192,17 @@ export function outboxRowToMutation(row: OutboxRow): SyncMutation {
 
   switch (row.entity_type) {
     case 'transaction':
-      return {
-        ...metadata,
-        entityType: 'transaction',
-        operation: 'upsert',
-        payload: payload as TransactionSyncPayload,
-      };
+      return { ...metadata, entityType: 'transaction', operation: 'upsert', payload: payload as TransactionSyncPayload };
     case 'category':
-      return {
-        ...metadata,
-        entityType: 'category',
-        operation: 'upsert',
-        payload: payload as CategorySyncPayload,
-      };
+      return { ...metadata, entityType: 'category', operation: 'upsert', payload: payload as CategorySyncPayload };
     case 'budget':
+      return { ...metadata, entityType: 'budget', operation: 'upsert', payload: payload as BudgetSyncPayload };
+    case 'financial_account':
       return {
         ...metadata,
-        entityType: 'budget',
+        entityType: 'financial_account',
         operation: 'upsert',
-        payload: payload as BudgetSyncPayload,
+        payload: payload as FinancialAccountSyncPayload,
       };
   }
 }
