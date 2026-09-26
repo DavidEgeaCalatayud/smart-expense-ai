@@ -2,7 +2,7 @@
 
 ## Status and ownership
 
-The owner has set a hard hosting budget of **0 EUR/year**. The earlier paid infrastructure proposal is withdrawn. Render is connected and lists `My Workspace`; no resources have been created. Neon, the EAS project and the Google Play application remain unlinked. This document is not evidence of an active service or a published app.
+The owner has set a hard hosting budget of **0 EUR/year**. The earlier paid infrastructure proposal is withdrawn. The Render Free service `smart-expense-free` exists in Frankfurt at `https://smart-expense-free.onrender.com`, backed by Neon PostgreSQL. Automatic deployment is disabled. The latest observed deployment and release requirements are recorded in [v1-release-status.md](v1-release-status.md). EAS project linking, permanent distribution credentials and Google Play acceptance are still unverified.
 
 The new Blueprint has one Render Free web service in Frankfurt. A combined Docker image serves the web UI through the existing Nginx edge and binds FastAPI only to loopback inside the same container. PostgreSQL is external on the owner's Neon Free project. There are no Render database, private-service, disk, worker or paid compute resources in `render.yaml`. CI compilation artifacts remain unsuitable for Android distribution.
 
@@ -85,12 +85,12 @@ Leave deployment/distribution roadmap items open until this record has real evid
 | Evidence | Current status |
 | --- | --- |
 | Hosting budget | 0 EUR/year; paid configuration withdrawn |
-| Render workspace | Connected; resource/billing confirmation pending |
-| Neon Free project, service IDs, deployment IDs and HTTPS URL | Not provisioned |
-| Migrations, persistence, ingress and backup/restore acceptance | Not run on a deployed host |
+| Render workspace | Connected; existing `smart-expense-free` service on Free |
+| Neon Free project, service IDs, deployment IDs and HTTPS URL | Existing HTTPS backend; see the dated live record in `v1-release-status.md` |
+| Migrations, persistence, ingress and backup/restore acceptance | Must be verified for the new release; backup/restore evidence remains pending |
 | Completed privacy/support/deletion URLs and store declarations | Awaiting operator details and deployment |
 | EAS project ownership and signing certificate | Not linked |
-| Signed preview APK / production AAB and checksums | Not built |
+| Signed preview APK / production AAB and checksums | Temporary preview releases exist; permanent distribution evidence remains pending |
 | Physical-device and Play-delivered acceptance | Not run |
 | Play application, review/rollout and public listing | Not submitted |
 

@@ -2,11 +2,17 @@ name: Installable Android preview
 
 on:
   workflow_dispatch:
+    inputs:
+      release_tag:
+        description: 'Optional candidate tag matching mobile version (for example v1.0.0-rc.1)'
+        required: false
+        type: string
   push:
     branches: ['android-preview/**']
 
 permissions:
   contents: read
+  checks: read
 
 concurrency:
   group: android-preview-${{ github.ref }}
@@ -26,6 +32,27 @@ jobs:
       EXPO_NO_TELEMETRY: '1'
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          fetch-depth: 0
+      - name: Require reviewed source and validate candidate version
+        env:
+          GH_TOKEN: ${{ github.token }}
+          REQUESTED_TAG: ${{ inputs.release_tag }}
+        run: |
+          python scripts/check-release-source.py
+          python - <<'PY'
+          import json, os, re
+          tag = os.environ.get('REQUESTED_TAG') or os.environ['GITHUB_REF_NAME'].removeprefix('android-preview/')
+          if tag.startswith('v'):
+              if not re.fullmatch(r'v[0-9]+\.[0-9]+\.[0-9]+-rc\.[1-9][0-9]*', tag):
+                  raise SystemExit('Preview publication accepts only semantic release-candidate tags')
+              if json.load(open('mobile/app.json'))['expo']['version'] != tag[1:]:
+                  raise SystemExit('Candidate tag must match mobile version')
+          elif os.environ.get('REQUESTED_TAG'):
+              raise SystemExit('Requested release tag must be a semantic release candidate')
+          PY
+      - name: Verify the deployed HTTPS routes before distribution
+        run: python scripts/check-live-backend.py --base-url "$EXPO_PUBLIC_API_BASE_URL" --output dist/android-preview/backend-smoke.json
       - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
         with:
           node-version: '22.13.0'
@@ -94,7 +121,7 @@ jobs:
   publish:
     name: Publish preview download
     needs: apk
-    if: startsWith(github.ref, 'refs/heads/android-preview/')
+    if: startsWith(github.ref, 'refs/heads/android-preview/') || inputs.release_tag != ''
     runs-on: ubuntu-latest
     timeout-minutes: 5
     permissions:
@@ -110,7 +137,12 @@ jobs:
           GH_REPO: ${{ github.repository }}
           PREVIEW_TAG: android-preview-${{ github.run_id }}
           PREVIEW_SHA: ${{ github.sha }}
+          REQUESTED_TAG: ${{ inputs.release_tag }}
         run: |
+          candidate_tag="${REQUESTED_TAG:-${GITHUB_REF_NAME#android-preview/}}"
+          if [[ "$candidate_tag" =~ ^v[0-9]+\.[0-9]+\.[0-9]+-rc\.[1-9][0-9]*$ ]]; then
+            PREVIEW_TAG="$candidate_tag"
+          fi
           cat > "$RUNNER_TEMP/preview-notes.md" <<'NOTES'
           APK de prueba de Smart Expense AI conectado a https://smart-expense-free.onrender.com.
 
@@ -124,6 +156,7 @@ jobs:
             preview/smart-expense-ai-preview.apk \
             preview/smart-expense-ai-preview.apk.sha256 \
             preview/build-info.json \
+            preview/backend-smoke.json \
             --target "$PREVIEW_SHA" --prerelease --latest=false \
             --title "Smart Expense AI — APK de prueba ($PREVIEW_TAG)" \
             --notes-file "$RUNNER_TEMP/preview-notes.md"

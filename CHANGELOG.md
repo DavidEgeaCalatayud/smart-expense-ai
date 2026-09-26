@@ -10,6 +10,13 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+### V1 candidate and distribution preparation
+
+- Android `1.0.0-rc.1` / versionCode `4`, with manual-money accounts, bank selection and timestamp-preserving offline history from PR #117.
+- Exact-source release gates, read-only deployed HTTPS smoke evidence, semantic candidate publication and a manual permanent-key APK/AAB build workflow.
+- Certificate/hash/build registration and a physical-acceptance verifier that rejects preview keys, mismatched bytes and incomplete device evidence.
+- Correct the obsolete unprovisioned-hosting status. Stable V1, real email delivery, independent labelled-data validation and real billing remain open; see `docs/v1-release-status.md`.
+
 ### Android release readiness
 
 - Harden preview and production native transport consistently; reject missing/non-HTTPS API configuration and E2E diagnostic mode before distribution compilation.

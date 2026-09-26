@@ -57,3 +57,9 @@ pnpm-debug.log*
 
 # Docker
 .docker/
+
+# Permanent Android signing credentials belong in owner-controlled secret storage.
+*.keystore
+*.jks
+*.p12
+credentials.json

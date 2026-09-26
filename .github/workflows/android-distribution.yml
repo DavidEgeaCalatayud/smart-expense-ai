@@ -1,0 +1,71 @@
+name: Signed Android distribution
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  checks: read
+
+concurrency:
+  group: android-distribution
+  cancel-in-progress: false
+
+jobs:
+  build:
+    name: Build permanent signed APK and AAB
+    if: github.ref == 'refs/heads/main'
+    environment: android-production
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    env:
+      CI: 'true'
+      APP_ENV: production
+      EXPO_PUBLIC_API_BASE_URL: https://smart-expense-free.onrender.com
+      EXPO_PUBLIC_E2E_MODE: ''
+      EXPO_NO_TELEMETRY: '1'
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          fetch-depth: 0
+      - name: Require exact source CI and native E2E
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: python scripts/check-release-source.py
+      - name: Check signing prerequisites before building
+        env:
+          ANDROID_KEYSTORE_BASE64: ${{ secrets.ANDROID_KEYSTORE_BASE64 }}
+          ANDROID_STORE_PASSWORD: ${{ secrets.ANDROID_STORE_PASSWORD }}
+          ANDROID_KEY_PASSWORD: ${{ secrets.ANDROID_KEY_PASSWORD }}
+          ANDROID_KEY_ALIAS: ${{ secrets.ANDROID_KEY_ALIAS }}
+          ANDROID_CERT_SHA256: ${{ vars.ANDROID_CERT_SHA256 }}
+        run: |
+          for name in ANDROID_KEYSTORE_BASE64 ANDROID_STORE_PASSWORD ANDROID_KEY_PASSWORD ANDROID_KEY_ALIAS ANDROID_CERT_SHA256; do
+            if [[ -z "${!name:-}" ]]; then echo "Missing required signing setting: $name" >&2; exit 1; fi
+          done
+      - name: Verify deployed HTTPS ingress
+        run: python scripts/check-live-backend.py --base-url "$EXPO_PUBLIC_API_BASE_URL" --output dist/android-distribution/backend-smoke.json
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version: '22.13.0'
+      - uses: actions/setup-java@dd06d9cba3e5552c54d9f8ea23572deb30010f7c # v6.0.0
+        with:
+          distribution: temurin
+          java-version: '17'
+      - name: Install mobile dependencies
+        run: npm install --workspace=@smart-expense-ai/mobile --include-workspace-root=false --no-audit --no-fund
+      - name: Build and verify both artifacts
+        env:
+          ANDROID_KEYSTORE_BASE64: ${{ secrets.ANDROID_KEYSTORE_BASE64 }}
+          ANDROID_STORE_PASSWORD: ${{ secrets.ANDROID_STORE_PASSWORD }}
+          ANDROID_KEY_PASSWORD: ${{ secrets.ANDROID_KEY_PASSWORD }}
+          ANDROID_KEY_ALIAS: ${{ secrets.ANDROID_KEY_ALIAS }}
+          ANDROID_CERT_SHA256: ${{ vars.ANDROID_CERT_SHA256 }}
+        run: bash scripts/build-android-distribution.sh
+      - name: Retain signed artifacts for physical-device acceptance
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: android-distribution-${{ github.sha }}
+          path: dist/android-distribution/
+          if-no-files-found: error
+          retention-days: 14
