@@ -258,6 +258,8 @@ def build_privacy_export(db: Session, user: User) -> PrivacyExportResponseWithIm
                 id=str(snapshot.id),
                 financialAccountId=str(snapshot.financial_account_id),
                 balance=f"{snapshot.balance:.2f}",
+                includeInNetWorth=snapshot.include_in_net_worth,
+                archived=snapshot.archived,
                 recordedAt=snapshot.recorded_at,
                 source=snapshot.source,
             )
