@@ -131,6 +131,8 @@ class FinancialAccountSyncPayload(BaseModel):
 class FinancialAccountSnapshotSyncPayload(BaseModel):
     financialAccountId: UUID
     balance: str
+    includeInNetWorth: bool
+    archived: bool
     recordedAt: datetime
     source: Literal["manual", "open_banking", "import"]
 
