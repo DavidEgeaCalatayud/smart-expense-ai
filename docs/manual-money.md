@@ -40,7 +40,7 @@ Ejemplo:
 - enero-mayo permanecen en 3.000 EUR;
 - desde junio el total pasa a 2.000 EUR.
 
-El histórico se reconstruye reproduciendo cronológicamente las observaciones de cada cuenta. La API consolida múltiples cambios del mismo día en un único total diario final.
+El histórico se reconstruye reproduciendo cronológicamente las observaciones de cada cuenta. La API consolida múltiples cambios del mismo día en un único total diario final. Cuando no existe una observación anterior al inicio de la ventana solicitada, la variación comienza en la primera observación real disponible y no se inventa un punto de patrimonio cero.
 
 La variación del patrimonio incluye altas y bajas de cuentas, depósitos, retiradas, transferencias y cambios manuales de saldo. **No equivale a rentabilidad de inversión.**
 
@@ -102,7 +102,7 @@ Las cuentas y sus observaciones forman parte de los datos financieros del usuari
 
 ## Orden de despliegue
 
-1. Desplegar backend y ejecutar las migraciones Alembic hasta `0017_financial_account_state_history`.
+1. Desplegar backend y ejecutar las migraciones Alembic hasta la revisión `0017_fin_account_state_history` (archivo `0017_financial_account_state_history.py`).
 2. Verificar API web y sincronización.
 3. Distribuir después la versión Android con esquema SQLite v4.
 
