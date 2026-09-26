@@ -2,13 +2,28 @@ export const MOBILE_SYNC_PROTOCOL_VERSION = 'sync-v1' as const;
 
 export type MobileSyncProtocolVersion = typeof MOBILE_SYNC_PROTOCOL_VERSION;
 export type SyncCursor = string;
-export type SyncEntityType = 'transaction' | 'category' | 'budget';
+export type SyncEntityType =
+  | 'transaction'
+  | 'category'
+  | 'budget'
+  | 'financial_account'
+  | 'financial_account_snapshot';
+export type MutableSyncEntityType = Exclude<SyncEntityType, 'financial_account_snapshot'>;
 export type SyncChangeOperation = 'upsert' | 'delete';
 export type SyncMutationStatus = 'applied' | 'duplicate' | 'conflict' | 'rejected';
 
 export type TransactionType = 'expense' | 'income';
 export type PaymentMethod = 'card' | 'cash' | 'bank_transfer' | 'direct_debit';
 export type TransactionSource = 'manual' | 'import' | 'bank_api';
+export type FinancialAccountType = 'checking' | 'savings' | 'broker' | 'wallet' | 'cash' | 'other';
+export type FinancialAccountPurpose =
+  | 'daily'
+  | 'savings'
+  | 'emergency_fund'
+  | 'opportunities'
+  | 'investment'
+  | 'other';
+export type FinancialAccountSnapshotSource = 'manual' | 'open_banking' | 'import';
 
 export interface TransactionSyncPayload {
   merchant: string;
@@ -36,10 +51,31 @@ export interface BudgetSyncPayload {
   limitAmount: string;
 }
 
+export interface FinancialAccountSyncPayload {
+  name: string;
+  institution: string | null;
+  accountType: FinancialAccountType;
+  purpose: FinancialAccountPurpose;
+  currentBalance: string;
+  currency: 'EUR';
+  includeInNetWorth: boolean;
+  archived: boolean;
+  balanceUpdatedAt: string;
+}
+
+export interface FinancialAccountSnapshotSyncPayload {
+  financialAccountId: string;
+  balance: string;
+  recordedAt: string;
+  source: FinancialAccountSnapshotSource;
+}
+
 export interface SyncPayloadByEntity {
   transaction: TransactionSyncPayload;
   category: CategorySyncPayload;
   budget: BudgetSyncPayload;
+  financial_account: FinancialAccountSyncPayload;
+  financial_account_snapshot: FinancialAccountSnapshotSyncPayload;
 }
 
 interface MutationMetadata {
@@ -67,8 +103,14 @@ export interface BudgetUpsertMutation extends MutationMetadata {
   payload: BudgetSyncPayload;
 }
 
+export interface FinancialAccountUpsertMutation extends MutationMetadata {
+  entityType: 'financial_account';
+  operation: 'upsert';
+  payload: FinancialAccountSyncPayload;
+}
+
 export interface DeleteMutation extends MutationMetadata {
-  entityType: SyncEntityType;
+  entityType: MutableSyncEntityType;
   operation: 'delete';
   payload?: never;
 }
@@ -77,6 +119,7 @@ export type SyncMutation =
   | TransactionUpsertMutation
   | CategoryUpsertMutation
   | BudgetUpsertMutation
+  | FinancialAccountUpsertMutation
   | DeleteMutation;
 
 export interface SyncPushRequest {
@@ -92,14 +135,14 @@ export interface SyncMutationError {
 
 export interface SyncMutationResult {
   mutationId: string;
-  entityType: SyncEntityType;
+  entityType: MutableSyncEntityType;
   entityId: string;
   status: SyncMutationStatus;
   serverVersion?: number;
   error?: SyncMutationError;
 }
 
-export interface SyncConflict<T extends SyncEntityType = SyncEntityType> {
+export interface SyncConflict<T extends MutableSyncEntityType = MutableSyncEntityType> {
   mutationId: string;
   entityType: T;
   entityId: string;
@@ -128,6 +171,8 @@ interface SyncUpsertChangeBase<T extends SyncEntityType> {
 export type TransactionUpsertChange = SyncUpsertChangeBase<'transaction'>;
 export type CategoryUpsertChange = SyncUpsertChangeBase<'category'>;
 export type BudgetUpsertChange = SyncUpsertChangeBase<'budget'>;
+export type FinancialAccountUpsertChange = SyncUpsertChangeBase<'financial_account'>;
+export type FinancialAccountSnapshotUpsertChange = SyncUpsertChangeBase<'financial_account_snapshot'>;
 
 export interface SyncDeleteChange {
   cursor: SyncCursor;
@@ -143,6 +188,8 @@ export type SyncChange =
   | TransactionUpsertChange
   | CategoryUpsertChange
   | BudgetUpsertChange
+  | FinancialAccountUpsertChange
+  | FinancialAccountSnapshotUpsertChange
   | SyncDeleteChange;
 
 export interface SyncPullPage {
