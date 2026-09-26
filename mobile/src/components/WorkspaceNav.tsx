@@ -7,7 +7,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 export type WorkspaceName = 'transactions' | 'categories' | 'budgets' | 'dashboard' | 'intelligence'
   | 'historical' | 'predictions' | 'suggestions' | 'assistant' | 'reports' | 'advanced-insights'
-  | 'account' | 'imports' | 'insights' | 'more' | 'settings';
+  | 'account' | 'imports' | 'insights' | 'more' | 'settings' | 'money';
 const INSIGHTS = ['intelligence', 'historical', 'predictions', 'suggestions', 'assistant', 'advanced-insights', 'insights'];
 const TABS = [
   { label: 'Home', href: '/' as const, icon: 'home-outline' as const },
