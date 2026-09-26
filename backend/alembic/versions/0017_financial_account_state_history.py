@@ -1,13 +1,13 @@
 """Preserve financial-account inclusion state in historical observations.
 
-Revision ID: 0017_financial_account_state_history
+Revision ID: 0017_fin_account_state_history
 Revises: 0016_financial_accounts_sync
 """
 from alembic import op
 import sqlalchemy as sa
 
 
-revision = "0017_financial_account_state_history"
+revision = "0017_fin_account_state_history"
 down_revision = "0016_financial_accounts_sync"
 branch_labels = None
 depends_on = None
