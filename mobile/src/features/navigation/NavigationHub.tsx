@@ -14,6 +14,7 @@ const insights = [
   ['Advanced insights', 'Explore the insights included in your plan', '/advanced-insights', 'analytics-outline'],
 ] as const;
 const more = [
+  ['Mi dinero', 'Patrimonio, cuentas y saldos manuales', '/money', 'cash-outline'],
   ['Budgets', 'Set limits and follow your monthly progress', '/budgets', 'wallet-outline'],
   ['Categories', 'Organize your income and expenses', '/categories', 'grid-outline'],
   ['Import CSV', 'Bring in a bank statement with a preview first', '/imports', 'cloud-upload-outline'],
