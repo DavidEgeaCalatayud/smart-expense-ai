@@ -5,10 +5,10 @@ import type { LocalFinancialAccountRow } from '../src/database/types';
 import { updateOfflineFinancialAccountBalance } from '../src/features/money/offlineFinancialAccountMutations';
 import type { OutboxRow } from '../src/sync/outboxRepository';
 
-const randomUUID = jest.fn<string, []>();
+const mockRandomUUID = jest.fn();
 
 jest.mock('expo-crypto', () => ({
-  randomUUID: () => randomUUID(),
+  randomUUID: () => mockRandomUUID(),
 }));
 
 interface SnapshotRow {
@@ -107,8 +107,8 @@ class FakeFinancialAccountDb {
 describe('offline financial account history', () => {
   beforeEach(() => {
     jest.useFakeTimers();
-    randomUUID.mockReset();
-    randomUUID
+    mockRandomUUID.mockReset();
+    mockRandomUUID
       .mockReturnValueOnce('snapshot-1100')
       .mockReturnValueOnce('mutation-account-1')
       .mockReturnValueOnce('snapshot-1200')
