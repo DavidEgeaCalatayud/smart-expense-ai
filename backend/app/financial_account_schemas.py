@@ -2,7 +2,7 @@ from datetime import datetime
 from decimal import Decimal
 from typing import Literal
 
-from pydantic import BaseModel, Field, field_validator
+from pydantic import BaseModel, Field, field_validator, model_validator
 
 
 FinancialAccountType = Literal["checking", "savings", "broker", "wallet", "cash", "other"]
@@ -46,6 +46,14 @@ class FinancialAccountUpdateRequest(BaseModel):
     purpose: FinancialAccountPurpose | None = None
     includeInNetWorth: bool | None = None
     archived: bool | None = None
+
+    @model_validator(mode="after")
+    def reject_null_required_updates(self) -> "FinancialAccountUpdateRequest":
+        nullable_only = {"institution"}
+        for field_name in self.model_fields_set:
+            if field_name not in nullable_only and getattr(self, field_name) is None:
+                raise ValueError(f"{field_name} cannot be null")
+        return self
 
 
 class FinancialAccountBalanceRequest(_ExactMoneyRequest):
