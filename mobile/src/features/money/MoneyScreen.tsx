@@ -21,6 +21,7 @@ import { WorkspaceNav } from '../../components/WorkspaceNav';
 import type { LocalFinancialAccountRow } from '../../database/types';
 import { useConflicts } from '../../sync/useConflicts';
 import { useForegroundSync } from '../../sync/useForegroundSync';
+import { MobileBankLogo, MobileBankPicker } from './bankCatalog';
 import { useFinancialAccounts } from './useFinancialAccounts';
 
 const ACCOUNT_TYPES: readonly [FinancialAccountType, string][] = [
@@ -336,19 +337,26 @@ export function MoneyScreen() {
               <Text style={styles.sectionTitle}>{formMode === 'create' ? 'Añadir cuenta' : 'Editar cuenta'}</Text>
               <Pressable onPress={closeForm}><Ionicons name="close" size={24} color="#596575" /></Pressable>
             </View>
-            <Text style={styles.fieldLabel}>Nombre</Text>
+
+            <MobileBankPicker
+              value={form.institution}
+              onSelect={(bank) => {
+                setForm((current) => ({
+                  ...current,
+                  institution: bank.name,
+                  name: current.name.trim() ? current.name : bank.name,
+                  accountType: bank.suggestedType,
+                }));
+              }}
+              onManualChange={(institution) => setForm((current) => ({ ...current, institution }))}
+            />
+
+            <Text style={styles.fieldLabel}>Nombre de la cuenta</Text>
             <TextInput
               accessibilityLabel="Nombre de cuenta"
               value={form.name}
               onChangeText={(name) => setForm((current) => ({ ...current, name }))}
-              placeholder="Trade Republic"
-              style={styles.input}
-            />
-            <Text style={styles.fieldLabel}>Institución (opcional)</Text>
-            <TextInput
-              value={form.institution}
-              onChangeText={(institution) => setForm((current) => ({ ...current, institution }))}
-              placeholder="Trade Republic"
+              placeholder="Ej. Ahorro, oportunidades, cuenta principal..."
               style={styles.input}
             />
 
@@ -411,9 +419,12 @@ export function MoneyScreen() {
         {balanceAccount ? (
           <View style={styles.sectionCard}>
             <View style={styles.sectionHeader}>
-              <View>
-                <Text style={styles.sectionTitle}>Actualizar saldo</Text>
-                <Text style={styles.muted}>{balanceAccount.name} · actual {formatEuro(balanceAccount.current_balance_minor)}</Text>
+              <View style={styles.balanceHeading}>
+                <MobileBankLogo institution={balanceAccount.institution} fallbackName={balanceAccount.name} size={40} />
+                <View>
+                  <Text style={styles.sectionTitle}>Actualizar saldo</Text>
+                  <Text style={styles.muted}>{balanceAccount.name} · actual {formatEuro(balanceAccount.current_balance_minor)}</Text>
+                </View>
               </View>
               <Pressable onPress={() => setBalanceAccount(null)}><Ionicons name="close" size={24} color="#596575" /></Pressable>
             </View>
@@ -449,9 +460,7 @@ export function MoneyScreen() {
         {accounts.map((account) => (
           <View key={account.id} style={styles.accountCard}>
             <View style={styles.accountTopRow}>
-              <View style={styles.accountIcon}>
-                <Ionicons name={account.account_type === 'broker' ? 'trending-up-outline' : 'wallet-outline'} size={21} color="#125c47" />
-              </View>
+              <MobileBankLogo institution={account.institution} fallbackName={account.name} size={42} />
               <View style={{ flex: 1 }}>
                 <Text style={styles.accountName}>{account.name}</Text>
                 <Text style={styles.muted}>{typeLabel(account.account_type)} · {account.institution ?? 'Manual'}</Text>
@@ -534,7 +543,6 @@ const styles = StyleSheet.create({
   switchRow: { flexDirection: 'row', alignItems: 'center', gap: 12, paddingVertical: 4 },
   accountCard: { backgroundColor: '#fff', borderRadius: 22, padding: 17, gap: 13, borderWidth: 1, borderColor: '#e3eae6' },
   accountTopRow: { flexDirection: 'row', alignItems: 'center', gap: 11 },
-  accountIcon: { width: 42, height: 42, borderRadius: 14, alignItems: 'center', justifyContent: 'center', backgroundColor: '#e6f4ee' },
   accountName: { fontSize: 17, fontWeight: '800' },
   accountAmount: { fontSize: 28, fontWeight: '800', letterSpacing: -0.6 },
   accountMetaRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', gap: 8 },
@@ -542,6 +550,7 @@ const styles = StyleSheet.create({
   statusPill: { backgroundColor: '#f1f4f2', paddingHorizontal: 8, paddingVertical: 5, borderRadius: 999 },
   statusText: { color: '#596575', fontSize: 10, fontWeight: '700' },
   actionRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 8, alignItems: 'center' },
+  balanceHeading: { flexDirection: 'row', alignItems: 'center', gap: 10, flex: 1 },
   primaryButton: { backgroundColor: '#125c47', borderRadius: 13, minHeight: 42, paddingHorizontal: 14, justifyContent: 'center', alignItems: 'center' },
   primaryButtonWide: { backgroundColor: '#125c47', borderRadius: 14, minHeight: 48, justifyContent: 'center', alignItems: 'center' },
   primaryButtonText: { color: '#fff', fontWeight: '800' },
