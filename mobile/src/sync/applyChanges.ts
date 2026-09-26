@@ -10,6 +10,7 @@ interface ExistingSyncRow {
 }
 
 type SqlTxn = SQLiteDatabase;
+type MutableLocalTable = 'transactions' | 'categories' | 'budgets' | 'financial_accounts';
 
 function normalizeCategoryName(value: string): string {
   return value.trim().toLocaleLowerCase();
@@ -17,7 +18,7 @@ function normalizeCategoryName(value: string): string {
 
 async function hasUnsyncedLocalIntent(
   db: SqlTxn,
-  table: 'transactions' | 'categories' | 'budgets',
+  table: MutableLocalTable,
   entityId: string,
 ): Promise<boolean> {
   const row = await db.getFirstAsync<ExistingSyncRow>(
@@ -32,12 +33,8 @@ async function applyCategoryChange(
   change: SyncChange,
   force: boolean,
 ): Promise<void> {
-  if (change.entityType !== 'category') {
-    return;
-  }
-  if (!force && (await hasUnsyncedLocalIntent(db, 'categories', change.entityId))) {
-    return;
-  }
+  if (change.entityType !== 'category') return;
+  if (!force && (await hasUnsyncedLocalIntent(db, 'categories', change.entityId))) return;
   if (change.operation === 'delete') {
     await db.runAsync('DELETE FROM categories WHERE id = ?', change.entityId);
     return;
@@ -75,12 +72,8 @@ async function applyTransactionChange(
   change: SyncChange,
   force: boolean,
 ): Promise<void> {
-  if (change.entityType !== 'transaction') {
-    return;
-  }
-  if (!force && (await hasUnsyncedLocalIntent(db, 'transactions', change.entityId))) {
-    return;
-  }
+  if (change.entityType !== 'transaction') return;
+  if (!force && (await hasUnsyncedLocalIntent(db, 'transactions', change.entityId))) return;
   if (change.operation === 'delete') {
     await db.runAsync('DELETE FROM transactions WHERE id = ?', change.entityId);
     return;
@@ -129,12 +122,8 @@ async function applyBudgetChange(
   change: SyncChange,
   force: boolean,
 ): Promise<void> {
-  if (change.entityType !== 'budget') {
-    return;
-  }
-  if (!force && (await hasUnsyncedLocalIntent(db, 'budgets', change.entityId))) {
-    return;
-  }
+  if (change.entityType !== 'budget') return;
+  if (!force && (await hasUnsyncedLocalIntent(db, 'budgets', change.entityId))) return;
   if (change.operation === 'delete') {
     await db.runAsync('DELETE FROM budgets WHERE id = ?', change.entityId);
     return;
@@ -163,6 +152,83 @@ async function applyBudgetChange(
   );
 }
 
+async function applyFinancialAccountChange(
+  db: SqlTxn,
+  change: SyncChange,
+  force: boolean,
+): Promise<void> {
+  if (change.entityType !== 'financial_account') return;
+  if (!force && (await hasUnsyncedLocalIntent(db, 'financial_accounts', change.entityId))) return;
+  if (change.operation === 'delete') {
+    await db.runAsync('DELETE FROM financial_accounts WHERE id = ?', change.entityId);
+    return;
+  }
+
+  const payload = change.payload;
+  await db.runAsync(
+    `INSERT INTO financial_accounts (
+       id, name, institution, account_type, purpose, current_balance_minor,
+       currency, include_in_net_worth, archived, balance_updated_at,
+       server_version, sync_status, created_at, updated_at
+     ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'synced', ?, ?)
+     ON CONFLICT(id) DO UPDATE SET
+       name = excluded.name,
+       institution = excluded.institution,
+       account_type = excluded.account_type,
+       purpose = excluded.purpose,
+       current_balance_minor = excluded.current_balance_minor,
+       currency = excluded.currency,
+       include_in_net_worth = excluded.include_in_net_worth,
+       archived = excluded.archived,
+       balance_updated_at = excluded.balance_updated_at,
+       server_version = excluded.server_version,
+       sync_status = 'synced',
+       updated_at = excluded.updated_at`,
+    change.entityId,
+    payload.name,
+    payload.institution,
+    payload.accountType,
+    payload.purpose,
+    decimalToMinorUnits(payload.currentBalance),
+    payload.currency,
+    payload.includeInNetWorth ? 1 : 0,
+    payload.archived ? 1 : 0,
+    payload.balanceUpdatedAt,
+    change.version,
+    change.changedAt,
+    change.changedAt,
+  );
+}
+
+async function applyFinancialAccountSnapshotChange(
+  db: SqlTxn,
+  change: SyncChange,
+): Promise<void> {
+  if (change.entityType !== 'financial_account_snapshot') return;
+  if (change.operation === 'delete') {
+    await db.runAsync('DELETE FROM financial_account_snapshots WHERE id = ?', change.entityId);
+    return;
+  }
+
+  const payload = change.payload;
+  await db.runAsync(
+    `INSERT INTO financial_account_snapshots (
+       id, financial_account_id, balance_minor, recorded_at, source, pending
+     ) VALUES (?, ?, ?, ?, ?, 0)
+     ON CONFLICT(id) DO UPDATE SET
+       financial_account_id = excluded.financial_account_id,
+       balance_minor = excluded.balance_minor,
+       recorded_at = excluded.recorded_at,
+       source = excluded.source,
+       pending = 0`,
+    change.entityId,
+    payload.financialAccountId,
+    decimalToMinorUnits(payload.balance),
+    payload.recordedAt,
+    payload.source,
+  );
+}
+
 export async function applySyncChange(
   db: SqlTxn,
   change: SyncChange,
@@ -179,6 +245,12 @@ export async function applySyncChange(
     case 'budget':
       await applyBudgetChange(db, change, force);
       return;
+    case 'financial_account':
+      await applyFinancialAccountChange(db, change, force);
+      return;
+    case 'financial_account_snapshot':
+      await applyFinancialAccountSnapshotChange(db, change);
+      return;
   }
 }
 
@@ -189,9 +261,7 @@ export async function applyChangesAndCursor(
 ): Promise<void> {
   const now = new Date().toISOString();
   await runKeyedTransaction(db, async (txn) => {
-    for (const change of changes) {
-      await applySyncChange(txn, change);
-    }
+    for (const change of changes) await applySyncChange(txn, change);
     await txn.runAsync(
       `INSERT INTO sync_state (key, value, updated_at)
        VALUES ('sync_cursor', ?, ?)
@@ -207,8 +277,6 @@ export async function applyBootstrapPage(
   changes: readonly SyncChange[],
 ): Promise<void> {
   await runKeyedTransaction(db, async (txn) => {
-    for (const change of changes) {
-      await applySyncChange(txn, change);
-    }
+    for (const change of changes) await applySyncChange(txn, change);
   });
 }
