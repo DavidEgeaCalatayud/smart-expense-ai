@@ -84,6 +84,8 @@ class FinancialAccountBalanceSnapshotResponse(BaseModel):
     id: str
     financialAccountId: str
     balance: str
+    includeInNetWorth: bool
+    archived: bool
     recordedAt: datetime
     source: str
 
@@ -113,3 +115,23 @@ class NetWorthHistoryResponse(BaseModel):
     changeAmount: str
     changePercent: str | None
     currency: str
+
+
+class FinancialAccountRankItem(BaseModel):
+    id: str
+    name: str
+    institution: str | None
+    accountType: FinancialAccountType
+    purpose: FinancialAccountPurpose
+    currentBalance: str
+    sharePercent: str | None
+
+
+class FinancialAccountsSummaryResponse(BaseModel):
+    accountCount: int
+    totalNetWorth: str
+    investedPercent: str | None
+    opportunityCapital: str
+    largestAccount: FinancialAccountRankItem | None
+    accounts: list[FinancialAccountRankItem]
+    currency: Literal["EUR"] = "EUR"
