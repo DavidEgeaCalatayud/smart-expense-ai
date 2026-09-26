@@ -85,6 +85,26 @@ function accountPayload(
   };
 }
 
+async function insertPendingSnapshot(
+  db: SQLiteDatabase,
+  account: LocalFinancialAccountRow,
+  snapshotId: string,
+  now: string,
+): Promise<void> {
+  await db.runAsync(
+    `INSERT INTO financial_account_snapshots (
+       id, financial_account_id, balance_minor, include_in_net_worth, archived,
+       recorded_at, source, pending
+     ) VALUES (?, ?, ?, ?, ?, ?, 'manual', 1)`,
+    snapshotId,
+    account.id,
+    account.current_balance_minor,
+    account.include_in_net_worth,
+    account.archived,
+    now,
+  );
+}
+
 async function queueAccountUpsert(
   db: SQLiteDatabase,
   account: LocalFinancialAccountRow,
@@ -182,15 +202,7 @@ export async function createOfflineFinancialAccount(
       account.created_at,
       account.updated_at,
     );
-    await txn.runAsync(
-      `INSERT INTO financial_account_snapshots (
-         id, financial_account_id, balance_minor, recorded_at, source, pending
-       ) VALUES (?, ?, ?, ?, 'manual', 1)`,
-      snapshotId,
-      account.id,
-      balanceMinor,
-      now,
-    );
+    await insertPendingSnapshot(txn, account, snapshotId, now);
     await queueAccountUpsert(txn, account, snapshotId, now);
   });
   return id;
@@ -207,6 +219,7 @@ export async function updateOfflineFinancialAccountMetadata(
     if (account.sync_status === 'conflict') {
       throw new Error('Resuelve el conflicto de esta cuenta antes de editarla.');
     }
+    const previousInclude = account.include_in_net_worth;
     const now = new Date().toISOString();
     account.name = cleanName(input.name);
     account.institution = cleanInstitution(input.institution);
@@ -229,7 +242,9 @@ export async function updateOfflineFinancialAccountMetadata(
       now,
       account.id,
     );
-    await queueAccountUpsert(txn, account, null, now);
+    const snapshotId = previousInclude === account.include_in_net_worth ? null : Crypto.randomUUID();
+    if (snapshotId) await insertPendingSnapshot(txn, account, snapshotId, now);
+    await queueAccountUpsert(txn, account, snapshotId, now);
   });
 }
 
@@ -264,15 +279,7 @@ export async function updateOfflineFinancialAccountBalance(
       now,
       account.id,
     );
-    await txn.runAsync(
-      `INSERT INTO financial_account_snapshots (
-         id, financial_account_id, balance_minor, recorded_at, source, pending
-       ) VALUES (?, ?, ?, ?, 'manual', 1)`,
-      snapshotId,
-      account.id,
-      balanceMinor,
-      now,
-    );
+    await insertPendingSnapshot(txn, account, snapshotId, now);
     await queueAccountUpsert(txn, account, snapshotId, now);
   });
 }
@@ -289,6 +296,7 @@ export async function archiveOfflineFinancialAccount(
     }
     if (account.archived === 1) return;
     const now = new Date().toISOString();
+    const snapshotId = Crypto.randomUUID();
     account.archived = 1;
     account.sync_status = 'pending';
     account.updated_at = now;
@@ -299,6 +307,7 @@ export async function archiveOfflineFinancialAccount(
       now,
       account.id,
     );
-    await queueAccountUpsert(txn, account, null, now);
+    await insertPendingSnapshot(txn, account, snapshotId, now);
+    await queueAccountUpsert(txn, account, snapshotId, now);
   });
 }
