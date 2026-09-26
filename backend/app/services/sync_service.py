@@ -16,11 +16,13 @@ from sqlalchemy.orm import Session
 
 from app.models.budget import Budget
 from app.models.category import Category
+from app.models.financial_account import FinancialAccount, FinancialAccountBalanceSnapshot
 from app.models.sync import SyncChange, SyncDevice, SyncMutation
 from app.models.transaction import Transaction
 from app.sync_schemas import (
     BudgetSyncPayload,
     CategorySyncPayload,
+    FinancialAccountSyncPayload,
     SyncBootstrapPage,
     SyncChangeResponse,
     SyncConflictResponse,
@@ -44,7 +46,13 @@ from app.services.sync_cursor import (
 
 
 MONEY_CENT = Decimal("0.01")
-BOOTSTRAP_PHASES: tuple[BootstrapPhase, ...] = ("category", "transaction", "budget")
+BOOTSTRAP_PHASES: tuple[BootstrapPhase, ...] = (
+    "category",
+    "transaction",
+    "budget",
+    "financial_account",
+    "financial_account_snapshot",
+)
 
 
 @dataclass(frozen=True)
@@ -86,6 +94,32 @@ def _budget_payload(budget: Budget) -> dict[str, Any]:
         "categoryId": None if budget.category_id is None else str(budget.category_id),
         "month": budget.month.isoformat(),
         "limitAmount": _money(budget.limit_amount),
+    }
+
+
+def _financial_account_payload(account: FinancialAccount) -> dict[str, Any]:
+    return {
+        "name": account.name,
+        "institution": account.institution,
+        "accountType": account.account_type,
+        "purpose": account.purpose,
+        "currentBalance": _money(account.current_balance),
+        "currency": account.currency,
+        "includeInNetWorth": account.include_in_net_worth,
+        "archived": account.archived,
+        "balanceUpdatedAt": account.balance_updated_at.isoformat(),
+        "balanceSnapshotId": None,
+    }
+
+
+def _financial_account_snapshot_payload(
+    snapshot: FinancialAccountBalanceSnapshot,
+) -> dict[str, Any]:
+    return {
+        "financialAccountId": str(snapshot.financial_account_id),
+        "balance": _money(snapshot.balance),
+        "recordedAt": snapshot.recorded_at.isoformat(),
+        "source": snapshot.source,
     }
 
 
@@ -644,6 +678,163 @@ def _apply_budget_mutation(
     )
 
 
+def _clean_required(value: str, field_name: str) -> str:
+    clean = value.strip()
+    if not clean:
+        raise ValueError(f"{field_name} cannot be empty")
+    return clean
+
+
+def _clean_optional(value: str | None) -> str | None:
+    if value is None:
+        return None
+    clean = value.strip()
+    return clean or None
+
+
+def _new_balance_snapshot(
+    *,
+    snapshot_id: UUID | None,
+    account: FinancialAccount,
+    user_id: UUID,
+    balance: Decimal,
+    recorded_at: datetime,
+) -> FinancialAccountBalanceSnapshot:
+    return FinancialAccountBalanceSnapshot(
+        id=snapshot_id or uuid4(),
+        financial_account_id=account.id,
+        user_id=user_id,
+        balance=balance,
+        recorded_at=recorded_at,
+        source="manual",
+    )
+
+
+def _apply_financial_account_mutation(
+    db: Session,
+    user_id: UUID,
+    mutation: SyncMutationRequest,
+) -> _MutationOutcome:
+    existing = db.scalar(
+        select(FinancialAccount)
+        .where(FinancialAccount.id == mutation.entityId)
+        .with_for_update()
+    )
+
+    if mutation.operation == "delete":
+        if existing is None or existing.user_id != user_id:
+            return _missing_entity_conflict(db, user_id, mutation)
+        if mutation.baseVersion != existing.sync_version:
+            return _conflict(
+                mutation,
+                "stale_version",
+                server_version=existing.sync_version,
+                server_payload=_financial_account_payload(existing),
+            )
+        return _rejected(
+            mutation,
+            "financial_account_archive_required",
+            "Financial accounts preserve balance history and must be archived instead of deleted.",
+        )
+
+    try:
+        payload = FinancialAccountSyncPayload.model_validate(mutation.payload)
+    except ValidationError as exc:
+        return _rejected(mutation, "invalid_financial_account", str(exc))
+
+    try:
+        name = _clean_required(payload.name, "name")
+    except ValueError as exc:
+        return _rejected(mutation, "invalid_financial_account", str(exc))
+    institution = _clean_optional(payload.institution)
+    next_balance = Decimal(payload.currentBalance).quantize(MONEY_CENT)
+    now = datetime.now(timezone.utc)
+
+    if existing is None:
+        if mutation.baseVersion is not None:
+            return _missing_entity_conflict(db, user_id, mutation)
+        account = FinancialAccount(
+            id=mutation.entityId,
+            user_id=user_id,
+            name=name,
+            institution=institution,
+            account_type=payload.accountType,
+            purpose=payload.purpose,
+            current_balance=next_balance,
+            currency=payload.currency,
+            include_in_net_worth=payload.includeInNetWorth,
+            archived=payload.archived,
+            balance_updated_at=now,
+        )
+        db.add(account)
+        db.flush()
+        db.add(
+            _new_balance_snapshot(
+                snapshot_id=payload.balanceSnapshotId,
+                account=account,
+                user_id=user_id,
+                balance=next_balance,
+                recorded_at=now,
+            )
+        )
+        db.flush()
+        db.refresh(account, attribute_names=["sync_version"])
+        return _MutationOutcome(
+            result=_result(mutation, "applied", server_version=account.sync_version)
+        )
+
+    if existing.user_id != user_id:
+        return _conflict(
+            mutation,
+            "ownership_or_visibility_changed",
+            server_version=None,
+            server_payload=None,
+        )
+    if mutation.baseVersion != existing.sync_version:
+        return _conflict(
+            mutation,
+            "stale_version",
+            server_version=existing.sync_version,
+            server_payload=_financial_account_payload(existing),
+        )
+
+    balance_changed = Decimal(existing.current_balance) != next_balance
+    if not balance_changed and payload.balanceSnapshotId is not None:
+        return _rejected(
+            mutation,
+            "unexpected_balance_snapshot",
+            "balanceSnapshotId is valid only when currentBalance changes.",
+        )
+
+    existing.name = name
+    existing.institution = institution
+    existing.account_type = payload.accountType
+    existing.purpose = payload.purpose
+    existing.currency = payload.currency
+    existing.include_in_net_worth = payload.includeInNetWorth
+    existing.archived = payload.archived
+    if balance_changed:
+        existing.current_balance = next_balance
+        existing.balance_updated_at = now
+
+    db.flush()
+    if balance_changed:
+        db.add(
+            _new_balance_snapshot(
+                snapshot_id=payload.balanceSnapshotId,
+                account=existing,
+                user_id=user_id,
+                balance=next_balance,
+                recorded_at=now,
+            )
+        )
+        db.flush()
+    db.refresh(existing, attribute_names=["sync_version"])
+    return _MutationOutcome(
+        result=_result(mutation, "applied", server_version=existing.sync_version)
+    )
+
+
 def _apply_mutation(
     db: Session,
     user_id: UUID,
@@ -653,7 +844,15 @@ def _apply_mutation(
         return _apply_transaction_mutation(db, user_id, mutation)
     if mutation.entityType == "category":
         return _apply_category_mutation(db, user_id, mutation)
-    return _apply_budget_mutation(db, user_id, mutation)
+    if mutation.entityType == "budget":
+        return _apply_budget_mutation(db, user_id, mutation)
+    if mutation.entityType == "financial_account":
+        return _apply_financial_account_mutation(db, user_id, mutation)
+    return _rejected(
+        mutation,
+        "read_only_sync_entity",
+        "Financial account balance snapshots are server-authored and read-only to clients.",
+    )
 
 
 def push_sync(db: Session, user_id: UUID, payload: SyncPushRequest) -> SyncPushResponse:
@@ -792,7 +991,13 @@ def _phase_rows(
     phase: BootstrapPhase,
     after_id: UUID | None,
     limit: int,
-) -> list[Category | Transaction | Budget]:
+) -> list[
+    Category
+    | Transaction
+    | Budget
+    | FinancialAccount
+    | FinancialAccountBalanceSnapshot
+]:
     if phase == "category":
         statement = select(Category).where(
             or_(Category.system_category.is_(True), Category.owner_user_id == user_id)
@@ -805,35 +1010,73 @@ def _phase_rows(
         if after_id is not None:
             statement = statement.where(Transaction.id > after_id)
         return list(db.scalars(statement.order_by(Transaction.id.asc()).limit(limit)).all())
-    statement = select(Budget).where(Budget.user_id == user_id)
+    if phase == "budget":
+        statement = select(Budget).where(Budget.user_id == user_id)
+        if after_id is not None:
+            statement = statement.where(Budget.id > after_id)
+        return list(db.scalars(statement.order_by(Budget.id.asc()).limit(limit)).all())
+    if phase == "financial_account":
+        statement = select(FinancialAccount).where(FinancialAccount.user_id == user_id)
+        if after_id is not None:
+            statement = statement.where(FinancialAccount.id > after_id)
+        return list(
+            db.scalars(statement.order_by(FinancialAccount.id.asc()).limit(limit)).all()
+        )
+    statement = select(FinancialAccountBalanceSnapshot).where(
+        FinancialAccountBalanceSnapshot.user_id == user_id
+    )
     if after_id is not None:
-        statement = statement.where(Budget.id > after_id)
-    return list(db.scalars(statement.order_by(Budget.id.asc()).limit(limit)).all())
+        statement = statement.where(FinancialAccountBalanceSnapshot.id > after_id)
+    return list(
+        db.scalars(
+            statement.order_by(FinancialAccountBalanceSnapshot.id.asc()).limit(limit)
+        ).all()
+    )
 
 
 def _bootstrap_change(
     user_id: UUID,
     high_water: int,
-    entity: Category | Transaction | Budget,
+    entity: Category
+    | Transaction
+    | Budget
+    | FinancialAccount
+    | FinancialAccountBalanceSnapshot,
     server_time: datetime,
 ) -> SyncChangeResponse:
     cursor = encode_cursor(user_id, high_water)
     if isinstance(entity, Category):
         entity_type = "category"
         payload = _category_payload(entity)
+        version = entity.sync_version
+        changed_at = server_time
     elif isinstance(entity, Transaction):
         entity_type = "transaction"
         payload = _transaction_payload(entity)
-    else:
+        version = entity.sync_version
+        changed_at = server_time
+    elif isinstance(entity, Budget):
         entity_type = "budget"
         payload = _budget_payload(entity)
+        version = entity.sync_version
+        changed_at = server_time
+    elif isinstance(entity, FinancialAccount):
+        entity_type = "financial_account"
+        payload = _financial_account_payload(entity)
+        version = entity.sync_version
+        changed_at = entity.updated_at
+    else:
+        entity_type = "financial_account_snapshot"
+        payload = _financial_account_snapshot_payload(entity)
+        version = 1
+        changed_at = entity.recorded_at
     return SyncChangeResponse(
         cursor=cursor,
         entityType=entity_type,
         entityId=entity.id,
         operation="upsert",
-        version=entity.sync_version,
-        changedAt=server_time,
+        version=version,
+        changedAt=changed_at,
         payload=payload,
     )
 
