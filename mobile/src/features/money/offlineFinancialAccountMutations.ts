@@ -1,4 +1,6 @@
 import type {
+  FinancialAccountBalanceObservationSyncPayload,
+  FinancialAccountHistoryBaseSyncPayload,
   FinancialAccountPurpose,
   FinancialAccountSyncPayload,
   FinancialAccountType,
@@ -29,6 +31,15 @@ export interface OfflineFinancialAccountMetadataInput {
   accountType: FinancialAccountType;
   purpose: FinancialAccountPurpose;
   includeInNetWorth: boolean;
+}
+
+interface PendingSnapshotRow {
+  id: string;
+  balance_minor: number;
+  include_in_net_worth: number;
+  archived: number;
+  recorded_at: string;
+  source: 'manual' | 'open_banking' | 'import';
 }
 
 function cleanName(value: string): string {
@@ -67,10 +78,51 @@ async function findAccount(db: SQLiteDatabase, accountId: string): Promise<Local
   return account;
 }
 
+function historyBaseFromAccount(account: LocalFinancialAccountRow): FinancialAccountHistoryBaseSyncPayload {
+  return {
+    currentBalance: minorUnitsToDecimal(account.current_balance_minor),
+    includeInNetWorth: account.include_in_net_worth === 1,
+    archived: account.archived === 1,
+  };
+}
+
+function observationFromAccount(
+  account: LocalFinancialAccountRow,
+  snapshotId: string,
+  recordedAt: string,
+): FinancialAccountBalanceObservationSyncPayload {
+  return {
+    id: snapshotId,
+    balance: minorUnitsToDecimal(account.current_balance_minor),
+    includeInNetWorth: account.include_in_net_worth === 1,
+    archived: account.archived === 1,
+    recordedAt,
+    source: 'manual',
+  };
+}
+
+function finalStateDiffersFromBase(
+  account: LocalFinancialAccountRow,
+  historyBase: FinancialAccountHistoryBaseSyncPayload | null,
+): boolean {
+  if (historyBase === null) return true;
+  return (
+    minorUnitsToDecimal(account.current_balance_minor) !== historyBase.currentBalance
+    || (account.include_in_net_worth === 1) !== historyBase.includeInNetWorth
+    || (account.archived === 1) !== historyBase.archived
+  );
+}
+
 function accountPayload(
   account: LocalFinancialAccountRow,
-  balanceSnapshotId: string | null,
+  historyBase: FinancialAccountHistoryBaseSyncPayload | null,
+  observations: FinancialAccountBalanceObservationSyncPayload[],
 ): FinancialAccountSyncPayload {
+  const latestObservation = observations.at(-1) ?? null;
+  const balanceSnapshotId = latestObservation && finalStateDiffersFromBase(account, historyBase)
+    ? latestObservation.id
+    : null;
+
   return {
     name: account.name,
     institution: account.institution,
@@ -82,6 +134,8 @@ function accountPayload(
     archived: account.archived === 1,
     balanceUpdatedAt: account.balance_updated_at,
     balanceSnapshotId,
+    historyBase,
+    balanceObservations: observations,
   };
 }
 
@@ -105,10 +159,33 @@ async function insertPendingSnapshot(
   );
 }
 
+async function recoverLegacyObservation(
+  db: SQLiteDatabase,
+  snapshotId: string,
+): Promise<FinancialAccountBalanceObservationSyncPayload | null> {
+  const snapshot = await db.getFirstAsync<PendingSnapshotRow>(
+    `SELECT id, balance_minor, include_in_net_worth, archived, recorded_at, source
+     FROM financial_account_snapshots
+     WHERE id = ? AND pending = 1
+     LIMIT 1`,
+    snapshotId,
+  );
+  if (!snapshot || snapshot.source !== 'manual') return null;
+  return {
+    id: snapshot.id,
+    balance: minorUnitsToDecimal(snapshot.balance_minor),
+    includeInNetWorth: snapshot.include_in_net_worth === 1,
+    archived: snapshot.archived === 1,
+    recordedAt: snapshot.recorded_at,
+    source: 'manual',
+  };
+}
+
 async function queueAccountUpsert(
   db: SQLiteDatabase,
   account: LocalFinancialAccountRow,
-  requestedSnapshotId: string | null,
+  requestedObservation: FinancialAccountBalanceObservationSyncPayload | null,
+  requestedHistoryBase: FinancialAccountHistoryBaseSyncPayload | null,
   now: string,
 ): Promise<void> {
   const existing = await db.getFirstAsync<OutboxRow>(
@@ -120,26 +197,33 @@ async function queueAccountUpsert(
     account.id,
   );
 
-  let snapshotId = requestedSnapshotId;
+  let historyBase = requestedHistoryBase;
+  let observations: FinancialAccountBalanceObservationSyncPayload[] = [];
+
   if (existing?.operation === 'upsert' && existing.payload_json) {
     const previous = JSON.parse(existing.payload_json) as FinancialAccountSyncPayload;
-    if (snapshotId === null) snapshotId = previous.balanceSnapshotId;
-    if (
-      requestedSnapshotId !== null
-      && previous.balanceSnapshotId
-      && previous.balanceSnapshotId !== requestedSnapshotId
-    ) {
-      await db.runAsync(
-        'DELETE FROM financial_account_snapshots WHERE id = ? AND pending = 1',
-        previous.balanceSnapshotId,
-      );
+    if (Object.prototype.hasOwnProperty.call(previous, 'historyBase')) {
+      historyBase = previous.historyBase ?? null;
     }
+    observations = [...(previous.balanceObservations ?? [])];
+    if (observations.length === 0 && previous.balanceSnapshotId) {
+      const legacyObservation = await recoverLegacyObservation(db, previous.balanceSnapshotId);
+      if (legacyObservation) observations.push(legacyObservation);
+    }
+    if (
+      requestedObservation
+      && !observations.some((observation) => observation.id === requestedObservation.id)
+    ) {
+      observations.push(requestedObservation);
+    }
+    observations.sort((left, right) => left.recordedAt.localeCompare(right.recordedAt));
+
     await db.runAsync(
       `UPDATE sync_outbox
        SET payload_json = ?, status = 'queued', last_error = NULL,
            client_occurred_at = ?, updated_at = ?
        WHERE mutation_id = ?`,
-      JSON.stringify(accountPayload(account, snapshotId)),
+      JSON.stringify(accountPayload(account, historyBase, observations)),
       now,
       now,
       existing.mutation_id,
@@ -147,6 +231,7 @@ async function queueAccountUpsert(
     return;
   }
 
+  if (requestedObservation) observations.push(requestedObservation);
   const mutation: FinancialAccountUpsertMutation = {
     mutationId: Crypto.randomUUID(),
     entityId: account.id,
@@ -154,7 +239,7 @@ async function queueAccountUpsert(
     operation: 'upsert',
     baseVersion: account.server_version,
     clientOccurredAt: now,
-    payload: accountPayload(account, snapshotId),
+    payload: accountPayload(account, historyBase, observations),
   };
   await enqueueMutation(db, mutation, now);
 }
@@ -203,7 +288,7 @@ export async function createOfflineFinancialAccount(
       account.updated_at,
     );
     await insertPendingSnapshot(txn, account, snapshotId, now);
-    await queueAccountUpsert(txn, account, snapshotId, now);
+    await queueAccountUpsert(txn, account, observationFromAccount(account, snapshotId, now), null, now);
   });
   return id;
 }
@@ -219,6 +304,7 @@ export async function updateOfflineFinancialAccountMetadata(
     if (account.sync_status === 'conflict') {
       throw new Error('Resuelve el conflicto de esta cuenta antes de editarla.');
     }
+    const historyBase = historyBaseFromAccount(account);
     const previousInclude = account.include_in_net_worth;
     const now = new Date().toISOString();
     account.name = cleanName(input.name);
@@ -243,8 +329,12 @@ export async function updateOfflineFinancialAccountMetadata(
       account.id,
     );
     const snapshotId = previousInclude === account.include_in_net_worth ? null : Crypto.randomUUID();
-    if (snapshotId) await insertPendingSnapshot(txn, account, snapshotId, now);
-    await queueAccountUpsert(txn, account, snapshotId, now);
+    let observation: FinancialAccountBalanceObservationSyncPayload | null = null;
+    if (snapshotId) {
+      await insertPendingSnapshot(txn, account, snapshotId, now);
+      observation = observationFromAccount(account, snapshotId, now);
+    }
+    await queueAccountUpsert(txn, account, observation, historyBase, now);
   });
 }
 
@@ -262,6 +352,7 @@ export async function updateOfflineFinancialAccountBalance(
     const balanceMinor = parseBalance(balance);
     if (balanceMinor === account.current_balance_minor) return;
 
+    const historyBase = historyBaseFromAccount(account);
     const snapshotId = Crypto.randomUUID();
     const now = new Date().toISOString();
     account.current_balance_minor = balanceMinor;
@@ -280,7 +371,13 @@ export async function updateOfflineFinancialAccountBalance(
       account.id,
     );
     await insertPendingSnapshot(txn, account, snapshotId, now);
-    await queueAccountUpsert(txn, account, snapshotId, now);
+    await queueAccountUpsert(
+      txn,
+      account,
+      observationFromAccount(account, snapshotId, now),
+      historyBase,
+      now,
+    );
   });
 }
 
@@ -295,6 +392,7 @@ export async function archiveOfflineFinancialAccount(
       throw new Error('Resuelve el conflicto de esta cuenta antes de archivarla.');
     }
     if (account.archived === 1) return;
+    const historyBase = historyBaseFromAccount(account);
     const now = new Date().toISOString();
     const snapshotId = Crypto.randomUUID();
     account.archived = 1;
@@ -308,6 +406,12 @@ export async function archiveOfflineFinancialAccount(
       account.id,
     );
     await insertPendingSnapshot(txn, account, snapshotId, now);
-    await queueAccountUpsert(txn, account, snapshotId, now);
+    await queueAccountUpsert(
+      txn,
+      account,
+      observationFromAccount(account, snapshotId, now),
+      historyBase,
+      now,
+    );
   });
 }
