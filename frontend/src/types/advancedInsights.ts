@@ -3,7 +3,13 @@ export type AdvancedInsightKind =
   | 'open_findings'
   | 'cash_flow'
   | 'expense_change'
-  | 'category_concentration';
+  | 'category_concentration'
+  | 'net_worth_liquidity'
+  | 'investment_share'
+  | 'emergency_coverage'
+  | 'net_worth_growth'
+  | 'opportunity_capital'
+  | 'account_concentration';
 
 export type AdvancedInsightPriority = 'attention' | 'positive' | 'info';
 export type AdvancedInsightMetricFormat = 'currency' | 'percent' | 'count' | 'text';
