@@ -41,9 +41,12 @@ export function normalizeMobileBankSearch(value: string): string {
 export function findMobileBankInstitution(value: string | null | undefined): MobileBankInstitution | null {
   if (!value) return null;
   const normalized = normalizeMobileBankSearch(value);
+  const exactName = MOBILE_BANK_INSTITUTIONS.find(
+    (bank) => normalizeMobileBankSearch(bank.name) === normalized,
+  );
+  if (exactName) return exactName;
   return MOBILE_BANK_INSTITUTIONS.find((bank) => (
-    normalizeMobileBankSearch(bank.name) === normalized
-    || bank.aliases.some((alias) => normalizeMobileBankSearch(alias) === normalized)
+    bank.aliases.some((alias) => normalizeMobileBankSearch(alias) === normalized)
   )) ?? null;
 }
 
