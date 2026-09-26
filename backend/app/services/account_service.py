@@ -7,6 +7,7 @@ from app.core.security import hash_password, verify_password
 from app.models.budget import Budget
 from app.models.category import Category
 from app.models.category_suggestion import CategorySuggestion
+from app.models.financial_account import FinancialAccount, FinancialAccountBalanceSnapshot
 from app.models.historical_analysis import HistoricalAnalysisSnapshot
 from app.models.import_batch import ImportBatch
 from app.models.intelligence import IntelligenceFinding, IntelligenceScan
@@ -17,6 +18,8 @@ from app.privacy_schemas import (
     PrivacyExportBudget,
     PrivacyExportCategorySuggestion,
     PrivacyExportCustomCategory,
+    PrivacyExportFinancialAccount,
+    PrivacyExportFinancialAccountBalanceSnapshot,
     PrivacyExportImportBatch,
     PrivacyExportResponseWithImports,
 )
@@ -91,6 +94,19 @@ def build_privacy_export(db: Session, user: User) -> PrivacyExportResponseWithIm
         select(CategorySuggestion)
         .where(CategorySuggestion.user_id == user.id)
         .order_by(CategorySuggestion.created_at.asc(), CategorySuggestion.id.asc())
+    ).all()
+    financial_accounts = db.scalars(
+        select(FinancialAccount)
+        .where(FinancialAccount.user_id == user.id)
+        .order_by(FinancialAccount.created_at.asc(), FinancialAccount.id.asc())
+    ).all()
+    financial_account_snapshots = db.scalars(
+        select(FinancialAccountBalanceSnapshot)
+        .where(FinancialAccountBalanceSnapshot.user_id == user.id)
+        .order_by(
+            FinancialAccountBalanceSnapshot.recorded_at.asc(),
+            FinancialAccountBalanceSnapshot.id.asc(),
+        )
     ).all()
 
     return PrivacyExportResponseWithImports(
@@ -219,6 +235,33 @@ def build_privacy_export(db: Session, user: User) -> PrivacyExportResponseWithIm
                 updatedAt=suggestion.updated_at,
             )
             for suggestion in category_suggestions
+        ],
+        financialAccounts=[
+            PrivacyExportFinancialAccount(
+                id=str(account.id),
+                name=account.name,
+                institution=account.institution,
+                accountType=account.account_type,
+                purpose=account.purpose,
+                currentBalance=f"{account.current_balance:.2f}",
+                currency=account.currency,
+                includeInNetWorth=account.include_in_net_worth,
+                archived=account.archived,
+                balanceUpdatedAt=account.balance_updated_at,
+                createdAt=account.created_at,
+                updatedAt=account.updated_at,
+            )
+            for account in financial_accounts
+        ],
+        financialAccountBalanceSnapshots=[
+            PrivacyExportFinancialAccountBalanceSnapshot(
+                id=str(snapshot.id),
+                financialAccountId=str(snapshot.financial_account_id),
+                balance=f"{snapshot.balance:.2f}",
+                recordedAt=snapshot.recorded_at,
+                source=snapshot.source,
+            )
+            for snapshot in financial_account_snapshots
         ],
     )
 
