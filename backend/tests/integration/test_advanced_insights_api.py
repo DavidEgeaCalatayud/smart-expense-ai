@@ -67,6 +67,28 @@ def transaction_payload(
     }
 
 
+def create_manual_account(
+    client: TestClient,
+    *,
+    name: str,
+    purpose: str,
+    balance: str,
+) -> None:
+    response = client.post(
+        "/api/v2/financial-accounts",
+        json={
+            "name": name,
+            "institution": name,
+            "accountType": "broker" if purpose == "investment" else "savings",
+            "purpose": purpose,
+            "currentBalance": balance,
+            "currency": "EUR",
+            "includeInNetWorth": True,
+        },
+    )
+    assert response.status_code == 201, response.text
+
+
 def metrics_by_kind(payload: dict[str, object]) -> dict[str, dict[str, str]]:
     result: dict[str, dict[str, str]] = {}
     for card in payload["insights"]:  # type: ignore[index]
@@ -143,6 +165,11 @@ def test_premium_insights_compose_exact_account_evidence(client: TestClient) -> 
     )
     assert budget.status_code == 201
 
+    create_manual_account(client, name="Daily cash", purpose="daily", balance="150.00")
+    create_manual_account(client, name="Emergency", purpose="emergency_fund", balance="150.00")
+    create_manual_account(client, name="Opportunities", purpose="opportunities", balance="200.00")
+    create_manual_account(client, name="Investments", purpose="investment", balance="500.00")
+
     response = client.get("/api/v2/insights/advanced?month=2026-09")
     assert response.status_code == 200
     payload = response.json()
@@ -151,7 +178,8 @@ def test_premium_insights_compose_exact_account_evidence(client: TestClient) -> 
     assert payload["currency"] == "EUR"
     assert payload["sourceContracts"]["monthlyReport"] == "monthly-financial-report-v1"
     assert payload["sourceContracts"]["intelligenceRules"] == "rules-v2"
-    assert len(payload["limitations"]) == 3
+    assert payload["sourceContracts"]["netWorth"] == "manual-net-worth-v1"
+    assert len(payload["limitations"]) == 5
 
     metrics = metrics_by_kind(payload)
     assert metrics["cash_flow"] == {
@@ -177,11 +205,42 @@ def test_premium_insights_compose_exact_account_evidence(client: TestClient) -> 
     assert metrics["budget_pressure"]["highestPercentUsed"] == "111.1"
     assert metrics["open_findings"]["openCount"] == "0"
 
+    assert metrics["net_worth_liquidity"] == {
+        "liquidCapital": "500.00",
+        "averageMonthlyExpenses": "50.00",
+        "coverageMonths": "10.0 months",
+    }
+    assert metrics["investment_share"] == {
+        "invested": "500.00",
+        "totalNetWorth": "1000.00",
+        "investedPercent": "50.00",
+    }
+    assert metrics["emergency_coverage"] == {
+        "emergencyFund": "150.00",
+        "averageMonthlyExpenses": "50.00",
+        "coverageMonths": "3.0 months",
+    }
+    assert metrics["opportunity_capital"] == {
+        "opportunityCapital": "200.00",
+        "totalNetWorth": "1000.00",
+    }
+    assert metrics["account_concentration"] == {
+        "account": "Investments",
+        "balance": "500.00",
+        "sharePercent": "50.00",
+    }
+    assert metrics["net_worth_growth"]["changeAmount"] == "0.00"
+
     priorities = {item["kind"]: item["priority"] for item in payload["insights"]}
     assert priorities["budget_pressure"] == "attention"
     assert priorities["expense_change"] == "attention"
     assert priorities["cash_flow"] == "positive"
     assert priorities["category_concentration"] == "info"
+    assert priorities["net_worth_liquidity"] == "info"
+    assert priorities["investment_share"] == "info"
+    assert priorities["emergency_coverage"] == "info"
+    assert priorities["opportunity_capital"] == "info"
+    assert priorities["account_concentration"] == "info"
 
 
 def test_advanced_insights_are_account_isolated_and_validate_month(client: TestClient) -> None:
