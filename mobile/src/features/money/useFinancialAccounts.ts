@@ -75,32 +75,52 @@ function summarize(accounts: readonly LocalFinancialAccountRow[]): NetWorthLocal
 }
 
 function historyFromSnapshots(
-  accounts: readonly LocalFinancialAccountRow[],
   snapshots: readonly LocalFinancialAccountSnapshotRow[],
 ): NetWorthHistoryPoint[] {
-  const included = new Set(
-    accounts
-      .filter((account) => account.archived === 0 && account.include_in_net_worth === 1)
-      .map((account) => account.id),
-  );
-  const balances = new Map<string, number>();
-  const cutoff = Date.now() - 366 * 24 * 60 * 60 * 1000;
-  const points: NetWorthHistoryPoint[] = [];
+  const state = new Map<string, LocalFinancialAccountSnapshotRow>();
+  const cutoffMs = Date.now() - 366 * 24 * 60 * 60 * 1000;
+  const cutoffIso = new Date(cutoffMs).toISOString();
+  const daily = new Map<string, NetWorthHistoryPoint>();
+  let baselineTotal = 0;
+  let hasBaseline = false;
+
   const ordered = [...snapshots]
-    .filter((snapshot) => included.has(snapshot.financial_account_id))
     .sort((a, b) => a.recorded_at.localeCompare(b.recorded_at) || a.id.localeCompare(b.id));
 
+  const totalFromState = () => [...state.values()].reduce(
+    (sum, snapshot) => (
+      snapshot.include_in_net_worth === 1 && snapshot.archived === 0
+        ? sum + snapshot.balance_minor
+        : sum
+    ),
+    0,
+  );
+
   for (const snapshot of ordered) {
-    balances.set(snapshot.financial_account_id, snapshot.balance_minor);
-    const totalMinor = [...balances.values()].reduce((sum, value) => sum + value, 0);
-    if (Date.parse(snapshot.recorded_at) >= cutoff) {
-      points.push({
-        recordedAt: snapshot.recorded_at,
-        totalMinor,
-        pending: snapshot.pending === 1,
-      });
+    state.set(snapshot.financial_account_id, snapshot);
+    const totalMinor = totalFromState();
+    const timestamp = Date.parse(snapshot.recorded_at);
+    if (timestamp < cutoffMs) {
+      baselineTotal = totalMinor;
+      hasBaseline = true;
+      continue;
     }
+    const day = snapshot.recorded_at.slice(0, 10);
+    daily.set(day, {
+      recordedAt: snapshot.recorded_at,
+      totalMinor,
+      pending: snapshot.pending === 1,
+    });
   }
+
+  const points: NetWorthHistoryPoint[] = [{
+    recordedAt: cutoffIso,
+    totalMinor: hasBaseline ? baselineTotal : 0,
+    pending: false,
+  }];
+  points.push(...[...daily.entries()]
+    .sort(([left], [right]) => left.localeCompare(right))
+    .map(([, point]) => point));
   return points;
 }
 
@@ -120,11 +140,8 @@ export function useFinancialAccounts() {
          ORDER BY created_at ASC, id ASC`,
       ),
       db.getAllAsync<LocalFinancialAccountSnapshotRow>(
-        `SELECT s.*
-         FROM financial_account_snapshots s
-         JOIN financial_accounts a ON a.id = s.financial_account_id
-         WHERE a.archived = 0
-         ORDER BY s.recorded_at ASC, s.id ASC`,
+        `SELECT * FROM financial_account_snapshots
+         ORDER BY recorded_at ASC, id ASC`,
       ),
     ]);
     setAccounts(nextAccounts);
@@ -138,9 +155,7 @@ export function useFinancialAccounts() {
         `SELECT * FROM financial_accounts WHERE archived = 0 ORDER BY created_at ASC, id ASC`,
       ),
       db.getAllAsync<LocalFinancialAccountSnapshotRow>(
-        `SELECT s.* FROM financial_account_snapshots s
-         JOIN financial_accounts a ON a.id = s.financial_account_id
-         WHERE a.archived = 0 ORDER BY s.recorded_at ASC, s.id ASC`,
+        `SELECT * FROM financial_account_snapshots ORDER BY recorded_at ASC, id ASC`,
       ),
     ])
       .then(([nextAccounts, nextSnapshots]) => {
@@ -193,7 +208,7 @@ export function useFinancialAccounts() {
   }, [db, mutate]);
 
   const summary = useMemo(() => summarize(accounts), [accounts]);
-  const history = useMemo(() => historyFromSnapshots(accounts, snapshots), [accounts, snapshots]);
+  const history = useMemo(() => historyFromSnapshots(snapshots), [snapshots]);
 
   return {
     accounts,
