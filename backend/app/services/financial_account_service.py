@@ -1,7 +1,7 @@
 from __future__ import annotations
 
-from datetime import datetime, timedelta, timezone
-from decimal import Decimal
+from datetime import date, datetime, timedelta, timezone
+from decimal import Decimal, ROUND_HALF_UP
 from uuid import UUID
 
 from sqlalchemy import select
@@ -10,7 +10,9 @@ from sqlalchemy.orm import Session
 from app.financial_account_schemas import (
     FinancialAccountBalanceSnapshotResponse,
     FinancialAccountCreateRequest,
+    FinancialAccountRankItem,
     FinancialAccountResponse,
+    FinancialAccountsSummaryResponse,
     FinancialAccountUpdateRequest,
     NetWorthHistoryPoint,
     NetWorthHistoryResponse,
@@ -20,11 +22,16 @@ from app.models.financial_account import FinancialAccount, FinancialAccountBalan
 
 
 MONEY_CENT = Decimal("0.01")
+PERCENT_CENT = Decimal("0.01")
 ZERO = Decimal("0.00")
 
 
 def _money(value: Decimal | int | str) -> str:
     return format(Decimal(value).quantize(MONEY_CENT), "f")
+
+
+def _percent(value: Decimal) -> str:
+    return format(value.quantize(PERCENT_CENT, rounding=ROUND_HALF_UP), "f")
 
 
 def _clean_required(value: str, field_name: str) -> str:
@@ -63,8 +70,28 @@ def _snapshot_response(snapshot: FinancialAccountBalanceSnapshot) -> FinancialAc
         id=str(snapshot.id),
         financialAccountId=str(snapshot.financial_account_id),
         balance=_money(snapshot.balance),
+        includeInNetWorth=snapshot.include_in_net_worth,
+        archived=snapshot.archived,
         recordedAt=snapshot.recorded_at,
         source=snapshot.source,
+    )
+
+
+def _new_snapshot(
+    *,
+    account: FinancialAccount,
+    user_id: UUID,
+    recorded_at: datetime,
+    source: str = "manual",
+) -> FinancialAccountBalanceSnapshot:
+    return FinancialAccountBalanceSnapshot(
+        financial_account_id=account.id,
+        user_id=user_id,
+        balance=account.current_balance,
+        include_in_net_worth=account.include_in_net_worth,
+        archived=account.archived,
+        recorded_at=recorded_at,
+        source=source,
     )
 
 
@@ -105,15 +132,7 @@ def create_financial_account(
     )
     db.add(account)
     db.flush()
-    db.add(
-        FinancialAccountBalanceSnapshot(
-            financial_account_id=account.id,
-            user_id=user_id,
-            balance=account.current_balance,
-            recorded_at=now,
-            source="manual",
-        )
-    )
+    db.add(_new_snapshot(account=account, user_id=user_id, recorded_at=now))
     db.commit()
     db.refresh(account)
     return _account_response(account)
@@ -133,6 +152,8 @@ def update_financial_account(
     if account is None:
         return None
 
+    previous_include = account.include_in_net_worth
+    previous_archived = account.archived
     changes = payload.model_dump(exclude_unset=True)
     if "name" in changes:
         account.name = _clean_required(changes["name"], "name")
@@ -146,6 +167,18 @@ def update_financial_account(
         account.include_in_net_worth = changes["includeInNetWorth"]
     if "archived" in changes:
         account.archived = changes["archived"]
+
+    if (
+        previous_include != account.include_in_net_worth
+        or previous_archived != account.archived
+    ):
+        db.add(
+            _new_snapshot(
+                account=account,
+                user_id=user_id,
+                recorded_at=datetime.now(timezone.utc),
+            )
+        )
 
     db.commit()
     db.refresh(account)
@@ -165,6 +198,13 @@ def archive_financial_account(db: Session, user_id: UUID, account_id: UUID) -> b
     if account is None:
         return False
     account.archived = True
+    db.add(
+        _new_snapshot(
+            account=account,
+            user_id=user_id,
+            recorded_at=datetime.now(timezone.utc),
+        )
+    )
     db.commit()
     return True
 
@@ -191,13 +231,7 @@ def record_financial_account_balance(
     exact_balance = balance.quantize(MONEY_CENT)
     account.current_balance = exact_balance
     account.balance_updated_at = now
-    snapshot = FinancialAccountBalanceSnapshot(
-        financial_account_id=account.id,
-        user_id=user_id,
-        balance=exact_balance,
-        recorded_at=now,
-        source="manual",
-    )
+    snapshot = _new_snapshot(account=account, user_id=user_id, recorded_at=now)
     db.add(snapshot)
     db.commit()
     db.refresh(account)
@@ -244,16 +278,75 @@ def get_net_worth_summary(db: Session, user_id: UUID) -> NetWorthSummaryResponse
     )
 
 
-def get_net_worth_history(db: Session, user_id: UUID, months: int) -> NetWorthHistoryResponse:
-    accounts = db.scalars(
-        select(FinancialAccount).where(
-            FinancialAccount.user_id == user_id,
-            FinancialAccount.archived.is_(False),
-            FinancialAccount.include_in_net_worth.is_(True),
+def get_financial_accounts_summary(db: Session, user_id: UUID) -> FinancialAccountsSummaryResponse:
+    accounts = list(
+        db.scalars(
+            select(FinancialAccount).where(
+                FinancialAccount.user_id == user_id,
+                FinancialAccount.archived.is_(False),
+                FinancialAccount.include_in_net_worth.is_(True),
+            )
+        ).all()
+    )
+    accounts.sort(key=lambda account: (Decimal(account.current_balance), account.name), reverse=True)
+    total = sum((Decimal(account.current_balance) for account in accounts), ZERO)
+    invested = sum(
+        (Decimal(account.current_balance) for account in accounts if account.purpose == "investment"),
+        ZERO,
+    )
+    opportunities = sum(
+        (Decimal(account.current_balance) for account in accounts if account.purpose == "opportunities"),
+        ZERO,
+    )
+
+    ranked = [
+        FinancialAccountRankItem(
+            id=str(account.id),
+            name=account.name,
+            institution=account.institution,
+            accountType=account.account_type,
+            purpose=account.purpose,
+            currentBalance=_money(account.current_balance),
+            sharePercent=None if total == ZERO else _percent((Decimal(account.current_balance) / total) * Decimal("100")),
         )
-    ).all()
-    account_ids = [account.id for account in accounts]
-    if not account_ids:
+        for account in accounts
+    ]
+    return FinancialAccountsSummaryResponse(
+        accountCount=len(ranked),
+        totalNetWorth=_money(total),
+        investedPercent=None if total == ZERO else _percent((invested / total) * Decimal("100")),
+        opportunityCapital=_money(opportunities),
+        largestAccount=ranked[0] if ranked else None,
+        accounts=ranked,
+        currency="EUR",
+    )
+
+
+def _state_total(
+    state: dict[UUID, tuple[Decimal, bool, bool]],
+) -> Decimal:
+    return sum(
+        (
+            balance
+            for balance, include_in_net_worth, archived in state.values()
+            if include_in_net_worth and not archived
+        ),
+        ZERO,
+    )
+
+
+def get_net_worth_history(db: Session, user_id: UUID, months: int) -> NetWorthHistoryResponse:
+    snapshots = list(
+        db.scalars(
+            select(FinancialAccountBalanceSnapshot)
+            .where(FinancialAccountBalanceSnapshot.user_id == user_id)
+            .order_by(
+                FinancialAccountBalanceSnapshot.recorded_at.asc(),
+                FinancialAccountBalanceSnapshot.id.asc(),
+            )
+        ).all()
+    )
+    if not snapshots:
         return NetWorthHistoryResponse(
             months=months,
             points=[],
@@ -262,47 +355,48 @@ def get_net_worth_history(db: Session, user_id: UUID, months: int) -> NetWorthHi
             currency="EUR",
         )
 
-    snapshots = db.scalars(
-        select(FinancialAccountBalanceSnapshot)
-        .where(
-            FinancialAccountBalanceSnapshot.user_id == user_id,
-            FinancialAccountBalanceSnapshot.financial_account_id.in_(account_ids),
-        )
-        .order_by(
-            FinancialAccountBalanceSnapshot.recorded_at.asc(),
-            FinancialAccountBalanceSnapshot.id.asc(),
-        )
-    ).all()
-
     now = datetime.now(timezone.utc)
     cutoff = now - timedelta(days=31 * months)
-    balances: dict[UUID, Decimal] = {}
-    points: list[NetWorthHistoryPoint] = []
-    baseline_total: Decimal | None = None
+    state: dict[UUID, tuple[Decimal, bool, bool]] = {}
+    baseline_total = ZERO
+    has_baseline = False
+    daily_totals: dict[date, tuple[datetime, Decimal]] = {}
 
     for snapshot in snapshots:
-        balances[snapshot.financial_account_id] = Decimal(snapshot.balance)
-        current_total = sum(balances.values(), ZERO)
+        state[snapshot.financial_account_id] = (
+            Decimal(snapshot.balance),
+            snapshot.include_in_net_worth,
+            snapshot.archived,
+        )
+        current_total = _state_total(state)
         if snapshot.recorded_at < cutoff:
             baseline_total = current_total
+            has_baseline = True
             continue
-        if baseline_total is not None and not points:
-            points.append(NetWorthHistoryPoint(recordedAt=cutoff, totalNetWorth=_money(baseline_total)))
-        points.append(
-            NetWorthHistoryPoint(
-                recordedAt=snapshot.recorded_at,
-                totalNetWorth=_money(current_total),
-            )
+        day = snapshot.recorded_at.astimezone(timezone.utc).date()
+        daily_totals[day] = (snapshot.recorded_at, current_total)
+
+    points: list[NetWorthHistoryPoint] = [
+        NetWorthHistoryPoint(
+            recordedAt=cutoff,
+            totalNetWorth=_money(baseline_total if has_baseline else ZERO),
         )
+    ]
+    for _, (recorded_at, total) in sorted(daily_totals.items(), key=lambda item: item[0]):
+        points.append(NetWorthHistoryPoint(recordedAt=recorded_at, totalNetWorth=_money(total)))
 
-    current_total = sum((Decimal(account.current_balance) for account in accounts), ZERO)
-    if baseline_total is not None and not points:
-        points.append(NetWorthHistoryPoint(recordedAt=cutoff, totalNetWorth=_money(baseline_total)))
-    if not points or points[-1].totalNetWorth != _money(current_total):
+    current_summary = get_net_worth_summary(db, user_id)
+    current_total = Decimal(current_summary.totalNetWorth)
+    if (
+        points[-1].recordedAt.astimezone(timezone.utc).date() != now.date()
+        or Decimal(points[-1].totalNetWorth) != current_total
+    ):
         points.append(NetWorthHistoryPoint(recordedAt=now, totalNetWorth=_money(current_total)))
+    elif Decimal(points[-1].totalNetWorth) != current_total:
+        points[-1] = NetWorthHistoryPoint(recordedAt=now, totalNetWorth=_money(current_total))
 
-    first = Decimal(points[0].totalNetWorth) if points else ZERO
-    last = Decimal(points[-1].totalNetWorth) if points else ZERO
+    first = Decimal(points[0].totalNetWorth)
+    last = Decimal(points[-1].totalNetWorth)
     change = last - first
     change_percent = None if first == ZERO else _money((change / abs(first)) * Decimal("100"))
 
