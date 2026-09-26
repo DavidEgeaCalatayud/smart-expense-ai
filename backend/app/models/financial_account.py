@@ -126,6 +126,18 @@ class FinancialAccountBalanceSnapshot(Base):
         nullable=False,
     )
     balance: Mapped[Decimal] = mapped_column(Numeric(12, 2), nullable=False)
+    include_in_net_worth: Mapped[bool] = mapped_column(
+        Boolean,
+        nullable=False,
+        default=True,
+        server_default=true(),
+    )
+    archived: Mapped[bool] = mapped_column(
+        Boolean,
+        nullable=False,
+        default=False,
+        server_default=text("false"),
+    )
     recorded_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True),
         nullable=False,
