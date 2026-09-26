@@ -51,6 +51,21 @@ export interface BudgetSyncPayload {
   limitAmount: string;
 }
 
+export interface FinancialAccountHistoryBaseSyncPayload {
+  currentBalance: string;
+  includeInNetWorth: boolean;
+  archived: boolean;
+}
+
+export interface FinancialAccountBalanceObservationSyncPayload {
+  id: string;
+  balance: string;
+  includeInNetWorth: boolean;
+  archived: boolean;
+  recordedAt: string;
+  source: 'manual';
+}
+
 export interface FinancialAccountSyncPayload {
   name: string;
   institution: string | null;
@@ -62,6 +77,8 @@ export interface FinancialAccountSyncPayload {
   archived: boolean;
   balanceUpdatedAt: string;
   balanceSnapshotId: string | null;
+  historyBase?: FinancialAccountHistoryBaseSyncPayload | null;
+  balanceObservations?: FinancialAccountBalanceObservationSyncPayload[];
 }
 
 export interface FinancialAccountSnapshotSyncPayload {
