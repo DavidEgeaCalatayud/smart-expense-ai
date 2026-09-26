@@ -21,6 +21,13 @@ function conflictByMutationId(response: SyncPushResponse): Map<string, SyncConfl
   return new Map(response.conflicts.map((conflict) => [conflict.mutationId, conflict]));
 }
 
+function financialAccountObservationIds(payload: FinancialAccountSyncPayload): string[] {
+  const ids = new Set<string>();
+  for (const observation of payload.balanceObservations ?? []) ids.add(observation.id);
+  if (payload.balanceSnapshotId) ids.add(payload.balanceSnapshotId);
+  return [...ids];
+}
+
 async function updateEntityStatus(
   db: SQLiteDatabase,
   mutation: SyncMutation,
@@ -49,17 +56,32 @@ async function updateEntityStatus(
   );
 }
 
-async function discardPendingSnapshotForRejectedMutation(
+async function markPendingSnapshotsSynced(
   db: SQLiteDatabase,
   mutation: SyncMutation,
 ): Promise<void> {
   if (mutation.entityType !== 'financial_account' || mutation.operation !== 'upsert') return;
   const payload = mutation.payload as FinancialAccountSyncPayload;
-  if (!payload.balanceSnapshotId) return;
-  await db.runAsync(
-    'DELETE FROM financial_account_snapshots WHERE id = ? AND pending = 1',
-    payload.balanceSnapshotId,
-  );
+  for (const snapshotId of financialAccountObservationIds(payload)) {
+    await db.runAsync(
+      'UPDATE financial_account_snapshots SET pending = 0 WHERE id = ? AND pending = 1',
+      snapshotId,
+    );
+  }
+}
+
+async function discardPendingSnapshotsForRejectedMutation(
+  db: SQLiteDatabase,
+  mutation: SyncMutation,
+): Promise<void> {
+  if (mutation.entityType !== 'financial_account' || mutation.operation !== 'upsert') return;
+  const payload = mutation.payload as FinancialAccountSyncPayload;
+  for (const snapshotId of financialAccountObservationIds(payload)) {
+    await db.runAsync(
+      'DELETE FROM financial_account_snapshots WHERE id = ? AND pending = 1',
+      snapshotId,
+    );
+  }
 }
 
 export async function persistPushResponse(
@@ -81,6 +103,7 @@ export async function persistPushResponse(
           await txn.runAsync(`DELETE FROM ${TABLE_BY_ENTITY[mutation.entityType]} WHERE id = ?`, mutation.entityId);
         } else {
           await updateEntityStatus(txn, mutation, 'synced', result.serverVersion ?? null);
+          await markPendingSnapshotsSynced(txn, mutation);
         }
         await txn.runAsync('DELETE FROM sync_outbox WHERE mutation_id = ?', mutation.mutationId);
         continue;
@@ -107,7 +130,7 @@ export async function persistPushResponse(
         mutation.mutationId,
       );
       await updateEntityStatus(txn, mutation, 'failed');
-      await discardPendingSnapshotForRejectedMutation(txn, mutation);
+      await discardPendingSnapshotsForRejectedMutation(txn, mutation);
     }
   });
 }
