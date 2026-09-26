@@ -1,4 +1,5 @@
 import type {
+  FinancialAccountSyncPayload,
   SyncConflict,
   SyncMutation,
   SyncPushResponse,
@@ -13,6 +14,7 @@ const TABLE_BY_ENTITY = {
   transaction: 'transactions',
   category: 'categories',
   budget: 'budgets',
+  financial_account: 'financial_accounts',
 } as const;
 
 function conflictByMutationId(response: SyncPushResponse): Map<string, SyncConflict> {
@@ -47,6 +49,19 @@ async function updateEntityStatus(
   );
 }
 
+async function discardPendingSnapshotForRejectedMutation(
+  db: SQLiteDatabase,
+  mutation: SyncMutation,
+): Promise<void> {
+  if (mutation.entityType !== 'financial_account' || mutation.operation !== 'upsert') return;
+  const payload = mutation.payload as FinancialAccountSyncPayload;
+  if (!payload.balanceSnapshotId) return;
+  await db.runAsync(
+    'DELETE FROM financial_account_snapshots WHERE id = ? AND pending = 1',
+    payload.balanceSnapshotId,
+  );
+}
+
 export async function persistPushResponse(
   db: SQLiteDatabase,
   rows: readonly OutboxRow[],
@@ -58,9 +73,7 @@ export async function persistPushResponse(
   await runKeyedTransaction(db, async (txn) => {
     for (const result of response.results) {
       const row = rowByMutationId.get(result.mutationId);
-      if (!row) {
-        continue;
-      }
+      if (!row) continue;
       const mutation = outboxRowToMutation(row);
 
       if (result.status === 'applied' || result.status === 'duplicate') {
@@ -94,6 +107,7 @@ export async function persistPushResponse(
         mutation.mutationId,
       );
       await updateEntityStatus(txn, mutation, 'failed');
+      await discardPendingSnapshotForRejectedMutation(txn, mutation);
     }
   });
 }
