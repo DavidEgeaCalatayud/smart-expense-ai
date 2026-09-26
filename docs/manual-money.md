@@ -60,7 +60,18 @@ La variación del patrimonio incluye altas y bajas de cuentas, depósitos, retir
 
 Android conserva cuentas y observaciones en SQLite cifrado con SQLCipher. Las cuentas son entidades mutables de `sync-v1`; las observaciones históricas son server-authored/read-only para el cliente una vez sincronizadas.
 
-Una edición offline de saldo, inclusión patrimonial o archivado produce una observación local pendiente y una mutación de la cuenta. El servidor valida versión/propiedad y replica posteriormente la cuenta y su observación canónica a los demás clientes.
+Cada cambio offline de saldo, inclusión patrimonial o archivado crea una observación local pendiente con su propio identificador y `recordedAt`. Si el usuario modifica varias veces la misma cuenta antes de recuperar conexión, Android sigue coalesciendo el **estado final de la cuenta** en una sola mutación para no encadenar versiones desconocidas, pero conserva todas las observaciones intermedias dentro de `balanceObservations`.
+
+Ejemplo:
+
+- 20/09 sin conexión: 1.100 EUR;
+- 22/09 sin conexión: 1.200 EUR;
+- 24/09 sin conexión: 1.500 EUR;
+- al recuperar conexión se envía una única cuenta final de 1.500 EUR junto con las tres observaciones fechadas.
+
+El payload conserva además `historyBase`, el estado patrimonial conocido antes del primer cambio del lote. Esto permite distinguir un cambio final real de una secuencia que vuelve al punto de partida, por ejemplo `1.000 → 1.200 → 1.000`. En ese segundo caso el servidor no necesita inventar un snapshot final adicional, pero sí registra las dos observaciones históricas.
+
+El servidor mantiene el control de concurrencia sobre la cuenta final. Sólo si la mutación queda `applied` o es un reintento `duplicate` se reconcilian las observaciones intermedias. Los identificadores de snapshot hacen esta reconciliación idempotente: un reintento de red no duplica puntos históricos. Si la versión base está obsoleta, la mutación entra en conflicto y el lote histórico no se escribe hasta que el usuario resuelva el conflicto.
 
 La versión de esquema móvil que introduce el estado patrimonial temporal es la v4.
 
