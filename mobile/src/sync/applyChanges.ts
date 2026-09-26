@@ -213,17 +213,22 @@ async function applyFinancialAccountSnapshotChange(
   const payload = change.payload;
   await db.runAsync(
     `INSERT INTO financial_account_snapshots (
-       id, financial_account_id, balance_minor, recorded_at, source, pending
-     ) VALUES (?, ?, ?, ?, ?, 0)
+       id, financial_account_id, balance_minor, include_in_net_worth, archived,
+       recorded_at, source, pending
+     ) VALUES (?, ?, ?, ?, ?, ?, ?, 0)
      ON CONFLICT(id) DO UPDATE SET
        financial_account_id = excluded.financial_account_id,
        balance_minor = excluded.balance_minor,
+       include_in_net_worth = excluded.include_in_net_worth,
+       archived = excluded.archived,
        recorded_at = excluded.recorded_at,
        source = excluded.source,
        pending = 0`,
     change.entityId,
     payload.financialAccountId,
     decimalToMinorUnits(payload.balance),
+    payload.includeInNetWorth ? 1 : 0,
+    payload.archived ? 1 : 0,
     payload.recordedAt,
     payload.source,
   );
