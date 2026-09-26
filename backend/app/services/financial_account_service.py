@@ -376,22 +376,27 @@ def get_net_worth_history(db: Session, user_id: UUID, months: int) -> NetWorthHi
         day = snapshot.recorded_at.astimezone(timezone.utc).date()
         daily_totals[day] = (snapshot.recorded_at, current_total)
 
-    points: list[NetWorthHistoryPoint] = [
-        NetWorthHistoryPoint(
-            recordedAt=cutoff,
-            totalNetWorth=_money(baseline_total if has_baseline else ZERO),
+    points: list[NetWorthHistoryPoint] = []
+    if has_baseline:
+        points.append(
+            NetWorthHistoryPoint(
+                recordedAt=cutoff,
+                totalNetWorth=_money(baseline_total),
+            )
         )
-    ]
     for _, (recorded_at, total) in sorted(daily_totals.items(), key=lambda item: item[0]):
         points.append(NetWorthHistoryPoint(recordedAt=recorded_at, totalNetWorth=_money(total)))
 
     current_total = Decimal(get_net_worth_summary(db, user_id).totalNetWorth)
-    same_day = points[-1].recordedAt.astimezone(timezone.utc).date() == now.date()
-    if same_day:
-        if Decimal(points[-1].totalNetWorth) != current_total:
-            points[-1] = NetWorthHistoryPoint(recordedAt=now, totalNetWorth=_money(current_total))
-    else:
+    if not points:
         points.append(NetWorthHistoryPoint(recordedAt=now, totalNetWorth=_money(current_total)))
+    else:
+        same_day = points[-1].recordedAt.astimezone(timezone.utc).date() == now.date()
+        if same_day:
+            if Decimal(points[-1].totalNetWorth) != current_total:
+                points[-1] = NetWorthHistoryPoint(recordedAt=now, totalNetWorth=_money(current_total))
+        else:
+            points.append(NetWorthHistoryPoint(recordedAt=now, totalNetWorth=_money(current_total)))
 
     first = Decimal(points[0].totalNetWorth)
     last = Decimal(points[-1].totalNetWorth)
