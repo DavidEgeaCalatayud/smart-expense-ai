@@ -196,6 +196,28 @@ const MIGRATIONS: readonly Migration[] = [
         ON sync_conflicts(resolved_at, created_at DESC)`,
     ],
   },
+  {
+    version: 4,
+    statements: [
+      `ALTER TABLE financial_account_snapshots
+        ADD COLUMN include_in_net_worth INTEGER NOT NULL DEFAULT 1
+        CHECK (include_in_net_worth IN (0, 1))`,
+      `ALTER TABLE financial_account_snapshots
+        ADD COLUMN archived INTEGER NOT NULL DEFAULT 0
+        CHECK (archived IN (0, 1))`,
+      `UPDATE financial_account_snapshots
+       SET include_in_net_worth = COALESCE((
+             SELECT a.include_in_net_worth
+             FROM financial_accounts a
+             WHERE a.id = financial_account_snapshots.financial_account_id
+           ), 1),
+           archived = COALESCE((
+             SELECT a.archived
+             FROM financial_accounts a
+             WHERE a.id = financial_account_snapshots.financial_account_id
+           ), 0)`,
+    ],
+  },
 ];
 
 async function runMigrationTransaction(
