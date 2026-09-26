@@ -1,4 +1,5 @@
 from collections.abc import Generator
+from datetime import datetime, timedelta, timezone
 from uuid import UUID
 
 import pytest
@@ -66,6 +67,18 @@ def create_account(
     return response.json()
 
 
+def move_initial_snapshots_to(account_ids: list[UUID], recorded_at: datetime) -> None:
+    with SessionLocal() as db:
+        snapshots = db.scalars(
+            select(FinancialAccountBalanceSnapshot).where(
+                FinancialAccountBalanceSnapshot.financial_account_id.in_(account_ids)
+            )
+        ).all()
+        for snapshot in snapshots:
+            snapshot.recorded_at = recorded_at
+        db.commit()
+
+
 def test_manual_accounts_aggregate_by_purpose_with_exact_money_strings() -> None:
     with TestClient(app) as client:
         register(client, "net-worth@example.com")
@@ -127,7 +140,7 @@ def test_manual_accounts_aggregate_by_purpose_with_exact_money_strings() -> None
         assert numeric_balance.status_code == 422
 
 
-def test_balance_updates_append_snapshots_instead_of_overwriting_history() -> None:
+def test_balance_updates_append_snapshots_and_history_is_daily() -> None:
     with TestClient(app) as client:
         register(client, "snapshots@example.com")
         account = create_account(
@@ -138,6 +151,10 @@ def test_balance_updates_append_snapshots_instead_of_overwriting_history() -> No
             balance="1000.00",
         )
         account_id = UUID(str(account["id"]))
+        move_initial_snapshots_to(
+            [account_id],
+            datetime.now(timezone.utc) - timedelta(days=2),
+        )
 
         updated = client.post(
             f"{API_V2}/financial-accounts/{account_id}/balance",
@@ -146,9 +163,18 @@ def test_balance_updates_append_snapshots_instead_of_overwriting_history() -> No
         assert updated.status_code == 201, updated.text
         assert updated.json()["balance"] == "1250.00"
         assert updated.json()["source"] == "manual"
+        assert updated.json()["includeInNetWorth"] is True
+        assert updated.json()["archived"] is False
+
+        # Two changes on the same day must collapse into the final daily total.
+        second = client.post(
+            f"{API_V2}/financial-accounts/{account_id}/balance",
+            json={"balance": "1300.00"},
+        )
+        assert second.status_code == 201, second.text
 
         accounts = client.get(f"{API_V2}/financial-accounts").json()
-        assert accounts[0]["currentBalance"] == "1250.00"
+        assert accounts[0]["currentBalance"] == "1300.00"
 
         with SessionLocal() as db:
             snapshots = db.scalars(
@@ -156,15 +182,79 @@ def test_balance_updates_append_snapshots_instead_of_overwriting_history() -> No
                 .where(FinancialAccountBalanceSnapshot.financial_account_id == account_id)
                 .order_by(FinancialAccountBalanceSnapshot.recorded_at.asc())
             ).all()
-            assert [f"{snapshot.balance:.2f}" for snapshot in snapshots] == ["1000.00", "1250.00"]
+            assert [f"{snapshot.balance:.2f}" for snapshot in snapshots] == [
+                "1000.00",
+                "1250.00",
+                "1300.00",
+            ]
 
         history = client.get(f"{API_V2}/net-worth/history?months=12")
         assert history.status_code == 200
-        values = [point["totalNetWorth"] for point in history.json()["points"]]
-        assert values[0] == "1000.00"
-        assert values[-1] == "1250.00"
-        assert history.json()["changeAmount"] == "250.00"
-        assert history.json()["changePercent"] == "25.00"
+        points = history.json()["points"]
+        assert [point["totalNetWorth"] for point in points] == ["1000.00", "1300.00"]
+        assert len({point["recordedAt"][:10] for point in points}) == len(points)
+        assert history.json()["changeAmount"] == "300.00"
+        assert history.json()["changePercent"] == "30.00"
+
+
+def test_archiving_preserves_past_total_and_changes_only_from_archive_day() -> None:
+    with TestClient(app) as client:
+        register(client, "archive-history@example.com")
+        bankinter = create_account(
+            client,
+            name="Bankinter",
+            account_type="savings",
+            purpose="savings",
+            balance="1000.00",
+        )
+        trade_republic = create_account(
+            client,
+            name="Trade Republic",
+            account_type="broker",
+            purpose="investment",
+            balance="2000.00",
+        )
+        ids = [UUID(str(bankinter["id"])), UUID(str(trade_republic["id"]))]
+        move_initial_snapshots_to(ids, datetime.now(timezone.utc) - timedelta(days=30))
+
+        archived = client.delete(f"{API_V2}/financial-accounts/{bankinter['id']}")
+        assert archived.status_code == 204
+
+        history = client.get(f"{API_V2}/net-worth/history?months=12").json()
+        values = [point["totalNetWorth"] for point in history["points"]]
+        assert values[0] == "3000.00"
+        assert values[-1] == "2000.00"
+        assert history["changeAmount"] == "-1000.00"
+        assert history["changePercent"] == "-33.33"
+
+
+def test_excluding_account_preserves_earlier_history() -> None:
+    with TestClient(app) as client:
+        register(client, "include-history@example.com")
+        account = create_account(
+            client,
+            name="Opportunity cash",
+            account_type="savings",
+            purpose="opportunities",
+            balance="1500.00",
+        )
+        account_id = UUID(str(account["id"]))
+        move_initial_snapshots_to(
+            [account_id],
+            datetime.now(timezone.utc) - timedelta(days=10),
+        )
+
+        response = client.patch(
+            f"{API_V2}/financial-accounts/{account['id']}",
+            json={"includeInNetWorth": False},
+        )
+        assert response.status_code == 200, response.text
+        assert response.json()["includeInNetWorth"] is False
+
+        history = client.get(f"{API_V2}/net-worth/history?months=12").json()
+        assert [point["totalNetWorth"] for point in history["points"]] == ["1500.00", "0.00"]
+        assert history["changeAmount"] == "-1500.00"
+        assert history["changePercent"] == "-100.00"
 
 
 def test_accounts_are_isolated_and_archiving_removes_them_from_current_net_worth() -> None:
