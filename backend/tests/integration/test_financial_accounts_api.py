@@ -1,4 +1,5 @@
 from collections.abc import Generator
+from uuid import UUID
 
 import pytest
 from fastapi.testclient import TestClient
@@ -136,9 +137,10 @@ def test_balance_updates_append_snapshots_instead_of_overwriting_history() -> No
             purpose="opportunities",
             balance="1000.00",
         )
+        account_id = UUID(str(account["id"]))
 
         updated = client.post(
-            f"{API_V2}/financial-accounts/{account['id']}/balance",
+            f"{API_V2}/financial-accounts/{account_id}/balance",
             json={"balance": "1250.00"},
         )
         assert updated.status_code == 201, updated.text
@@ -151,7 +153,7 @@ def test_balance_updates_append_snapshots_instead_of_overwriting_history() -> No
         with SessionLocal() as db:
             snapshots = db.scalars(
                 select(FinancialAccountBalanceSnapshot)
-                .where(FinancialAccountBalanceSnapshot.financial_account_id == account["id"])
+                .where(FinancialAccountBalanceSnapshot.financial_account_id == account_id)
                 .order_by(FinancialAccountBalanceSnapshot.recorded_at.asc())
             ).all()
             assert [f"{snapshot.balance:.2f}" for snapshot in snapshots] == ["1000.00", "1250.00"]
@@ -208,9 +210,9 @@ def test_accounts_are_isolated_and_archiving_removes_them_from_current_net_worth
         assert archived_balance.status_code == 404
 
         archived_rows = owner.get(f"{API_V2}/financial-accounts?includeArchived=true").json()
-        restored = next(item for item in archived_rows if item["id"] == private_account["id"])
-        assert restored["archived"] is True
-        assert restored["currentBalance"] == "3000.00"
+        archived_account = next(item for item in archived_rows if item["id"] == private_account["id"])
+        assert archived_account["archived"] is True
+        assert archived_account["currentBalance"] == "3000.00"
 
 
 def test_patch_rejects_explicit_null_for_required_metadata() -> None:
