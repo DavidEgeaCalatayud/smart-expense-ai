@@ -1,9 +1,5 @@
 import {
-  Banknote,
-  BriefcaseBusiness,
-  Landmark,
   Pencil,
-  PiggyBank,
   Plus,
   ShieldCheck,
   Trash2,
@@ -14,6 +10,7 @@ import { useCallback, useEffect, useMemo, useState } from 'react';
 import { PageHeader } from '../components/layout/PageHeader';
 import { ApiErrorAlert } from '../components/ui/ApiErrorAlert';
 import { ConfirmDialog } from '../components/ui/ConfirmDialog';
+import { BankInstitutionPicker, BankLogo } from '../features/money/bankCatalog';
 import {
   archiveFinancialAccount,
   createFinancialAccount,
@@ -87,14 +84,6 @@ function relativeUpdatedAt(value: string): string {
     && date.getDate() === today.getDate();
   if (sameDay) return 'Actualizado hoy';
   return `Actualizado ${new Intl.DateTimeFormat('es-ES', { dateStyle: 'medium' }).format(date)}`;
-}
-
-function accountIcon(type: FinancialAccountType) {
-  if (type === 'broker') return BriefcaseBusiness;
-  if (type === 'savings') return PiggyBank;
-  if (type === 'cash') return Banknote;
-  if (type === 'wallet') return WalletCards;
-  return Landmark;
 }
 
 function NetWorthChart({ history }: { history: NetWorthHistory }) {
@@ -189,7 +178,7 @@ function AccountForm({
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/40 p-4 backdrop-blur-sm">
-      <section className="w-full max-w-2xl rounded-3xl bg-white p-6 shadow-2xl">
+      <section className="max-h-[92vh] w-full max-w-3xl overflow-y-auto rounded-3xl bg-white p-6 shadow-2xl">
         <div className="mb-6 flex items-center justify-between gap-4">
           <div>
             <p className="text-xs font-semibold uppercase tracking-[0.2em] text-brand-700">Mi dinero</p>
@@ -206,24 +195,29 @@ function AccountForm({
           }}
           className="grid gap-4 md:grid-cols-2"
         >
+          <BankInstitutionPicker
+            value={draft.institution}
+            onSelect={(bank) => {
+              setDraft((current) => ({
+                ...current,
+                institution: bank.name,
+                name: current.name.trim() ? current.name : bank.name,
+                accountType: bank.suggestedType,
+              }));
+            }}
+            onManualChange={(institution) => {
+              setDraft((current) => ({ ...current, institution }));
+            }}
+          />
+
           <label className="text-sm font-semibold text-slate-700">
-            Nombre
+            Nombre de la cuenta
             <input
               required
               maxLength={120}
               value={draft.name}
               onChange={(event) => setDraft((current) => ({ ...current, name: event.target.value }))}
-              placeholder="Trade Republic"
-              className="mt-2 w-full rounded-2xl border border-slate-200 px-4 py-3 font-normal"
-            />
-          </label>
-          <label className="text-sm font-semibold text-slate-700">
-            Institución
-            <input
-              maxLength={120}
-              value={draft.institution}
-              onChange={(event) => setDraft((current) => ({ ...current, institution: event.target.value }))}
-              placeholder="Opcional"
+              placeholder="Ej. Ahorro, oportunidades, cuenta principal..."
               className="mt-2 w-full rounded-2xl border border-slate-200 px-4 py-3 font-normal"
             />
           </label>
@@ -471,62 +465,57 @@ export function MoneyPage() {
               </div>
             ) : (
               <div className="grid gap-4 md:grid-cols-2 2xl:grid-cols-3">
-                {accounts.map((account) => {
-                  const Icon = accountIcon(account.accountType);
-                  return (
-                    <article key={account.id} className="rounded-3xl border border-slate-200 bg-white p-5 shadow-soft">
-                      <div className="flex items-start justify-between gap-4">
-                        <div className="flex min-w-0 items-center gap-3">
-                          <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl bg-brand-50 text-brand-700">
-                            <Icon size={20} />
-                          </div>
-                          <div className="min-w-0">
-                            <h3 className="truncate font-bold text-slate-950">{account.name}</h3>
-                            <p className="truncate text-xs text-slate-500">{account.institution || typeLabel(account.accountType)}</p>
-                          </div>
-                        </div>
-                        <div className="flex gap-1">
-                          <button
-                            type="button"
-                            aria-label={`Editar ${account.name}`}
-                            onClick={() => setEditing(account)}
-                            className="rounded-xl border border-slate-200 p-2 text-slate-500 hover:bg-slate-50"
-                          >
-                            <Pencil size={15} />
-                          </button>
-                          <button
-                            type="button"
-                            aria-label={`Archivar ${account.name}`}
-                            onClick={() => setDeleteCandidate(account)}
-                            className="rounded-xl border border-slate-200 p-2 text-slate-500 hover:bg-slate-50"
-                          >
-                            <Trash2 size={15} />
-                          </button>
+                {accounts.map((account) => (
+                  <article key={account.id} className="rounded-3xl border border-slate-200 bg-white p-5 shadow-soft">
+                    <div className="flex items-start justify-between gap-4">
+                      <div className="flex min-w-0 items-center gap-3">
+                        <BankLogo institution={account.institution} fallbackName={account.name} />
+                        <div className="min-w-0">
+                          <h3 className="truncate font-bold text-slate-950">{account.name}</h3>
+                          <p className="truncate text-xs text-slate-500">{account.institution || typeLabel(account.accountType)}</p>
                         </div>
                       </div>
-                      <p className="mt-7 text-3xl font-bold tracking-tight text-slate-950">{formatEuro(account.currentBalance)}</p>
-                      <div className="mt-6 flex items-end justify-between gap-3">
-                        <div>
-                          <p className="text-sm font-semibold text-brand-700">{purposeLabel(account.purpose)}</p>
-                          <p className="mt-1 text-xs text-slate-400">{relativeUpdatedAt(account.balanceUpdatedAt)}</p>
-                        </div>
+                      <div className="flex gap-1">
                         <button
                           type="button"
-                          onClick={() => {
-                            setBalanceAccount(account);
-                            setBalanceValue(account.currentBalance);
-                          }}
-                          className="rounded-xl border border-slate-200 px-3 py-2 text-xs font-semibold text-slate-600 hover:bg-slate-50"
+                          aria-label={`Editar ${account.name}`}
+                          onClick={() => setEditing(account)}
+                          className="rounded-xl border border-slate-200 p-2 text-slate-500 hover:bg-slate-50"
                         >
-                          Actualizar saldo
+                          <Pencil size={15} />
+                        </button>
+                        <button
+                          type="button"
+                          aria-label={`Archivar ${account.name}`}
+                          onClick={() => setDeleteCandidate(account)}
+                          className="rounded-xl border border-slate-200 p-2 text-slate-500 hover:bg-slate-50"
+                        >
+                          <Trash2 size={15} />
                         </button>
                       </div>
-                      {!account.includeInNetWorth && (
-                        <p className="mt-4 rounded-xl bg-amber-50 px-3 py-2 text-xs font-medium text-amber-800">No incluida en el patrimonio total.</p>
-                      )}
-                    </article>
-                  );
-                })}
+                    </div>
+                    <p className="mt-7 text-3xl font-bold tracking-tight text-slate-950">{formatEuro(account.currentBalance)}</p>
+                    <div className="mt-6 flex items-end justify-between gap-3">
+                      <div>
+                        <p className="text-sm font-semibold text-brand-700">{purposeLabel(account.purpose)}</p>
+                        <p className="mt-1 text-xs text-slate-400">{relativeUpdatedAt(account.balanceUpdatedAt)}</p>
+                      </div>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setBalanceAccount(account);
+                          setBalanceValue(account.currentBalance);
+                        }}
+                        className="rounded-xl border border-slate-200 px-3 py-2 text-xs font-semibold text-slate-600 hover:bg-slate-50"
+                      >
+                        Actualizar saldo
+                      </button>
+                    </div>
+                    {!account.includeInNetWorth && (
+                      <p className="mt-4 rounded-xl bg-amber-50 px-3 py-2 text-xs font-medium text-amber-800">No incluida en el patrimonio total.</p>
+                    )}
+                  </article>
+                ))}
               </div>
             )}
           </section>
@@ -580,9 +569,12 @@ export function MoneyPage() {
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/40 p-4 backdrop-blur-sm">
           <section className="w-full max-w-md rounded-3xl bg-white p-6 shadow-2xl">
             <div className="flex items-start justify-between gap-4">
-              <div>
-                <p className="text-xs font-semibold uppercase tracking-[0.2em] text-brand-700">Actualizar saldo</p>
-                <h2 className="mt-1 text-2xl font-bold">{balanceAccount.name}</h2>
+              <div className="flex items-center gap-3">
+                <BankLogo institution={balanceAccount.institution} fallbackName={balanceAccount.name} className="h-10 w-10" />
+                <div>
+                  <p className="text-xs font-semibold uppercase tracking-[0.2em] text-brand-700">Actualizar saldo</p>
+                  <h2 className="mt-1 text-2xl font-bold">{balanceAccount.name}</h2>
+                </div>
               </div>
               <button type="button" aria-label="Cerrar" onClick={() => setBalanceAccount(null)} className="rounded-xl border border-slate-200 p-2 text-slate-500">
                 <X size={18} />
