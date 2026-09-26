@@ -67,6 +67,8 @@ export interface FinancialAccountSyncPayload {
 export interface FinancialAccountSnapshotSyncPayload {
   financialAccountId: string;
   balance: string;
+  includeInNetWorth: boolean;
+  archived: boolean;
   recordedAt: string;
   source: FinancialAccountSnapshotSource;
 }
