@@ -69,6 +69,8 @@ class PrivacyExportFinancialAccountBalanceSnapshot(BaseModel):
     id: str
     financialAccountId: str
     balance: str
+    includeInNetWorth: bool
+    archived: bool
     recordedAt: datetime
     source: str
 
