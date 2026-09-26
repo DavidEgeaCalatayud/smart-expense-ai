@@ -120,6 +120,7 @@ class FinancialAccountSyncPayload(BaseModel):
     includeInNetWorth: bool
     archived: bool
     balanceUpdatedAt: datetime
+    balanceSnapshotId: UUID | None = None
 
     @field_validator("currentBalance", mode="before")
     @classmethod
