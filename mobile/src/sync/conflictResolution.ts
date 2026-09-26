@@ -1,6 +1,7 @@
 import type {
   BudgetSyncPayload,
   CategorySyncPayload,
+  FinancialAccountHistoryBaseSyncPayload,
   FinancialAccountSyncPayload,
   SyncChange,
   SyncMutation,
@@ -28,6 +29,32 @@ const TABLE_BY_ENTITY = {
 function localFinancialAccountPayload(conflict: StoredConflictRow): FinancialAccountSyncPayload | null {
   if (conflict.entity_type !== 'financial_account' || !conflict.local_payload_json) return null;
   return JSON.parse(conflict.local_payload_json) as FinancialAccountSyncPayload;
+}
+
+function financialAccountObservationIds(payload: FinancialAccountSyncPayload): string[] {
+  const ids = new Set<string>();
+  for (const observation of payload.balanceObservations ?? []) ids.add(observation.id);
+  if (payload.balanceSnapshotId) ids.add(payload.balanceSnapshotId);
+  return [...ids];
+}
+
+function serverHistoryBase(payload: FinancialAccountSyncPayload): FinancialAccountHistoryBaseSyncPayload {
+  return {
+    currentBalance: payload.currentBalance,
+    includeInNetWorth: payload.includeInNetWorth,
+    archived: payload.archived,
+  };
+}
+
+function finalStateDiffersFromBase(
+  payload: FinancialAccountSyncPayload,
+  historyBase: FinancialAccountHistoryBaseSyncPayload,
+): boolean {
+  return (
+    payload.currentBalance !== historyBase.currentBalance
+    || payload.includeInNetWorth !== historyBase.includeInNetWorth
+    || payload.archived !== historyBase.archived
+  );
 }
 
 function serverChangeFromConflict(conflict: StoredConflictRow): SyncChange {
@@ -95,24 +122,42 @@ function retryMutationFromConflict(conflict: StoredConflictRow): SyncMutation {
       const serverPayload = conflict.server_payload_json
         ? JSON.parse(conflict.server_payload_json) as FinancialAccountSyncPayload
         : null;
-      const retryPayload = serverPayload?.currentBalance === localPayload.currentBalance
-        ? { ...localPayload, balanceSnapshotId: null, balanceUpdatedAt: serverPayload.balanceUpdatedAt }
-        : localPayload;
+      if (!serverPayload) {
+        return { ...metadata, entityType: 'financial_account', operation: 'upsert', payload: localPayload };
+      }
+
+      const historyBase = serverHistoryBase(serverPayload);
+      const observations = localPayload.balanceObservations ?? [];
+      const latestObservation = observations.at(-1) ?? null;
+      const balanceSnapshotId = latestObservation && finalStateDiffersFromBase(localPayload, historyBase)
+        ? latestObservation.id
+        : null;
+      const retryPayload: FinancialAccountSyncPayload = {
+        ...localPayload,
+        historyBase,
+        balanceObservations: observations,
+        balanceSnapshotId,
+        balanceUpdatedAt: serverPayload.currentBalance === localPayload.currentBalance
+          ? serverPayload.balanceUpdatedAt
+          : localPayload.balanceUpdatedAt,
+      };
       return { ...metadata, entityType: 'financial_account', operation: 'upsert', payload: retryPayload };
     }
   }
 }
 
-async function removePendingBalanceSnapshot(
+async function removePendingBalanceSnapshots(
   db: SQLiteDatabase,
   conflict: StoredConflictRow,
 ): Promise<void> {
   const localPayload = localFinancialAccountPayload(conflict);
-  if (!localPayload?.balanceSnapshotId) return;
-  await db.runAsync(
-    'DELETE FROM financial_account_snapshots WHERE id = ? AND pending = 1',
-    localPayload.balanceSnapshotId,
-  );
+  if (!localPayload) return;
+  for (const snapshotId of financialAccountObservationIds(localPayload)) {
+    await db.runAsync(
+      'DELETE FROM financial_account_snapshots WHERE id = ? AND pending = 1',
+      snapshotId,
+    );
+  }
 }
 
 export async function resolveConflictWithServer(
@@ -122,7 +167,7 @@ export async function resolveConflictWithServer(
   const conflict = await getUnresolvedConflict(db, conflictId);
   if (!conflict) return;
   await runKeyedTransaction(db, async (txn) => {
-    await removePendingBalanceSnapshot(txn, conflict);
+    await removePendingBalanceSnapshots(txn, conflict);
     await applySyncChange(txn, serverChangeFromConflict(conflict), { force: true });
     await markConflictResolved(txn, conflictId);
   });
@@ -146,8 +191,9 @@ export async function retryConflictWithLocalValue(
       && mutation.entityType === 'financial_account'
       && mutation.operation === 'upsert'
       && mutation.payload.balanceSnapshotId === null
+      && (mutation.payload.balanceObservations?.length ?? 0) === 0
     ) {
-      await removePendingBalanceSnapshot(txn, conflict);
+      await removePendingBalanceSnapshots(txn, conflict);
     }
     await txn.runAsync(
       `UPDATE ${TABLE_BY_ENTITY[conflict.entity_type]}
