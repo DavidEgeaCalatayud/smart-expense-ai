@@ -118,6 +118,8 @@ def _financial_account_snapshot_payload(
     return {
         "financialAccountId": str(snapshot.financial_account_id),
         "balance": _money(snapshot.balance),
+        "includeInNetWorth": snapshot.include_in_net_worth,
+        "archived": snapshot.archived,
         "recordedAt": snapshot.recorded_at.isoformat(),
         "source": snapshot.source,
     }
@@ -705,6 +707,8 @@ def _new_balance_snapshot(
         financial_account_id=account.id,
         user_id=user_id,
         balance=balance,
+        include_in_net_worth=account.include_in_net_worth,
+        archived=account.archived,
         recorded_at=recorded_at,
         source="manual",
     )
@@ -799,11 +803,15 @@ def _apply_financial_account_mutation(
         )
 
     balance_changed = Decimal(existing.current_balance) != next_balance
-    if not balance_changed and payload.balanceSnapshotId is not None:
+    state_changed = (
+        existing.include_in_net_worth != payload.includeInNetWorth
+        or existing.archived != payload.archived
+    )
+    if not balance_changed and not state_changed and payload.balanceSnapshotId is not None:
         return _rejected(
             mutation,
             "unexpected_balance_snapshot",
-            "balanceSnapshotId is valid only when currentBalance changes.",
+            "balanceSnapshotId is valid only when balance or net-worth inclusion state changes.",
         )
 
     existing.name = name
@@ -818,7 +826,7 @@ def _apply_financial_account_mutation(
         existing.balance_updated_at = now
 
     db.flush()
-    if balance_changed:
+    if balance_changed or state_changed:
         db.add(
             _new_balance_snapshot(
                 snapshot_id=payload.balanceSnapshotId,
