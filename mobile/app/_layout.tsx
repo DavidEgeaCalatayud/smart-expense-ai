@@ -57,6 +57,7 @@ function AuthenticatedStack() {
           <Stack.Screen name="transactions" />
           <Stack.Screen name="insights" />
           <Stack.Screen name="more" />
+          <Stack.Screen name="money" />
           <Stack.Screen name="imports" />
           <Stack.Screen name="settings" />
           <Stack.Screen name="categories" />
