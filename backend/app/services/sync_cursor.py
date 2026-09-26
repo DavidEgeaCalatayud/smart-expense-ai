@@ -16,7 +16,13 @@ class SyncTokenError(ValueError):
     pass
 
 
-BootstrapPhase = Literal["category", "transaction", "budget"]
+BootstrapPhase = Literal[
+    "category",
+    "transaction",
+    "budget",
+    "financial_account",
+    "financial_account_snapshot",
+]
 
 
 @dataclass(frozen=True)
@@ -133,7 +139,13 @@ def decode_page_token(
     if payload.get("h") != expected_high_water:
         raise SyncTokenError("Bootstrap page token does not match the snapshot")
     phase = payload.get("p")
-    if phase not in {"category", "transaction", "budget"}:
+    if phase not in {
+        "category",
+        "transaction",
+        "budget",
+        "financial_account",
+        "financial_account_snapshot",
+    }:
         raise SyncTokenError("Bootstrap phase is invalid")
     raw_after = payload.get("a")
     try:
