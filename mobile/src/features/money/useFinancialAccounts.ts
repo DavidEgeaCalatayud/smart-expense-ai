@@ -113,11 +113,14 @@ function historyFromSnapshots(
     });
   }
 
-  const points: NetWorthHistoryPoint[] = [{
-    recordedAt: cutoffIso,
-    totalMinor: hasBaseline ? baselineTotal : 0,
-    pending: false,
-  }];
+  const points: NetWorthHistoryPoint[] = [];
+  if (hasBaseline) {
+    points.push({
+      recordedAt: cutoffIso,
+      totalMinor: baselineTotal,
+      pending: false,
+    });
+  }
   points.push(...[...daily.entries()]
     .sort(([left], [right]) => left.localeCompare(right))
     .map(([, point]) => point));
