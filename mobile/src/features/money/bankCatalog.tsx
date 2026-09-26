@@ -1,55 +1,12 @@
-import type { FinancialAccountType } from '@smart-expense-ai/api-contracts';
 import { useMemo, useState } from 'react';
 import { Image } from 'react-native';
 
 import { Pressable, StyleSheet, Text, TextInput, View } from '../../ui/primitives';
-
-export interface MobileBankInstitution {
-  id: string;
-  name: string;
-  domain: string;
-  aliases: string[];
-  suggestedType: FinancialAccountType;
-}
-
-export const MOBILE_BANK_INSTITUTIONS: MobileBankInstitution[] = [
-  { id: 'bankinter', name: 'Bankinter', domain: 'bankinter.com', aliases: ['bank inter'], suggestedType: 'checking' },
-  { id: 'imagin', name: 'imagin', domain: 'imagin.com', aliases: ['imaginbank', 'imagin bank', 'caixabank'], suggestedType: 'checking' },
-  { id: 'caixabank', name: 'CaixaBank', domain: 'caixabank.es', aliases: ['la caixa', 'caixa'], suggestedType: 'checking' },
-  { id: 'santander', name: 'Banco Santander', domain: 'bancosantander.es', aliases: ['santander'], suggestedType: 'checking' },
-  { id: 'bbva', name: 'BBVA', domain: 'bbva.es', aliases: [], suggestedType: 'checking' },
-  { id: 'sabadell', name: 'Banco Sabadell', domain: 'bancsabadell.com', aliases: ['sabadell'], suggestedType: 'checking' },
-  { id: 'ing', name: 'ING', domain: 'ing.es', aliases: ['ing direct'], suggestedType: 'checking' },
-  { id: 'openbank', name: 'Openbank', domain: 'openbank.es', aliases: ['open bank'], suggestedType: 'checking' },
-  { id: 'unicaja', name: 'Unicaja Banco', domain: 'unicajabanco.es', aliases: ['unicaja'], suggestedType: 'checking' },
-  { id: 'kutxabank', name: 'Kutxabank', domain: 'kutxabank.es', aliases: [], suggestedType: 'checking' },
-  { id: 'abanca', name: 'ABANCA', domain: 'abanca.com', aliases: [], suggestedType: 'checking' },
-  { id: 'cajamar', name: 'Cajamar', domain: 'grupocooperativocajamar.es', aliases: ['grupo cajamar'], suggestedType: 'checking' },
-  { id: 'ibercaja', name: 'Ibercaja', domain: 'ibercaja.es', aliases: [], suggestedType: 'checking' },
-  { id: 'revolut', name: 'Revolut', domain: 'revolut.com', aliases: [], suggestedType: 'wallet' },
-  { id: 'n26', name: 'N26', domain: 'n26.com', aliases: [], suggestedType: 'checking' },
-  { id: 'trade-republic', name: 'Trade Republic', domain: 'traderepublic.com', aliases: ['trade republic bank'], suggestedType: 'broker' },
-  { id: 'myinvestor', name: 'MyInvestor', domain: 'myinvestor.es', aliases: ['my investor'], suggestedType: 'broker' },
-  { id: 'wise', name: 'Wise', domain: 'wise.com', aliases: ['transferwise'], suggestedType: 'wallet' },
-  { id: 'paypal', name: 'PayPal', domain: 'paypal.com', aliases: [], suggestedType: 'wallet' },
-];
-
-function normalize(value: string): string {
-  return value
-    .normalize('NFD')
-    .replace(/[\u0300-\u036f]/g, '')
-    .trim()
-    .toLowerCase();
-}
-
-export function findMobileBankInstitution(value: string | null | undefined): MobileBankInstitution | null {
-  if (!value) return null;
-  const normalized = normalize(value);
-  return MOBILE_BANK_INSTITUTIONS.find((bank) => (
-    normalize(bank.name) === normalized
-    || bank.aliases.some((alias) => normalize(alias) === normalized)
-  )) ?? null;
-}
+import {
+  filterMobileBankInstitutions,
+  findMobileBankInstitution,
+  type MobileBankInstitution,
+} from './bankCatalogData';
 
 function logoUrl(domain: string): string {
   return `https://www.google.com/s2/favicons?domain=${encodeURIComponent(domain)}&sz=128`;
@@ -105,15 +62,7 @@ export function MobileBankPicker({
 }) {
   const [query, setQuery] = useState('');
   const selected = findMobileBankInstitution(value);
-  const filtered = useMemo(() => {
-    const normalizedQuery = normalize(query);
-    const matches = normalizedQuery
-      ? MOBILE_BANK_INSTITUTIONS.filter((bank) => (
-          [bank.name, bank.domain, ...bank.aliases].map(normalize).join(' ').includes(normalizedQuery)
-        ))
-      : MOBILE_BANK_INSTITUTIONS;
-    return matches.slice(0, normalizedQuery ? 12 : 10);
-  }, [query]);
+  const filtered = useMemo(() => filterMobileBankInstitutions(query), [query]);
 
   return (
     <View style={styles.picker}>
