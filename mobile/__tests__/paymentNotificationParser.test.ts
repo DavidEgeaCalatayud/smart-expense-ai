@@ -135,11 +135,21 @@ describe('payment notification parser', () => {
     expect(parsed.kind).toBe('payment');
   });
 
-  it('recognizes refunds and incoming transfers', () => {
+  it('recognizes refunds, reversed charges and incoming transfers', () => {
     expect(parsePaymentNotification(candidate({
       notificationKey: 'refund-1',
       title: 'Reembolso',
       text: 'Has recibido un reembolso de 8,50 € en MERCADONA',
+    })).kind).toBe('refund');
+    expect(parsePaymentNotification(candidate({
+      notificationKey: 'reversed-charge-es',
+      title: 'Movimiento actualizado',
+      text: 'Cargo devuelto de 18,40 € en MERCADONA',
+    })).kind).toBe('refund');
+    expect(parsePaymentNotification(candidate({
+      notificationKey: 'reversed-charge-en',
+      title: 'Card update',
+      text: 'Charge reversed: €18.40 at MERCADONA',
     })).kind).toBe('refund');
     expect(parsePaymentNotification(candidate({
       notificationKey: 'bizum-1',
