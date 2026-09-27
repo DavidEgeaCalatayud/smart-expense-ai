@@ -14,6 +14,7 @@ import { AppPreferencesProvider, useAppPreferences } from '../src/preferences/Ap
 import { AppLockProvider } from '../src/security/AppLockProvider';
 import { OnlineSyncProvider } from '../src/sync/OnlineSyncProvider';
 import { ActivityIndicator, View } from '../src/ui/primitives';
+import { PaymentDetectionObserver } from '../src/features/paymentDetection/PaymentDetectionObserver';
 
 // Debug-only LogBox banners can cover persistent navigation targets on the
 // headless Android emulator. Keep warnings in the runner logs, but suppress the
@@ -41,6 +42,7 @@ function AuthenticatedStack() {
   return (
     <OnlineSyncProvider key={user?.id ?? 'signed-out'}>
       <NotificationObserver />
+      <PaymentDetectionObserver />
       <AppLockProvider>
       <StatusBar style={dark ? 'light' : 'dark'} />
       <View style={{ flex: 1 }}>
@@ -59,6 +61,7 @@ function AuthenticatedStack() {
           <Stack.Screen name="insights" />
           <Stack.Screen name="more" />
           <Stack.Screen name="money" />
+          <Stack.Screen name="payment-detection" />
           <Stack.Screen name="imports" />
           <Stack.Screen name="settings" />
           <Stack.Screen name="categories" />
