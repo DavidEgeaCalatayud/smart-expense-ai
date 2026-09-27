@@ -67,12 +67,12 @@ export function MobileBankPicker({
   return (
     <View style={styles.picker}>
       <Text style={styles.pickerTitle}>Banco o plataforma</Text>
-      <Text style={styles.pickerHint}>Busca la entidad y la guardaremos para mostrar su logo en Mi dinero.</Text>
+      <Text style={styles.pickerHint}>Puedes añadir tantas cuentas como necesites. Los brokers se clasifican automáticamente como inversión y suman en Invertido.</Text>
       <TextInput
         accessibilityLabel="Buscar banco"
         value={query}
         onChangeText={setQuery}
-        placeholder="Buscar Bankinter, imagin, Trade Republic..."
+        placeholder="Buscar Bankinter, Trading 212, Quantfury..."
         style={styles.searchInput}
       />
       <View style={styles.bankGrid}>
