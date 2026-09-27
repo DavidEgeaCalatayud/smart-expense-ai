@@ -60,8 +60,9 @@ export async function matchPaymentAccount(
   }
 
   const spendable = accounts.filter((account) => account.account_type !== 'cash');
-  if (spendable.length === 1) {
-    return { accountId: spendable[0].id, confidence: 0.62, reason: 'only-active-account' };
+  const onlyAccount = spendable.length === 1 ? spendable[0] : undefined;
+  if (onlyAccount) {
+    return { accountId: onlyAccount.id, confidence: 0.62, reason: 'only-active-account' };
   }
   return { accountId: null, confidence: 0, reason: 'ambiguous' };
 }
