@@ -66,6 +66,23 @@ describe('payment notification parser', () => {
     expect(parsed.cardHint).toBe('••••1234');
   });
 
+  it('keeps card balance and limit notices review-only even when they contain an amount', () => {
+    const balance = parsePaymentNotification(candidate({
+      notificationKey: 'card-balance-1',
+      title: 'Tu tarjeta',
+      text: 'Saldo disponible de tu tarjeta: 500,00 €',
+    }));
+    const limit = parsePaymentNotification(candidate({
+      notificationKey: 'card-limit-1',
+      title: 'Límite de tarjeta',
+      text: 'Tu tarjeta tiene un límite disponible de 1.200,00 €',
+    }));
+    expect(balance.amountMinor).toBe(50000);
+    expect(balance.kind).toBe('unknown');
+    expect(limit.amountMinor).toBe(120000);
+    expect(limit.kind).toBe('unknown');
+  });
+
   it('classifies rejected payments without treating them as successful expenses', () => {
     const parsed = parsePaymentNotification(candidate({
       notificationKey: 'rejected-1',
