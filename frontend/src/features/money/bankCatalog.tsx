@@ -19,7 +19,7 @@ export function BankLogo({
   fallbackName: string;
   className?: string;
 }) {
-  const bank = findBankInstitution(institution) ?? findBankInstitution(fallbackName);
+  const bank = findBankInstitution(fallbackName) ?? findBankInstitution(institution);
   const [failed, setFailed] = useState(false);
   const initials = (bank?.name ?? fallbackName)
     .split(/\s+/)
