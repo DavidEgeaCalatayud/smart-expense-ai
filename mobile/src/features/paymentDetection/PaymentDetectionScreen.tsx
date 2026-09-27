@@ -17,6 +17,7 @@ import {
   openPaymentNotificationAccessSettings,
   setNativePaymentCaptureEnabled,
 } from './nativePaymentNotifications';
+import { requestPaymentDetectionNotificationPermission } from './paymentDetectionNotifications';
 import {
   getPaymentDetectionSettings,
   listObservedPaymentEvents,
@@ -28,7 +29,7 @@ import type {
   PaymentDetectionSettings,
 } from './types';
 
-const MODES: Array<{ value: PaymentDetectionMode; title: string; description: string }> = [
+const MODES: { value: PaymentDetectionMode; title: string; description: string }[] = [
   { value: 'notify', title: 'Solo avisarme', description: 'Detecta el movimiento pero nunca modifica tus datos sin confirmación.' },
   { value: 'confirm', title: 'Confirmar antes de guardar', description: 'Prepara cuenta, importe y comercio para que solo tengas que confirmar.' },
   { value: 'automatic', title: 'Automático con confianza alta', description: 'Crea la transacción y ajusta el saldo solo cuando cuenta, importe y tipo son fiables.' },
@@ -64,6 +65,13 @@ function kindLabel(event: ObservedPaymentEventRow): string {
     transfer_out: 'Transferencia enviada', rejected: 'Pago rechazado', hold: 'Retención', unknown: 'Movimiento',
   };
   return labels[event.event_kind];
+}
+
+function isApplicable(event: ObservedPaymentEventRow): boolean {
+  return ['payment', 'refund', 'transfer_in', 'transfer_out'].includes(event.event_kind)
+    && event.amount_minor !== null
+    && event.amount_minor > 0
+    && event.currency === 'EUR';
 }
 
 export function PaymentDetectionScreen() {
@@ -110,11 +118,18 @@ export function PaymentDetectionScreen() {
     }
   }, [db]);
 
-  useEffect(() => { void load(); }, [load]);
+  useEffect(() => {
+    const timer = setTimeout(() => { void load(); }, 0);
+    return () => clearTimeout(timer);
+  }, [load]);
 
   const saveSettings = useCallback(async (next: PaymentDetectionSettings) => {
     setError(null);
     try {
+      if (next.enabled) {
+        // Posting Smart Expense alerts is optional: detection itself still works when denied.
+        await requestPaymentDetectionNotificationPermission().catch(() => false);
+      }
       await setPaymentDetectionSettings(db, next);
       await setNativePaymentCaptureEnabled(next.enabled);
       setSettings(next);
@@ -202,6 +217,7 @@ export function PaymentDetectionScreen() {
         <Text style={s.sectionTitle}>Por confirmar</Text>
         {reviewable.length === 0 ? <Text style={s.empty}>No hay movimientos pendientes.</Text> : reviewable.map((event) => {
           const selectedAccount = selectedAccounts[event.id] ?? event.financial_account_id ?? '';
+          const applicable = isApplicable(event);
           return <View key={event.id} style={s.card}>
             <View style={styles.eventTop}>
               <View style={styles.eventCopy}>
@@ -213,24 +229,27 @@ export function PaymentDetectionScreen() {
             {event.card_hint ? <Text style={s.metadata}>Tarjeta {event.card_hint}</Text> : null}
             <Text style={s.metadata}>Confianza {Math.round(event.confidence * 100)}%</Text>
             {event.error_message ? <Text style={s.error}>{event.error_message}</Text> : null}
+            {!applicable ? <Text style={styles.warning}>Se ha detectado para revisión, pero no se modificará el saldo automáticamente.</Text> : null}
 
-            <Text style={styles.accountLabel}>Cuenta</Text>
-            <View style={styles.accountChoices}>
-              {accounts.map((account) => {
-                const active = account.id === selectedAccount;
-                return <Pressable key={account.id}
-                  onPress={() => setSelectedAccounts((current) => ({ ...current, [event.id]: account.id }))}
-                  style={[styles.accountChip, active && styles.accountChipActive]}>
-                  <Text style={[styles.accountChipText, active && styles.accountChipTextActive]}>{account.name}</Text>
-                </Pressable>;
-              })}
-            </View>
+            {applicable ? <>
+              <Text style={styles.accountLabel}>Cuenta</Text>
+              <View style={styles.accountChoices}>
+                {accounts.map((account) => {
+                  const active = account.id === selectedAccount;
+                  return <Pressable key={account.id}
+                    onPress={() => setSelectedAccounts((current) => ({ ...current, [event.id]: account.id }))}
+                    style={[styles.accountChip, active && styles.accountChipActive]}>
+                    <Text style={[styles.accountChipText, active && styles.accountChipTextActive]}>{account.name}</Text>
+                  </Pressable>;
+                })}
+              </View>
+            </> : null}
 
             <View style={styles.actions}>
-              <Pressable disabled={busyEvent === event.id || !selectedAccount}
+              {applicable ? <Pressable disabled={busyEvent === event.id || !selectedAccount}
                 onPress={() => void applyEvent(event)} style={[s.primaryButton, styles.flexButton, (!selectedAccount || busyEvent === event.id) && styles.disabled]}>
                 <Text style={s.primaryButtonText}>{event.status === 'balance_pending' ? 'Reintentar saldo' : 'Confirmar'}</Text>
-              </Pressable>
+              </Pressable> : null}
               <Pressable disabled={busyEvent === event.id} onPress={() => void ignoreEvent(event.id)}
                 style={[s.secondaryButton, styles.flexButton]}>
                 <Text style={s.secondaryButtonText}>Ignorar</Text>
