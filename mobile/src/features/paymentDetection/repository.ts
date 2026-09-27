@@ -128,10 +128,19 @@ export async function findLikelyDuplicateEvent(
   return candidates.find((candidate) => {
     if (candidate.notification_key === event.notificationKey) return true;
     const sameSource = candidate.source_package === event.sourcePackage;
-    if (
-      sameSource
-      && notificationGroupKey(candidate.notification_key) === incomingGroupKey
-    ) return true;
+    const sameNotificationGroup = sameSource
+      && notificationGroupKey(candidate.notification_key) === incomingGroupKey;
+    if (sameNotificationGroup) {
+      // The notification-group reconciler intentionally releases terminal revisions whose
+      // movement kind changed. Do not collapse them again here: the refund/reversal/successful
+      // retry must become its own financial event while the original terminal event stays frozen.
+      if (
+        terminalFinancialState(candidate)
+        && event.kind !== 'unknown'
+        && candidate.event_kind !== event.kind
+      ) return false;
+      return true;
+    }
     if (candidate.event_kind !== event.kind) return false;
 
     const candidateTime = new Date(candidate.occurred_at).getTime();
