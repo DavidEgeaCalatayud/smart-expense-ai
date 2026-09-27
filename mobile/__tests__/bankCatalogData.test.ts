@@ -2,6 +2,7 @@ import {
   filterMobileBankInstitutions,
   findMobileBankInstitution,
   MOBILE_BANK_INSTITUTIONS,
+  suggestedMobileAccountNameForInstitution,
 } from '../src/features/money/bankCatalogData';
 
 describe('mobile bank catalog', () => {
@@ -39,5 +40,13 @@ describe('mobile bank catalog', () => {
     expect(filterMobileBankInstitutions('getcollectr.com').map((bank) => bank.id)).toContain('collectr');
     expect(filterMobileBankInstitutions('transferwise').map((bank) => bank.id)).toContain('wise');
     expect(filterMobileBankInstitutions('bbva.es').map((bank) => bank.id)).toContain('bbva');
+  });
+
+  it('updates only institution-generated account names when the bank changes', () => {
+    expect(suggestedMobileAccountNameForInstitution('Trade Republic', 'Trade Republic', 'Bankinter'))
+      .toBe('Bankinter');
+    expect(suggestedMobileAccountNameForInstitution('', '', 'Bankinter')).toBe('Bankinter');
+    expect(suggestedMobileAccountNameForInstitution('Inversiones', 'Trade Republic', 'Bankinter'))
+      .toBe('Inversiones');
   });
 });
