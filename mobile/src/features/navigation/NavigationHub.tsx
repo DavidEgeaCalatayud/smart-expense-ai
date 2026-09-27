@@ -15,6 +15,7 @@ const insights = [
 ] as const;
 const more = [
   ['Resumen financiero', 'Ingresos, gastos y evolución de tu actividad', '/dashboard', 'home-outline'],
+  ['Pagos automáticos', 'Detecta Wallet y avisos bancarios, confirma movimientos y ajusta saldos', '/payment-detection', 'notifications-outline'],
   ['Budgets', 'Set limits and follow your monthly progress', '/budgets', 'wallet-outline'],
   ['Categories', 'Organize your income and expenses', '/categories', 'grid-outline'],
   ['Import CSV', 'Bring in a bank statement with a preview first', '/imports', 'cloud-upload-outline'],
