@@ -82,13 +82,16 @@ def move_initial_snapshots_to(account_ids: list[UUID], recorded_at: datetime) ->
 def test_manual_accounts_aggregate_by_purpose_with_exact_money_strings() -> None:
     with TestClient(app) as client:
         register(client, "net-worth@example.com")
-        create_account(
+        trade_republic = create_account(
             client,
             name="Trade Republic",
             account_type="broker",
             purpose="opportunities",
             balance="1000.00",
         )
+        # Broker accounts are intentionally normalized to investment even when a caller
+        # supplies another purpose. This keeps investment platforms in Invertido.
+        assert trade_republic["purpose"] == "investment"
         create_account(
             client,
             name="imagin",
@@ -116,13 +119,13 @@ def test_manual_accounts_aggregate_by_purpose_with_exact_money_strings() -> None
         assert summary.json() == {
             "totalNetWorth": "4550.00",
             "available": "150.00",
-            "reserved": "1200.00",
-            "invested": "3200.00",
+            "reserved": "200.00",
+            "invested": "4200.00",
             "daily": "150.00",
             "savings": "200.00",
             "emergencyFund": "0.00",
-            "opportunities": "1000.00",
-            "investment": "3200.00",
+            "opportunities": "0.00",
+            "investment": "4200.00",
             "other": "0.00",
             "currency": "EUR",
         }
