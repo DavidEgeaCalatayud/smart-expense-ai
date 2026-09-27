@@ -26,7 +26,10 @@ function currencyCode(token: string): string | null {
 }
 
 function normalizeAmountToken(value: string): string | null {
-  const compact = value.replace(/\s/g, '');
+  // Notification prose often puts sentence punctuation directly after a currency amount
+  // ("€500,00."). Strip only trailing separators; separators inside the number still carry
+  // decimal/thousands meaning below.
+  const compact = value.replace(/\s/g, '').replace(/[.,]+$/, '');
   if (!/^\d[\d.,]*$/.test(compact)) return null;
   const comma = compact.lastIndexOf(',');
   const dot = compact.lastIndexOf('.');
