@@ -1,6 +1,7 @@
 import { minorUnitsToDecimal } from '@smart-expense-ai/domain-types';
 import type { SQLiteDatabase } from 'expo-sqlite';
 
+import { getMobileUser } from '../../auth/secureCredentials';
 import type { LocalFinancialAccountRow } from '../../database/types';
 import { updateOfflineFinancialAccountBalance } from '../money/offlineFinancialAccountMutations';
 import { createOfflineTransaction } from '../transactions/createOfflineTransaction';
@@ -12,6 +13,7 @@ import {
   type NativePaymentNotificationCandidate,
 } from './nativePaymentNotifications';
 import { parsePaymentNotification } from './parser';
+import { showDetectedPaymentNotification } from './paymentDetectionNotifications';
 import {
   findLikelyDuplicateEvent,
   findObservedEventByNotificationKey,
@@ -37,6 +39,34 @@ function autoEligibleKind(kind: ObservedPaymentEventRow['event_kind']): boolean 
 function isFreshEnoughForAutomatic(occurredAt: string): boolean {
   const time = new Date(occurredAt).getTime();
   return Number.isFinite(time) && Math.abs(Date.now() - time) <= 15 * 60_000;
+}
+
+async function notifyEvent(db: SQLiteDatabase, eventId: string): Promise<void> {
+  const [user, event] = await Promise.all([
+    getMobileUser(),
+    db.getFirstAsync<ObservedPaymentEventRow>(
+      'SELECT * FROM observed_payment_events WHERE id = ? LIMIT 1',
+      eventId,
+    ),
+  ]);
+  if (!user || !event || ['duplicate', 'ignored', 'rejected'].includes(event.status)) return;
+  const account = event.financial_account_id
+    ? await db.getFirstAsync<Pick<LocalFinancialAccountRow, 'name'>>(
+        'SELECT name FROM financial_accounts WHERE id = ? LIMIT 1',
+        event.financial_account_id,
+      )
+    : null;
+  const amount = event.amount_minor === null || !event.currency
+    ? 'Importe sin reconocer'
+    : `${minorUnitsToDecimal(event.amount_minor)} ${event.currency}`;
+  const merchant = event.merchant || event.source_label;
+  const body = `${amount} · ${merchant}${account?.name ? ` · ${account.name}` : ''}`;
+  const title = event.status === 'applied'
+    ? 'Movimiento guardado automáticamente'
+    : event.status === 'failed' || event.status === 'balance_pending'
+      ? 'Movimiento detectado: necesita revisión'
+      : 'Movimiento detectado';
+  await showDetectedPaymentNotification({ userId: user.id, eventId, title, body });
 }
 
 async function applyObservedPaymentEventUnlocked(
@@ -158,6 +188,7 @@ export async function ingestPaymentNotificationCandidate(
       });
     });
   }
+  await notifyEvent(db, eventId).catch(() => undefined);
   return eventId;
 }
 
