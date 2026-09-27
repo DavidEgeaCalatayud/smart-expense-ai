@@ -10,7 +10,11 @@ import { useCallback, useEffect, useMemo, useState } from 'react';
 import { PageHeader } from '../components/layout/PageHeader';
 import { ApiErrorAlert } from '../components/ui/ApiErrorAlert';
 import { ConfirmDialog } from '../components/ui/ConfirmDialog';
-import { buildFinancialAccountEditPayload, purposeForAccountType } from '../features/money/accountDraft';
+import {
+  buildFinancialAccountEditPayload,
+  purposeForAccountType,
+  suggestedAccountNameForInstitution,
+} from '../features/money/accountDraft';
 import { BankInstitutionPicker, BankLogo } from '../features/money/bankCatalog';
 import {
   archiveFinancialAccount,
@@ -203,7 +207,11 @@ function AccountForm({
               setDraft((current) => ({
                 ...current,
                 institution: bank.name,
-                name: current.name.trim() ? current.name : bank.name,
+                name: suggestedAccountNameForInstitution(
+                  current.name,
+                  current.institution,
+                  bank.name,
+                ),
                 accountType: bank.suggestedType,
                 purpose: purposeForAccountType(bank.suggestedType, current.purpose),
               }));
