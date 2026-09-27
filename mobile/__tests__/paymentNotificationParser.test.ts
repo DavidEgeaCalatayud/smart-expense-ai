@@ -76,6 +76,19 @@ describe('payment notification parser', () => {
     expect(parsed.kind).toBe('rejected');
   });
 
+  it.each([
+    'Pago pendiente de contabilizar de 50,00 € en CEPSA',
+    'Compra pendiente de 30,00 € en HOTEL TEST',
+    'Pending payment of €12.00 at TEST STORE',
+  ])('classifies pending card operations as holds: %s', (text) => {
+    const parsed = parsePaymentNotification(candidate({
+      notificationKey: `hold-${text}`,
+      title: 'Movimiento de tarjeta',
+      text,
+    }));
+    expect(parsed.kind).toBe('hold');
+  });
+
   it('recognizes refunds and incoming transfers', () => {
     expect(parsePaymentNotification(candidate({
       notificationKey: 'refund-1',
@@ -87,6 +100,16 @@ describe('payment notification parser', () => {
       title: 'Bizum recibido',
       text: 'Has recibido 25,00 € por Bizum',
     })).kind).toBe('transfer_in');
+    expect(parsePaymentNotification(candidate({
+      notificationKey: 'bizum-common-in',
+      title: 'Bizum',
+      text: 'Te han hecho un Bizum de 30,00 €',
+    })).kind).toBe('transfer_in');
+    expect(parsePaymentNotification(candidate({
+      notificationKey: 'bizum-common-out',
+      title: 'Bizum',
+      text: 'Has hecho un Bizum de 15,00 €',
+    })).kind).toBe('transfer_out');
   });
 
   it('keeps non-EUR currency explicit so the engine cannot auto-adjust an EUR account', () => {
