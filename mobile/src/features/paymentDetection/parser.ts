@@ -6,14 +6,16 @@ import type { ObservedPaymentEventKind, ParsedPaymentNotification } from './type
 const REJECTED = /rechazad|denegad|declined|payment failed|pago fallid|no se ha podido|could not be completed/i;
 const HOLD = /retenci[oó]n|preautoriz|pre-autoriz|authorization hold|pending card verification|verificaci[oó]n de tarjeta|(?:pago|compra|operaci[oó]n|transacci[oó]n) pendiente|pendiente de (?:contabilizar|confirmaci[oó]n|autorizar)|pending (?:payment|purchase|transaction)|(?:autoriza(?:r)?|confirma(?:r)?|aprueba|aprobar)\b\s+(?:esta\s+|la\s+|el\s+)?(?:compra|operaci[oó]n|pago|transacci[oó]n)|(?:compra|operaci[oó]n|pago|transacci[oó]n)\b[^!?\n]{0,80}\b(?:requiere|necesita)\s+(?:tu\s+)?(?:autorizaci[oó]n|confirmaci[oó]n)|(?:approve|confirm)\b\s+(?:this\s+|the\s+)?(?:payment|purchase|transaction)|(?:payment|purchase|transaction)\b[^!?\n]{0,80}\b(?:requires|needs)\s+(?:your\s+)?(?:approval|confirmation)/i;
 const REFUND = /reembolso|devoluci[oó]n|refund|refunded|reintegr|cargo\s+(?:devuelt|revertid)|(?:charge|payment)\s+reversed|reversed\s+charge/i;
-const TRANSFER_IN = /bizum recibido|has recibido|te han enviado|te ha enviado|te han hecho un bizum|has recibido un bizum|transferencia recibida|received (?:a )?transfer|money received/i;
-const TRANSFER_OUT = /bizum enviado|has enviado|has hecho un bizum|transferencia enviada|sent (?:a )?transfer|money sent/i;
+const TRANSFER_IN = /bizum recibido|has recibido\s+(?:(?:un|una)\s+)?(?:bizum|transferencia|pago|ingreso|abono)\b|has recibido\s+(?:€|\$|£|\d)|te han (?:enviado|hecho)\s+(?:(?:un|una)\s+)?(?:bizum|transferencia)\b|te han enviado\s+(?:€|\$|£|\d)|te ha enviado\s+(?:(?:un|una)\s+)?(?:bizum|transferencia)\b|te ha enviado\s+(?:€|\$|£|\d)|transferencia recibida|received (?:a )?transfer|money received/i;
+const TRANSFER_OUT = /bizum enviado|has enviado\s+(?:(?:un|una)\s+)?(?:bizum|transferencia)\b|has enviado\s+(?:€|\$|£|\d)|has hecho un bizum|transferencia enviada|sent (?:a )?transfer|money sent/i;
 // A card/wallet mention or an aggregate spending notice is not enough evidence for one purchase.
 // Keep those candidates review-only. Automatic payment classification requires an explicit
 // transaction word that refers to an individual charge/purchase/payment.
 const PAYMENT = /pago|pagado|compra|purchase|paid|payment|cargo|charged/i;
 const SPENDING_SUMMARY = /(?:has\s+gastado|gasto\s+(?:total|mensual|semanal)|gastos?\s+(?:del|de este|esta)\s+(?:mes|semana)|spent\s+(?:this|last)\s+(?:month|week)|monthly\s+spend|weekly\s+spend)/i;
 const GENERIC_TITLE = /^(pago|payment|compra|purchase|operaci[oó]n|movimiento|wallet|tarjeta|card|notificaci[oó]n|aviso)(\s+realizad[oa])?$/i;
+const TRANSACTION_AMOUNT_CONTEXT = /pago|pagado|compra|purchase|paid|payment|cargo|charged|reembolso|devoluci[oó]n|refund|bizum|transferencia|transfer/i;
+const BALANCE_AMOUNT_CONTEXT = /saldo|balance|l[ií]mite|limit|disponible|available|cr[eé]dito|credit/i;
 
 function currencyCode(token: string): string | null {
   const normalized = token.trim().toUpperCase();
@@ -40,21 +42,81 @@ function normalizeAmountToken(value: string): string | null {
   return `${integer}.${fraction}`;
 }
 
-function extractAmount(text: string): { amountMinor: number; currency: string } | null {
-  const before = /(?:^|\s)(€|EUR|USD|\$|GBP|£)\s*(\d[\d., ]{0,18})/i.exec(text);
-  const after = /(\d[\d., ]{0,18})\s*(€|EUR|USD|\$|GBP|£)(?:\s|$|[).,;:])/i.exec(text);
-  const currency = currencyCode(before?.[1] ?? after?.[2] ?? '');
-  const amountToken = before?.[2] ?? after?.[1];
-  if (!currency || !amountToken) return null;
+interface AmountCandidate {
+  amountMinor: number;
+  currency: string;
+  index: number;
+  end: number;
+}
+
+function parseAmountCandidate(
+  amountToken: string,
+  currencyToken: string,
+  index: number,
+  end: number,
+): AmountCandidate | null {
+  const currency = currencyCode(currencyToken);
   const normalized = normalizeAmountToken(amountToken.trim());
-  if (!normalized) return null;
+  if (!currency || !normalized) return null;
   try {
     const amountMinor = decimalToMinorUnits(normalized);
     if (amountMinor <= 0 || amountMinor > 999_999_999_999) return null;
-    return { amountMinor, currency };
+    return { amountMinor, currency, index, end };
   } catch {
     return null;
   }
+}
+
+function distanceFromLastMatch(segment: string, pattern: RegExp): number | null {
+  const flags = pattern.flags.includes('g') ? pattern.flags : `${pattern.flags}g`;
+  const matcher = new RegExp(pattern.source, flags);
+  let lastEnd = -1;
+  for (const match of segment.matchAll(matcher)) {
+    if (match.index !== undefined) lastEnd = match.index + match[0].length;
+  }
+  return lastEnd < 0 ? null : segment.length - lastEnd;
+}
+
+function amountContextScore(text: string, candidate: AmountCandidate): number {
+  const before = text.slice(Math.max(0, candidate.index - 90), candidate.index);
+  const after = text.slice(candidate.end, Math.min(text.length, candidate.end + 45));
+  const transactionDistance = distanceFromLastMatch(before, TRANSACTION_AMOUNT_CONTEXT);
+  const balanceDistance = distanceFromLastMatch(before, BALANCE_AMOUNT_CONTEXT);
+
+  let score = 0;
+  if (transactionDistance !== null) score += Math.max(2, 12 - Math.floor(transactionDistance / 7));
+  if (balanceDistance !== null) score -= Math.max(3, 14 - Math.floor(balanceDistance / 6));
+  if (transactionDistance !== null && (balanceDistance === null || transactionDistance < balanceDistance)) score += 8;
+  if (balanceDistance !== null && (transactionDistance === null || balanceDistance < transactionDistance)) score -= 10;
+  if (/^\s*(?:en|at|to|from)\b/i.test(after)) score += 2;
+  return score;
+}
+
+function extractAmount(text: string): { amountMinor: number; currency: string } | null {
+  const candidates: AmountCandidate[] = [];
+  const beforePattern = /(?:^|\s)(€|EUR|USD|\$|GBP|£)\s*(\d[\d., ]{0,18})/gi;
+  const afterPattern = /(\d[\d., ]{0,18})\s*(€|EUR|USD|\$|GBP|£)(?=\s|$|[).,;:])/gi;
+
+  for (const match of text.matchAll(beforePattern)) {
+    if (match.index === undefined || !match[1] || !match[2]) continue;
+    const candidate = parseAmountCandidate(match[2], match[1], match.index, match.index + match[0].length);
+    if (candidate) candidates.push(candidate);
+  }
+  for (const match of text.matchAll(afterPattern)) {
+    if (match.index === undefined || !match[1] || !match[2]) continue;
+    const candidate = parseAmountCandidate(match[1], match[2], match.index, match.index + match[0].length);
+    if (candidate) candidates.push(candidate);
+  }
+  if (candidates.length === 0) return null;
+
+  candidates.sort((left, right) => {
+    const scoreDelta = amountContextScore(text, right) - amountContextScore(text, left);
+    return scoreDelta || left.index - right.index;
+  });
+  return {
+    amountMinor: candidates[0]!.amountMinor,
+    currency: candidates[0]!.currency,
+  };
 }
 
 function normalizeMerchant(value: string): string | null {
