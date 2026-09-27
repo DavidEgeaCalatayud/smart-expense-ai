@@ -80,13 +80,27 @@ describe('payment notification parser', () => {
     'Pago pendiente de contabilizar de 50,00 € en CEPSA',
     'Compra pendiente de 30,00 € en HOTEL TEST',
     'Pending payment of €12.00 at TEST STORE',
-  ])('classifies pending card operations as holds: %s', (text) => {
+    'Autoriza esta compra de 50,00 € en MERCADONA',
+    'Confirma el pago de 22,90 € en AMAZON',
+    'Esta operación de 75,00 € necesita tu autorización',
+    'Confirm this purchase of €19.95 at TEST STORE',
+    'Payment of €31.00 requires your approval',
+  ])('classifies pending or approval-required card operations as holds: %s', (text) => {
     const parsed = parsePaymentNotification(candidate({
       notificationKey: `hold-${text}`,
       title: 'Movimiento de tarjeta',
       text,
     }));
     expect(parsed.kind).toBe('hold');
+  });
+
+  it('does not confuse a completed authorized-payment message with an approval request', () => {
+    const parsed = parsePaymentNotification(candidate({
+      notificationKey: 'authorized-completed',
+      title: 'Pago realizado',
+      text: 'Pago autorizado de 14,50 € en CAFETERIA TEST',
+    }));
+    expect(parsed.kind).toBe('payment');
   });
 
   it('recognizes refunds and incoming transfers', () => {
