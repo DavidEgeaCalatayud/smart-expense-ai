@@ -140,6 +140,7 @@ class PaymentNotificationListenerService : NotificationListenerService() {
     private val amountPattern = Regex("(?:€|\\bEUR\\b|\\bUSD\\b|\\$|\\bGBP\\b|£)\\s*\\d|\\d[\\d., ]*\\s*(?:€|\\bEUR\\b|\\bUSD\\b|\\$|\\bGBP\\b|£)", RegexOption.IGNORE_CASE)
     private val paymentPattern = Regex("pago|pagado|compra|tarjeta|wallet|bizum|transfer|cargo|reembolso|devoluci|refund|purchase|paid|payment|card|received|sent|retenci|preautoriz|authori", RegexOption.IGNORE_CASE)
     private val sensitivePattern = Regex("c[oó]digo(?: de)? (?:acceso|verificaci[oó]n|seguridad)|\\botp\\b|verification code|one[- ]time password|contrase(?:ñ|n)a|password", RegexOption.IGNORE_CASE)
+    private val knownWalletPackages = setOf("com.google.android.apps.walletnfcrel")
 
     override fun onNotificationPosted(sbn: StatusBarNotification) {
         if (!PaymentNotificationStore.isCaptureEnabled(this)) return
@@ -155,7 +156,9 @@ class PaymentNotificationListenerService : NotificationListenerService() {
             .orEmpty()
             .take(900)
         val combined = listOf(title, text, bigText, lines).filter { it.isNotBlank() }.joinToString(" ")
-        if (combined.isBlank() || !amountPattern.containsMatchIn(combined) || !paymentPattern.containsMatchIn(combined)) return
+        val isKnownWallet = knownWalletPackages.contains(sbn.packageName)
+        if (combined.isBlank() || !amountPattern.containsMatchIn(combined)) return
+        if (!isKnownWallet && !paymentPattern.containsMatchIn(combined)) return
         if (sensitivePattern.containsMatchIn(combined)) return
 
         val sourceLabel = runCatching {
