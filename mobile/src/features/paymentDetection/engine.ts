@@ -8,6 +8,7 @@ import { createOfflineTransaction } from '../transactions/createOfflineTransacti
 import { localDate } from '../transactions/validation';
 import { matchPaymentAccount } from './accountMatcher';
 import { shouldAutomaticallyApplyPayment } from './automationPolicy';
+import { paymentEventIgnoreError } from './eventPolicy';
 import {
   acknowledgePaymentNotificationCandidate,
   getPendingPaymentNotificationCandidates,
@@ -239,12 +240,8 @@ export async function ignoreObservedPaymentEvent(db: SQLiteDatabase, eventId: st
       eventId,
     );
     if (!event || event.status === 'ignored') return;
-    if (event.status === 'applied') {
-      throw new Error('Este movimiento ya fue aplicado y no se puede ignorar.');
-    }
-    if (event.transaction_id) {
-      throw new Error('Este movimiento ya creó una transacción. Reintenta el ajuste de saldo en lugar de ignorarlo.');
-    }
+    const blockReason = paymentEventIgnoreError(event);
+    if (blockReason) throw new Error(blockReason);
     await updateObservedPaymentEvent(db, eventId, { status: 'ignored', errorMessage: null });
   });
 }
