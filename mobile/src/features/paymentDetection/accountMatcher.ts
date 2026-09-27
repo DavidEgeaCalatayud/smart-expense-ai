@@ -8,6 +8,9 @@ interface AccountLinkRow {
   financial_account_id: string;
 }
 
+const SOURCE_MATCH_MINIMUM = 0.8;
+const SOURCE_MATCH_AMBIGUITY_MARGIN = 0.05;
+
 function normalized(value: string | null | undefined): string {
   return value ? normalizeMobileBankSearch(value).replace(/[^a-z0-9]/g, '') : '';
 }
@@ -58,12 +61,17 @@ export async function matchPaymentAccount(
      WHERE archived = 0 AND include_in_net_worth = 1
      ORDER BY created_at, id`,
   );
-  let best: { account: LocalFinancialAccountRow; score: number } | null = null;
-  for (const account of accounts) {
-    const score = sourceMatchesAccount(event.sourceLabel, account);
-    if (!best || score > best.score) best = { account, score };
-  }
-  if (best && best.score >= 0.8) {
+  const ranked = accounts
+    .map((account) => ({ account, score: sourceMatchesAccount(event.sourceLabel, account) }))
+    .filter((item) => item.score >= SOURCE_MATCH_MINIMUM)
+    .sort((left, right) => right.score - left.score || left.account.id.localeCompare(right.account.id));
+
+  const best = ranked[0];
+  if (best) {
+    const runnerUp = ranked[1];
+    if (runnerUp && best.score - runnerUp.score <= SOURCE_MATCH_AMBIGUITY_MARGIN) {
+      return { accountId: null, confidence: 0, reason: 'ambiguous-institution' };
+    }
     return { accountId: best.account.id, confidence: best.score, reason: 'institution-name' };
   }
 
