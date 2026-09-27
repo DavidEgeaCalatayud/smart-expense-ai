@@ -8,7 +8,11 @@ const HOLD = /retenci[oó]n|preautoriz|pre-autoriz|authorization hold|pending ca
 const REFUND = /reembolso|devoluci[oó]n|refund|refunded|reintegr/i;
 const TRANSFER_IN = /bizum recibido|has recibido|te han enviado|te ha enviado|te han hecho un bizum|has recibido un bizum|transferencia recibida|received (?:a )?transfer|money received/i;
 const TRANSFER_OUT = /bizum enviado|has enviado|has hecho un bizum|transferencia enviada|sent (?:a )?transfer|money sent/i;
-const PAYMENT = /pago|pagado|compra|purchase|paid|payment|cargo|tarjeta|card|wallet/i;
+// A card/wallet mention or an aggregate spending notice is not enough evidence for one purchase.
+// Keep those candidates review-only. Automatic payment classification requires an explicit
+// transaction word that refers to an individual charge/purchase/payment.
+const PAYMENT = /pago|pagado|compra|purchase|paid|payment|cargo|charged/i;
+const SPENDING_SUMMARY = /(?:has\s+gastado|gasto\s+(?:total|mensual|semanal)|gastos?\s+(?:del|de este|esta)\s+(?:mes|semana)|spent\s+(?:this|last)\s+(?:month|week)|monthly\s+spend|weekly\s+spend)/i;
 const GENERIC_TITLE = /^(pago|payment|compra|purchase|operaci[oó]n|movimiento|wallet|tarjeta|card|notificaci[oó]n|aviso)(\s+realizad[oa])?$/i;
 
 function currencyCode(token: string): string | null {
@@ -112,6 +116,7 @@ function classifyKind(text: string): ObservedPaymentEventKind {
   if (REFUND.test(text)) return 'refund';
   if (TRANSFER_IN.test(text)) return 'transfer_in';
   if (TRANSFER_OUT.test(text)) return 'transfer_out';
+  if (SPENDING_SUMMARY.test(text)) return 'unknown';
   if (PAYMENT.test(text)) return 'payment';
   return 'unknown';
 }
