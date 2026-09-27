@@ -17,6 +17,7 @@ import {
 import { parsePaymentNotification } from './parser';
 import { showDetectedPaymentNotification } from './paymentDetectionNotifications';
 import {
+  enrichObservedPaymentEventFromDuplicate,
   findLikelyDuplicateEvent,
   findObservedEventByNotificationKey,
   getPaymentDetectionSettings,
@@ -173,6 +174,7 @@ export async function ingestPaymentNotificationCandidate(
   const match = await matchPaymentAccount(db, parsed);
   const duplicate = await findLikelyDuplicateEvent(db, parsed);
   if (duplicate) {
+    await enrichObservedPaymentEventFromDuplicate(db, duplicate, parsed, match);
     return await insertObservedPaymentEvent(db, parsed, match, 'duplicate');
   }
 
