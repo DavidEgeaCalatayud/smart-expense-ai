@@ -16,13 +16,22 @@ export interface CreatedOfflineTransaction {
   categoryId: string;
 }
 
+export interface CreateOfflineTransactionOptions {
+  transactionId?: string;
+  finalize?: (
+    transaction: SQLiteDatabase,
+    result: CreatedOfflineTransaction,
+  ) => Promise<void>;
+}
+
 export async function createOfflineTransaction(
   db: SQLiteDatabase,
   input: OfflineTransactionFormInput,
+  options: CreateOfflineTransactionOptions = {},
 ): Promise<CreatedOfflineTransaction> {
   const validated = validateOfflineTransactionInput(input);
   const now = new Date().toISOString();
-  const transactionId = Crypto.randomUUID();
+  const transactionId = options.transactionId ?? Crypto.randomUUID();
   let categoryId = '';
 
   await runKeyedTransaction(db, async (txn) => {
@@ -68,6 +77,9 @@ export async function createOfflineTransaction(
       },
     };
     await enqueueMutation(txn, transactionMutation, now);
+    if (options.finalize) {
+      await options.finalize(txn, { transactionId, categoryId });
+    }
   });
 
   return { transactionId, categoryId };
