@@ -83,12 +83,13 @@ export function BankInstitutionPicker({
         <input
           value={query}
           onChange={(event) => setQuery(event.target.value)}
-          placeholder="Buscar Bankinter, Trading 212, Quantfury..."
+          placeholder="Buscar Bankinter, eToro, Trading 212..."
           className="w-full rounded-2xl border border-slate-200 bg-white py-3 pl-10 pr-4 text-sm font-normal outline-none focus:border-brand-400"
         />
       </div>
 
-      <div className="mt-3 grid max-h-64 gap-2 overflow-y-auto pr-1 sm:grid-cols-2 lg:grid-cols-3">
+      <p className="mt-2 text-center text-[11px] font-semibold text-slate-500">Desliza para ver todas las entidades disponibles</p>
+      <div className="mt-2 grid max-h-64 gap-2 overflow-y-auto overscroll-contain pr-1 sm:grid-cols-2 lg:grid-cols-3">
         {filtered.map((bank) => {
           const active = selected?.id === bank.id;
           return (
