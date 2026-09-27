@@ -84,6 +84,20 @@ describe('payment notification parser', () => {
   });
 
   it.each([
+    ['Saldo disponible €500,00. Compra de €20,00 en MERCADONA', 2000],
+    ['Compra de 20,00 € en MERCADONA. Saldo disponible 480,00 €', 2000],
+    ['Balance available $900.00. Card payment $21.46 at TEST MERCHANT', 2146],
+  ])('selects the transaction amount instead of a displayed balance: %s', (text, expectedMinor) => {
+    const parsed = parsePaymentNotification(candidate({
+      notificationKey: `multi-amount-${text}`,
+      title: 'Movimiento de tarjeta',
+      text,
+    }));
+    expect(parsed.amountMinor).toBe(expectedMinor);
+    expect(parsed.kind).toBe('payment');
+  });
+
+  it.each([
     'Has gastado 500,00 € este mes con tu tarjeta',
     'Gasto mensual: 350,00 €',
     'Spent this month: €420.00',
@@ -166,6 +180,15 @@ describe('payment notification parser', () => {
       title: 'Bizum',
       text: 'Has hecho un Bizum de 15,00 €',
     })).kind).toBe('transfer_out');
+  });
+
+  it('does not classify generic received-notification wording as incoming money', () => {
+    const parsed = parsePaymentNotification(candidate({
+      notificationKey: 'received-notice-not-transfer',
+      title: 'Aviso',
+      text: 'Has recibido un aviso sobre un pago de 50,00 €',
+    }));
+    expect(parsed.kind).not.toBe('transfer_in');
   });
 
   it('keeps non-EUR currency explicit so the engine cannot auto-adjust an EUR account', () => {
