@@ -3,6 +3,8 @@ import type { SQLiteDatabase } from 'expo-sqlite';
 import {
   enrichObservedPaymentEventFromDuplicate,
   findLikelyDuplicateEvent,
+  findObservedEventByNotificationGroup,
+  reconcileObservedPaymentEventRevision,
 } from '../src/features/paymentDetection/repository';
 import type {
   ObservedPaymentEventRow,
@@ -91,6 +93,11 @@ test('deduplicates Wallet and bank notifications for the same merchant and amoun
   expect((await findLikelyDuplicateEvent(fake.db, parsed()))?.id).toBe('existing-event');
 });
 
+test('does not use merchant similarity across sources after the reconciliation window', async () => {
+  const fake = fakeDb([existing({ occurred_at: '2026-09-27T18:39:30.000Z' })]);
+  expect(await findLikelyDuplicateEvent(fake.db, parsed())).toBeNull();
+});
+
 test('deduplicates two content revisions of the same Android notification when the movement kind is unchanged', async () => {
   const firstRevision = existing({
     source_package: 'com.bankinter.launcher',
@@ -110,21 +117,74 @@ test('deduplicates two content revisions of the same Android notification when t
   expect(duplicate?.id).toBe(firstRevision.id);
 });
 
-test('lets a pending hold revision become a later successful payment', async () => {
+test('recognizes a pending hold and completed payment as revisions of the same Android notification', async () => {
+  const pending = existing({
+    source_package: 'com.bankinter.launcher',
+    notification_key: 'system-key#rev=pending',
+    captured_at: '2026-09-27T18:41:30.000Z',
+    event_kind: 'hold',
+    status: 'needs_confirmation',
+  });
+  const incoming = parsed({
+    sourcePackage: 'com.bankinter.launcher',
+    sourceLabel: 'Bankinter',
+    notificationKey: 'system-key#rev=completed',
+    capturedAt: '2026-09-27T18:42:01.000Z',
+    kind: 'payment',
+  });
+  const fake = fakeDb([pending]);
+  expect((await findObservedEventByNotificationGroup(fake.db, incoming))?.id).toBe(pending.id);
+  expect(fake.sql()).toContain("status <> 'duplicate'");
+});
+
+test('reconciles a mutable hold into the later successful payment without creating another event', async () => {
   const pending = existing({
     source_package: 'com.bankinter.launcher',
     notification_key: 'system-key#rev=pending',
     event_kind: 'hold',
+    financial_account_id: null,
+    confidence: 0.6,
     status: 'needs_confirmation',
   });
-  const fake = fakeDb([pending]);
-  const duplicate = await findLikelyDuplicateEvent(fake.db, parsed({
+  const incoming = parsed({
     sourcePackage: 'com.bankinter.launcher',
     sourceLabel: 'Bankinter',
     notificationKey: 'system-key#rev=completed',
     kind: 'payment',
-  }));
-  expect(duplicate).toBeNull();
+  });
+  const fake = fakeDb([]);
+  const reconciled = await reconcileObservedPaymentEventRevision(
+    fake.db,
+    pending,
+    incoming,
+    { accountId: 'bankinter-account', confidence: 0.92, reason: 'institution-name' },
+    'needs_confirmation',
+  );
+
+  expect(reconciled).toBe(true);
+  expect(fake.runAsync).toHaveBeenCalledTimes(1);
+  expect(fake.runArgs()).toContain('payment');
+  expect(fake.runArgs()).toContain('needs_confirmation');
+  expect(fake.runArgs()).toContain('bankinter-account');
+  expect(fake.runArgs().at(-1)).toBe(pending.id);
+});
+
+test('never rewrites a notification revision after a transaction already exists', async () => {
+  const locked = existing({
+    notification_key: 'system-key#rev=old',
+    status: 'balance_pending',
+    transaction_id: 'transaction-1',
+  });
+  const fake = fakeDb([]);
+  const reconciled = await reconcileObservedPaymentEventRevision(
+    fake.db,
+    locked,
+    parsed({ notificationKey: 'system-key#rev=new' }),
+    { accountId: 'other-account', confidence: 0.99, reason: 'card-link' },
+    'pending',
+  );
+  expect(reconciled).toBe(false);
+  expect(fake.runAsync).not.toHaveBeenCalled();
 });
 
 test('does not collapse two genuine same-source same-merchant payments with different notification keys', async () => {
@@ -163,7 +223,7 @@ test('uses same-card evidence only across different sources and within a tight t
   expect(await findLikelyDuplicateEvent(oldFake.db, parsed({ merchant: null }))).toBeNull();
 });
 
-test('never deduplicates different movement kinds with the same amount', async () => {
+test('never deduplicates different movement kinds unless they are revisions of the same notification', async () => {
   const fake = fakeDb([existing({ event_kind: 'refund' })]);
   expect(await findLikelyDuplicateEvent(fake.db, parsed())).toBeNull();
 });
