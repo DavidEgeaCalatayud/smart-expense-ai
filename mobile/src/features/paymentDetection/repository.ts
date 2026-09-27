@@ -86,19 +86,23 @@ export async function findLikelyDuplicateEvent(
   return candidates.find((candidate) => {
     if (candidate.notification_key === event.notificationKey) return true;
     if (candidate.event_kind !== event.kind) return false;
+    const sameSource = candidate.source_package === event.sourcePackage;
     if (
-      candidate.source_package === event.sourcePackage
+      sameSource
       && notificationGroupKey(candidate.notification_key) === incomingGroupKey
     ) return true;
 
     const otherMerchant = candidate.merchant?.toLocaleLowerCase().replace(/[^a-z0-9áéíóúüñ]+/gi, '') ?? '';
-    if (merchant && otherMerchant) {
+    // Merchant similarity is useful for Wallet <-> bank reconciliation, but it is unsafe
+    // within one source: two real purchases at the same shop can have the same amount only
+    // seconds apart. Same-source duplicates require the exact Android notification group.
+    if (!sameSource && merchant && otherMerchant) {
       return merchant === otherMerchant
         || merchant.includes(otherMerchant)
         || otherMerchant.includes(merchant);
     }
     if (!event.cardHint || !candidate.card_hint || event.cardHint !== candidate.card_hint) return false;
-    if (candidate.source_package === event.sourcePackage) return false;
+    if (sameSource) return false;
     const candidateTime = new Date(candidate.occurred_at).getTime();
     return Number.isFinite(candidateTime) && Math.abs(candidateTime - occurred) <= 90_000;
   }) ?? null;
