@@ -2,6 +2,9 @@ const { withAndroidManifest, withDangerousMod, withMainApplication } = require('
 const fs = require('node:fs/promises');
 const path = require('node:path');
 
+const kotlinAmountPattern = String.raw`(?:€|\bEUR\b|\bUSD\b|\x24|\bGBP\b|£)\s*\d|\d[\d., ]*\s*(?:€|\bEUR\b|\bUSD\b|\x24|\bGBP\b|£)`;
+const kotlinSensitivePattern = String.raw`c[oó]digo(?: de)? (?:acceso|verificaci[oó]n|seguridad)|\botp\b|verification code|one[- ]time password|contrase(?:ñ|n)a|password`;
+
 module.exports = function withPaymentNotificationListener(config) {
   const packageName = config.android?.package;
   if (!packageName || !/^[a-zA-Z0-9_.]+$/.test(packageName)) {
@@ -137,9 +140,9 @@ import org.json.JSONObject
 import java.util.Locale
 
 class PaymentNotificationListenerService : NotificationListenerService() {
-    private val amountPattern = Regex("(?:€|\\bEUR\\b|\\bUSD\\b|\\$|\\bGBP\\b|£)\\s*\\d|\\d[\\d., ]*\\s*(?:€|\\bEUR\\b|\\bUSD\\b|\\$|\\bGBP\\b|£)", RegexOption.IGNORE_CASE)
+    private val amountPattern = Regex("""${kotlinAmountPattern}""", RegexOption.IGNORE_CASE)
     private val paymentPattern = Regex("pago|pagado|compra|tarjeta|wallet|bizum|transfer|cargo|reembolso|devoluci|refund|purchase|paid|payment|card|received|sent|retenci|preautoriz|authori", RegexOption.IGNORE_CASE)
-    private val sensitivePattern = Regex("c[oó]digo(?: de)? (?:acceso|verificaci[oó]n|seguridad)|\\botp\\b|verification code|one[- ]time password|contrase(?:ñ|n)a|password", RegexOption.IGNORE_CASE)
+    private val sensitivePattern = Regex("""${kotlinSensitivePattern}""", RegexOption.IGNORE_CASE)
     private val knownWalletPackages = setOf("com.google.android.apps.walletnfcrel")
 
     override fun onNotificationPosted(sbn: StatusBarNotification) {
