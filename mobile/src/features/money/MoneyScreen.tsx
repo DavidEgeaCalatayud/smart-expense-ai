@@ -565,6 +565,7 @@ const styles = StyleSheet.create({
   sectionCard: { backgroundColor: '#fff', borderRadius: 22, padding: 17, gap: 12, borderWidth: 1, borderColor: '#e3eae6' },
   sectionHeader: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 12 },
   sectionTitle: { fontSize: 18, fontWeight: '800' },
+  cardTitle: { fontSize: 14, fontWeight: '800' },
   fieldLabel: { color: '#47564f', fontSize: 12, fontWeight: '700', marginTop: 2 },
   input: { backgroundColor: '#f8faf9', borderWidth: 1, borderColor: '#dce5e0', borderRadius: 14, paddingHorizontal: 14, minHeight: 48, fontSize: 16 },
   chips: { gap: 8, paddingVertical: 2 },
