@@ -1,2 +1,5 @@
-import { DashboardScreen } from '../src/features/dashboard/DashboardScreen';
-export default function HomeRoute() { return <DashboardScreen />; }
+import { MoneyScreen } from '../src/features/money/MoneyScreen';
+
+export default function HomeRoute() {
+  return <MoneyScreen />;
+}
