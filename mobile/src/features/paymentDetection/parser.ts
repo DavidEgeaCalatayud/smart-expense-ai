@@ -61,21 +61,30 @@ function normalizeMerchant(value: string): string | null {
     .replace(/^[\s:,-]+|[\s:,-]+$/g, '')
     .trim();
   if (clean.length < 2 || clean.length > 120) return null;
+  if (/^\d{4}(?:\b|\s)/.test(clean)) return null;
+  if (/^(?:tu\s+)?(?:tarjeta|card)\b/i.test(clean)) return null;
   return clean;
+}
+
+function locationMerchantCandidates(text: string): string[] {
+  // Split instead of taking only the first "en/at/to" occurrence. Banking apps commonly
+  // produce phrases such as "tarjeta terminada en 1234 en MERCADONA" where the first
+  // location token belongs to the card suffix, not the merchant.
+  const pieces = text.split(/\b(?:en|at|to)\b/i).slice(1);
+  return pieces.map((piece) => piece.split(/[.;\n]/, 1)[0] ?? '');
 }
 
 function extractMerchant(title: string, body: string): string | null {
   const combined = `${title}. ${body}`;
-  const patterns = [
-    /(?:\ben\b|\bat\b|\bto\b)\s+([^.;\n]{2,90})/i,
-    /(?:comercio|merchant|establecimiento)\s*[:\-]\s*([^.;\n]{2,90})/i,
-  ];
-  for (const pattern of patterns) {
-    const match = pattern.exec(combined);
-    if (match?.[1]) {
-      const merchant = normalizeMerchant(match[1]);
-      if (merchant) return merchant;
-    }
+  const labeled = /(?:comercio|merchant|establecimiento)\s*[:\-]\s*([^.;\n]{2,90})/i.exec(combined);
+  if (labeled?.[1]) {
+    const merchant = normalizeMerchant(labeled[1]);
+    if (merchant) return merchant;
+  }
+
+  for (const candidate of locationMerchantCandidates(combined)) {
+    const merchant = normalizeMerchant(candidate);
+    if (merchant) return merchant;
   }
 
   const titleClean = normalizeMerchant(title);
