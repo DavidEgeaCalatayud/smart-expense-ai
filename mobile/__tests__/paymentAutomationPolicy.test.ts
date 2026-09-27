@@ -47,6 +47,15 @@ it('never lets a perfect parser compensate for a weak single-account guess', () 
   expect(shouldAutomaticallyApplyPayment(settings, parsed(), weakMatch, NOW)).toBe(false);
 });
 
+it('never auto-applies from an Android display-label institution match alone', () => {
+  const labelOnlyMatch: PaymentAccountMatch = {
+    accountId: 'bankinter-account',
+    confidence: 0.99,
+    reason: 'institution-name',
+  };
+  expect(shouldAutomaticallyApplyPayment(settings, parsed(), labelOnlyMatch, NOW)).toBe(false);
+});
+
 it('allows a fresh EUR payment with an independently reliable account match', () => {
   const strongMatch: PaymentAccountMatch = {
     accountId: 'bankinter-account',
@@ -54,6 +63,15 @@ it('allows a fresh EUR payment with an independently reliable account match', ()
     reason: 'card-link',
   };
   expect(shouldAutomaticallyApplyPayment(settings, parsed(), strongMatch, NOW)).toBe(true);
+});
+
+it('allows a previously learned package-only source link when present', () => {
+  const learnedSource: PaymentAccountMatch = {
+    accountId: 'bankinter-account',
+    confidence: 0.96,
+    reason: 'source-link',
+  };
+  expect(shouldAutomaticallyApplyPayment(settings, parsed(), learnedSource, NOW)).toBe(true);
 });
 
 it.each([
