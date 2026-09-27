@@ -20,7 +20,8 @@ export function BankLogo({
   className?: string;
 }) {
   const bank = findBankInstitution(fallbackName) ?? findBankInstitution(institution);
-  const [failed, setFailed] = useState(false);
+  const [failedDomain, setFailedDomain] = useState<string | null>(null);
+  const failed = bank ? failedDomain === bank.domain : false;
   const initials = (bank?.name ?? fallbackName)
     .split(/\s+/)
     .filter(Boolean)
@@ -44,7 +45,7 @@ export function BankLogo({
         className="h-full w-full object-contain"
         loading="lazy"
         referrerPolicy="no-referrer"
-        onError={() => setFailed(true)}
+        onError={() => setFailedDomain(bank.domain)}
       />
     </div>
   );
