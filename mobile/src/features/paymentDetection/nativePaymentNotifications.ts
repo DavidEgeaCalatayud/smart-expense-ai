@@ -50,7 +50,7 @@ export async function isNativePaymentCaptureEnabled(): Promise<boolean> {
   return await moduleOrNull()?.isCaptureEnabled() ?? false;
 }
 
-function parseCandidate(value: unknown): NativePaymentNotificationCandidate | null {
+export function parseNativePaymentNotificationCandidate(value: unknown): NativePaymentNotificationCandidate | null {
   if (!value || typeof value !== 'object') return null;
   const candidate = value as Record<string, unknown>;
   if (
@@ -82,7 +82,9 @@ export async function getPendingPaymentNotificationCandidates(): Promise<NativeP
   try {
     const values = JSON.parse(raw) as unknown;
     if (!Array.isArray(values)) return [];
-    return values.map(parseCandidate).filter((value): value is NativePaymentNotificationCandidate => value !== null);
+    return values
+      .map(parseNativePaymentNotificationCandidate)
+      .filter((value): value is NativePaymentNotificationCandidate => value !== null);
   } catch {
     return [];
   }
