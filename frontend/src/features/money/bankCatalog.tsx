@@ -68,7 +68,7 @@ export function BankInstitutionPicker({
       <div className="flex flex-wrap items-end justify-between gap-3">
         <div>
           <p className="text-sm font-semibold text-slate-800">Banco o plataforma</p>
-          <p className="mt-1 text-xs text-slate-500">Busca y selecciona la entidad para mostrar su logo en Mi dinero.</p>
+          <p className="mt-1 text-xs text-slate-500">Puedes añadir tantas cuentas como necesites. Los brokers se clasifican automáticamente como inversión y suman en Invertido.</p>
         </div>
         {selected && (
           <div className="flex items-center gap-2 rounded-xl bg-white px-3 py-2 text-xs font-semibold text-slate-700 shadow-sm">
@@ -83,7 +83,7 @@ export function BankInstitutionPicker({
         <input
           value={query}
           onChange={(event) => setQuery(event.target.value)}
-          placeholder="Buscar Bankinter, imagin, Trade Republic..."
+          placeholder="Buscar Bankinter, Trading 212, Quantfury..."
           className="w-full rounded-2xl border border-slate-200 bg-white py-3 pl-10 pr-4 text-sm font-normal outline-none focus:border-brand-400"
         />
       </div>
