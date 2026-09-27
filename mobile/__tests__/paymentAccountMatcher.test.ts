@@ -45,7 +45,7 @@ function account(id: string, overrides: Partial<LocalFinancialAccountRow> = {}):
   };
 }
 
-function dbWith(accounts: LocalFinancialAccountRow[], links: Array<{ financial_account_id: string } | null> = [null, null]) {
+function dbWith(accounts: LocalFinancialAccountRow[], links: ({ financial_account_id: string } | null)[] = [null, null]) {
   let linkIndex = 0;
   const queries: string[] = [];
   const db = {
