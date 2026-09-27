@@ -42,6 +42,8 @@ interface PendingSnapshotRow {
   source: 'manual' | 'open_banking' | 'import';
 }
 
+type BalanceMutationFinalizer = (transaction: SQLiteDatabase) => Promise<void>;
+
 function cleanName(value: string): string {
   const clean = value.trim();
   if (!clean) throw new Error('Escribe un nombre para la cuenta.');
@@ -345,47 +347,71 @@ export async function updateOfflineFinancialAccountMetadata(
   });
 }
 
+async function updateOfflineFinancialAccountBalanceInTransaction(
+  transaction: SQLiteDatabase,
+  accountId: string,
+  balance: string,
+  finalize?: BalanceMutationFinalizer,
+): Promise<void> {
+  await assertEntityNotSending(transaction, 'financial_account', accountId);
+  const account = await findAccount(transaction, accountId);
+  if (account.sync_status === 'conflict') {
+    throw new Error('Resuelve el conflicto de esta cuenta antes de cambiar el saldo.');
+  }
+  const balanceMinor = parseBalance(balance);
+  if (balanceMinor === account.current_balance_minor) {
+    if (finalize) await finalize(transaction);
+    return;
+  }
+
+  const historyBase = historyBaseFromAccount(account);
+  const snapshotId = Crypto.randomUUID();
+  const now = new Date().toISOString();
+  account.current_balance_minor = balanceMinor;
+  account.balance_updated_at = now;
+  account.sync_status = 'pending';
+  account.updated_at = now;
+
+  await transaction.runAsync(
+    `UPDATE financial_accounts
+     SET current_balance_minor = ?, balance_updated_at = ?,
+         sync_status = 'pending', updated_at = ?
+     WHERE id = ?`,
+    balanceMinor,
+    now,
+    now,
+    account.id,
+  );
+  await insertPendingSnapshot(transaction, account, snapshotId, now);
+  await queueAccountUpsert(
+    transaction,
+    account,
+    observationFromAccount(account, snapshotId, now),
+    historyBase,
+    now,
+  );
+  if (finalize) await finalize(transaction);
+}
+
 export async function updateOfflineFinancialAccountBalance(
   db: SQLiteDatabase,
   accountId: string,
   balance: string,
 ): Promise<void> {
-  await runKeyedTransaction(db, async (txn) => {
-    await assertEntityNotSending(txn, 'financial_account', accountId);
-    const account = await findAccount(txn, accountId);
-    if (account.sync_status === 'conflict') {
-      throw new Error('Resuelve el conflicto de esta cuenta antes de cambiar el saldo.');
-    }
-    const balanceMinor = parseBalance(balance);
-    if (balanceMinor === account.current_balance_minor) return;
+  await runKeyedTransaction(db, (transaction) => (
+    updateOfflineFinancialAccountBalanceInTransaction(transaction, accountId, balance)
+  ));
+}
 
-    const historyBase = historyBaseFromAccount(account);
-    const snapshotId = Crypto.randomUUID();
-    const now = new Date().toISOString();
-    account.current_balance_minor = balanceMinor;
-    account.balance_updated_at = now;
-    account.sync_status = 'pending';
-    account.updated_at = now;
-
-    await txn.runAsync(
-      `UPDATE financial_accounts
-       SET current_balance_minor = ?, balance_updated_at = ?,
-           sync_status = 'pending', updated_at = ?
-       WHERE id = ?`,
-      balanceMinor,
-      now,
-      now,
-      account.id,
-    );
-    await insertPendingSnapshot(txn, account, snapshotId, now);
-    await queueAccountUpsert(
-      txn,
-      account,
-      observationFromAccount(account, snapshotId, now),
-      historyBase,
-      now,
-    );
-  });
+export async function updateOfflineFinancialAccountBalanceAtomically(
+  db: SQLiteDatabase,
+  accountId: string,
+  balance: string,
+  finalize: BalanceMutationFinalizer,
+): Promise<void> {
+  await runKeyedTransaction(db, (transaction) => (
+    updateOfflineFinancialAccountBalanceInTransaction(transaction, accountId, balance, finalize)
+  ));
 }
 
 export async function archiveOfflineFinancialAccount(
