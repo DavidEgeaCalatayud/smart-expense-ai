@@ -27,6 +27,7 @@ export function updateFinancialAccount(
     institution?: string | null;
     accountType?: FinancialAccountType;
     purpose?: FinancialAccountPurpose;
+    currentBalance?: string;
     includeInNetWorth?: boolean;
     archived?: boolean;
   },
