@@ -23,3 +23,4 @@ appId: com.davidegea.smartexpenseai
 - extendedWaitUntil:
     visible: "Your transactions"
     timeout: 30000
+- runFlow: 20-money-workspace.yaml
