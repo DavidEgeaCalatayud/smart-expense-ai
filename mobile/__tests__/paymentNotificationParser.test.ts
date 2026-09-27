@@ -28,6 +28,16 @@ describe('payment notification parser', () => {
     expect(parsed.parserConfidence).toBeGreaterThanOrEqual(0.9);
   });
 
+  it('does not mistake the card suffix for the merchant when it appears first', () => {
+    const parsed = parsePaymentNotification(candidate({
+      notificationKey: 'suffix-before-merchant',
+      text: 'Compra de 18,40 € con tu tarjeta terminada en 1234 en MERCADONA',
+    }));
+    expect(parsed.amountMinor).toBe(1840);
+    expect(parsed.merchant).toBe('MERCADONA');
+    expect(parsed.cardHint).toBe('••••1234');
+  });
+
   it('parses Wallet-style amount-before-currency notifications', () => {
     const parsed = parsePaymentNotification(candidate({
       sourcePackage: 'com.google.android.apps.walletnfcrel',
