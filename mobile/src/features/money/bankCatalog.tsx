@@ -70,6 +70,7 @@ export function MobileBankPicker({
       <Text style={styles.pickerTitle}>Banco o plataforma</Text>
       <Text style={styles.pickerHint}>Puedes añadir tantas cuentas como necesites. Los brokers se clasifican automáticamente como inversión y suman en Invertido.</Text>
       <TextInput
+        testID="bank-institution-search"
         accessibilityLabel="Buscar banco"
         value={query}
         onChangeText={setQuery}
@@ -89,6 +90,8 @@ export function MobileBankPicker({
           return (
             <Pressable
               key={bank.id}
+              testID={`bank-institution-${bank.id}`}
+              accessibilityLabel={`Seleccionar ${bank.name}`}
               onPress={() => onSelect(bank)}
               style={[styles.bankCard, active && styles.bankCardActive]}
             >
@@ -101,6 +104,7 @@ export function MobileBankPicker({
       </ScrollView>
       <Text style={styles.manualLabel}>Otro banco / entidad</Text>
       <TextInput
+        testID="bank-institution-manual"
         value={selected ? '' : value}
         onChangeText={onManualChange}
         placeholder="Escribe el nombre si no aparece arriba"
