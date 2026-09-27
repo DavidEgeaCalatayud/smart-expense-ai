@@ -348,11 +348,9 @@ export function MoneyPage() {
         institution: draft.institution.trim() || null,
         accountType: draft.accountType,
         purpose: draft.purpose,
+        currentBalance: normalizeMoneyAmount(draft.currentBalance),
         includeInNetWorth: draft.includeInNetWorth,
       });
-      if (normalizeMoneyAmount(draft.currentBalance) !== editing.currentBalance) {
-        await updateFinancialAccountBalance(editing.id, normalizeMoneyAmount(draft.currentBalance));
-      }
       setEditing(null);
       setMessage('Cuenta actualizada.');
       await load();
