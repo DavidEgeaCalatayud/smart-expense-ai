@@ -38,6 +38,12 @@ class FinancialAccountCreateRequest(_ExactMoneyRequest):
     def require_current_balance_string(cls, value: object) -> object:
         return cls._require_decimal_string(value)
 
+    @model_validator(mode="after")
+    def classify_broker_as_investment(self) -> "FinancialAccountCreateRequest":
+        if self.accountType == "broker":
+            self.purpose = "investment"
+        return self
+
 
 class FinancialAccountUpdateRequest(BaseModel):
     name: str | None = Field(default=None, min_length=1, max_length=120)
@@ -53,6 +59,9 @@ class FinancialAccountUpdateRequest(BaseModel):
         for field_name in self.model_fields_set:
             if field_name not in nullable_only and getattr(self, field_name) is None:
                 raise ValueError(f"{field_name} cannot be null")
+        if self.accountType == "broker":
+            self.purpose = "investment"
+            self.__pydantic_fields_set__.add("purpose")
         return self
 
 
