@@ -154,6 +154,7 @@ def update_financial_account(
 
     previous_include = account.include_in_net_worth
     previous_archived = account.archived
+    previous_balance = Decimal(account.current_balance).quantize(MONEY_CENT)
     changes = payload.model_dump(exclude_unset=True)
     if "name" in changes:
         account.name = _clean_required(changes["name"], "name")
@@ -163,20 +164,33 @@ def update_financial_account(
         account.account_type = changes["accountType"]
     if "purpose" in changes:
         account.purpose = changes["purpose"]
+    if "currentBalance" in changes:
+        account.current_balance = Decimal(changes["currentBalance"]).quantize(MONEY_CENT)
     if "includeInNetWorth" in changes:
         account.include_in_net_worth = changes["includeInNetWorth"]
     if "archived" in changes:
         account.archived = changes["archived"]
 
-    if (
-        previous_include != account.include_in_net_worth
+    # The account's persisted type is authoritative even when callers patch only purpose.
+    # A broker can never drift into Disponible/Reservado because accountType was omitted.
+    if account.account_type == "broker":
+        account.purpose = "investment"
+
+    balance_changed = previous_balance != Decimal(account.current_balance).quantize(MONEY_CENT)
+    state_changed = (
+        balance_changed
+        or previous_include != account.include_in_net_worth
         or previous_archived != account.archived
-    ):
+    )
+    if state_changed:
+        now = datetime.now(timezone.utc)
+        if balance_changed:
+            account.balance_updated_at = now
         db.add(
             _new_snapshot(
                 account=account,
                 user_id=user_id,
-                recorded_at=datetime.now(timezone.utc),
+                recorded_at=now,
             )
         )
 
