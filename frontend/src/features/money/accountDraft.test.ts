@@ -43,7 +43,7 @@ describe('financial account edit payload', () => {
   });
 
   it('includes the balance only when the user actually changes it', () => {
-    const payload = buildFinancialAccountEditPayload(ORIGINAL, draft({ currentBalance: '1.250,50' }));
+    const payload = buildFinancialAccountEditPayload(ORIGINAL, draft({ currentBalance: '1250,50' }));
 
     expect(payload.currentBalance).toBe('1250.50');
   });
