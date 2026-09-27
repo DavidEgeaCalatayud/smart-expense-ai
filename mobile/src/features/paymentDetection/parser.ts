@@ -4,14 +4,11 @@ import type { NativePaymentNotificationCandidate } from './nativePaymentNotifica
 import type { ObservedPaymentEventKind, ParsedPaymentNotification } from './types';
 
 const REJECTED = /rechazad|denegad|declined|payment failed|pago fallid|no se ha podido|could not be completed/i;
-const HOLD = /retenci[oó]n|preautoriz|pre-autoriz|authorization hold|pending card verification|verificaci[oó]n de tarjeta|(?:pago|compra|operaci[oó]n|transacci[oó]n) pendiente|pendiente de (?:contabilizar|confirmaci[oó]n|autorizar)|pending (?:payment|purchase|transaction)|(?:autoriza(?:r)?|confirma(?:r)?|aprueba|aprobar)\b\s+(?:esta\s+|la\s+|el\s+)?(?:compra|operaci[oó]n|pago|transacci[oó]n)|(?:compra|operaci[oó]n|pago|transacci[oó]n)\b[^.!?\n]{0,80}\b(?:requiere|necesita)\s+(?:tu\s+)?(?:autorizaci[oó]n|confirmaci[oó]n)|(?:approve|confirm)\b\s+(?:this\s+|the\s+)?(?:payment|purchase|transaction)|(?:payment|purchase|transaction)\b[^.!?\n]{0,80}\b(?:requires|needs)\s+(?:your\s+)?(?:approval|confirmation)/i;
+const HOLD = /retenci[oó]n|preautoriz|pre-autoriz|authorization hold|pending card verification|verificaci[oó]n de tarjeta|(?:pago|compra|operaci[oó]n|transacci[oó]n) pendiente|pendiente de (?:contabilizar|confirmaci[oó]n|autorizar)|pending (?:payment|purchase|transaction)|(?:autoriza(?:r)?|confirma(?:r)?|aprueba|aprobar)\b\s+(?:esta\s+|la\s+|el\s+)?(?:compra|operaci[oó]n|pago|transacci[oó]n)|(?:compra|operaci[oó]n|pago|transacci[oó]n)\b[^!?\n]{0,80}\b(?:requiere|necesita)\s+(?:tu\s+)?(?:autorizaci[oó]n|confirmaci[oó]n)|(?:approve|confirm)\b\s+(?:this\s+|the\s+)?(?:payment|purchase|transaction)|(?:payment|purchase|transaction)\b[^!?\n]{0,80}\b(?:requires|needs)\s+(?:your\s+)?(?:approval|confirmation)/i;
 const REFUND = /reembolso|devoluci[oó]n|refund|refunded|reintegr/i;
 const TRANSFER_IN = /bizum recibido|has recibido|te han enviado|te ha enviado|te han hecho un bizum|has recibido un bizum|transferencia recibida|received (?:a )?transfer|money received/i;
 const TRANSFER_OUT = /bizum enviado|has enviado|has hecho un bizum|transferencia enviada|sent (?:a )?transfer|money sent/i;
-// Merely mentioning a card or wallet is not transactional evidence. Banks also use those
-// words in balance, limit and security notices; those stay review-only unless the text has
-// an actual purchase/payment verb.
-const PAYMENT = /pago|pagado|compra|purchase|paid|payment|cargo|charged|spent|gasto/i;
+const PAYMENT = /pago|pagado|compra|purchase|paid|payment|cargo|tarjeta|card|wallet/i;
 const GENERIC_TITLE = /^(pago|payment|compra|purchase|operaci[oó]n|movimiento|wallet|tarjeta|card|notificaci[oó]n|aviso)(\s+realizad[oa])?$/i;
 
 function currencyCode(token: string): string | null {
