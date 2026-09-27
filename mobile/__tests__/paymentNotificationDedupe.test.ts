@@ -91,6 +91,42 @@ test('deduplicates Wallet and bank notifications for the same merchant and amoun
   expect((await findLikelyDuplicateEvent(fake.db, parsed()))?.id).toBe('existing-event');
 });
 
+test('deduplicates two content revisions of the same Android notification when the movement kind is unchanged', async () => {
+  const firstRevision = existing({
+    source_package: 'com.bankinter.launcher',
+    notification_key: 'system-key#rev=abc',
+    merchant: 'MERCADONA',
+    event_kind: 'payment',
+    status: 'needs_confirmation',
+  });
+  const fake = fakeDb([firstRevision]);
+  const duplicate = await findLikelyDuplicateEvent(fake.db, parsed({
+    sourcePackage: 'com.bankinter.launcher',
+    sourceLabel: 'Bankinter',
+    notificationKey: 'system-key#rev=def',
+    merchant: 'MERCADONA ONLINE',
+    kind: 'payment',
+  }));
+  expect(duplicate?.id).toBe(firstRevision.id);
+});
+
+test('lets a pending hold revision become a later successful payment', async () => {
+  const pending = existing({
+    source_package: 'com.bankinter.launcher',
+    notification_key: 'system-key#rev=pending',
+    event_kind: 'hold',
+    status: 'needs_confirmation',
+  });
+  const fake = fakeDb([pending]);
+  const duplicate = await findLikelyDuplicateEvent(fake.db, parsed({
+    sourcePackage: 'com.bankinter.launcher',
+    sourceLabel: 'Bankinter',
+    notificationKey: 'system-key#rev=completed',
+    kind: 'payment',
+  }));
+  expect(duplicate).toBeNull();
+});
+
 test('does not collapse two sparse same-value notifications from the same source just because the card matches', async () => {
   const sparseExisting = existing({
     source_package: 'com.google.android.apps.walletnfcrel',
