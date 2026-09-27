@@ -6,6 +6,7 @@ import {
   verifyDatabaseEncryption,
 } from './databaseEncryption';
 import { migrateDatabase } from './migrations';
+import { ensurePaymentDetectionSchema } from '../features/paymentDetection/schema';
 
 async function runInitializationStage(
   stage: string,
@@ -28,6 +29,7 @@ export async function initializeDatabase(db: SQLiteDatabase): Promise<void> {
     migrateLegacyPlaintextDatabase(db),
   );
   await runInitializationStage('schema migration', () => migrateDatabase(db));
+  await runInitializationStage('payment detection schema', () => ensurePaymentDetectionSchema(db));
   await runInitializationStage('foreign-key activation', () => db.execAsync('PRAGMA foreign_keys = ON'));
   await runInitializationStage('final SQLCipher verification', async () => {
     await verifyDatabaseEncryption(db);
