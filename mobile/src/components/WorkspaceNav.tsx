@@ -17,7 +17,7 @@ const TABS = [
 ];
 export function navigationArea(pathname: string): number {
   const path = pathname.replace(/^\//, '');
-  if (!path || path === 'money') return 0;
+  if (!path || path === 'money' || path === 'payment-detection') return 0;
   if (path === 'transactions') return 1;
   if (INSIGHTS.includes(path)) return 2;
   return 3;
