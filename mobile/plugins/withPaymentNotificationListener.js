@@ -166,10 +166,15 @@ class PaymentNotificationListenerService : NotificationListenerService() {
             packageManager.getApplicationLabel(info).toString()
         }.getOrDefault(sbn.packageName)
 
+        // Android may update one notification in-place while keeping StatusBarNotification.key.
+        // Include a content revision so "pending" -> "completed" is delivered again, while an
+        // identical repost still collapses to the same candidate key.
+        val revision = Integer.toHexString(combined.hashCode())
+        val notificationKey = "${'$'}{sbn.key.take(270)}#rev=${'$'}revision"
         val candidate = JSONObject().apply {
             put("sourcePackage", sbn.packageName)
             put("sourceLabel", sourceLabel.take(120))
-            put("notificationKey", sbn.key.take(300))
+            put("notificationKey", notificationKey)
             put("notificationId", sbn.id)
             put("occurredAt", sbn.postTime)
             put("title", title)
