@@ -1,6 +1,9 @@
 import type { SQLiteDatabase } from 'expo-sqlite';
 
-import { findObservedEventByNotificationGroup } from '../src/features/paymentDetection/repository';
+import {
+  findLikelyDuplicateEvent,
+  findObservedEventByNotificationGroup,
+} from '../src/features/paymentDetection/repository';
 import type {
   ObservedPaymentEventRow,
   ParsedPaymentNotification,
@@ -62,26 +65,29 @@ function fakeDb(rows: ObservedPaymentEventRow[]): SQLiteDatabase {
 }
 
 test('does not swallow a refund revision after the original payment already created financial state', async () => {
-  const match = await findObservedEventByNotificationGroup(fakeDb([existing()]), incoming());
+  const db = fakeDb([existing()]);
+  const revisionMatch = await findObservedEventByNotificationGroup(db, incoming());
+  const duplicateMatch = await findLikelyDuplicateEvent(db, incoming());
 
-  // Returning null makes ingestion continue as a new event. The original applied expense stays
-  // immutable and the refund can create its own compensating income/balance observation.
-  expect(match).toBeNull();
+  // Both matching layers must release the reversal so ingestion creates a new compensating event.
+  expect(revisionMatch).toBeNull();
+  expect(duplicateMatch).toBeNull();
 });
 
 test('still collapses cosmetic same-kind revisions after an applied payment', async () => {
   const original = existing();
-  const match = await findObservedEventByNotificationGroup(
-    fakeDb([original]),
-    incoming({
-      notificationKey: 'payment-key#rev=merchant-detail',
-      title: 'Pago realizado',
-      body: 'Pago de 18,40 € en MERCADONA SUPERMERCADO',
-      kind: 'payment',
-    }),
-  );
+  const revised = incoming({
+    notificationKey: 'payment-key#rev=merchant-detail',
+    title: 'Pago realizado',
+    body: 'Pago de 18,40 € en MERCADONA SUPERMERCADO',
+    kind: 'payment',
+  });
+  const db = fakeDb([original]);
+  const revisionMatch = await findObservedEventByNotificationGroup(db, revised);
+  const duplicateMatch = await findLikelyDuplicateEvent(db, revised);
 
-  expect(match?.id).toBe(original.id);
+  expect(revisionMatch?.id).toBe(original.id);
+  expect(duplicateMatch?.id).toBe(original.id);
 });
 
 test('still reconciles a mutable hold into its later successful payment', async () => {
