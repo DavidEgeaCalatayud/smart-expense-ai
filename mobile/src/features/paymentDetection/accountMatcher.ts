@@ -30,8 +30,12 @@ export async function matchPaymentAccount(
 ): Promise<PaymentAccountMatch> {
   if (event.cardHint) {
     const linked = await db.getFirstAsync<AccountLinkRow>(
-      `SELECT financial_account_id FROM payment_account_links
-       WHERE source_package = ? AND card_hint = ? LIMIT 1`,
+      `SELECT link.financial_account_id
+       FROM payment_account_links AS link
+       JOIN financial_accounts AS account ON account.id = link.financial_account_id
+       WHERE link.source_package = ? AND link.card_hint = ?
+         AND account.archived = 0 AND account.include_in_net_worth = 1
+       LIMIT 1`,
       event.sourcePackage,
       event.cardHint,
     );
@@ -39,8 +43,12 @@ export async function matchPaymentAccount(
   }
 
   const sourceLinked = await db.getFirstAsync<AccountLinkRow>(
-    `SELECT financial_account_id FROM payment_account_links
-     WHERE source_package = ? AND card_hint = '' LIMIT 1`,
+    `SELECT link.financial_account_id
+     FROM payment_account_links AS link
+     JOIN financial_accounts AS account ON account.id = link.financial_account_id
+     WHERE link.source_package = ? AND link.card_hint = ''
+       AND account.archived = 0 AND account.include_in_net_worth = 1
+     LIMIT 1`,
     event.sourcePackage,
   );
   if (sourceLinked) return { accountId: sourceLinked.financial_account_id, confidence: 0.96, reason: 'source-link' };
@@ -60,9 +68,8 @@ export async function matchPaymentAccount(
   }
 
   const spendable = accounts.filter((account) => account.account_type !== 'cash');
-  const onlyAccount = spendable.length === 1 ? spendable[0] : undefined;
-  if (onlyAccount) {
-    return { accountId: onlyAccount.id, confidence: 0.62, reason: 'only-active-account' };
+  if (spendable.length === 1) {
+    return { accountId: spendable[0]!.id, confidence: 0.62, reason: 'only-active-account' };
   }
   return { accountId: null, confidence: 0, reason: 'ambiguous' };
 }
