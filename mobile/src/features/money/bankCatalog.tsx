@@ -22,7 +22,8 @@ export function MobileBankLogo({
   size?: number;
 }) {
   const bank = findMobileBankInstitution(fallbackName) ?? findMobileBankInstitution(institution);
-  const [failed, setFailed] = useState(false);
+  const [failedDomain, setFailedDomain] = useState<string | null>(null);
+  const failed = bank ? failedDomain === bank.domain : false;
   const initials = (bank?.name ?? fallbackName)
     .split(/\s+/)
     .filter(Boolean)
@@ -45,7 +46,7 @@ export function MobileBankLogo({
         accessibilityLabel={`Logo de ${bank.name}`}
         resizeMode="contain"
         style={{ width: size - 10, height: size - 10 }}
-        onError={() => setFailed(true)}
+        onError={() => setFailedDomain(bank.domain)}
       />
     </View>
   );
