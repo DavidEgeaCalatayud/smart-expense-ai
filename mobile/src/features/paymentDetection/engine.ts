@@ -7,6 +7,7 @@ import { updateOfflineFinancialAccountBalanceAtomically } from '../money/offline
 import { createOfflineTransaction } from '../transactions/createOfflineTransaction';
 import { localDate } from '../transactions/validation';
 import { matchPaymentAccount } from './accountMatcher';
+import { shouldAutomaticallyApplyPayment } from './automationPolicy';
 import {
   acknowledgePaymentNotificationCandidate,
   getPendingPaymentNotificationCandidates,
@@ -34,11 +35,6 @@ function serialize<T>(task: () => Promise<T>): Promise<T> {
 
 function autoEligibleKind(kind: ObservedPaymentEventRow['event_kind']): boolean {
   return ['payment', 'refund', 'transfer_in', 'transfer_out'].includes(kind);
-}
-
-function isFreshEnoughForAutomatic(occurredAt: string): boolean {
-  const time = new Date(occurredAt).getTime();
-  return Number.isFinite(time) && Math.abs(Date.now() - time) <= 15 * 60_000;
 }
 
 async function notifyEvent(db: SQLiteDatabase, eventId: string): Promise<void> {
@@ -183,19 +179,7 @@ export async function ingestPaymentNotificationCandidate(
     return await insertObservedPaymentEvent(db, parsed, match, 'rejected');
   }
 
-  const combinedConfidence = Math.min(
-    1,
-    Number((parsed.parserConfidence * 0.65 + match.confidence * 0.35).toFixed(2)),
-  );
-  const canAutoApply = settings.mode === 'automatic'
-    && parsed.currency === 'EUR'
-    && parsed.amountMinor !== null
-    && parsed.amountMinor > 0
-    && match.accountId !== null
-    && autoEligibleKind(parsed.kind)
-    && isFreshEnoughForAutomatic(parsed.occurredAt)
-    && combinedConfidence >= settings.autoConfidence;
-
+  const canAutoApply = shouldAutomaticallyApplyPayment(settings, parsed, match);
   const eventId = await insertObservedPaymentEvent(
     db,
     parsed,
@@ -249,5 +233,18 @@ export async function applyObservedPaymentEvent(
 }
 
 export async function ignoreObservedPaymentEvent(db: SQLiteDatabase, eventId: string): Promise<void> {
-  await updateObservedPaymentEvent(db, eventId, { status: 'ignored', errorMessage: null });
+  await serialize(async () => {
+    const event = await db.getFirstAsync<ObservedPaymentEventRow>(
+      'SELECT * FROM observed_payment_events WHERE id = ? LIMIT 1',
+      eventId,
+    );
+    if (!event || event.status === 'ignored') return;
+    if (event.status === 'applied') {
+      throw new Error('Este movimiento ya fue aplicado y no se puede ignorar.');
+    }
+    if (event.transaction_id) {
+      throw new Error('Este movimiento ya creó una transacción. Reintenta el ajuste de saldo en lugar de ignorarlo.');
+    }
+    await updateObservedPaymentEvent(db, eventId, { status: 'ignored', errorMessage: null });
+  });
 }
