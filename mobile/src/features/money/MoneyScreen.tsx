@@ -22,6 +22,7 @@ import type { LocalFinancialAccountRow } from '../../database/types';
 import { useConflicts } from '../../sync/useConflicts';
 import { useForegroundSync } from '../../sync/useForegroundSync';
 import { MobileBankLogo, MobileBankPicker } from './bankCatalog';
+import { suggestedMobileAccountNameForInstitution } from './bankCatalogData';
 import { useFinancialAccounts } from './useFinancialAccounts';
 
 const ACCOUNT_TYPES: readonly [FinancialAccountType, string][] = [
@@ -355,7 +356,11 @@ export function MoneyScreen() {
                 setForm((current) => ({
                   ...current,
                   institution: bank.name,
-                  name: current.name.trim() ? current.name : bank.name,
+                  name: suggestedMobileAccountNameForInstitution(
+                    current.name,
+                    current.institution,
+                    bank.name,
+                  ),
                   accountType: bank.suggestedType,
                   purpose: purposeForType(bank.suggestedType, current.purpose),
                 }));
