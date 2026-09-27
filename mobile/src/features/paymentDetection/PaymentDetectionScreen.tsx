@@ -159,8 +159,12 @@ export function PaymentDetectionScreen() {
 
   const ignoreEvent = useCallback(async (eventId: string) => {
     setBusyEvent(eventId);
+    setError(null);
     try {
       await ignoreObservedPaymentEvent(db, eventId);
+      await load(false);
+    } catch (caught) {
+      setError(caught instanceof Error ? caught.message : 'No se pudo ignorar el movimiento.');
       await load(false);
     } finally {
       setBusyEvent(null);
@@ -230,6 +234,7 @@ export function PaymentDetectionScreen() {
             <Text style={s.metadata}>Confianza {Math.round(event.confidence * 100)}%</Text>
             {event.error_message ? <Text style={s.error}>{event.error_message}</Text> : null}
             {!applicable ? <Text style={styles.warning}>Se ha detectado para revisión, pero no se modificará el saldo automáticamente.</Text> : null}
+            {event.transaction_id ? <Text style={styles.warning}>La transacción ya está creada. Solo queda completar o reintentar el ajuste de saldo.</Text> : null}
 
             {applicable ? <>
               <Text style={styles.accountLabel}>Cuenta</Text>
@@ -248,12 +253,12 @@ export function PaymentDetectionScreen() {
             <View style={styles.actions}>
               {applicable ? <Pressable disabled={busyEvent === event.id || !selectedAccount}
                 onPress={() => void applyEvent(event)} style={[s.primaryButton, styles.flexButton, (!selectedAccount || busyEvent === event.id) && styles.disabled]}>
-                <Text style={s.primaryButtonText}>{event.status === 'balance_pending' ? 'Reintentar saldo' : 'Confirmar'}</Text>
+                <Text style={s.primaryButtonText}>{event.transaction_id ? 'Reintentar saldo' : 'Confirmar'}</Text>
               </Pressable> : null}
-              <Pressable disabled={busyEvent === event.id} onPress={() => void ignoreEvent(event.id)}
+              {!event.transaction_id ? <Pressable disabled={busyEvent === event.id} onPress={() => void ignoreEvent(event.id)}
                 style={[s.secondaryButton, styles.flexButton]}>
                 <Text style={s.secondaryButtonText}>Ignorar</Text>
-              </Pressable>
+              </Pressable> : null}
             </View>
           </View>;
         })}
