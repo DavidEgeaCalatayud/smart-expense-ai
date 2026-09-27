@@ -21,7 +21,7 @@ export function MobileBankLogo({
   fallbackName: string;
   size?: number;
 }) {
-  const bank = findMobileBankInstitution(institution) ?? findMobileBankInstitution(fallbackName);
+  const bank = findMobileBankInstitution(fallbackName) ?? findMobileBankInstitution(institution);
   const [failed, setFailed] = useState(false);
   const initials = (bank?.name ?? fallbackName)
     .split(/\s+/)
