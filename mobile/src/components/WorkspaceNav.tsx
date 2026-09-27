@@ -10,14 +10,14 @@ export type WorkspaceName = 'transactions' | 'categories' | 'budgets' | 'dashboa
   | 'account' | 'imports' | 'insights' | 'more' | 'settings' | 'money';
 const INSIGHTS = ['intelligence', 'historical', 'predictions', 'suggestions', 'assistant', 'advanced-insights', 'insights'];
 const TABS = [
-  { label: 'Home', href: '/' as const, icon: 'home-outline' as const },
+  { label: 'Mi dinero', href: '/' as const, icon: 'wallet-outline' as const },
   { label: 'Activity', href: '/transactions' as const, icon: 'card-outline' as const },
   { label: 'Insights', href: '/insights' as const, icon: 'sparkles-outline' as const },
   { label: 'More', href: '/more' as const, icon: 'menu-outline' as const },
 ];
 export function navigationArea(pathname: string): number {
   const path = pathname.replace(/^\//, '');
-  if (!path || path === 'dashboard') return 0;
+  if (!path || path === 'money') return 0;
   if (path === 'transactions') return 1;
   if (INSIGHTS.includes(path)) return 2;
   return 3;
@@ -43,7 +43,7 @@ export function BottomNavigation() {
           <View style={{ backgroundColor: '#125c47', borderRadius: 24, width: 46, height: 46, alignItems: 'center', justifyContent: 'center' }}><Ionicons name="add" color="#fff" size={30} /></View>
         </Pressable> : null}
         <Pressable accessibilityRole="tab" accessibilityLabel={tab.label}
-        accessibilityState={{ selected: active }} testID={`tab-${tab.label.toLowerCase()}`}
+        accessibilityState={{ selected: active }} testID={`tab-${tab.label.toLowerCase().replace(/\s+/g, '-')}`}
         onPress={() => router.replace(tab.href)} style={styles.tab}>
         <View style={[styles.icon, active && styles.selected]}>
           <Ionicons name={tab.icon} size={23} color={active ? '#125c47' : '#596575'} />
@@ -56,7 +56,7 @@ export function BottomNavigation() {
 
 // Secondary screens return to their area; the four primary destinations stay fixed below the stack.
 export function WorkspaceNav({ active }: { active: WorkspaceName }) {
-  if (['dashboard', 'transactions', 'insights', 'more'].includes(active)) return null;
+  if (['money', 'transactions', 'insights', 'more'].includes(active)) return null;
   const insight = INSIGHTS.includes(active);
   return <Link href={insight ? '/insights' : '/more'} asChild>
     <Pressable accessibilityRole="button" style={styles.back}>
