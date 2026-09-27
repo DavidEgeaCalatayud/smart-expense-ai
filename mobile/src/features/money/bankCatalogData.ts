@@ -64,3 +64,16 @@ export function filterMobileBankInstitutions(query: string): MobileBankInstituti
       .includes(normalizedQuery)
   ));
 }
+
+export function suggestedMobileAccountNameForInstitution(
+  currentName: string,
+  currentInstitution: string,
+  nextInstitution: string,
+): string {
+  const cleanName = currentName.trim();
+  const cleanInstitution = currentInstitution.trim();
+  if (!cleanName || (cleanInstitution !== '' && cleanName === cleanInstitution)) {
+    return nextInstitution;
+  }
+  return currentName;
+}
