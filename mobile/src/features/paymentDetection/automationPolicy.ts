@@ -14,6 +14,11 @@ const AUTO_ELIGIBLE_KINDS = new Set([
   'transfer_out',
 ]);
 
+const TRUSTED_AUTOMATIC_MATCH_REASONS = new Set<PaymentAccountMatch['reason']>([
+  'card-link',
+  'source-link',
+]);
+
 export function combinedPaymentConfidence(
   parsed: ParsedPaymentNotification,
   match: PaymentAccountMatch,
@@ -40,6 +45,10 @@ export function shouldAutomaticallyApplyPayment(
     && parsed.amountMinor !== null
     && parsed.amountMinor > 0
     && match.accountId !== null
+    // Display labels are user-controlled by the source Android app. They are useful to suggest an
+    // account, but never strong enough to move money automatically. Automatic mode requires an
+    // association learned against the real source package (and normally the card suffix).
+    && TRUSTED_AUTOMATIC_MATCH_REASONS.has(match.reason)
     // A perfect parser must never compensate for a weak account guess. In particular,
     // the single-active-account fallback scores 0.62 and therefore always requires review.
     && match.confidence >= MIN_AUTOMATIC_ACCOUNT_MATCH_CONFIDENCE
