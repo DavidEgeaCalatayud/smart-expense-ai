@@ -12,10 +12,20 @@ describe('mobile bank catalog', () => {
   it('matches aliases used by common banks and platforms', () => {
     expect(findMobileBankInstitution('Santander')?.id).toBe('santander');
     expect(findMobileBankInstitution('My Investor')?.id).toBe('myinvestor');
+    expect(findMobileBankInstitution('trading212')?.id).toBe('trading-212');
+    expect(findMobileBankInstitution('quant fury')?.id).toBe('quantfury');
+  });
+
+  it('marks investment platforms as brokers', () => {
+    for (const value of ['Trading 212', 'Quantfury', 'MyInvestor', 'Trade Republic']) {
+      expect(findMobileBankInstitution(value)?.suggestedType).toBe('broker');
+    }
   });
 
   it('filters the visual picker by name, domain and aliases', () => {
     expect(filterMobileBankInstitutions('trade').map((bank) => bank.id)).toContain('trade-republic');
+    expect(filterMobileBankInstitutions('trading212.com').map((bank) => bank.id)).toContain('trading-212');
+    expect(filterMobileBankInstitutions('quantfury.com').map((bank) => bank.id)).toContain('quantfury');
     expect(filterMobileBankInstitutions('transferwise').map((bank) => bank.id)).toContain('wise');
     expect(filterMobileBankInstitutions('bbva.es').map((bank) => bank.id)).toContain('bbva');
   });
