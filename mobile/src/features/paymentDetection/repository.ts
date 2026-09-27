@@ -17,6 +17,10 @@ interface SettingsRow {
   auto_confidence: number;
 }
 
+function normalizeMerchant(value: string | null | undefined): string {
+  return value?.toLocaleLowerCase().replace(/[^a-z0-9áéíóúüñ]+/gi, '') ?? '';
+}
+
 export async function getPaymentDetectionSettings(db: SQLiteDatabase): Promise<PaymentDetectionSettings> {
   const row = await db.getFirstAsync<SettingsRow>(
     'SELECT enabled, mode, auto_confidence FROM payment_detection_settings WHERE id = 1',
@@ -74,12 +78,26 @@ export async function findLikelyDuplicateEvent(
     from,
     to,
   );
-  const merchant = event.merchant?.toLocaleLowerCase().replace(/[^a-z0-9áéíóúüñ]+/gi, '') ?? '';
+  const merchant = normalizeMerchant(event.merchant);
   return candidates.find((candidate) => {
     if (candidate.notification_key === event.notificationKey) return true;
-    if (event.cardHint && candidate.card_hint && event.cardHint === candidate.card_hint) return true;
-    const otherMerchant = candidate.merchant?.toLocaleLowerCase().replace(/[^a-z0-9áéíóúüñ]+/gi, '') ?? '';
-    return Boolean(merchant && otherMerchant && (merchant === otherMerchant || merchant.includes(otherMerchant) || otherMerchant.includes(merchant)));
+    if (candidate.event_kind !== event.kind) return false;
+
+    const otherMerchant = normalizeMerchant(candidate.merchant);
+    if (merchant && otherMerchant) {
+      return merchant === otherMerchant
+        || merchant.includes(otherMerchant)
+        || otherMerchant.includes(merchant);
+    }
+
+    // Wallet + bank can report the same purchase with one side omitting the merchant.
+    // Only use the card hint as a fallback when the sources differ and arrive almost together;
+    // two same-value purchases on the same card must remain distinct.
+    const sameCard = Boolean(event.cardHint && candidate.card_hint && event.cardHint === candidate.card_hint);
+    const crossSource = candidate.source_package !== event.sourcePackage;
+    const candidateTime = Date.parse(candidate.occurred_at);
+    const closeInTime = Number.isFinite(candidateTime) && Math.abs(candidateTime - occurred) <= 90_000;
+    return sameCard && crossSource && closeInTime && (!merchant || !otherMerchant);
   }) ?? null;
 }
 
