@@ -18,6 +18,11 @@ interface SettingsRow {
   auto_confidence: number;
 }
 
+function notificationGroupKey(key: string): string {
+  const revisionMarker = key.lastIndexOf('#rev=');
+  return revisionMarker >= 0 ? key.slice(0, revisionMarker) : key;
+}
+
 export async function getPaymentDetectionSettings(db: SQLiteDatabase): Promise<PaymentDetectionSettings> {
   const row = await db.getFirstAsync<SettingsRow>(
     'SELECT enabled, mode, auto_confidence FROM payment_detection_settings WHERE id = 1',
@@ -77,9 +82,15 @@ export async function findLikelyDuplicateEvent(
     to,
   );
   const merchant = event.merchant?.toLocaleLowerCase().replace(/[^a-z0-9áéíóúüñ]+/gi, '') ?? '';
+  const incomingGroupKey = notificationGroupKey(event.notificationKey);
   return candidates.find((candidate) => {
     if (candidate.notification_key === event.notificationKey) return true;
     if (candidate.event_kind !== event.kind) return false;
+    if (
+      candidate.source_package === event.sourcePackage
+      && notificationGroupKey(candidate.notification_key) === incomingGroupKey
+    ) return true;
+
     const otherMerchant = candidate.merchant?.toLocaleLowerCase().replace(/[^a-z0-9áéíóúüñ]+/gi, '') ?? '';
     if (merchant && otherMerchant) {
       return merchant === otherMerchant
