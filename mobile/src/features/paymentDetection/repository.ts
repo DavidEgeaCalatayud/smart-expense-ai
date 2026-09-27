@@ -2,6 +2,7 @@ import * as Crypto from 'expo-crypto';
 import type { SQLiteDatabase } from 'expo-sqlite';
 
 import { runKeyedTransaction } from '../../database/keyedTransaction';
+import { combinedPaymentConfidence } from './automationPolicy';
 import type {
   ObservedPaymentEventRow,
   ObservedPaymentStatus,
@@ -92,6 +93,42 @@ export async function findLikelyDuplicateEvent(
   }) ?? null;
 }
 
+export async function enrichObservedPaymentEventFromDuplicate(
+  db: SQLiteDatabase,
+  canonical: ObservedPaymentEventRow,
+  incoming: ParsedPaymentNotification,
+  match: PaymentAccountMatch,
+): Promise<void> {
+  // Once the user has ignored an event or it has been applied/rejected, duplicate evidence
+  // is useful for audit only and must not mutate the canonical decision.
+  if (['applied', 'ignored', 'rejected'].includes(canonical.status)) return;
+
+  const incomingConfidence = combinedPaymentConfidence(incoming, match);
+  const merchant = canonical.merchant ?? incoming.merchant;
+  const cardHint = canonical.card_hint ?? incoming.cardHint;
+  const accountId = canonical.financial_account_id ?? match.accountId;
+  const confidence = Math.max(canonical.confidence, incomingConfidence);
+
+  if (
+    merchant === canonical.merchant
+    && cardHint === canonical.card_hint
+    && accountId === canonical.financial_account_id
+    && confidence === canonical.confidence
+  ) return;
+
+  await db.runAsync(
+    `UPDATE observed_payment_events
+     SET merchant = ?, card_hint = ?, financial_account_id = ?, confidence = ?, updated_at = ?
+     WHERE id = ?`,
+    merchant,
+    cardHint,
+    accountId,
+    confidence,
+    new Date().toISOString(),
+    canonical.id,
+  );
+}
+
 export async function insertObservedPaymentEvent(
   db: SQLiteDatabase,
   event: ParsedPaymentNotification,
@@ -122,7 +159,7 @@ export async function insertObservedPaymentEvent(
     event.cardHint,
     event.kind,
     match.accountId,
-    Math.min(1, Number((event.parserConfidence * 0.65 + match.confidence * 0.35).toFixed(2))),
+    combinedPaymentConfidence(event, match),
     status,
     event.fingerprint,
     now,
