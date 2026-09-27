@@ -110,21 +110,31 @@ async function applyObservedPaymentEventUnlocked(
 
   if (!event.transaction_id) {
     const isIncome = event.event_kind === 'refund' || event.event_kind === 'transfer_in';
-    const transaction = await createOfflineTransaction(db, {
-      merchant: event.merchant || event.source_label || 'Movimiento detectado',
-      categoryName: isIncome ? 'Ingresos detectados' : 'Compras detectadas',
-      amount: minorUnitsToDecimal(amountMinor),
-      transactionDate: localDate(new Date(event.occurred_at)),
-      transactionType: isIncome ? 'income' : 'expense',
-      paymentMethod: event.event_kind.startsWith('transfer_') ? 'bank_transfer' : 'card',
-      description: `Detectado por ${event.source_label}`,
-      isRecurring: false,
-    });
-    await updateObservedPaymentEvent(db, eventId, {
-      status: 'balance_pending',
-      transactionId: transaction.transactionId,
-      errorMessage: null,
-    });
+    const transaction = await createOfflineTransaction(
+      db,
+      {
+        merchant: event.merchant || event.source_label || 'Movimiento detectado',
+        categoryName: isIncome ? 'Ingresos detectados' : 'Compras detectadas',
+        amount: minorUnitsToDecimal(amountMinor),
+        transactionDate: localDate(new Date(event.occurred_at)),
+        transactionType: isIncome ? 'income' : 'expense',
+        paymentMethod: event.event_kind.startsWith('transfer_') ? 'bank_transfer' : 'card',
+        description: `Detectado por ${event.source_label}`,
+        isRecurring: false,
+      },
+      {
+        finalize: async (transactionDb, result) => {
+          await transactionDb.runAsync(
+            `UPDATE observed_payment_events
+             SET status = 'balance_pending', transaction_id = ?, error_message = NULL, updated_at = ?
+             WHERE id = ?`,
+            result.transactionId,
+            new Date().toISOString(),
+            eventId,
+          );
+        },
+      },
+    );
     event = { ...event, transaction_id: transaction.transactionId, status: 'balance_pending' };
   }
 
@@ -139,8 +149,8 @@ async function applyObservedPaymentEventUnlocked(
     db,
     accountId,
     minorUnitsToDecimal(nextBalance),
-    async (transaction) => {
-      await transaction.runAsync(
+    async (transactionDb) => {
+      await transactionDb.runAsync(
         `UPDATE observed_payment_events
          SET status = 'applied', financial_account_id = ?, error_message = NULL, updated_at = ?
          WHERE id = ?`,
