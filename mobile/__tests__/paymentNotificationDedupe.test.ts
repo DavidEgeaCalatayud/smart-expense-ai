@@ -1,9 +1,13 @@
 import type { SQLiteDatabase } from 'expo-sqlite';
 
-import { findLikelyDuplicateEvent } from '../src/features/paymentDetection/repository';
+import {
+  enrichObservedPaymentEventFromDuplicate,
+  findLikelyDuplicateEvent,
+} from '../src/features/paymentDetection/repository';
 import type {
   ObservedPaymentEventRow,
   ParsedPaymentNotification,
+  PaymentAccountMatch,
 } from '../src/features/paymentDetection/types';
 
 function parsed(overrides: Partial<ParsedPaymentNotification> = {}): ParsedPaymentNotification {
@@ -57,13 +61,15 @@ function existing(overrides: Partial<ObservedPaymentEventRow> = {}): ObservedPay
 
 function fakeDb(rows: ObservedPaymentEventRow[]) {
   let sql = '';
+  const runAsync = jest.fn(async () => ({ changes: 1, lastInsertRowId: 0 }));
   const db = {
     getAllAsync: jest.fn(async (query: string) => {
       sql = query;
       return rows;
     }),
+    runAsync,
   } as unknown as SQLiteDatabase;
-  return { db, sql: () => sql };
+  return { db, sql: () => sql, runAsync };
 }
 
 test('keeps failed events with an already-created transaction in the dedupe candidate set', async () => {
@@ -104,3 +110,70 @@ test('never deduplicates different movement kinds with the same amount', async (
   const fake = fakeDb([existing({ event_kind: 'refund' })]);
   expect(await findLikelyDuplicateEvent(fake.db, parsed())).toBeNull();
 });
+
+test('enriches a sparse Wallet canonical event with later bank evidence', async () => {
+  const canonical = existing({
+    source_package: 'com.google.android.apps.walletnfcrel',
+    source_label: 'Google Wallet',
+    merchant: null,
+    card_hint: null,
+    financial_account_id: null,
+    confidence: 0.55,
+    status: 'needs_confirmation',
+  });
+  const incoming = parsed({
+    sourcePackage: 'com.bankinter.launcher',
+    sourceLabel: 'Bankinter',
+    merchant: 'MERCADONA',
+    cardHint: '••••1234',
+    parserConfidence: 0.95,
+  });
+  const match: PaymentAccountMatch = {
+    accountId: 'bankinter-account',
+    confidence: 0.92,
+    reason: 'institution-name',
+  };
+  const fake = fakeDb([]);
+
+  await enrichObservedPaymentEventFromDuplicate(fake.db, canonical, incoming, match);
+
+  expect(fake.runAsync).toHaveBeenCalledTimes(1);
+  const [, merchant, cardHint, accountId, confidence, , eventId] = fake.runAsync.mock.calls[0]!;
+  expect(merchant).toBe('MERCADONA');
+  expect(cardHint).toBe('••••1234');
+  expect(accountId).toBe('bankinter-account');
+  expect(confidence).toBeGreaterThan(canonical.confidence);
+  expect(eventId).toBe(canonical.id);
+});
+
+test('duplicate evidence never overwrites an account already chosen for the canonical event', async () => {
+  const canonical = existing({
+    financial_account_id: 'user-selected-account',
+    confidence: 0.7,
+    status: 'needs_confirmation',
+  });
+  const fake = fakeDb([]);
+  await enrichObservedPaymentEventFromDuplicate(
+    fake.db,
+    canonical,
+    parsed({ sourcePackage: 'com.other.bank', sourceLabel: 'Other Bank' }),
+    { accountId: 'different-account', confidence: 0.99, reason: 'card-link' },
+  );
+
+  const [, , , accountId] = fake.runAsync.mock.calls[0]!;
+  expect(accountId).toBe('user-selected-account');
+});
+
+test.each(['applied', 'ignored', 'rejected'] as const)(
+  'does not mutate a canonical event once its decision is final: %s',
+  async (status) => {
+    const fake = fakeDb([]);
+    await enrichObservedPaymentEventFromDuplicate(
+      fake.db,
+      existing({ status }),
+      parsed(),
+      { accountId: 'bankinter-account', confidence: 0.99, reason: 'card-link' },
+    );
+    expect(fake.runAsync).not.toHaveBeenCalled();
+  },
+);
