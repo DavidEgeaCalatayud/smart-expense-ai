@@ -62,7 +62,7 @@ it.each([
   [parsed({ kind: 'hold' }), 'card hold'],
   [parsed({ occurredAt: '2026-09-27T18:00:00.000Z' }), 'stale notification'],
   [parsed({ amountMinor: null }), 'missing amount'],
-] as const)('keeps %s review-only (%s)', (event) => {
+] as const)('keeps %s review-only (%s)', (event, _reason) => {
   expect(shouldAutomaticallyApplyPayment(
     settings,
     event,
@@ -72,7 +72,11 @@ it.each([
 });
 
 it('never auto-applies when detection is disabled or confirmation mode is selected', () => {
-  const match = { accountId: 'bankinter-account', confidence: 0.99, reason: 'card-link' };
+  const match: PaymentAccountMatch = {
+    accountId: 'bankinter-account',
+    confidence: 0.99,
+    reason: 'card-link',
+  };
   expect(shouldAutomaticallyApplyPayment({ ...settings, enabled: false }, parsed(), match, NOW)).toBe(false);
   expect(shouldAutomaticallyApplyPayment({ ...settings, mode: 'confirm' }, parsed(), match, NOW)).toBe(false);
 });
