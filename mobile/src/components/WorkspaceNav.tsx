@@ -54,9 +54,18 @@ export function BottomNavigation() {
   </View>;
 }
 
-// Secondary screens return to their area; the four primary destinations stay fixed below the stack.
+// Secondary screens return to their area; Mi dinero also surfaces its payment detector directly.
 export function WorkspaceNav({ active }: { active: WorkspaceName }) {
-  if (['money', 'transactions', 'insights', 'more'].includes(active)) return null;
+  if (active === 'money') {
+    return <Link href="/payment-detection" asChild>
+      <Pressable accessibilityRole="button" accessibilityLabel="Pagos automáticos" style={styles.paymentShortcut}>
+        <Ionicons name="notifications-outline" size={18} color="#125c47" />
+        <Text style={styles.selectedLabel}>Pagos automáticos</Text>
+        <Ionicons name="chevron-forward" size={17} color="#596575" />
+      </Pressable>
+    </Link>;
+  }
+  if (['transactions', 'insights', 'more'].includes(active)) return null;
   const insight = INSIGHTS.includes(active);
   return <Link href={insight ? '/insights' : '/more'} asChild>
     <Pressable accessibilityRole="button" style={styles.back}>
@@ -73,4 +82,5 @@ const styles = StyleSheet.create({
   label: { color: '#596575', fontSize: 12, fontWeight: '600' },
   selectedLabel: { color: '#125c47', fontWeight: '700' },
   back: { flexDirection: 'row', alignItems: 'center', alignSelf: 'flex-start', minHeight: 44, gap: 4 },
+  paymentShortcut: { alignItems: 'center', alignSelf: 'flex-start', backgroundColor: '#f2f6f4', borderRadius: 999, flexDirection: 'row', gap: 6, minHeight: 38, paddingHorizontal: 12 },
 });
