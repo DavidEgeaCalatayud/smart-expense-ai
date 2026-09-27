@@ -3,7 +3,7 @@ const fs = require('node:fs/promises');
 const path = require('node:path');
 
 const kotlinAmountPattern = String.raw`(?:€|\bEUR\b|\bUSD\b|\x24|\bGBP\b|£)\s*\d|\d[\d., ]*\s*(?:€|\bEUR\b|\bUSD\b|\x24|\bGBP\b|£)`;
-const kotlinSensitivePattern = String.raw`c[oó]digo(?: de)? (?:acceso|verificaci[oó]n|seguridad)|\botp\b|verification code|one[- ]time password|contrase(?:ñ|n)a|password`;
+const kotlinSensitivePattern = String.raw`\bc[oó]digo\b.{0,40}\b\d{4,8}\b|\b\d{4,8}\b.{0,40}\b(?:c[oó]digo|otp|verificaci[oó]n)\b|c[oó]digo(?: de)? (?:acceso|verificaci[oó]n|seguridad)|\botp\b|verification code|one[- ]time password|contrase(?:ñ|n)a|password|\bpin\b|clave(?: de)? (?:firma|seguridad|acceso)`;
 
 module.exports = function withPaymentNotificationListener(config) {
   const packageName = config.android?.package;
