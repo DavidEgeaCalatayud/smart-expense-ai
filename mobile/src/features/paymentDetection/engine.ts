@@ -3,7 +3,7 @@ import type { SQLiteDatabase } from 'expo-sqlite';
 
 import { getMobileUser } from '../../auth/secureCredentials';
 import type { LocalFinancialAccountRow } from '../../database/types';
-import { updateOfflineFinancialAccountBalance } from '../money/offlineFinancialAccountMutations';
+import { updateOfflineFinancialAccountBalanceAtomically } from '../money/offlineFinancialAccountMutations';
 import { createOfflineTransaction } from '../transactions/createOfflineTransaction';
 import { localDate } from '../transactions/validation';
 import { matchPaymentAccount } from './accountMatcher';
@@ -135,12 +135,21 @@ async function applyObservedPaymentEventUnlocked(
   if (!latestAccount) throw new Error('La cuenta seleccionada ya no está disponible.');
   const direction = event.event_kind === 'refund' || event.event_kind === 'transfer_in' ? 1 : -1;
   const nextBalance = latestAccount.current_balance_minor + direction * amountMinor;
-  await updateOfflineFinancialAccountBalance(db, accountId, minorUnitsToDecimal(nextBalance));
-  await updateObservedPaymentEvent(db, eventId, {
-    status: 'applied',
-    financialAccountId: accountId,
-    errorMessage: null,
-  });
+  await updateOfflineFinancialAccountBalanceAtomically(
+    db,
+    accountId,
+    minorUnitsToDecimal(nextBalance),
+    async (transaction) => {
+      await transaction.runAsync(
+        `UPDATE observed_payment_events
+         SET status = 'applied', financial_account_id = ?, error_message = NULL, updated_at = ?
+         WHERE id = ?`,
+        accountId,
+        new Date().toISOString(),
+        eventId,
+      );
+    },
+  );
 }
 
 export async function ingestPaymentNotificationCandidate(
