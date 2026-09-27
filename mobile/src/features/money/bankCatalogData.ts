@@ -28,6 +28,7 @@ export const MOBILE_BANK_INSTITUTIONS: MobileBankInstitution[] = [
   { id: 'quantfury', name: 'Quantfury', domain: 'quantfury.com', aliases: ['quant fury'], suggestedType: 'broker' },
   { id: 'trade-republic', name: 'Trade Republic', domain: 'traderepublic.com', aliases: ['trade republic bank'], suggestedType: 'broker' },
   { id: 'myinvestor', name: 'MyInvestor', domain: 'myinvestor.es', aliases: ['my investor'], suggestedType: 'broker' },
+  { id: 'collectr', name: 'Collectr', domain: 'getcollectr.com', aliases: ['collectr app', 'getcollectr', 'tcg portfolio'], suggestedType: 'broker' },
   { id: 'wise', name: 'Wise', domain: 'wise.com', aliases: ['transferwise'], suggestedType: 'wallet' },
   { id: 'paypal', name: 'PayPal', domain: 'paypal.com', aliases: [], suggestedType: 'wallet' },
 ];
