@@ -1,0 +1,77 @@
+appId: com.davidegea.smartexpenseai
+---
+- tapOn:
+    id: "tab-mi-dinero"
+- extendedWaitUntil:
+    visible: "Mi dinero"
+    timeout: 20000
+- assertVisible: "PATRIMONIO TOTAL"
+
+# Investment platform: catalog selection must normalize the local purpose to investment.
+- tapOn: "Cuenta"
+- extendedWaitUntil:
+    visible: "Añadir cuenta"
+    timeout: 10000
+- tapOn: "Buscar banco"
+- inputText: "Trade Republic"
+- hideKeyboard
+- tapOn:
+    text: "Trade Republic"
+    index: 0
+- scrollUntilVisible:
+    element: "Saldo actual"
+    direction: DOWN
+    timeout: 10000
+- tapOn: "Saldo actual"
+- inputText: "1000.00"
+- hideKeyboard
+- scrollUntilVisible:
+    element: "Añadir cuenta"
+    direction: DOWN
+    timeout: 10000
+- tapOn: "Añadir cuenta"
+- extendedWaitUntil:
+    visible: "1 activas"
+    timeout: 15000
+- assertVisible: "Trade Republic"
+- assertVisible: "Inversión"
+
+# A second independent bank account must coexist with the broker.
+- scrollUntilVisible:
+    element: "Mi dinero"
+    direction: UP
+    timeout: 10000
+- tapOn: "Cuenta"
+- extendedWaitUntil:
+    visible: "Añadir cuenta"
+    timeout: 10000
+- tapOn: "Buscar banco"
+- inputText: "Bankinter"
+- hideKeyboard
+- tapOn:
+    text: "Bankinter"
+    index: 0
+- scrollUntilVisible:
+    element: "Saldo actual"
+    direction: DOWN
+    timeout: 10000
+- tapOn: "Saldo actual"
+- inputText: "200.00"
+- hideKeyboard
+- scrollUntilVisible:
+    element: "Añadir cuenta"
+    direction: DOWN
+    timeout: 10000
+- tapOn: "Añadir cuenta"
+- extendedWaitUntil:
+    visible: "2 activas"
+    timeout: 15000
+- assertVisible: "Trade Republic"
+- assertVisible: "Bankinter"
+- assertVisible: "1.200,00 €"
+
+- tapOn:
+    id: "tab-activity"
+- extendedWaitUntil:
+    visible: "Your transactions"
+    timeout: 15000
