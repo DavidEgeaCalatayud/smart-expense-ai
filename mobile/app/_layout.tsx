@@ -2,17 +2,18 @@ import { Stack } from 'expo-router';
 import { SQLiteProvider } from 'expo-sqlite';
 import { StatusBar } from 'expo-status-bar';
 import { Suspense } from 'react';
-import { ActivityIndicator, LogBox, Platform, StyleSheet, View } from 'react-native';
+import { LogBox, Platform, StyleSheet } from 'react-native';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 
 import { AuthProvider, useAuth } from '../src/auth/AuthProvider';
+import { BottomNavigation } from '../src/components/WorkspaceNav';
 import { DATABASE_NAME } from '../src/database/constants';
 import { initializeDatabase } from '../src/database/initializeDatabase';
-import { AppPreferencesProvider, useAppPreferences } from '../src/preferences/AppPreferences';
 import { NotificationObserver } from '../src/notifications/NotificationObserver';
+import { AppPreferencesProvider, useAppPreferences } from '../src/preferences/AppPreferences';
 import { AppLockProvider } from '../src/security/AppLockProvider';
-import { BottomNavigation } from '../src/components/WorkspaceNav';
 import { OnlineSyncProvider } from '../src/sync/OnlineSyncProvider';
+import { ActivityIndicator, View } from '../src/ui/primitives';
 
 // Debug-only LogBox banners can cover persistent navigation targets on the
 // headless Android emulator. Keep warnings in the runner logs, but suppress the
