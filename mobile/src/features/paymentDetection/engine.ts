@@ -84,7 +84,8 @@ async function applyObservedPaymentEventUnlocked(
   if (!autoEligibleKind(event.event_kind)) {
     throw new Error('Esta notificación no representa un movimiento aplicable automáticamente.');
   }
-  if (event.amount_minor === null || event.amount_minor <= 0 || event.currency !== 'EUR') {
+  const amountMinor = event.amount_minor;
+  if (amountMinor === null || amountMinor <= 0 || event.currency !== 'EUR') {
     throw new Error('Solo se pueden aplicar automáticamente importes válidos en EUR.');
   }
 
@@ -110,7 +111,7 @@ async function applyObservedPaymentEventUnlocked(
     const transaction = await createOfflineTransaction(db, {
       merchant: event.merchant || event.source_label || 'Movimiento detectado',
       categoryName: isIncome ? 'Ingresos detectados' : 'Compras detectadas',
-      amount: minorUnitsToDecimal(event.amount_minor),
+      amount: minorUnitsToDecimal(amountMinor),
       transactionDate: localDate(new Date(event.occurred_at)),
       transactionType: isIncome ? 'income' : 'expense',
       paymentMethod: event.event_kind.startsWith('transfer_') ? 'bank_transfer' : 'card',
@@ -131,7 +132,7 @@ async function applyObservedPaymentEventUnlocked(
   );
   if (!latestAccount) throw new Error('La cuenta seleccionada ya no está disponible.');
   const direction = event.event_kind === 'refund' || event.event_kind === 'transfer_in' ? 1 : -1;
-  const nextBalance = latestAccount.current_balance_minor + direction * event.amount_minor;
+  const nextBalance = latestAccount.current_balance_minor + direction * amountMinor;
   await updateOfflineFinancialAccountBalance(db, accountId, minorUnitsToDecimal(nextBalance));
   await updateObservedPaymentEvent(db, eventId, {
     status: 'applied',
