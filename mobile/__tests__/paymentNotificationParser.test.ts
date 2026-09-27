@@ -83,6 +83,21 @@ describe('payment notification parser', () => {
     expect(limit.kind).toBe('unknown');
   });
 
+  it.each([
+    'Has gastado 500,00 € este mes con tu tarjeta',
+    'Gasto mensual: 350,00 €',
+    'Spent this month: €420.00',
+    'Monthly spend: €275.50',
+  ])('keeps aggregate spending summaries review-only: %s', (text) => {
+    const parsed = parsePaymentNotification(candidate({
+      notificationKey: `summary-${text}`,
+      title: 'Resumen mensual',
+      text,
+    }));
+    expect(parsed.amountMinor).not.toBeNull();
+    expect(parsed.kind).toBe('unknown');
+  });
+
   it('classifies rejected payments without treating them as successful expenses', () => {
     const parsed = parsePaymentNotification(candidate({
       notificationKey: 'rejected-1',
