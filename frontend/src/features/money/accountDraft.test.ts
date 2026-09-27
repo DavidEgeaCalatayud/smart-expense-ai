@@ -1,6 +1,10 @@
 import { describe, expect, it } from 'vitest';
 import type { FinancialAccount, FinancialAccountDraft } from '../../types/financialAccounts';
-import { buildFinancialAccountEditPayload, purposeForAccountType } from './accountDraft';
+import {
+  buildFinancialAccountEditPayload,
+  purposeForAccountType,
+  suggestedAccountNameForInstitution,
+} from './accountDraft';
 
 const ORIGINAL: FinancialAccount = {
   id: 'account-1',
@@ -56,5 +60,21 @@ describe('financial account edit payload', () => {
       ORIGINAL,
       draft({ accountType: 'broker', purpose: 'daily' }),
     ).purpose).toBe('investment');
+  });
+});
+
+describe('institution-generated account names', () => {
+  it('updates a name that was automatically copied from the previous institution', () => {
+    expect(suggestedAccountNameForInstitution('Trade Republic', 'Trade Republic', 'Bankinter'))
+      .toBe('Bankinter');
+  });
+
+  it('fills an empty account name', () => {
+    expect(suggestedAccountNameForInstitution('', '', 'Bankinter')).toBe('Bankinter');
+  });
+
+  it('preserves a custom account name when the institution changes', () => {
+    expect(suggestedAccountNameForInstitution('Inversiones largo plazo', 'Trade Republic', 'Bankinter'))
+      .toBe('Inversiones largo plazo');
   });
 });
