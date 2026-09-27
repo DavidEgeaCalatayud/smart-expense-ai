@@ -61,7 +61,11 @@ function existing(overrides: Partial<ObservedPaymentEventRow> = {}): ObservedPay
 
 function fakeDb(rows: ObservedPaymentEventRow[]) {
   let sql = '';
-  const runAsync = jest.fn(async () => ({ changes: 1, lastInsertRowId: 0 }));
+  let latestRunArgs: unknown[] = [];
+  const runAsync = jest.fn(async (...args: unknown[]) => {
+    latestRunArgs = args;
+    return { changes: 1, lastInsertRowId: 0 };
+  });
   const db = {
     getAllAsync: jest.fn(async (query: string) => {
       sql = query;
@@ -69,7 +73,7 @@ function fakeDb(rows: ObservedPaymentEventRow[]) {
     }),
     runAsync,
   } as unknown as SQLiteDatabase;
-  return { db, sql: () => sql, runAsync };
+  return { db, sql: () => sql, runAsync, runArgs: () => latestRunArgs };
 }
 
 test('keeps failed events with an already-created transaction in the dedupe candidate set', async () => {
@@ -138,11 +142,12 @@ test('enriches a sparse Wallet canonical event with later bank evidence', async 
   await enrichObservedPaymentEventFromDuplicate(fake.db, canonical, incoming, match);
 
   expect(fake.runAsync).toHaveBeenCalledTimes(1);
-  const [, merchant, cardHint, accountId, confidence, , eventId] = fake.runAsync.mock.calls[0]!;
+  const [, merchant, cardHint, accountId, confidence, , eventId] = fake.runArgs();
   expect(merchant).toBe('MERCADONA');
   expect(cardHint).toBe('••••1234');
   expect(accountId).toBe('bankinter-account');
-  expect(confidence).toBeGreaterThan(canonical.confidence);
+  expect(typeof confidence).toBe('number');
+  expect(confidence as number).toBeGreaterThan(canonical.confidence);
   expect(eventId).toBe(canonical.id);
 });
 
@@ -160,7 +165,7 @@ test('duplicate evidence never overwrites an account already chosen for the cano
     { accountId: 'different-account', confidence: 0.99, reason: 'card-link' },
   );
 
-  const [, , , accountId] = fake.runAsync.mock.calls[0]!;
+  const [, , , accountId] = fake.runArgs();
   expect(accountId).toBe('user-selected-account');
 });
 
