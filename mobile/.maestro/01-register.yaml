@@ -15,8 +15,9 @@ appId: com.davidegea.smartexpenseai
 - hideKeyboard
 - tapOn: "Submit create account"
 - extendedWaitUntil:
-    visible: "Your month, at a glance."
+    visible: "Mi dinero"
     timeout: 20000
+- assertVisible: "PATRIMONIO TOTAL"
 - tapOn:
     id: "tab-activity"
 - extendedWaitUntil:
