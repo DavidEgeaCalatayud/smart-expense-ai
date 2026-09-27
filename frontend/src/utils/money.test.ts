@@ -14,6 +14,12 @@ describe('fixed-point money helpers', () => {
     expect(normalizeMoneyAmount('1234567890.99')).toBe('1234567890.99');
   });
 
+  it('accepts a Spanish comma decimal separator at the UI boundary', () => {
+    expect(normalizeMoneyAmount('1000,50')).toBe('1000.50');
+    expect(normalizeMoneyAmount('-12,3')).toBe('-12.30');
+    expect(moneyToCents('0,20')).toBe(20);
+  });
+
   it('adds decimal money exactly as integer cents', () => {
     const total = moneyToCents('0.10') + moneyToCents('0.20');
     expect(total).toBe(30);
@@ -26,7 +32,9 @@ describe('fixed-point money helpers', () => {
     expect(isNegativeMoney('-0.01')).toBe(true);
   });
 
-  it('rejects more than two decimal places', () => {
+  it('rejects more than two decimal places and ambiguous mixed separators', () => {
     expect(() => normalizeMoneyAmount('10.001')).toThrow(/two decimal places/i);
+    expect(() => normalizeMoneyAmount('1.000,50')).toThrow(/decimal separator/i);
+    expect(() => normalizeMoneyAmount('1,000,50')).toThrow(/decimal separator/i);
   });
 });
