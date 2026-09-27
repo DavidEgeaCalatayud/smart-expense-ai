@@ -13,6 +13,19 @@ export function purposeForAccountType(
   return accountType === 'broker' ? 'investment' : requestedPurpose;
 }
 
+export function suggestedAccountNameForInstitution(
+  currentName: string,
+  currentInstitution: string,
+  nextInstitution: string,
+): string {
+  const cleanName = currentName.trim();
+  const cleanInstitution = currentInstitution.trim();
+  if (!cleanName || (cleanInstitution !== '' && cleanName === cleanInstitution)) {
+    return nextInstitution;
+  }
+  return currentName;
+}
+
 export function buildFinancialAccountEditPayload(
   original: FinancialAccount,
   draft: FinancialAccountDraft,
