@@ -55,7 +55,8 @@
           "resizeMode": "contain"
         }
       ],
-      "./plugins/withQuickAddWidget"
+      "./plugins/withQuickAddWidget",
+      "./plugins/withPaymentNotificationListener"
     ],
     "experiments": {
       "typedRoutes": true
