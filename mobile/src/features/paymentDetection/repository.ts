@@ -61,6 +61,30 @@ export async function findObservedEventByNotificationKey(
   ) ?? null;
 }
 
+export async function findObservedEventByNotificationGroup(
+  db: SQLiteDatabase,
+  event: ParsedPaymentNotification,
+): Promise<ObservedPaymentEventRow | null> {
+  const groupKey = notificationGroupKey(event.notificationKey);
+  if (!groupKey || groupKey === event.notificationKey) return null;
+  const captured = new Date(event.capturedAt).getTime();
+  if (!Number.isFinite(captured)) return null;
+  const from = new Date(captured - 30 * 60_000).toISOString();
+  const to = new Date(captured + 30 * 60_000).toISOString();
+  const candidates = await db.getAllAsync<ObservedPaymentEventRow>(
+    `SELECT * FROM observed_payment_events
+     WHERE source_package = ? AND captured_at BETWEEN ? AND ? AND status <> 'duplicate'
+     ORDER BY captured_at DESC LIMIT 24`,
+    event.sourcePackage,
+    from,
+    to,
+  );
+  return candidates.find((candidate) => (
+    candidate.notification_key !== event.notificationKey
+    && notificationGroupKey(candidate.notification_key) === groupKey
+  )) ?? null;
+}
+
 export async function findLikelyDuplicateEvent(
   db: SQLiteDatabase,
   event: ParsedPaymentNotification,
@@ -85,27 +109,76 @@ export async function findLikelyDuplicateEvent(
   const incomingGroupKey = notificationGroupKey(event.notificationKey);
   return candidates.find((candidate) => {
     if (candidate.notification_key === event.notificationKey) return true;
-    if (candidate.event_kind !== event.kind) return false;
     const sameSource = candidate.source_package === event.sourcePackage;
     if (
       sameSource
       && notificationGroupKey(candidate.notification_key) === incomingGroupKey
     ) return true;
+    if (candidate.event_kind !== event.kind) return false;
 
+    const candidateTime = new Date(candidate.occurred_at).getTime();
+    if (!Number.isFinite(candidateTime)) return false;
+    const delta = Math.abs(candidateTime - occurred);
     const otherMerchant = candidate.merchant?.toLocaleLowerCase().replace(/[^a-z0-9áéíóúüñ]+/gi, '') ?? '';
     // Merchant similarity is useful for Wallet <-> bank reconciliation, but it is unsafe
     // within one source: two real purchases at the same shop can have the same amount only
-    // seconds apart. Same-source duplicates require the exact Android notification group.
-    if (!sameSource && merchant && otherMerchant) {
+    // seconds apart. Cross-source merchant matches are also kept to a tight time window.
+    if (!sameSource && delta <= 120_000 && merchant && otherMerchant) {
       return merchant === otherMerchant
         || merchant.includes(otherMerchant)
         || otherMerchant.includes(merchant);
     }
     if (!event.cardHint || !candidate.card_hint || event.cardHint !== candidate.card_hint) return false;
     if (sameSource) return false;
-    const candidateTime = new Date(candidate.occurred_at).getTime();
-    return Number.isFinite(candidateTime) && Math.abs(candidateTime - occurred) <= 90_000;
+    return delta <= 90_000;
   }) ?? null;
+}
+
+export async function reconcileObservedPaymentEventRevision(
+  db: SQLiteDatabase,
+  canonical: ObservedPaymentEventRow,
+  incoming: ParsedPaymentNotification,
+  match: PaymentAccountMatch,
+  requestedStatus: ObservedPaymentStatus,
+): Promise<boolean> {
+  // Never rewrite an event after it has created financial state. A late Android notification
+  // revision may improve display metadata, but it must not change an applied/ignored decision
+  // or a transaction that is waiting for its balance update.
+  if (
+    canonical.transaction_id !== null
+    || ['applied', 'ignored', 'rejected', 'duplicate'].includes(canonical.status)
+  ) return false;
+
+  const effectiveKind = incoming.kind === 'unknown' ? canonical.event_kind : incoming.kind;
+  const status = effectiveKind === 'rejected' ? 'rejected' : requestedStatus;
+  const accountId = canonical.financial_account_id ?? match.accountId;
+  const confidence = Math.max(canonical.confidence, combinedPaymentConfidence(incoming, match));
+  await db.runAsync(
+    `UPDATE observed_payment_events
+     SET source_label = ?, notification_id = ?, occurred_at = ?, captured_at = ?,
+         title = ?, body = ?, merchant = ?, amount_minor = ?, currency = ?, card_hint = ?,
+         event_kind = ?, financial_account_id = ?, confidence = ?, status = ?, fingerprint = ?,
+         error_message = NULL, updated_at = ?
+     WHERE id = ?`,
+    incoming.sourceLabel,
+    incoming.notificationId,
+    incoming.occurredAt,
+    incoming.capturedAt,
+    incoming.title,
+    incoming.body,
+    incoming.merchant ?? canonical.merchant,
+    incoming.amountMinor ?? canonical.amount_minor,
+    incoming.currency ?? canonical.currency,
+    incoming.cardHint ?? canonical.card_hint,
+    effectiveKind,
+    accountId,
+    confidence,
+    status,
+    incoming.fingerprint ?? canonical.fingerprint,
+    new Date().toISOString(),
+    canonical.id,
+  );
+  return true;
 }
 
 export async function enrichObservedPaymentEventFromDuplicate(
