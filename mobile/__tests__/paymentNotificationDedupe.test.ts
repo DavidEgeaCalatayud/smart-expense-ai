@@ -127,6 +127,23 @@ test('lets a pending hold revision become a later successful payment', async () 
   expect(duplicate).toBeNull();
 });
 
+test('does not collapse two genuine same-source same-merchant payments with different notification keys', async () => {
+  const firstPurchase = existing({
+    source_package: 'com.bankinter.launcher',
+    notification_key: 'bank-purchase-1',
+    merchant: 'MERCADONA',
+  });
+  const fake = fakeDb([firstPurchase]);
+  const duplicate = await findLikelyDuplicateEvent(fake.db, parsed({
+    sourcePackage: 'com.bankinter.launcher',
+    sourceLabel: 'Bankinter',
+    notificationKey: 'bank-purchase-2',
+    merchant: 'MERCADONA',
+    cardHint: '••••1234',
+  }));
+  expect(duplicate).toBeNull();
+});
+
 test('does not collapse two sparse same-value notifications from the same source just because the card matches', async () => {
   const sparseExisting = existing({
     source_package: 'com.google.android.apps.walletnfcrel',
