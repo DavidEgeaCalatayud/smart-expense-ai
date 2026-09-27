@@ -102,7 +102,9 @@ async function applyObservedPaymentEventUnlocked(
     event = { ...event, financial_account_id: accountId };
   }
 
-  if (rememberAssociation) {
+  // Never learn a source-only mapping from a generic wallet notification: one Wallet app
+  // can contain several cards. A last-four card hint gives us a safe reusable association.
+  if (rememberAssociation && event.card_hint) {
     await linkPaymentSourceToAccount(db, event.source_package, event.card_hint, accountId);
   }
 
