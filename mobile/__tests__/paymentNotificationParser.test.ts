@@ -42,6 +42,20 @@ describe('payment notification parser', () => {
     expect(parsed.merchant).toBe('MERCADONA');
   });
 
+  it('keeps sparse Wallet notifications for safe manual review', () => {
+    const parsed = parsePaymentNotification(candidate({
+      sourcePackage: 'com.google.android.apps.walletnfcrel',
+      sourceLabel: 'Google Wallet',
+      notificationKey: 'wallet-sparse-1',
+      title: 'MERCADONA',
+      text: '18,40 € · Visa •••• 1234',
+    }));
+    expect(parsed.amountMinor).toBe(1840);
+    expect(parsed.currency).toBe('EUR');
+    expect(parsed.kind).toBe('unknown');
+    expect(parsed.cardHint).toBe('••••1234');
+  });
+
   it('classifies rejected payments without treating them as successful expenses', () => {
     const parsed = parsePaymentNotification(candidate({
       notificationKey: 'rejected-1',
