@@ -155,6 +155,10 @@ class PaymentNotificationListenerService : NotificationListenerService() {
         if (sbn.packageName == packageName) return
 
         val notification = sbn.notification ?: return
+        // A group summary can contain several purchases. Android also delivers the child
+        // notifications, so parsing the summary would risk turning only its first amount into a
+        // synthetic transaction.
+        if ((notification.flags and Notification.FLAG_GROUP_SUMMARY) != 0) return
         // Do not ingest human conversations just because someone writes "te pago 20 €".
         // Financial apps normally use status/service categories; Wallet is explicitly known.
         if (
