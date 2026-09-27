@@ -1,14 +1,26 @@
 import { forwardRef } from 'react';
 import * as Native from 'react-native';
 import { SafeAreaView as NativeSafeAreaView, type SafeAreaViewProps } from 'react-native-safe-area-context';
-import { themedColor, useAppPreferences } from '../preferences/AppPreferences';
+import { themedColor, type ThemeColorRole, useAppPreferences } from '../preferences/AppPreferences';
 
 export { ActivityIndicator, Alert, AppState, Keyboard, KeyboardAvoidingView, Modal, Platform, RefreshControl, StyleSheet, Switch, Linking } from 'react-native';
+
+function colorRole(key: string): ThemeColorRole {
+  const normalized = key.toLowerCase();
+  if (normalized === 'backgroundcolor') return 'background';
+  if (normalized.includes('border') || normalized === 'shadowcolor') return 'border';
+  return 'foreground';
+}
+
 function mapStyle<T extends Native.ViewStyle | Native.TextStyle>(style: Native.StyleProp<T>, dark: boolean): T {
   const original = Native.StyleSheet.flatten(style) ?? {};
   if (!dark) return original as T;
   const mapped = { ...original } as Record<string, unknown>;
-  for (const key of Object.keys(mapped)) if (key.toLowerCase().includes('color')) mapped[key] = themedColor(mapped[key], dark, key === 'backgroundColor');
+  for (const key of Object.keys(mapped)) {
+    if (key.toLowerCase().includes('color')) {
+      mapped[key] = themedColor(mapped[key], dark, colorRole(key));
+    }
+  }
   return mapped as T;
 }
 export const View = forwardRef<Native.View, Native.ViewProps>(function View(props, ref) {
@@ -18,7 +30,9 @@ export const Text = forwardRef<Native.Text, Native.TextProps>(function Text(prop
   const { dark } = useAppPreferences(); return <Native.Text {...props} ref={ref} style={mapStyle([{ color: dark ? '#e7f1eb' : '#111827' }, props.style], dark)} />;
 });
 export const TextInput = forwardRef<Native.TextInput, Native.TextInputProps>(function TextInput(props, ref) {
-  const { dark } = useAppPreferences(); return <Native.TextInput placeholderTextColor={dark ? '#acbfb3' : '#667467'} {...props} ref={ref} style={mapStyle([{ color: dark ? '#e7f1eb' : '#111827' }, props.style], dark)} />;
+  const { dark } = useAppPreferences();
+  const placeholderTextColor = themedColor(props.placeholderTextColor ?? '#667467', dark, 'foreground') as Native.TextInputProps['placeholderTextColor'];
+  return <Native.TextInput {...props} placeholderTextColor={placeholderTextColor} ref={ref} style={mapStyle([{ color: dark ? '#e7f1eb' : '#111827' }, props.style], dark)} />;
 });
 export const ScrollView = forwardRef<Native.ScrollView, Native.ScrollViewProps>(function ScrollView(props, ref) {
   const { dark } = useAppPreferences(); return <Native.ScrollView {...props} ref={ref} style={mapStyle(props.style, dark)} contentContainerStyle={mapStyle(props.contentContainerStyle, dark)} />;
