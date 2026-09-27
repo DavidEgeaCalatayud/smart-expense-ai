@@ -144,12 +144,24 @@ class PaymentNotificationListenerService : NotificationListenerService() {
     private val paymentPattern = Regex("pago|pagado|compra|tarjeta|wallet|bizum|transfer|cargo|reembolso|devoluci|refund|purchase|paid|payment|card|received|sent|retenci|preautoriz|authori", RegexOption.IGNORE_CASE)
     private val sensitivePattern = Regex("""${kotlinSensitivePattern}""", RegexOption.IGNORE_CASE)
     private val knownWalletPackages = setOf("com.google.android.apps.walletnfcrel")
+    private val privateConversationCategories = setOf(
+        Notification.CATEGORY_MESSAGE,
+        Notification.CATEGORY_EMAIL,
+        Notification.CATEGORY_SOCIAL,
+    )
 
     override fun onNotificationPosted(sbn: StatusBarNotification) {
         if (!PaymentNotificationStore.isCaptureEnabled(this)) return
         if (sbn.packageName == packageName) return
 
         val notification = sbn.notification ?: return
+        // Do not ingest human conversations just because someone writes "te pago 20 €".
+        // Financial apps normally use status/service categories; Wallet is explicitly known.
+        if (
+            !knownWalletPackages.contains(sbn.packageName)
+            && notification.category != null
+            && privateConversationCategories.contains(notification.category)
+        ) return
         val extras = notification.extras ?: return
         val title = extras.getCharSequence(Notification.EXTRA_TITLE)?.toString().orEmpty().take(300)
         val text = extras.getCharSequence(Notification.EXTRA_TEXT)?.toString().orEmpty().take(600)
