@@ -19,10 +19,12 @@ import { showDetectedPaymentNotification } from './paymentDetectionNotifications
 import {
   enrichObservedPaymentEventFromDuplicate,
   findLikelyDuplicateEvent,
+  findObservedEventByNotificationGroup,
   findObservedEventByNotificationKey,
   getPaymentDetectionSettings,
   insertObservedPaymentEvent,
   linkPaymentSourceToAccount,
+  reconcileObservedPaymentEventRevision,
   updateObservedPaymentEvent,
 } from './repository';
 import type { ObservedPaymentEventRow } from './types';
@@ -172,6 +174,33 @@ export async function ingestPaymentNotificationCandidate(
 
   const parsed = parsePaymentNotification(candidate);
   const match = await matchPaymentAccount(db, parsed);
+
+  const revision = await findObservedEventByNotificationGroup(db, parsed);
+  if (revision) {
+    const canAutoApplyRevision = shouldAutomaticallyApplyPayment(settings, parsed, match);
+    const revisionStatus = parsed.kind === 'rejected'
+      ? 'rejected'
+      : canAutoApplyRevision ? 'pending' : 'needs_confirmation';
+    const reconciled = await reconcileObservedPaymentEventRevision(
+      db,
+      revision,
+      parsed,
+      match,
+      revisionStatus,
+    );
+    if (!reconciled) return revision.id;
+    if (canAutoApplyRevision) {
+      await applyObservedPaymentEventUnlocked(db, revision.id).catch(async (error) => {
+        await updateObservedPaymentEvent(db, revision.id, {
+          status: 'failed',
+          errorMessage: error instanceof Error ? error.message : String(error),
+        });
+      });
+    }
+    await notifyEvent(db, revision.id).catch(() => undefined);
+    return revision.id;
+  }
+
   const duplicate = await findLikelyDuplicateEvent(db, parsed);
   if (duplicate) {
     await enrichObservedPaymentEventFromDuplicate(db, duplicate, parsed, match);
