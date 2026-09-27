@@ -23,6 +23,11 @@ function notificationGroupKey(key: string): string {
   return revisionMarker >= 0 ? key.slice(0, revisionMarker) : key;
 }
 
+function terminalFinancialState(event: ObservedPaymentEventRow): boolean {
+  return event.transaction_id !== null
+    || ['applied', 'ignored', 'rejected', 'duplicate'].includes(event.status);
+}
+
 export async function getPaymentDetectionSettings(db: SQLiteDatabase): Promise<PaymentDetectionSettings> {
   const row = await db.getFirstAsync<SettingsRow>(
     'SELECT enabled, mode, auto_confidence FROM payment_detection_settings WHERE id = 1',
@@ -79,10 +84,23 @@ export async function findObservedEventByNotificationGroup(
     from,
     to,
   );
-  return candidates.find((candidate) => (
-    candidate.notification_key !== event.notificationKey
-    && notificationGroupKey(candidate.notification_key) === groupKey
-  )) ?? null;
+  return candidates.find((candidate) => {
+    const sameGroup = candidate.notification_key !== event.notificationKey
+      && notificationGroupKey(candidate.notification_key) === groupKey;
+    if (!sameGroup) return false;
+
+    // Once a notification has created/closed financial state, a later revision with a different
+    // movement kind is not cosmetic metadata. Example: an applied payment becoming a refund, or a
+    // rejected authorization later becoming a successful payment. Let the ingestion pipeline
+    // create a separate event instead of swallowing the compensating/new movement.
+    if (
+      terminalFinancialState(candidate)
+      && event.kind !== 'unknown'
+      && event.kind !== candidate.event_kind
+    ) return false;
+
+    return true;
+  }) ?? null;
 }
 
 export async function findLikelyDuplicateEvent(
