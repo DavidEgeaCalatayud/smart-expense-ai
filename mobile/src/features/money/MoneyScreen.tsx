@@ -120,6 +120,13 @@ const EMPTY_FORM: AccountFormState = {
   includeInNetWorth: true,
 };
 
+function purposeForType(
+  accountType: FinancialAccountType,
+  requestedPurpose: FinancialAccountPurpose,
+): FinancialAccountPurpose {
+  return accountType === 'broker' ? 'investment' : requestedPurpose;
+}
+
 export function MoneyScreen() {
   const {
     accounts,
@@ -183,7 +190,7 @@ export function MoneyScreen() {
       name: account.name,
       institution: account.institution ?? '',
       accountType: account.account_type,
-      purpose: account.purpose,
+      purpose: purposeForType(account.account_type, account.purpose),
       currentBalance: minorUnitsToDecimal(account.current_balance_minor),
       includeInNetWorth: account.include_in_net_worth === 1,
     });
@@ -192,18 +199,22 @@ export function MoneyScreen() {
 
   const submitForm = async () => {
     try {
+      const normalizedForm = {
+        ...form,
+        purpose: purposeForType(form.accountType, form.purpose),
+      };
       if (formMode === 'create') {
         await create({
-          ...form,
-          institution: form.institution || null,
+          ...normalizedForm,
+          institution: normalizedForm.institution || null,
         });
       } else if (formMode === 'edit' && editingId) {
         await updateMetadata(editingId, {
-          name: form.name,
-          institution: form.institution || null,
-          accountType: form.accountType,
-          purpose: form.purpose,
-          includeInNetWorth: form.includeInNetWorth,
+          name: normalizedForm.name,
+          institution: normalizedForm.institution || null,
+          accountType: normalizedForm.accountType,
+          purpose: normalizedForm.purpose,
+          includeInNetWorth: normalizedForm.includeInNetWorth,
         });
       }
       closeForm();
@@ -346,6 +357,7 @@ export function MoneyScreen() {
                   institution: bank.name,
                   name: current.name.trim() ? current.name : bank.name,
                   accountType: bank.suggestedType,
+                  purpose: purposeForType(bank.suggestedType, current.purpose),
                 }));
               }}
               onManualChange={(institution) => setForm((current) => ({ ...current, institution }))}
@@ -365,7 +377,11 @@ export function MoneyScreen() {
               {ACCOUNT_TYPES.map(([value, label]) => (
                 <Pressable
                   key={value}
-                  onPress={() => setForm((current) => ({ ...current, accountType: value }))}
+                  onPress={() => setForm((current) => ({
+                    ...current,
+                    accountType: value,
+                    purpose: purposeForType(value, current.purpose),
+                  }))}
                   style={[styles.chip, form.accountType === value && styles.chipActive]}
                 >
                   <Text style={[styles.chipText, form.accountType === value && styles.chipTextActive]}>{label}</Text>
@@ -375,15 +391,31 @@ export function MoneyScreen() {
 
             <Text style={styles.fieldLabel}>Finalidad</Text>
             <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.chips}>
-              {PURPOSES.map(([value, label]) => (
-                <Pressable
-                  key={value}
-                  onPress={() => setForm((current) => ({ ...current, purpose: value }))}
-                  style={[styles.chip, form.purpose === value && styles.chipActive]}
-                >
-                  <Text style={[styles.chipText, form.purpose === value && styles.chipTextActive]}>{label}</Text>
-                </Pressable>
-              ))}
+              {PURPOSES.map(([value, label]) => {
+                const effectivePurpose = purposeForType(form.accountType, form.purpose);
+                const lockedByBroker = form.accountType === 'broker' && value !== 'investment';
+                return (
+                  <Pressable
+                    key={value}
+                    disabled={lockedByBroker}
+                    onPress={() => setForm((current) => ({
+                      ...current,
+                      purpose: purposeForType(current.accountType, value),
+                    }))}
+                    style={[
+                      styles.chip,
+                      effectivePurpose === value && styles.chipActive,
+                      lockedByBroker && styles.chipDisabled,
+                    ]}
+                  >
+                    <Text style={[
+                      styles.chipText,
+                      effectivePurpose === value && styles.chipTextActive,
+                      lockedByBroker && styles.chipTextDisabled,
+                    ]}>{label}</Text>
+                  </Pressable>
+                );
+              })}
             </ScrollView>
 
             {formMode === 'create' ? (
@@ -538,35 +570,37 @@ const styles = StyleSheet.create({
   chips: { gap: 8, paddingVertical: 2 },
   chip: { borderWidth: 1, borderColor: '#d8e1dc', backgroundColor: '#fff', borderRadius: 999, paddingHorizontal: 13, paddingVertical: 9 },
   chipActive: { backgroundColor: '#dff3e9', borderColor: '#9ecbb9' },
+  chipDisabled: { opacity: 0.45 },
   chipText: { color: '#596575', fontWeight: '700', fontSize: 12 },
   chipTextActive: { color: '#125c47' },
+  chipTextDisabled: { color: '#89948f' },
   switchRow: { flexDirection: 'row', alignItems: 'center', gap: 12, paddingVertical: 4 },
   accountCard: { backgroundColor: '#fff', borderRadius: 22, padding: 17, gap: 13, borderWidth: 1, borderColor: '#e3eae6' },
   accountTopRow: { flexDirection: 'row', alignItems: 'center', gap: 11 },
-  accountName: { fontSize: 17, fontWeight: '800' },
-  accountAmount: { fontSize: 28, fontWeight: '800', letterSpacing: -0.6 },
-  accountMetaRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', gap: 8 },
-  purposeTag: { color: '#125c47', fontWeight: '800', fontSize: 12, backgroundColor: '#e6f4ee', paddingHorizontal: 10, paddingVertical: 6, borderRadius: 999 },
-  statusPill: { backgroundColor: '#f1f4f2', paddingHorizontal: 8, paddingVertical: 5, borderRadius: 999 },
-  statusText: { color: '#596575', fontSize: 10, fontWeight: '700' },
-  actionRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 8, alignItems: 'center' },
-  balanceHeading: { flexDirection: 'row', alignItems: 'center', gap: 10, flex: 1 },
-  primaryButton: { backgroundColor: '#125c47', borderRadius: 13, minHeight: 42, paddingHorizontal: 14, justifyContent: 'center', alignItems: 'center' },
-  primaryButtonWide: { backgroundColor: '#125c47', borderRadius: 14, minHeight: 48, justifyContent: 'center', alignItems: 'center' },
+  accountName: { fontSize: 16, fontWeight: '800' },
+  accountAmount: { fontSize: 27, fontWeight: '800', letterSpacing: -0.5 },
+  accountMetaRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 12 },
+  purposeTag: { backgroundColor: '#edf5f1', color: '#326b59', borderRadius: 999, paddingHorizontal: 9, paddingVertical: 4, fontSize: 11, fontWeight: '800' },
+  statusPill: { backgroundColor: '#f1f4f2', borderRadius: 999, paddingHorizontal: 8, paddingVertical: 4 },
+  statusText: { color: '#65716b', fontSize: 9, fontWeight: '800' },
+  actionRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
+  primaryButton: { backgroundColor: '#125c47', minHeight: 40, borderRadius: 13, paddingHorizontal: 14, alignItems: 'center', justifyContent: 'center' },
+  primaryButtonWide: { backgroundColor: '#125c47', minHeight: 48, borderRadius: 14, paddingHorizontal: 16, alignItems: 'center', justifyContent: 'center' },
   primaryButtonText: { color: '#fff', fontWeight: '800' },
-  secondaryButton: { backgroundColor: '#f2f6f4', borderRadius: 13, minHeight: 42, paddingHorizontal: 14, justifyContent: 'center', alignItems: 'center' },
+  secondaryButton: { backgroundColor: '#edf5f1', minHeight: 40, borderRadius: 13, paddingHorizontal: 14, alignItems: 'center', justifyContent: 'center' },
   secondaryText: { color: '#125c47', fontWeight: '800' },
-  archiveButton: { minHeight: 42, paddingHorizontal: 10, justifyContent: 'center' },
-  archiveText: { color: '#a23939', fontWeight: '700' },
-  emptyCard: { backgroundColor: '#fff', borderRadius: 22, padding: 20, gap: 10, alignItems: 'flex-start', borderWidth: 1, borderColor: '#e3eae6' },
-  cardTitle: { fontWeight: '800', fontSize: 14 },
+  archiveButton: { minHeight: 40, borderRadius: 13, paddingHorizontal: 10, alignItems: 'center', justifyContent: 'center' },
+  archiveText: { color: '#a04444', fontWeight: '800' },
+  statusCard: { backgroundColor: '#fff', borderRadius: 18, padding: 14, borderWidth: 1, borderColor: '#e3eae6' },
+  emptyCard: { backgroundColor: '#fff', borderRadius: 22, padding: 20, gap: 10, borderWidth: 1, borderColor: '#e3eae6', alignItems: 'flex-start' },
   muted: { color: '#65716b', fontSize: 12, lineHeight: 18 },
-  error: { color: '#b42318', backgroundColor: '#fff0ee', borderRadius: 12, padding: 10, fontSize: 12 },
-  conflictCard: { borderTopWidth: 1, borderTopColor: '#edf0ee', paddingTop: 12, gap: 8 },
-  chart: { height: 120, flexDirection: 'row', alignItems: 'flex-end', gap: 4, paddingTop: 8 },
+  error: { color: '#a04444', fontSize: 12, fontWeight: '700' },
+  chart: { height: 122, flexDirection: 'row', alignItems: 'flex-end', gap: 3, backgroundColor: '#f6f8f7', borderRadius: 16, padding: 10 },
   chartColumn: { flex: 1, height: '100%', justifyContent: 'flex-end' },
-  chartBar: { minHeight: 5, backgroundColor: '#2c8b6d', borderRadius: 5 },
-  changeText: { color: '#167654', fontWeight: '800' },
-  negative: { color: '#b42318' },
-  pendingNote: { color: '#8b6a24', fontSize: 11, fontWeight: '700' },
+  chartBar: { width: '100%', minHeight: 3, backgroundColor: '#46a783', borderRadius: 5 },
+  changeText: { color: '#21785c', fontSize: 12, fontWeight: '900' },
+  negative: { color: '#a04444' },
+  pendingNote: { color: '#8a6f2e', fontSize: 11, fontWeight: '700' },
+  conflictCard: { backgroundColor: '#fff8ee', borderRadius: 14, padding: 12, gap: 8, borderWidth: 1, borderColor: '#f1d7a8' },
+  balanceHeading: { flex: 1, flexDirection: 'row', alignItems: 'center', gap: 9 },
 });
