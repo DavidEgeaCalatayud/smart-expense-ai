@@ -56,6 +56,13 @@ function cleanInstitution(value: string | null): string | null {
   return clean || null;
 }
 
+function normalizePurpose(
+  accountType: FinancialAccountType,
+  purpose: FinancialAccountPurpose,
+): FinancialAccountPurpose {
+  return accountType === 'broker' ? 'investment' : purpose;
+}
+
 function parseBalance(value: string): number {
   let minor: number;
   try {
@@ -257,7 +264,7 @@ export async function createOfflineFinancialAccount(
     name: cleanName(input.name),
     institution: cleanInstitution(input.institution),
     account_type: input.accountType,
-    purpose: input.purpose,
+    purpose: normalizePurpose(input.accountType, input.purpose),
     current_balance_minor: balanceMinor,
     currency: 'EUR',
     include_in_net_worth: input.includeInNetWorth ? 1 : 0,
@@ -310,7 +317,7 @@ export async function updateOfflineFinancialAccountMetadata(
     account.name = cleanName(input.name);
     account.institution = cleanInstitution(input.institution);
     account.account_type = input.accountType;
-    account.purpose = input.purpose;
+    account.purpose = normalizePurpose(input.accountType, input.purpose);
     account.include_in_net_worth = input.includeInNetWorth ? 1 : 0;
     account.sync_status = 'pending';
     account.updated_at = now;
