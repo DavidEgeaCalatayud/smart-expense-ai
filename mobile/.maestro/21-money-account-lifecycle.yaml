@@ -11,7 +11,10 @@ appId: com.davidegea.smartexpenseai
     element: "Trade Republic"
     direction: DOWN
     timeout: 10000
-- assertVisible: "Bankinter"
+- scrollUntilVisible:
+    element: "Bankinter"
+    direction: DOWN
+    timeout: 10000
 
 # Update the second account (Bankinter) without touching the broker.
 - tapOn:
@@ -100,8 +103,14 @@ appId: com.davidegea.smartexpenseai
 - extendedWaitUntil:
     notVisible: "Bankinter Ahorro"
     timeout: 15000
-- assertVisible: "Trade Republic"
-- assertVisible: "Bankinter"
+- scrollUntilVisible:
+    element: "Trade Republic"
+    direction: UP
+    timeout: 10000
+- scrollUntilVisible:
+    element: "Bankinter"
+    direction: DOWN
+    timeout: 10000
 
 - scrollUntilVisible:
     element: "PATRIMONIO · OFFLINE-FIRST"
