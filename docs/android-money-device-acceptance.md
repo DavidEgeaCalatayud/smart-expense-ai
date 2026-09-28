@@ -48,9 +48,9 @@ Marca como pasados: `paymentGoogleWalletThenBank`, `paymentDirectBankinter`, `pa
 2. Revoca el acceso desde Ajustes Android. La app debe mostrar que el permiso falta y no debe inventar eventos.
 3. Vuelve a concederlo y verifica que la captura vuelve a funcionar sin reinstalar.
 4. Reinicia completamente el teléfono. Después del arranque, abre la app y comprueba el estado del permiso y que no se dupliquen eventos ya procesados.
-5. Fuerza cierre de la app y genera una notificación financiera válida. Al reabrir, la cola nativa/headless debe procesarla como máximo una vez.
+5. Cierra la app desde recientes o mata su proceso **sin usar “Forzar detención” de Ajustes**, porque Android pone el paquete en estado detenido y puede impedir deliberadamente que el listener/servicios reciban trabajo hasta un nuevo lanzamiento. Genera una notificación financiera válida y, al reabrir, verifica que cualquier candidato realmente entregado por Android se procese como máximo una vez.
 6. Deja la app en segundo plano y repite una operación; comprueba el mismo invariante de no duplicación.
-7. Activa modo avión. Modifica saldos/cuentas y crea una operación offline. Fuerza cierre y reapertura todavía offline; los cambios deben persistir.
+7. Activa modo avión. Modifica saldos/cuentas y crea una operación offline. Para la prueba de persistencia sí fuerza la muerte del proceso y reabre todavía offline; los cambios deben persistir aunque el backend no esté disponible.
 8. Recupera conexión. Debe sincronizar sin duplicar observaciones. Provoca después un `stale_version` real desde web/otro cliente y resuelve explícitamente el conflicto.
 
 Marca `notificationPermissionRevokeRestore`, `notificationListenerSurvivesReboot`, `forceStopBackgroundNoDuplicates`, `airplaneModeOfflineSyncAndConflict`, `offlineForceStopAndReopen`, `reconnectWithoutDuplicates`, `backgroundThenForegroundSync` y `conflictResolution` solo con evidencia del dispositivo.
