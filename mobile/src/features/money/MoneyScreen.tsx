@@ -447,7 +447,12 @@ export function MoneyScreen() {
                 onValueChange={(includeInNetWorth) => setForm((current) => ({ ...current, includeInNetWorth }))}
               />
             </View>
-            <Pressable disabled={busy} onPress={() => void submitForm()} style={styles.primaryButtonWide}>
+            <Pressable
+              testID="money-account-submit"
+              disabled={busy}
+              onPress={() => void submitForm()}
+              style={styles.primaryButtonWide}
+            >
               <Text style={styles.primaryButtonText}>{isSaving ? 'Guardando…' : formMode === 'create' ? 'Añadir cuenta' : 'Guardar cambios'}</Text>
             </Pressable>
           </View>
@@ -510,13 +515,16 @@ export function MoneyScreen() {
               <Text style={styles.muted}>{relativeUpdated(account.balance_updated_at)}</Text>
             </View>
             <View style={styles.actionRow}>
+              <Pressable onPress={() => openEdit(account)} style={styles.secondaryButton}><Text style={styles.secondaryText}>Editar</Text></Pressable>
               <Pressable
-                onPress={() => { setBalanceAccount(account); setNextBalance(minorUnitsToDecimal(account.current_balance_minor)); }}
+                onPress={() => {
+                  setBalanceAccount(account);
+                  setNextBalance(minorUnitsToDecimal(account.current_balance_minor));
+                }}
                 style={styles.primaryButton}
               >
-                <Text style={styles.primaryButtonText}>Saldo</Text>
+                <Text style={styles.primaryButtonText}>Actualizar saldo</Text>
               </Pressable>
-              <Pressable onPress={() => openEdit(account)} style={styles.secondaryButton}><Text style={styles.secondaryText}>Editar</Text></Pressable>
               <Pressable onPress={() => requestArchive(account)} style={styles.archiveButton}><Text style={styles.archiveText}>Archivar</Text></Pressable>
             </View>
           </View>
@@ -524,23 +532,23 @@ export function MoneyScreen() {
 
         <View style={styles.sectionCard}>
           <View style={styles.sectionHeader}>
-            <View>
-              <Text style={styles.sectionTitle}>Evolución del patrimonio</Text>
-              <Text style={styles.muted}>Últimos 12 meses · snapshots manuales</Text>
-            </View>
-            {history.length >= 2 ? (
-              <Text style={[styles.changeText, changeMinor < 0 && styles.negative]}>
-                {changeMinor >= 0 ? '+' : ''}{formatEuro(changeMinor)}
-              </Text>
-            ) : null}
+            <Text style={styles.sectionTitle}>Evolución del patrimonio</Text>
+            <Text style={styles.muted}>Últimos 12 meses · snapshots manuales</Text>
           </View>
           <HistoryBars points={history} />
-          {pendingHistory ? <Text style={styles.pendingNote}>Hay puntos pendientes de sincronizar.</Text> : null}
+          {history.length >= 2 ? (
+            <Text style={[styles.changeText, changeMinor < 0 && styles.negative]}>
+              {changeMinor >= 0 ? '+' : ''}{formatEuro(changeMinor)} desde el primer punto visible
+              {pendingHistory ? ' · incluye cambios pendientes de sincronizar' : ''}
+            </Text>
+          ) : null}
         </View>
 
         <View style={styles.sectionCard}>
           <Text style={styles.sectionTitle}>Cómo se calcula</Text>
-          <Text style={styles.muted}>Disponible = Día a día + Otro. Reservado = Ahorro + Emergencia + Oportunidades. Invertido = Inversión. Todo se calcula en céntimos enteros; la conversión decimal solo se usa para mostrar o sincronizar.</Text>
+          <Text style={styles.muted}>
+            Disponible = Día a día + Otro. Reservado = Ahorro + Emergencia + Oportunidades. Invertido = Inversión. Todo se calcula en céntimos enteros; la conversión decimal solo se usa para mostrar o sincronizar.
+          </Text>
         </View>
       </ScrollView>
     </SafeAreaView>
@@ -548,65 +556,62 @@ export function MoneyScreen() {
 }
 
 const styles = StyleSheet.create({
-  safeArea: { flex: 1, backgroundColor: '#f6f8f7' },
-  content: { padding: 18, paddingBottom: 120, gap: 16 },
-  eyebrow: { color: '#527064', fontSize: 11, fontWeight: '800', letterSpacing: 1.1 },
+  safeArea: { flex: 1, backgroundColor: '#f3f7f5' },
+  content: { paddingHorizontal: 18, paddingBottom: 32, gap: 16 },
   titleRow: { flexDirection: 'row', alignItems: 'flex-start', gap: 12 },
-  title: { fontSize: 31, fontWeight: '800', letterSpacing: -0.8, marginTop: 3 },
-  subtitle: { color: '#596575', fontSize: 14, lineHeight: 20, marginTop: 5 },
-  addButton: { backgroundColor: '#125c47', borderRadius: 16, paddingHorizontal: 14, minHeight: 44, flexDirection: 'row', alignItems: 'center', gap: 4 },
+  eyebrow: { fontSize: 12, fontWeight: '800', letterSpacing: 1.2, color: '#23755f' },
+  title: { fontSize: 32, lineHeight: 38, fontWeight: '900', color: '#0f172a', marginTop: 2 },
+  subtitle: { fontSize: 15, lineHeight: 21, color: '#627068', marginTop: 4 },
+  addButton: { flexDirection: 'row', gap: 4, alignItems: 'center', backgroundColor: '#126b52', paddingHorizontal: 14, paddingVertical: 10, borderRadius: 14 },
   addButtonText: { color: '#fff', fontWeight: '800' },
-  hero: { backgroundColor: '#0f3f34', borderRadius: 28, padding: 22, gap: 10 },
-  heroLabel: { color: '#b9d8cd', fontSize: 11, fontWeight: '800', letterSpacing: 1.2 },
-  heroAmount: { color: '#fff', fontSize: 38, fontWeight: '800', letterSpacing: -1 },
-  breakdownRow: { flexDirection: 'row', gap: 8, marginTop: 8 },
-  breakdownItem: { flex: 1, backgroundColor: 'rgba(255,255,255,0.09)', borderRadius: 14, padding: 10 },
-  breakdownLabel: { color: '#b9d8cd', fontSize: 10, fontWeight: '700' },
-  breakdownValue: { color: '#fff', fontSize: 13, fontWeight: '800', marginTop: 4 },
+  hero: { backgroundColor: '#0f5f49', borderRadius: 24, padding: 22, gap: 14 },
+  heroLabel: { color: '#bce6d9', fontWeight: '800', letterSpacing: 1.1, fontSize: 12 },
+  heroAmount: { color: '#fff', fontWeight: '900', fontSize: 36 },
+  breakdownRow: { flexDirection: 'row', gap: 8 },
+  breakdownItem: { flex: 1, gap: 2 },
+  breakdownLabel: { color: '#bce6d9', fontSize: 11, fontWeight: '700' },
+  breakdownValue: { color: '#fff', fontSize: 14, fontWeight: '800' },
   purposeGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: 10 },
-  purposeCard: { backgroundColor: '#fff', borderRadius: 18, padding: 14, width: '48%', borderWidth: 1, borderColor: '#e3eae6' },
-  purposeLabel: { color: '#68756f', fontSize: 12, fontWeight: '700' },
-  purposeValue: { fontSize: 17, fontWeight: '800', marginTop: 5 },
-  sectionCard: { backgroundColor: '#fff', borderRadius: 22, padding: 17, gap: 12, borderWidth: 1, borderColor: '#e3eae6' },
+  purposeCard: { width: '48%', backgroundColor: '#fff', borderWidth: 1, borderColor: '#dae5df', padding: 14, borderRadius: 16 },
+  purposeLabel: { color: '#6b786f', fontSize: 12, fontWeight: '700' },
+  purposeValue: { color: '#172033', fontSize: 18, fontWeight: '900', marginTop: 3 },
+  sectionCard: { backgroundColor: '#fff', borderWidth: 1, borderColor: '#dce6e0', borderRadius: 20, padding: 16, gap: 12 },
   sectionHeader: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 12 },
-  sectionTitle: { fontSize: 18, fontWeight: '800' },
-  cardTitle: { fontSize: 14, fontWeight: '800' },
-  fieldLabel: { color: '#47564f', fontSize: 12, fontWeight: '700', marginTop: 2 },
-  input: { backgroundColor: '#f8faf9', borderWidth: 1, borderColor: '#dce5e0', borderRadius: 14, paddingHorizontal: 14, minHeight: 48, fontSize: 16 },
-  chips: { gap: 8, paddingVertical: 2 },
-  chip: { borderWidth: 1, borderColor: '#d8e1dc', backgroundColor: '#fff', borderRadius: 999, paddingHorizontal: 13, paddingVertical: 9 },
-  chipActive: { backgroundColor: '#dff3e9', borderColor: '#9ecbb9' },
-  chipDisabled: { opacity: 0.45 },
-  chipText: { color: '#596575', fontWeight: '700', fontSize: 12 },
-  chipTextActive: { color: '#125c47' },
-  chipTextDisabled: { color: '#89948f' },
-  switchRow: { flexDirection: 'row', alignItems: 'center', gap: 12, paddingVertical: 4 },
-  accountCard: { backgroundColor: '#fff', borderRadius: 22, padding: 17, gap: 13, borderWidth: 1, borderColor: '#e3eae6' },
-  accountTopRow: { flexDirection: 'row', alignItems: 'center', gap: 11 },
-  accountName: { fontSize: 16, fontWeight: '800' },
-  accountAmount: { fontSize: 27, fontWeight: '800', letterSpacing: -0.5 },
-  accountMetaRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 12 },
-  purposeTag: { backgroundColor: '#edf5f1', color: '#326b59', borderRadius: 999, paddingHorizontal: 9, paddingVertical: 4, fontSize: 11, fontWeight: '800' },
-  statusPill: { backgroundColor: '#f1f4f2', borderRadius: 999, paddingHorizontal: 8, paddingVertical: 4 },
-  statusText: { color: '#65716b', fontSize: 9, fontWeight: '800' },
-  actionRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
-  primaryButton: { backgroundColor: '#125c47', minHeight: 40, borderRadius: 13, paddingHorizontal: 14, alignItems: 'center', justifyContent: 'center' },
-  primaryButtonWide: { backgroundColor: '#125c47', minHeight: 48, borderRadius: 14, paddingHorizontal: 16, alignItems: 'center', justifyContent: 'center' },
+  sectionTitle: { color: '#101827', fontSize: 20, fontWeight: '900' },
+  fieldLabel: { color: '#263443', fontWeight: '800', fontSize: 13, marginTop: 2 },
+  input: { borderWidth: 1, borderColor: '#d4dfda', borderRadius: 14, paddingHorizontal: 14, paddingVertical: 12, backgroundColor: '#fbfdfc', color: '#13201b' },
+  chips: { gap: 8, paddingRight: 8 },
+  chip: { borderWidth: 1, borderColor: '#cfdad5', paddingHorizontal: 12, paddingVertical: 8, borderRadius: 999 },
+  chipActive: { backgroundColor: '#d9efe7', borderColor: '#126b52' },
+  chipDisabled: { opacity: 0.35 },
+  chipText: { color: '#5c6962', fontWeight: '700' },
+  chipTextActive: { color: '#0f5f49' },
+  chipTextDisabled: { color: '#8d9892' },
+  switchRow: { flexDirection: 'row', alignItems: 'center', gap: 14 },
+  primaryButton: { backgroundColor: '#126b52', paddingHorizontal: 14, paddingVertical: 10, borderRadius: 13, alignSelf: 'flex-start' },
+  primaryButtonWide: { backgroundColor: '#126b52', paddingHorizontal: 14, paddingVertical: 13, borderRadius: 14, alignItems: 'center' },
   primaryButtonText: { color: '#fff', fontWeight: '800' },
-  secondaryButton: { backgroundColor: '#edf5f1', minHeight: 40, borderRadius: 13, paddingHorizontal: 14, alignItems: 'center', justifyContent: 'center' },
-  secondaryText: { color: '#125c47', fontWeight: '800' },
-  archiveButton: { minHeight: 40, borderRadius: 13, paddingHorizontal: 10, alignItems: 'center', justifyContent: 'center' },
-  archiveText: { color: '#a04444', fontWeight: '800' },
-  statusCard: { backgroundColor: '#fff', borderRadius: 18, padding: 14, borderWidth: 1, borderColor: '#e3eae6' },
-  emptyCard: { backgroundColor: '#fff', borderRadius: 22, padding: 20, gap: 10, borderWidth: 1, borderColor: '#e3eae6', alignItems: 'flex-start' },
-  muted: { color: '#65716b', fontSize: 12, lineHeight: 18 },
-  error: { color: '#a04444', fontSize: 12, fontWeight: '700' },
-  chart: { height: 122, flexDirection: 'row', alignItems: 'flex-end', gap: 3, backgroundColor: '#f6f8f7', borderRadius: 16, padding: 10 },
+  secondaryButton: { borderWidth: 1, borderColor: '#b8c9c1', paddingHorizontal: 12, paddingVertical: 9, borderRadius: 12 },
+  secondaryText: { color: '#285d4d', fontWeight: '800' },
+  archiveButton: { paddingHorizontal: 8, paddingVertical: 9 },
+  archiveText: { color: '#ad3535', fontWeight: '800' },
+  emptyCard: { backgroundColor: '#fff', borderWidth: 1, borderColor: '#dce6e0', padding: 20, borderRadius: 20, gap: 12 },
+  accountCard: { backgroundColor: '#fff', borderWidth: 1, borderColor: '#dce6e0', borderRadius: 20, padding: 16, gap: 10 },
+  accountTopRow: { flexDirection: 'row', alignItems: 'center', gap: 12 },
+  accountName: { color: '#111827', fontSize: 18, fontWeight: '900' },
+  accountAmount: { color: '#101827', fontSize: 28, fontWeight: '900' },
+  accountMetaRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', gap: 12 },
+  purposeTag: { backgroundColor: '#e3f3ed', color: '#156148', paddingHorizontal: 10, paddingVertical: 5, borderRadius: 999, fontWeight: '800', fontSize: 12 },
+  statusPill: { backgroundColor: '#eef3f0', borderRadius: 999, paddingHorizontal: 8, paddingVertical: 4 },
+  statusText: { color: '#627068', fontSize: 11, fontWeight: '800' },
+  actionRow: { flexDirection: 'row', flexWrap: 'wrap', alignItems: 'center', gap: 8 },
+  balanceHeading: { flexDirection: 'row', alignItems: 'center', gap: 10, flex: 1 },
+  conflictCard: { backgroundColor: '#fff8eb', borderWidth: 1, borderColor: '#f1d7a7', padding: 12, borderRadius: 14, gap: 8 },
+  muted: { color: '#6b776f', lineHeight: 20 },
+  error: { color: '#a32626', fontWeight: '700' },
+  chart: { height: 130, flexDirection: 'row', alignItems: 'flex-end', gap: 4, paddingTop: 8 },
   chartColumn: { flex: 1, height: '100%', justifyContent: 'flex-end' },
-  chartBar: { width: '100%', minHeight: 3, backgroundColor: '#46a783', borderRadius: 5 },
-  changeText: { color: '#21785c', fontSize: 12, fontWeight: '900' },
-  negative: { color: '#a04444' },
-  pendingNote: { color: '#8a6f2e', fontSize: 11, fontWeight: '700' },
-  conflictCard: { backgroundColor: '#fff8ee', borderRadius: 14, padding: 12, gap: 8, borderWidth: 1, borderColor: '#f1d7a8' },
-  balanceHeading: { flex: 1, flexDirection: 'row', alignItems: 'center', gap: 9 },
+  chartBar: { width: '100%', minWidth: 3, backgroundColor: '#22a27c', borderRadius: 4 },
+  changeText: { color: '#126b52', fontWeight: '800' },
+  negative: { color: '#ad3535' },
 });
