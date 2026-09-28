@@ -27,6 +27,27 @@
     "biometricLock": "pending",
     "notificationsAndWidget": "pending",
     "csvImport": "pending",
-    "manualMoneyOfflineHistory": "pending"
+    "manualMoneyOfflineHistory": "pending",
+    "moneyCreateEditBalance": "pending",
+    "moneyExcludeFromNetWorth": "pending",
+    "moneyArchivePreservesHistory": "pending",
+    "moneyBrokerAlwaysInvested": "pending",
+    "moneyDuplicateInstitutionAccounts": "pending",
+    "paymentGoogleWalletThenBank": "pending",
+    "paymentDirectBankinter": "pending",
+    "paymentBizumSentReceived": "pending",
+    "paymentRejected": "pending",
+    "paymentHold": "pending",
+    "paymentRefund": "pending",
+    "paymentWalletBankDeduplication": "pending",
+    "paymentTwoWalletCards": "pending",
+    "paymentTwoBankinterAccounts": "pending",
+    "notificationPermissionRevokeRestore": "pending",
+    "notificationListenerSurvivesReboot": "pending",
+    "forceStopBackgroundNoDuplicates": "pending",
+    "airplaneModeOfflineSyncAndConflict": "pending",
+    "visualLightDark": "pending",
+    "visualBankCatalogAndLogos": "pending",
+    "visualKeyboardSmallScreenLongScroll": "pending"
   }
 }
