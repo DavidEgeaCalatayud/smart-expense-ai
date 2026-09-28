@@ -12,10 +12,14 @@ appId: com.davidegea.smartexpenseai
 - extendedWaitUntil:
     visible: "Añadir cuenta"
     timeout: 10000
-- tapOn: "Buscar banco"
+- scrollUntilVisible:
+    element: "Buscar Bankinter, eToro, Trading 212..."
+    direction: DOWN
+    timeout: 10000
+- tapOn: "Buscar Bankinter, eToro, Trading 212..."
 - inputText: "Trade Republic"
 - hideKeyboard
-- tapOn: "Seleccionar Trade Republic"
+- tapOn: "Trade Republic"
 - scrollUntilVisible:
     element: "Saldo actual"
     direction: DOWN
@@ -43,10 +47,14 @@ appId: com.davidegea.smartexpenseai
 - extendedWaitUntil:
     visible: "Añadir cuenta"
     timeout: 10000
-- tapOn: "Buscar banco"
+- scrollUntilVisible:
+    element: "Buscar Bankinter, eToro, Trading 212..."
+    direction: DOWN
+    timeout: 10000
+- tapOn: "Buscar Bankinter, eToro, Trading 212..."
 - inputText: "Bankinter"
 - hideKeyboard
-- tapOn: "Seleccionar Bankinter"
+- tapOn: "Bankinter"
 - scrollUntilVisible:
     element: "Saldo actual"
     direction: DOWN
