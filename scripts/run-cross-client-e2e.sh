@@ -74,6 +74,11 @@ server_helper_b() {
 # a condition that prevents subsequent synchronization flows.
 run_flow money-workspace mobile/.maestro/20-money-workspace.yaml
 
+# Extend the same account through update/archive lifecycle coverage and verify two independent
+# Bankinter accounts can coexist without replacing each other. This remains immediately before
+# the browser/native bridge so all money operations must leave synchronization healthy.
+run_flow money-account-lifecycle mobile/.maestro/21-money-account-lifecycle.yaml
+
 # Prove a real browser write is pulled into the same account by the native sync engine.
 (
   cd frontend
