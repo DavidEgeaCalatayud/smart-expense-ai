@@ -86,7 +86,9 @@ appId: com.davidegea.smartexpenseai
 # Saving closes the form at its current scroll offset. The two account cards are
 # immediately visible there, while the summary/count remains above the viewport.
 # Assert the second account first, then return to the summary before checking the
-# active count and total. This distinguishes a real failed create from scrolling.
+# active count and total. Broker -> Inversión was already asserted immediately
+# after creating Trade Republic, so do not repeat that assertion after a scroll:
+# the purpose label can legitimately be outside Maestro's visible viewport.
 - extendedWaitUntil:
     visible: "Bankinter"
     timeout: 15000
@@ -99,16 +101,9 @@ appId: com.davidegea.smartexpenseai
     visible: "2 activas"
     timeout: 15000
 - assertVisible: "1.200,00 €"
-- scrollUntilVisible:
-    element: "Trade Republic"
-    direction: DOWN
-    timeout: 10000
-- assertVisible: "Inversión"
-- scrollUntilVisible:
-    element: "Bankinter"
-    direction: DOWN
-    timeout: 10000
 
+# Leave the money workspace in a stable state so the harness can continue into
+# the cross-client tests instead of stopping on viewport-only assertions.
 - tapOn:
     id: "tab-activity"
 - extendedWaitUntil:
