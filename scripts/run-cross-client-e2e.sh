@@ -66,7 +66,14 @@ server_helper_b() {
     "$@"
 }
 
-# Account B was created as the final invariant of the native suite and is intentionally empty.
+# Account B was created as the final invariant of the native suite. Exercise the full Mi dinero
+# workspace on that same authenticated account before cross-client convergence: one broker and one
+# bank account must coexist, Trade Republic must remain investment-classified and the aggregate
+# must reach exactly 1,200.00 EUR. Keeping this immediately before the browser/native bridge means
+# a green cross-client marker proves the money workspace did not leave navigation/session state in
+# a condition that prevents subsequent synchronization flows.
+run_flow money-workspace mobile/.maestro/20-money-workspace.yaml
+
 # Prove a real browser write is pulled into the same account by the native sync engine.
 (
   cd frontend
