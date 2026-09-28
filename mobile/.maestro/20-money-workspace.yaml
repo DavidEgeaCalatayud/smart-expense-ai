@@ -25,18 +25,23 @@ appId: com.davidegea.smartexpenseai
     element: "Saldo actual"
     direction: DOWN
     timeout: 10000
-- tapOn: "Saldo actual"
+# Both the field label and TextInput expose "Saldo actual" to accessibility.
+# Index 1 is the editable control; index 0 is the non-clickable Text label.
+- tapOn:
+    text: "Saldo actual"
+    index: 1
 - inputText: "1000.00"
 - hideKeyboard
-# Move past the form heading before tapping the submit control. Both currently
-# share the text "Añadir cuenta", so tapping while the heading is visible can
-# select the non-interactive title instead of the button.
 - scrollUntilVisible:
     element: "Incluir en patrimonio"
     direction: DOWN
     timeout: 10000
 - scroll
-- tapOn: "Añadir cuenta"
+# The form heading and submit control both expose "Añadir cuenta". Select the
+# second match so Maestro taps the Pressable rather than the heading TextView.
+- tapOn:
+    text: "Añadir cuenta"
+    index: 1
 - extendedWaitUntil:
     visible: "1 activas"
     timeout: 15000
@@ -65,7 +70,9 @@ appId: com.davidegea.smartexpenseai
     element: "Saldo actual"
     direction: DOWN
     timeout: 10000
-- tapOn: "Saldo actual"
+- tapOn:
+    text: "Saldo actual"
+    index: 1
 - inputText: "200.00"
 - hideKeyboard
 - scrollUntilVisible:
@@ -73,7 +80,9 @@ appId: com.davidegea.smartexpenseai
     direction: DOWN
     timeout: 10000
 - scroll
-- tapOn: "Añadir cuenta"
+- tapOn:
+    text: "Añadir cuenta"
+    index: 1
 - extendedWaitUntil:
     visible: "2 activas"
     timeout: 15000
