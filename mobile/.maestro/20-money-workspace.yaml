@@ -19,7 +19,8 @@ appId: com.davidegea.smartexpenseai
 - tapOn: "Buscar banco"
 - inputText: "Trade Republic"
 - hideKeyboard
-- tapOn: "Trade Republic"
+- tapOn:
+    id: "bank-institution-trade-republic"
 - scrollUntilVisible:
     element: "Saldo actual"
     direction: DOWN
@@ -54,7 +55,8 @@ appId: com.davidegea.smartexpenseai
 - tapOn: "Buscar banco"
 - inputText: "Bankinter"
 - hideKeyboard
-- tapOn: "Bankinter"
+- tapOn:
+    id: "bank-institution-bankinter"
 - scrollUntilVisible:
     element: "Saldo actual"
     direction: DOWN
