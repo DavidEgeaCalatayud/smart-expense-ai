@@ -46,8 +46,11 @@ appId: com.davidegea.smartexpenseai
 - assertVisible: "Inversión"
 
 # A second independent bank account must coexist with the broker.
+# Anchor the scroll on the title-row eyebrow rather than the generic "Mi dinero"
+# label: WorkspaceNav also exposes "Mi dinero" lower in the hierarchy, which can
+# make Maestro stop before the add-account button is actually visible.
 - scrollUntilVisible:
-    element: "Mi dinero"
+    element: "PATRIMONIO · OFFLINE-FIRST"
     direction: UP
     timeout: 10000
 - tapOn: "Cuenta"
