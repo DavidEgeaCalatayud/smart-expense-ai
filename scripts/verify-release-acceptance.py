@@ -12,6 +12,14 @@ REQUIRED_STEPS = {
     "conflictResolution", "cachedWorkspaceLabels", "backgroundThenForegroundSync", "accountIsolation",
     "sessionRevocation", "sameKeyUpgradePreservesOutbox", "accountDeletion", "biometricLock",
     "notificationsAndWidget", "csvImport", "manualMoneyOfflineHistory",
+    "moneyCreateEditBalance", "moneyExcludeFromNetWorth", "moneyArchivePreservesHistory",
+    "moneyBrokerAlwaysInvested", "moneyDuplicateInstitutionAccounts",
+    "paymentGoogleWalletThenBank", "paymentDirectBankinter", "paymentBizumSentReceived",
+    "paymentRejected", "paymentHold", "paymentRefund", "paymentWalletBankDeduplication",
+    "paymentTwoWalletCards", "paymentTwoBankinterAccounts", "notificationPermissionRevokeRestore",
+    "notificationListenerSurvivesReboot", "forceStopBackgroundNoDuplicates",
+    "airplaneModeOfflineSyncAndConflict", "visualLightDark", "visualBankCatalogAndLogos",
+    "visualKeyboardSmallScreenLongScroll",
 }
 
 
@@ -31,8 +39,9 @@ def verify(build, acceptance, directory):
     if stamp.tzinfo is None:
         raise ValueError("Acceptance timestamp must have a timezone")
     steps = acceptance.get("steps", {})
-    if any(steps.get(step) != "passed" for step in REQUIRED_STEPS):
-        raise ValueError("Every physical acceptance step must pass")
+    missing = sorted(step for step in REQUIRED_STEPS if steps.get(step) != "passed")
+    if missing:
+        raise ValueError("Every physical acceptance step must pass: " + ", ".join(missing))
     for kind in ("apk", "aab"):
         artifact = build.get("artifacts", {}).get(kind, {})
         filename = f"smart-expense-ai.{kind}"
