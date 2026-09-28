@@ -28,10 +28,14 @@ appId: com.davidegea.smartexpenseai
 - tapOn: "Saldo actual"
 - inputText: "1000.00"
 - hideKeyboard
+# Move past the form heading before tapping the submit control. Both currently
+# share the text "Añadir cuenta", so tapping while the heading is visible can
+# select the non-interactive title instead of the button.
 - scrollUntilVisible:
-    element: "Añadir cuenta"
+    element: "Incluir en patrimonio"
     direction: DOWN
     timeout: 10000
+- scroll
 - tapOn: "Añadir cuenta"
 - extendedWaitUntil:
     visible: "1 activas"
@@ -65,9 +69,10 @@ appId: com.davidegea.smartexpenseai
 - inputText: "200.00"
 - hideKeyboard
 - scrollUntilVisible:
-    element: "Añadir cuenta"
+    element: "Incluir en patrimonio"
     direction: DOWN
     timeout: 10000
+- scroll
 - tapOn: "Añadir cuenta"
 - extendedWaitUntil:
     visible: "2 activas"
