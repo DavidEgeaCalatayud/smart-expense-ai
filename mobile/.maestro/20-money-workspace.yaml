@@ -12,12 +12,10 @@ appId: com.davidegea.smartexpenseai
 - extendedWaitUntil:
     visible: "Añadir cuenta"
     timeout: 10000
-- tapOn:
-    id: "bank-institution-search"
+- tapOn: "Buscar banco"
 - inputText: "Trade Republic"
 - hideKeyboard
-- tapOn:
-    id: "bank-institution-trade-republic"
+- tapOn: "Seleccionar Trade Republic"
 - scrollUntilVisible:
     element: "Saldo actual"
     direction: DOWN
@@ -45,12 +43,10 @@ appId: com.davidegea.smartexpenseai
 - extendedWaitUntil:
     visible: "Añadir cuenta"
     timeout: 10000
-- tapOn:
-    id: "bank-institution-search"
+- tapOn: "Buscar banco"
 - inputText: "Bankinter"
 - hideKeyboard
-- tapOn:
-    id: "bank-institution-bankinter"
+- tapOn: "Seleccionar Bankinter"
 - scrollUntilVisible:
     element: "Saldo actual"
     direction: DOWN
