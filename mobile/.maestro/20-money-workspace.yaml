@@ -37,11 +37,8 @@ appId: com.davidegea.smartexpenseai
     direction: DOWN
     timeout: 10000
 - scroll
-# The form heading and submit control both expose "Añadir cuenta". Select the
-# second match so Maestro taps the Pressable rather than the heading TextView.
 - tapOn:
-    text: "Añadir cuenta"
-    index: 1
+    id: "money-account-submit"
 - extendedWaitUntil:
     visible: "1 activas"
     timeout: 15000
@@ -81,8 +78,7 @@ appId: com.davidegea.smartexpenseai
     timeout: 10000
 - scroll
 - tapOn:
-    text: "Añadir cuenta"
-    index: 1
+    id: "money-account-submit"
 - extendedWaitUntil:
     visible: "2 activas"
     timeout: 15000
