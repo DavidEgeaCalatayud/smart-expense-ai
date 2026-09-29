@@ -17,10 +17,11 @@ appId: com.davidegea.smartexpenseai
     direction: DOWN
     timeout: 10000
 
-# scrollUntilVisible leaves the Bankinter card as the actionable card in the viewport. Maestro's
-# index applies only to currently matched accessibility nodes, not the full ScrollView, so using
-# index: 1 here incorrectly asks for a second visible action when only Bankinter's action is exposed.
-- tapOn: "Actualizar saldo"
+# Both account cards can remain exposed after scrolling. Select the second account action explicitly
+# so the lifecycle always targets Bankinter rather than the Trade Republic broker above it.
+- tapOn:
+    text: "Actualizar saldo"
+    index: 1
 - extendedWaitUntil:
     visible: "Actualizar saldo"
     timeout: 10000
@@ -39,12 +40,13 @@ appId: com.davidegea.smartexpenseai
     timeout: 15000
 
 # Exercise metadata editing and current inclusion semantics on the same Bankinter account.
-# Excluding it must affect the current total but must not mutate the broker or delete history.
 - scrollUntilVisible:
     element: "Corriente · Bankinter"
     direction: DOWN
     timeout: 10000
-- tapOn: "Editar"
+- tapOn:
+    text: "Editar"
+    index: 1
 - extendedWaitUntil:
     visible: "Editar cuenta"
     timeout: 10000
@@ -73,12 +75,13 @@ appId: com.davidegea.smartexpenseai
     visible: "1.000,00 €"
     timeout: 15000
 
-# Re-include the edited account so the subsequent same-bank test starts again at 1,250 EUR.
 - scrollUntilVisible:
     element: "Bankinter Principal"
     direction: DOWN
     timeout: 10000
-- tapOn: "Editar"
+- tapOn:
+    text: "Editar"
+    index: 1
 - extendedWaitUntil:
     visible: "Editar cuenta"
     timeout: 10000
@@ -100,8 +103,6 @@ appId: com.davidegea.smartexpenseai
     visible: "1.250,00 €"
     timeout: 15000
 
-# Add a second independent account from the same institution. This guards against accidental
-# institution-level uniqueness or account replacement.
 - tapOn: "Cuenta"
 - extendedWaitUntil:
     visible: "Añadir cuenta"
@@ -152,13 +153,13 @@ appId: com.davidegea.smartexpenseai
     timeout: 15000
 - assertVisible: "1.300,00 €"
 
-# As above, target the action exposed after scrolling the new account into view rather than a
-# global card index that Maestro does not preserve outside the viewport.
 - scrollUntilVisible:
     element: "Bankinter Ahorro"
     direction: DOWN
     timeout: 10000
-- tapOn: "Archivar"
+- tapOn:
+    text: "Archivar"
+    index: 2
 - extendedWaitUntil:
     visible: "¿Archivar cuenta?"
     timeout: 10000
@@ -186,8 +187,6 @@ appId: com.davidegea.smartexpenseai
     timeout: 15000
 - assertVisible: "1.250,00 €"
 
-# Broker purpose must still be investment after unrelated balance, metadata, inclusion and archive
-# operations. The history section must remain available after all observations were created.
 - scrollUntilVisible:
     element: "Trade Republic"
     direction: DOWN
@@ -199,7 +198,6 @@ appId: com.davidegea.smartexpenseai
     timeout: 10000
 - assertVisible: "Últimos 12 meses · snapshots manuales"
 
-# Return to Activity so the original cross-client bridge runs only after the complete money suite.
 - tapOn:
     id: "tab-activity"
 - extendedWaitUntil:
