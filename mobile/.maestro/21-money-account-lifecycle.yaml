@@ -50,6 +50,11 @@ appId: com.davidegea.smartexpenseai
 - extendedWaitUntil:
     visible: "Editar cuenta"
     timeout: 10000
+# The edit card opens at the current scroll offset; its picker can place the name input below the viewport.
+- scrollUntilVisible:
+    element: "Nombre de cuenta"
+    direction: DOWN
+    timeout: 10000
 - tapOn: "Nombre de cuenta"
 - eraseText
 - inputText: "Bankinter Principal"
