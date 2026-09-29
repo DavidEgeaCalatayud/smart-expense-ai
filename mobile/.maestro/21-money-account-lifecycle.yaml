@@ -18,14 +18,13 @@ appId: com.davidegea.smartexpenseai
 
 # Update the second account (Bankinter) without touching the broker. Keep scrolling until the
 # account action itself is in the viewport: seeing the account title does not guarantee its
-# lower action row is visible on taller cards.
+# lower action row is visible on taller cards. At this scroll position the visible action belongs
+# to Bankinter; selecting index 1 incorrectly required a second simultaneously-visible action.
 - scrollUntilVisible:
     element: "Actualizar saldo"
     direction: DOWN
     timeout: 10000
-- tapOn:
-    text: "Actualizar saldo"
-    index: 1
+- tapOn: "Actualizar saldo"
 - extendedWaitUntil:
     visible: "Actualizar saldo"
     timeout: 10000
