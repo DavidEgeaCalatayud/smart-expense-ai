@@ -13,14 +13,16 @@ appId: com.davidegea.smartexpenseai
     direction: DOWN
     timeout: 10000
 - scrollUntilVisible:
-    element: "Bankinter"
+    element: "Corriente · Bankinter"
     direction: DOWN
     timeout: 10000
 
-# Account cards are created deterministically by 20-money-workspace: Trade Republic first and
-# Bankinter second. Keep the action row in the viewport before selecting the repeated action.
-- scroll
-- tapOn: "Actualizar saldo"
+# Maestro exposes each React Native action as a clickable accessibility node plus its Text child.
+# With the cards in deterministic creation order, match the second clickable account action rather
+# than the first visible text label; this avoids opening Trade Republic when Bankinter is lower.
+- tapOn:
+    text: "Actualizar saldo"
+    index: 2
 - extendedWaitUntil:
     visible: "Actualizar saldo"
     timeout: 10000
@@ -41,11 +43,12 @@ appId: com.davidegea.smartexpenseai
 # Exercise metadata editing and current inclusion semantics on the same Bankinter account.
 # Excluding it must affect the current total but must not mutate the broker or delete history.
 - scrollUntilVisible:
-    element: "Bankinter"
+    element: "Corriente · Bankinter"
     direction: DOWN
     timeout: 10000
-- scroll
-- tapOn: "Editar"
+- tapOn:
+    text: "Editar"
+    index: 2
 - extendedWaitUntil:
     visible: "Editar cuenta"
     timeout: 10000
@@ -79,8 +82,9 @@ appId: com.davidegea.smartexpenseai
     element: "Bankinter Principal"
     direction: DOWN
     timeout: 10000
-- scroll
-- tapOn: "Editar"
+- tapOn:
+    text: "Editar"
+    index: 2
 - extendedWaitUntil:
     visible: "Editar cuenta"
     timeout: 10000
@@ -154,14 +158,15 @@ appId: com.davidegea.smartexpenseai
     timeout: 15000
 - assertVisible: "1.300,00 €"
 
-# Archive only the newly-created final account. Scroll past its title so its action row is visible;
-# at that position the visible Archive action belongs to Bankinter Ahorro.
+# Archive only the newly-created third account. Each action contributes a clickable node and a
+# Text child, so the third clickable Archive action is the fifth text match in document order.
 - scrollUntilVisible:
     element: "Bankinter Ahorro"
     direction: DOWN
     timeout: 10000
-- scroll
-- tapOn: "Archivar"
+- tapOn:
+    text: "Archivar"
+    index: 4
 - extendedWaitUntil:
     visible: "¿Archivar cuenta?"
     timeout: 10000
