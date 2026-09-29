@@ -17,8 +17,7 @@ appId: com.davidegea.smartexpenseai
     direction: DOWN
     timeout: 10000
 
-# Both account cards can remain exposed after scrolling. Select the second account action explicitly
-# so the lifecycle always targets Bankinter rather than the Trade Republic broker above it.
+# Both account cards remain exposed at this initial offset, so select Bankinter's second balance action.
 - tapOn:
     text: "Actualizar saldo"
     index: 1
@@ -39,18 +38,16 @@ appId: com.davidegea.smartexpenseai
     visible: "1.250,00 €"
     timeout: 15000
 
-# Exercise metadata editing and current inclusion semantics on the same Bankinter account.
+# After returning to the hero and scrolling back to Bankinter, Maestro exposes only the target
+# card's action row. Do not use a global account index here: indexes are evaluated on visible nodes.
 - scrollUntilVisible:
     element: "Corriente · Bankinter"
     direction: DOWN
     timeout: 10000
-- tapOn:
-    text: "Editar"
-    index: 1
+- tapOn: "Editar"
 - extendedWaitUntil:
     visible: "Editar cuenta"
     timeout: 10000
-# The edit card opens at the current scroll offset; its picker can place the name input below the viewport.
 - scrollUntilVisible:
     element: "Nombre de cuenta"
     direction: DOWN
@@ -84,9 +81,7 @@ appId: com.davidegea.smartexpenseai
     element: "Bankinter Principal"
     direction: DOWN
     timeout: 10000
-- tapOn:
-    text: "Editar"
-    index: 1
+- tapOn: "Editar"
 - extendedWaitUntil:
     visible: "Editar cuenta"
     timeout: 10000
@@ -162,9 +157,7 @@ appId: com.davidegea.smartexpenseai
     element: "Bankinter Ahorro"
     direction: DOWN
     timeout: 10000
-- tapOn:
-    text: "Archivar"
-    index: 2
+- tapOn: "Archivar"
 - extendedWaitUntil:
     visible: "¿Archivar cuenta?"
     timeout: 10000
@@ -203,6 +196,8 @@ appId: com.davidegea.smartexpenseai
     timeout: 10000
 - assertVisible: "Últimos 12 meses · snapshots manuales"
 
+# Return to Activity only after the complete money lifecycle has passed; the cross-client bridge
+# starts after this flow and therefore cannot hide a partial Mi dinero run.
 - tapOn:
     id: "tab-activity"
 - extendedWaitUntil:
