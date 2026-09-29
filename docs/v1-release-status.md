@@ -23,11 +23,19 @@ It is intentionally not a scheduled keep-alive for the sleeping Free service.
 
 After all exact-source checks succeed and the source is merged into `main`, run
 `Installable Android preview` with `release_tag=v1.0.0-rc.1`, or create an
-`android-preview/v1.0.0-rc.1` branch at that reviewed commit. The workflow requires the
-`Quality gate`, `Mobile quality` and `Android emulator E2E` checks from GitHub Actions,
-then verifies the live ingress, signs and inspects the APK, and launches it without Metro.
-Only after success does it create a semantic **prerelease**, with APK, SHA-256, certificate,
-source revision, backend smoke and emulator evidence. Existing tags are not overwritten.
+`android-preview/v1.0.0-rc.1` branch at that reviewed commit. Release source verification
+requires the newest GitHub Actions check run on that exact SHA to be successful for:
+
+- `Quality gate`, `Mobile quality` and `Android emulator E2E`;
+- all four container-image security jobs (backend, frontend, PostgreSQL and Render Free);
+- the backend/frontend CycloneDX SBOM job;
+- labelled benchmark integrity and lifecycle diagnostic;
+- category-classifier, spending-forecast and anomaly-challenger benchmarks.
+
+An older green execution cannot mask a newer failed rerun. The workflow then verifies the live
+ingress, signs and inspects the APK, and launches it without Metro. Only after success does it
+create a semantic **prerelease**, with APK, SHA-256, certificate, source revision, backend smoke
+and emulator evidence. Existing tags are not overwritten.
 
 The candidate download remains the isolated `.preview` application with a temporary key.
 Synchronize pending changes before uninstalling an earlier preview. A candidate is not the
@@ -35,8 +43,8 @@ permanent Play application and does not close the signed-distribution roadmap it
 
 ## Permanent APK and AAB
 
-`Signed Android distribution` is manual and runs only on `main`. It requires green checks
-for the exact source and a reachable HTTPS backend before building. Configure the
+`Signed Android distribution` is manual and runs only on `main`. It requires the same complete
+exact-source certification above and a reachable HTTPS backend before building. Configure the
 owner-controlled `android-production` GitHub Environment with these values:
 
 | Kind | Name | Meaning |
