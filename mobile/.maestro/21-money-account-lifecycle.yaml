@@ -17,12 +17,14 @@ appId: com.davidegea.smartexpenseai
     direction: DOWN
     timeout: 10000
 
-# Maestro exposes each React Native action as a clickable accessibility node plus its Text child.
-# With the cards in deterministic creation order, match the second clickable account action rather
-# than the first visible text label; this avoids opening Trade Republic when Bankinter is lower.
-- tapOn:
-    text: "Actualizar saldo"
-    index: 2
+# After scrolling the Bankinter card into view, only its action row is exposed in the viewport.
+# Target the visible action instead of relying on accessibility-tree duplicate indices, which vary
+# between Maestro/React Native versions and previously made the deterministic flow fail in CI.
+- scrollUntilVisible:
+    element: "Actualizar saldo"
+    direction: DOWN
+    timeout: 10000
+- tapOn: "Actualizar saldo"
 - extendedWaitUntil:
     visible: "Actualizar saldo"
     timeout: 10000
@@ -46,9 +48,11 @@ appId: com.davidegea.smartexpenseai
     element: "Corriente · Bankinter"
     direction: DOWN
     timeout: 10000
-- tapOn:
-    text: "Editar"
-    index: 2
+- scrollUntilVisible:
+    element: "Editar"
+    direction: DOWN
+    timeout: 10000
+- tapOn: "Editar"
 - extendedWaitUntil:
     visible: "Editar cuenta"
     timeout: 10000
@@ -82,9 +86,11 @@ appId: com.davidegea.smartexpenseai
     element: "Bankinter Principal"
     direction: DOWN
     timeout: 10000
-- tapOn:
-    text: "Editar"
-    index: 2
+- scrollUntilVisible:
+    element: "Editar"
+    direction: DOWN
+    timeout: 10000
+- tapOn: "Editar"
 - extendedWaitUntil:
     visible: "Editar cuenta"
     timeout: 10000
@@ -158,15 +164,17 @@ appId: com.davidegea.smartexpenseai
     timeout: 15000
 - assertVisible: "1.300,00 €"
 
-# Archive only the newly-created third account. Each action contributes a clickable node and a
-# Text child, so the third clickable Archive action is the fifth text match in document order.
+# Archive only the newly-created final account by first bringing that card and its action row into
+# view. This avoids positional assumptions about duplicate accessibility nodes.
 - scrollUntilVisible:
     element: "Bankinter Ahorro"
     direction: DOWN
     timeout: 10000
-- tapOn:
-    text: "Archivar"
-    index: 4
+- scrollUntilVisible:
+    element: "Archivar"
+    direction: DOWN
+    timeout: 10000
+- tapOn: "Archivar"
 - extendedWaitUntil:
     visible: "¿Archivar cuenta?"
     timeout: 10000
