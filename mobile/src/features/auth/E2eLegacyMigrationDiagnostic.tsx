@@ -1,5 +1,6 @@
 import { useSQLiteContext } from 'expo-sqlite';
 import { useEffect, useState } from 'react';
+import { DATABASE_SCHEMA_VERSION } from '../../database/constants';
 import { StyleSheet, Text, View } from '../../ui/primitives';
 
 const LEGACY_MIGRATION_COMPLETION_TABLE = '__smart_expense_sqlcipher_plaintext_migration_v1';
@@ -43,7 +44,7 @@ export function E2eLegacyMigrationDiagnostic() {
         setVerified(
           (marker?.count ?? 0) === 1 &&
             (probe?.count ?? 0) === 1 &&
-            (version?.user_version ?? 0) === 2,
+            (version?.user_version ?? 0) === DATABASE_SCHEMA_VERSION,
         );
       }
     })().catch(() => {
@@ -64,7 +65,9 @@ export function E2eLegacyMigrationDiagnostic() {
   return (
     <View accessibilityLabel="Legacy migration verified" style={styles.container}>
       <Text style={styles.title}>Legacy migration verified</Text>
-      <Text style={styles.detail}>Legacy Migration Probe · schema v2 · SQLCipher marker present</Text>
+      <Text style={styles.detail}>
+        Legacy Migration Probe · schema v{DATABASE_SCHEMA_VERSION} · SQLCipher marker present
+      </Text>
     </View>
   );
 }

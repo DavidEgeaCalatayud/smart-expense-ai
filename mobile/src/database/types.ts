@@ -1,3 +1,9 @@
+import type {
+  FinancialAccountPurpose,
+  FinancialAccountSnapshotSource,
+  FinancialAccountType,
+} from '@smart-expense-ai/api-contracts';
+
 export type LocalSyncStatus = 'synced' | 'pending' | 'conflict' | 'failed';
 
 export interface LocalCategoryRow {
@@ -41,4 +47,32 @@ export interface LocalBudgetRow {
   sync_status: LocalSyncStatus;
   created_at: string;
   updated_at: string;
+}
+
+export interface LocalFinancialAccountRow {
+  id: string;
+  name: string;
+  institution: string | null;
+  account_type: FinancialAccountType;
+  purpose: FinancialAccountPurpose;
+  current_balance_minor: number;
+  currency: 'EUR';
+  include_in_net_worth: 0 | 1;
+  archived: 0 | 1;
+  balance_updated_at: string;
+  server_version: number | null;
+  sync_status: LocalSyncStatus;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface LocalFinancialAccountSnapshotRow {
+  id: string;
+  financial_account_id: string;
+  balance_minor: number;
+  include_in_net_worth: 0 | 1;
+  archived: 0 | 1;
+  recorded_at: string;
+  source: FinancialAccountSnapshotSource;
+  pending: 0 | 1;
 }

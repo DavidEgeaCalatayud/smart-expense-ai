@@ -1,5 +1,6 @@
 export const ROUTES = {
   dashboard: '/',
+  money: '/money',
   transactions: '/transactions',
   categories: '/categories',
   budgets: '/budgets',

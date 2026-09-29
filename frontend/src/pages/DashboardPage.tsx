@@ -1,4 +1,4 @@
-import { PiggyBank, Plus, ReceiptText, Repeat, Wallet } from 'lucide-react';
+import { ArrowRight, PiggyBank, Plus, ReceiptText, Repeat, TrendingUp, Wallet } from 'lucide-react';
 import { useCallback, useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { MetricCard } from '../components/dashboard/MetricCard';
@@ -9,8 +9,10 @@ import { ApiErrorAlert } from '../components/ui/ApiErrorAlert';
 import { ROUTES } from '../routes/paths';
 import { getApiErrorPresentation, type ApiErrorPresentation } from '../services/apiClient';
 import { fetchMonthlyExpenses, fetchTransactionSummary } from '../services/analyticsApi';
+import { fetchNetWorthHistory, fetchNetWorthSummary } from '../services/financialAccountsApi';
 import { fetchTransactions } from '../services/transactionsApi';
 import type { MonthlyExpense } from '../types/dashboard';
+import type { NetWorthHistory, NetWorthSummary } from '../types/financialAccounts';
 import type { DetailedTransaction, MonthlyExpensePoint, TransactionSummary } from '../types/transactions';
 import { formatCurrencyWithDecimals } from '../utils/formatters';
 import { isNegativeMoney, moneyToChartNumber } from '../utils/money';
@@ -22,6 +24,28 @@ const emptySummary: TransactionSummary = {
   recurringCount: 0,
   reviewCount: 0,
   transactionCount: 0,
+};
+
+const emptyNetWorth: NetWorthSummary = {
+  totalNetWorth: '0.00',
+  available: '0.00',
+  reserved: '0.00',
+  invested: '0.00',
+  daily: '0.00',
+  savings: '0.00',
+  emergencyFund: '0.00',
+  opportunities: '0.00',
+  investment: '0.00',
+  other: '0.00',
+  currency: 'EUR',
+};
+
+const emptyNetWorthHistory: NetWorthHistory = {
+  months: 12,
+  points: [],
+  changeAmount: '0.00',
+  changePercent: null,
+  currency: 'EUR',
 };
 
 const toLocalIsoDate = (date: Date) =>
@@ -47,6 +71,8 @@ const mapMonthlyExpenses = (points: MonthlyExpensePoint[]): MonthlyExpense[] =>
 export function DashboardPage() {
   const navigate = useNavigate();
   const [summary, setSummary] = useState<TransactionSummary>(emptySummary);
+  const [netWorth, setNetWorth] = useState<NetWorthSummary>(emptyNetWorth);
+  const [netWorthHistory, setNetWorthHistory] = useState<NetWorthHistory>(emptyNetWorthHistory);
   const [spendingTrend, setSpendingTrend] = useState<MonthlyExpense[]>([]);
   const [recentTransactions, setRecentTransactions] = useState<DetailedTransaction[]>([]);
   const [isLoading, setIsLoading] = useState(true);
@@ -62,14 +88,18 @@ export function DashboardPage() {
     setError(null);
 
     try {
-      const [loadedSummary, monthlyPoints, recentPage] = await Promise.all([
+      const [loadedSummary, monthlyPoints, recentPage, loadedNetWorth, loadedNetWorthHistory] = await Promise.all([
         fetchTransactionSummary(currentMonthRange()),
         fetchMonthlyExpenses(6),
         fetchTransactions({ page: 1, pageSize: 5 }),
+        fetchNetWorthSummary(),
+        fetchNetWorthHistory(12),
       ]);
       setSummary(loadedSummary);
       setSpendingTrend(mapMonthlyExpenses(monthlyPoints));
       setRecentTransactions(recentPage.items);
+      setNetWorth(loadedNetWorth);
+      setNetWorthHistory(loadedNetWorthHistory);
     } catch (loadError) {
       setError(getApiErrorPresentation(loadError, 'Unable to load dashboard data'));
     } finally {
@@ -86,6 +116,7 @@ export function DashboardPage() {
     month: 'long',
     year: 'numeric',
   });
+  const netWorthChangePositive = !isNegativeMoney(netWorthHistory.changeAmount);
 
   return (
     <>
@@ -125,6 +156,43 @@ export function DashboardPage() {
             <MetricCard title="Income this month" value={formatCurrencyWithDecimals(summary.totalIncome)} detail={currentMonthLabel} trend="neutral" icon={<Wallet size={20} />} />
             <MetricCard title="Balance" value={formatCurrencyWithDecimals(summary.balance)} detail="Income minus expenses this month" trend={isNegativeMoney(summary.balance) ? 'warning' : 'neutral'} icon={<PiggyBank size={20} />} />
             <MetricCard title="Recurring this month" value={String(summary.recurringCount)} detail="Persisted recurring movements" trend="neutral" icon={<Repeat size={20} />} />
+          </section>
+
+          <section className="mt-6 overflow-hidden rounded-3xl border border-slate-200 bg-slate-950 p-6 text-white shadow-soft lg:p-8">
+            <div className="flex flex-col gap-7 lg:flex-row lg:items-end lg:justify-between">
+              <div>
+                <div className="flex items-center gap-2 text-xs font-semibold uppercase tracking-[0.22em] text-slate-400">
+                  <TrendingUp size={16} /> Patrimonio
+                </div>
+                <p className="mt-3 text-4xl font-black tracking-tight sm:text-5xl">
+                  {formatCurrencyWithDecimals(netWorth.totalNetWorth)}
+                </p>
+                <p className={`mt-3 text-sm font-semibold ${netWorthChangePositive ? 'text-emerald-300' : 'text-rose-300'}`}>
+                  {netWorthChangePositive ? '↗' : '↘'} {formatCurrencyWithDecimals(netWorthHistory.changeAmount)} últimos 12 meses
+                  {netWorthHistory.changePercent !== null ? ` · ${netWorthHistory.changePercent}%` : ''}
+                </p>
+              </div>
+
+              <div className="grid min-w-0 flex-1 gap-3 sm:grid-cols-3 lg:max-w-2xl">
+                {[
+                  ['Disponible', netWorth.available],
+                  ['Reservado', netWorth.reserved],
+                  ['Invertido', netWorth.invested],
+                ].map(([label, value]) => (
+                  <div key={label} className="rounded-2xl border border-white/10 bg-white/5 p-4">
+                    <p className="text-xs font-semibold uppercase tracking-wide text-slate-400">{label}</p>
+                    <p className="mt-2 text-lg font-bold">{formatCurrencyWithDecimals(value)}</p>
+                  </div>
+                ))}
+              </div>
+            </div>
+            <button
+              type="button"
+              onClick={() => navigate(ROUTES.money)}
+              className="mt-6 inline-flex items-center gap-2 text-sm font-semibold text-white transition hover:text-brand-200"
+            >
+              Ver Mi dinero <ArrowRight size={16} />
+            </button>
           </section>
 
           <section className="mt-6">

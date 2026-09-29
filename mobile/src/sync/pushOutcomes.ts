@@ -1,4 +1,5 @@
 import type {
+  FinancialAccountSyncPayload,
   SyncConflict,
   SyncMutation,
   SyncPushResponse,
@@ -13,10 +14,18 @@ const TABLE_BY_ENTITY = {
   transaction: 'transactions',
   category: 'categories',
   budget: 'budgets',
+  financial_account: 'financial_accounts',
 } as const;
 
 function conflictByMutationId(response: SyncPushResponse): Map<string, SyncConflict> {
   return new Map(response.conflicts.map((conflict) => [conflict.mutationId, conflict]));
+}
+
+function financialAccountObservationIds(payload: FinancialAccountSyncPayload): string[] {
+  const ids = new Set<string>();
+  for (const observation of payload.balanceObservations ?? []) ids.add(observation.id);
+  if (payload.balanceSnapshotId) ids.add(payload.balanceSnapshotId);
+  return [...ids];
 }
 
 async function updateEntityStatus(
@@ -47,6 +56,34 @@ async function updateEntityStatus(
   );
 }
 
+async function markPendingSnapshotsSynced(
+  db: SQLiteDatabase,
+  mutation: SyncMutation,
+): Promise<void> {
+  if (mutation.entityType !== 'financial_account' || mutation.operation !== 'upsert') return;
+  const payload = mutation.payload as FinancialAccountSyncPayload;
+  for (const snapshotId of financialAccountObservationIds(payload)) {
+    await db.runAsync(
+      'UPDATE financial_account_snapshots SET pending = 0 WHERE id = ? AND pending = 1',
+      snapshotId,
+    );
+  }
+}
+
+async function discardPendingSnapshotsForRejectedMutation(
+  db: SQLiteDatabase,
+  mutation: SyncMutation,
+): Promise<void> {
+  if (mutation.entityType !== 'financial_account' || mutation.operation !== 'upsert') return;
+  const payload = mutation.payload as FinancialAccountSyncPayload;
+  for (const snapshotId of financialAccountObservationIds(payload)) {
+    await db.runAsync(
+      'DELETE FROM financial_account_snapshots WHERE id = ? AND pending = 1',
+      snapshotId,
+    );
+  }
+}
+
 export async function persistPushResponse(
   db: SQLiteDatabase,
   rows: readonly OutboxRow[],
@@ -58,9 +95,7 @@ export async function persistPushResponse(
   await runKeyedTransaction(db, async (txn) => {
     for (const result of response.results) {
       const row = rowByMutationId.get(result.mutationId);
-      if (!row) {
-        continue;
-      }
+      if (!row) continue;
       const mutation = outboxRowToMutation(row);
 
       if (result.status === 'applied' || result.status === 'duplicate') {
@@ -68,6 +103,7 @@ export async function persistPushResponse(
           await txn.runAsync(`DELETE FROM ${TABLE_BY_ENTITY[mutation.entityType]} WHERE id = ?`, mutation.entityId);
         } else {
           await updateEntityStatus(txn, mutation, 'synced', result.serverVersion ?? null);
+          await markPendingSnapshotsSynced(txn, mutation);
         }
         await txn.runAsync('DELETE FROM sync_outbox WHERE mutation_id = ?', mutation.mutationId);
         continue;
@@ -94,6 +130,7 @@ export async function persistPushResponse(
         mutation.mutationId,
       );
       await updateEntityStatus(txn, mutation, 'failed');
+      await discardPendingSnapshotsForRejectedMutation(txn, mutation);
     }
   });
 }

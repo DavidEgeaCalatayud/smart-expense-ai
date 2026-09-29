@@ -1,0 +1,103 @@
+appId: com.davidegea.smartexpenseai
+---
+- tapOn:
+    id: "tab-mi-dinero"
+- extendedWaitUntil:
+    visible: "Mi dinero"
+    timeout: 20000
+- assertVisible: "PATRIMONIO TOTAL"
+
+# Investment platform: catalog selection must normalize the local purpose to investment.
+- tapOn: "Cuenta"
+- extendedWaitUntil:
+    visible: "Añadir cuenta"
+    timeout: 10000
+- scrollUntilVisible:
+    element: "Desliza para ver todas las entidades disponibles"
+    direction: DOWN
+    timeout: 10000
+- tapOn: "Buscar banco"
+- inputText: "Trade Republic"
+- hideKeyboard
+- tapOn:
+    id: "bank-institution-trade-republic"
+- scrollUntilVisible:
+    element: "Saldo actual"
+    direction: DOWN
+    timeout: 10000
+# The current React Native accessibility hierarchy exposes the balance field as
+# one actionable "Saldo actual" node after the institution selection.
+- tapOn: "Saldo actual"
+- inputText: "1000.00"
+- hideKeyboard
+- scrollUntilVisible:
+    element: "Incluir en patrimonio"
+    direction: DOWN
+    timeout: 10000
+- scroll
+- tapOn:
+    id: "money-account-submit"
+- extendedWaitUntil:
+    visible: "1 activas"
+    timeout: 15000
+- assertVisible: "Trade Republic"
+- assertVisible: "Inversión"
+
+# A second independent bank account must coexist with the broker.
+- scrollUntilVisible:
+    element: "PATRIMONIO · OFFLINE-FIRST"
+    direction: UP
+    timeout: 10000
+- tapOn: "Cuenta"
+- extendedWaitUntil:
+    visible: "Añadir cuenta"
+    timeout: 10000
+- scrollUntilVisible:
+    element: "Desliza para ver todas las entidades disponibles"
+    direction: DOWN
+    timeout: 10000
+- tapOn: "Buscar banco"
+- inputText: "Bankinter"
+- hideKeyboard
+- tapOn:
+    id: "bank-institution-bankinter"
+- scrollUntilVisible:
+    element: "Saldo actual"
+    direction: DOWN
+    timeout: 10000
+- tapOn: "Saldo actual"
+- inputText: "200.00"
+- hideKeyboard
+- scrollUntilVisible:
+    element: "Incluir en patrimonio"
+    direction: DOWN
+    timeout: 10000
+- scroll
+- tapOn:
+    id: "money-account-submit"
+
+# Saving closes the form at its current scroll offset. Assert both account cards,
+# then use the stable Mi dinero tab to reset the workspace scroll position before
+# validating the summary. This avoids a long scrollUntilVisible over a dynamic
+# ScrollView after the second account is inserted.
+- extendedWaitUntil:
+    visible: "Bankinter"
+    timeout: 15000
+- assertVisible: "Trade Republic"
+- tapOn:
+    id: "tab-mi-dinero"
+- extendedWaitUntil:
+    visible: "PATRIMONIO TOTAL"
+    timeout: 15000
+- extendedWaitUntil:
+    visible: "2 activas"
+    timeout: 15000
+- assertVisible: "1.200,00 €"
+
+# Leave the money workspace in a stable state so the harness can continue into
+# the extended account lifecycle and cross-client tests.
+- tapOn:
+    id: "tab-activity"
+- extendedWaitUntil:
+    visible: "Your transactions"
+    timeout: 15000

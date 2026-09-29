@@ -21,6 +21,7 @@ from app.routers.budgets import router as budgets_router
 from app.routers.categories import router as categories_router
 from app.routers.category_suggestions import router as category_suggestions_router
 from app.routers.entitlements import router as entitlements_router
+from app.routers.financial_accounts import router as financial_accounts_router
 from app.routers.financial_assistant import router as financial_assistant_router
 from app.routers.historical_analysis import router as historical_analysis_router
 from app.routers.imports import router as imports_router
@@ -89,6 +90,7 @@ app.include_router(intelligence_v2_router, prefix=API_V2_PREFIX)
 app.include_router(historical_analysis_router, prefix=API_V2_PREFIX)
 app.include_router(imports_router, prefix=API_V2_PREFIX)
 app.include_router(budgets_router, prefix=API_V2_PREFIX)
+app.include_router(financial_accounts_router, prefix=API_V2_PREFIX)
 app.include_router(category_suggestions_router, prefix=API_V2_PREFIX)
 app.include_router(upcoming_payments_router, prefix=API_V2_PREFIX)
 app.include_router(spending_forecast_router, prefix=API_V2_PREFIX)

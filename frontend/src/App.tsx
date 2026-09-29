@@ -8,8 +8,9 @@ import { CategoriesPage } from './pages/CategoriesPage';
 import { DashboardPage } from './pages/DashboardPage';
 import { FinancialAssistantPage } from './pages/FinancialAssistantPage';
 import { ImportPage } from './pages/ImportPage';
-import { PasswordRecoveryPage } from './pages/PasswordRecoveryPage';
 import { LoginPage } from './pages/LoginPage';
+import { MoneyPage } from './pages/MoneyPage';
+import { PasswordRecoveryPage } from './pages/PasswordRecoveryPage';
 import { PredictionsPage } from './pages/PredictionsPage';
 import { RegisterPage } from './pages/RegisterPage';
 import { ReportsPage } from './pages/ReportsPage';
@@ -49,6 +50,7 @@ function App() {
 
       <Route element={<ProtectedWorkspace />}>
         <Route path={ROUTES.dashboard} element={<DashboardPage />} />
+        <Route path={ROUTES.money} element={<MoneyPage />} />
         <Route path={ROUTES.transactions} element={<TransactionsPage />} />
         <Route path={ROUTES.categories} element={<CategoriesPage />} />
         <Route path={ROUTES.budgets} element={<BudgetsPage />} />

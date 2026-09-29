@@ -15,16 +15,23 @@ from app.financial_assistant_schemas import (
     FinancialAssistantResult,
 )
 from app.integrations.llm.client import LLMProvider, LLMProviderError
+from app.services.financial_assistant_net_worth_tool import (
+    NET_WORTH_TOOL_DEFINITIONS,
+    execute_financial_accounts_summary_tool,
+    execute_net_worth_history_tool,
+    execute_net_worth_tool,
+)
 from app.services.financial_assistant_tools import (
     ASSISTANT_TOOL_DEFINITIONS,
     AssistantToolError,
     AssistantToolResult,
-    execute_assistant_tool,
+    execute_assistant_tool as execute_base_assistant_tool,
 )
 
 
 DEFAULT_MAX_TOOL_ROUNDS = 5
 DEFAULT_MAX_TOOL_CALLS = 12
+ALL_ASSISTANT_TOOL_DEFINITIONS = [*ASSISTANT_TOOL_DEFINITIONS, *NET_WORTH_TOOL_DEFINITIONS]
 ToolExecutor = Callable[[Session, UUID, str, dict[str, Any]], AssistantToolResult]
 
 
@@ -36,15 +43,34 @@ class FinancialAssistantLimitError(FinancialAssistantError):
     pass
 
 
+def execute_assistant_tool(
+    db: Session,
+    user_id: UUID,
+    name: str,
+    arguments: dict[str, Any],
+) -> AssistantToolResult:
+    if name == "get_net_worth_summary":
+        return execute_net_worth_tool(db, user_id, arguments)
+    if name == "get_net_worth_history":
+        return execute_net_worth_history_tool(db, user_id, arguments)
+    if name == "get_financial_accounts_summary":
+        return execute_financial_accounts_summary_tool(db, user_id, arguments)
+    return execute_base_assistant_tool(db, user_id, name, arguments)
+
+
 def _instructions() -> str:
     return f"""You are Financial Assistant v1 for Smart Expense AI. Today is {date.today().isoformat()}.
 
 Architecture contract:
 - You reason about and explain financial facts; backend tools calculate and decide those facts.
 - Use only supplied function tools for user-specific financial facts. Never invent transactions, budgets, findings, trends, dates or amounts.
-- Never calculate monetary differences, percentages, budget progress or category deltas yourself. Use the tool whose output already contains that calculation.
+- Never calculate monetary differences, percentages, budget progress, account shares or category deltas yourself. Use the tool whose output already contains that calculation.
 - `rules-v2` persisted findings are authoritative for anomaly, duplicate-subscription and recurrence findings. Do not call something fraud; describe it as a finding to review.
-- historical-v2.2 is authoritative for historical trend/category-shift/recurrence evidence.
+- historical-v2.2 is authoritative for historical transaction trend/category-shift/recurrence evidence.
+- `get_net_worth_summary` is authoritative for current manually maintained account balances and their available/reserved/invested breakdown.
+- `get_net_worth_history` is authoritative for backend-computed net-worth change over a requested period.
+- `get_financial_accounts_summary` is authoritative for current account ranking, account shares, invested percentage and opportunity capital.
+- Net-worth balances are user-entered observations, not live bank data. Net-worth change can include deposits, withdrawals, account additions/removals and transfers, so never present it as investment return.
 - If evidence is unavailable or stale, say so explicitly in limitations instead of filling gaps.
 - The tool schemas intentionally contain no user identity. Never ask for, infer or emit an internal user id.
 - Keep answers concise, useful and in the same language as the user's question.
@@ -92,7 +118,7 @@ def query_financial_assistant(
         turn = provider.respond(
             input_items=input_items,
             instructions=_instructions(),
-            tools=ASSISTANT_TOOL_DEFINITIONS,
+            tools=ALL_ASSISTANT_TOOL_DEFINITIONS,
             response_schema=response_schema,
         )
         input_items.extend(turn.output_items)

@@ -11,6 +11,12 @@ from sqlalchemy.orm import Mapped, mapped_column
 from app.db.base import Base
 
 
+SYNC_ENTITY_CHECK = (
+    "entity_type IN ('transaction', 'category', 'budget', "
+    "'financial_account', 'financial_account_snapshot')"
+)
+
+
 class SyncDevice(Base):
     __tablename__ = "sync_devices"
     __table_args__ = (
@@ -33,10 +39,7 @@ class SyncDevice(Base):
 class SyncMutation(Base):
     __tablename__ = "sync_mutations"
     __table_args__ = (
-        CheckConstraint(
-            "entity_type IN ('transaction', 'category', 'budget')",
-            name="ck_sync_mutations_entity_type",
-        ),
+        CheckConstraint(SYNC_ENTITY_CHECK, name="ck_sync_mutations_entity_type"),
         Index("ix_sync_mutations_user_created", "user_id", "created_at"),
     )
 
@@ -46,7 +49,7 @@ class SyncMutation(Base):
     )
     device_id: Mapped[UUID] = mapped_column(PG_UUID(as_uuid=True), nullable=False)
     mutation_id: Mapped[UUID] = mapped_column(PG_UUID(as_uuid=True), nullable=False)
-    entity_type: Mapped[str] = mapped_column(String(24), nullable=False)
+    entity_type: Mapped[str] = mapped_column(String(32), nullable=False)
     entity_id: Mapped[UUID] = mapped_column(PG_UUID(as_uuid=True), nullable=False)
     request_hash: Mapped[str] = mapped_column(String(64), nullable=False)
     result_json: Mapped[dict[str, Any]] = mapped_column(JSONB, nullable=False)
@@ -58,10 +61,7 @@ class SyncMutation(Base):
 class SyncChange(Base):
     __tablename__ = "sync_changes"
     __table_args__ = (
-        CheckConstraint(
-            "entity_type IN ('transaction', 'category', 'budget')",
-            name="ck_sync_changes_entity_type",
-        ),
+        CheckConstraint(SYNC_ENTITY_CHECK, name="ck_sync_changes_entity_type"),
         CheckConstraint(
             "operation IN ('upsert', 'delete')", name="ck_sync_changes_operation"
         ),
@@ -85,7 +85,7 @@ class SyncChange(Base):
     scope_user_id: Mapped[UUID | None] = mapped_column(
         PG_UUID(as_uuid=True), ForeignKey("users.id", ondelete="CASCADE"), nullable=True
     )
-    entity_type: Mapped[str] = mapped_column(String(24), nullable=False)
+    entity_type: Mapped[str] = mapped_column(String(32), nullable=False)
     entity_id: Mapped[UUID] = mapped_column(PG_UUID(as_uuid=True), nullable=False)
     operation: Mapped[str] = mapped_column(String(16), nullable=False)
     entity_version: Mapped[int] = mapped_column(BigInteger, nullable=False)

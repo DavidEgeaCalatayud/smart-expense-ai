@@ -5,8 +5,11 @@ from app.auth.dependencies import get_current_user
 from app.core.api_errors import ApiError
 from app.db.session import get_db
 from app.models.user import User
+from app.services.financial_account_sync_history_service import (
+    push_sync_preserving_financial_account_history,
+)
 from app.services.sync_cursor import SyncTokenError
-from app.services.sync_service import bootstrap_sync, pull_sync, push_sync
+from app.services.sync_service import bootstrap_sync, pull_sync
 from app.sync_schemas import SyncBootstrapPage, SyncPullPage, SyncPushRequest, SyncPushResponse
 
 
@@ -19,7 +22,7 @@ def push_changes(
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ) -> SyncPushResponse:
-    return push_sync(db, current_user.id, payload)
+    return push_sync_preserving_financial_account_history(db, current_user.id, payload)
 
 
 @router.get("/pull", response_model=SyncPullPage)

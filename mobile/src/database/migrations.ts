@@ -109,6 +109,115 @@ const MIGRATIONS: readonly Migration[] = [
       )`,
     ],
   },
+  {
+    version: 3,
+    statements: [
+      `CREATE TABLE IF NOT EXISTS financial_accounts (
+        id TEXT PRIMARY KEY NOT NULL,
+        name TEXT NOT NULL,
+        institution TEXT,
+        account_type TEXT NOT NULL CHECK (account_type IN ('checking', 'savings', 'broker', 'wallet', 'cash', 'other')),
+        purpose TEXT NOT NULL CHECK (purpose IN ('daily', 'savings', 'emergency_fund', 'opportunities', 'investment', 'other')),
+        current_balance_minor INTEGER NOT NULL,
+        currency TEXT NOT NULL DEFAULT 'EUR' CHECK (currency = 'EUR'),
+        include_in_net_worth INTEGER NOT NULL DEFAULT 1 CHECK (include_in_net_worth IN (0, 1)),
+        archived INTEGER NOT NULL DEFAULT 0 CHECK (archived IN (0, 1)),
+        balance_updated_at TEXT NOT NULL,
+        server_version INTEGER,
+        sync_status TEXT NOT NULL CHECK (sync_status IN ('synced', 'pending', 'conflict', 'failed')),
+        created_at TEXT NOT NULL,
+        updated_at TEXT NOT NULL
+      )`,
+      `CREATE INDEX IF NOT EXISTS ix_financial_accounts_archived
+        ON financial_accounts(archived, created_at, id)`,
+      `CREATE TABLE IF NOT EXISTS financial_account_snapshots (
+        id TEXT PRIMARY KEY NOT NULL,
+        financial_account_id TEXT NOT NULL,
+        balance_minor INTEGER NOT NULL,
+        recorded_at TEXT NOT NULL,
+        source TEXT NOT NULL CHECK (source IN ('manual', 'open_banking', 'import')),
+        pending INTEGER NOT NULL DEFAULT 0 CHECK (pending IN (0, 1)),
+        FOREIGN KEY (financial_account_id) REFERENCES financial_accounts(id) ON DELETE CASCADE
+      )`,
+      `CREATE INDEX IF NOT EXISTS ix_financial_account_snapshots_account_recorded
+        ON financial_account_snapshots(financial_account_id, recorded_at, id)`,
+
+      `ALTER TABLE sync_outbox RENAME TO sync_outbox_v2`,
+      `DROP INDEX IF EXISTS ix_sync_outbox_status_sequence`,
+      `CREATE TABLE sync_outbox (
+        sequence INTEGER PRIMARY KEY AUTOINCREMENT,
+        mutation_id TEXT NOT NULL UNIQUE,
+        entity_type TEXT NOT NULL CHECK (entity_type IN ('transaction', 'category', 'budget', 'financial_account')),
+        entity_id TEXT NOT NULL,
+        operation TEXT NOT NULL CHECK (operation IN ('upsert', 'delete')),
+        base_version INTEGER,
+        payload_json TEXT,
+        client_occurred_at TEXT NOT NULL,
+        status TEXT NOT NULL DEFAULT 'queued' CHECK (status IN ('queued', 'sending', 'failed')),
+        attempt_count INTEGER NOT NULL DEFAULT 0 CHECK (attempt_count >= 0),
+        last_error TEXT,
+        created_at TEXT NOT NULL,
+        updated_at TEXT NOT NULL
+      )`,
+      `INSERT INTO sync_outbox (
+         sequence, mutation_id, entity_type, entity_id, operation, base_version,
+         payload_json, client_occurred_at, status, attempt_count, last_error, created_at, updated_at
+       ) SELECT
+         sequence, mutation_id, entity_type, entity_id, operation, base_version,
+         payload_json, client_occurred_at, status, attempt_count, last_error, created_at, updated_at
+       FROM sync_outbox_v2`,
+      `DROP TABLE sync_outbox_v2`,
+      `CREATE INDEX IF NOT EXISTS ix_sync_outbox_status_sequence
+        ON sync_outbox(status, sequence)`,
+
+      `ALTER TABLE sync_conflicts RENAME TO sync_conflicts_v2`,
+      `DROP INDEX IF EXISTS ix_sync_conflicts_unresolved`,
+      `CREATE TABLE sync_conflicts (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        mutation_id TEXT NOT NULL UNIQUE,
+        entity_type TEXT NOT NULL CHECK (entity_type IN ('transaction', 'category', 'budget', 'financial_account')),
+        entity_id TEXT NOT NULL,
+        reason TEXT NOT NULL,
+        server_version INTEGER,
+        server_payload_json TEXT,
+        local_payload_json TEXT,
+        created_at TEXT NOT NULL,
+        resolved_at TEXT
+      )`,
+      `INSERT INTO sync_conflicts (
+         id, mutation_id, entity_type, entity_id, reason, server_version,
+         server_payload_json, local_payload_json, created_at, resolved_at
+       ) SELECT
+         id, mutation_id, entity_type, entity_id, reason, server_version,
+         server_payload_json, local_payload_json, created_at, resolved_at
+       FROM sync_conflicts_v2`,
+      `DROP TABLE sync_conflicts_v2`,
+      `CREATE INDEX IF NOT EXISTS ix_sync_conflicts_unresolved
+        ON sync_conflicts(resolved_at, created_at DESC)`,
+    ],
+  },
+  {
+    version: 4,
+    statements: [
+      `ALTER TABLE financial_account_snapshots
+        ADD COLUMN include_in_net_worth INTEGER NOT NULL DEFAULT 1
+        CHECK (include_in_net_worth IN (0, 1))`,
+      `ALTER TABLE financial_account_snapshots
+        ADD COLUMN archived INTEGER NOT NULL DEFAULT 0
+        CHECK (archived IN (0, 1))`,
+      `UPDATE financial_account_snapshots
+       SET include_in_net_worth = COALESCE((
+             SELECT a.include_in_net_worth
+             FROM financial_accounts a
+             WHERE a.id = financial_account_snapshots.financial_account_id
+           ), 1),
+           archived = COALESCE((
+             SELECT a.archived
+             FROM financial_accounts a
+             WHERE a.id = financial_account_snapshots.financial_account_id
+           ), 0)`,
+    ],
+  },
 ];
 
 async function runMigrationTransaction(

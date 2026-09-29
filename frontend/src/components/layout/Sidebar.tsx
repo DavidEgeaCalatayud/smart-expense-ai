@@ -4,6 +4,7 @@ import {
   Database,
   FileDown,
   FileSpreadsheet,
+  Landmark,
   LayoutDashboard,
   LineChart,
   LogOut,
@@ -21,6 +22,7 @@ import { ROUTES } from '../../routes/paths';
 
 const navigationItems = [
   { icon: LayoutDashboard, label: 'Dashboard', to: ROUTES.dashboard },
+  { icon: Landmark, label: 'Mi dinero', to: ROUTES.money },
   { icon: CreditCard, label: 'Transactions', to: ROUTES.transactions },
   { icon: Tags, label: 'Categories', to: ROUTES.categories },
   { icon: WalletCards, label: 'Budgets', to: ROUTES.budgets },
@@ -100,7 +102,7 @@ export function Sidebar() {
         </div>
         <p className="mb-2 text-sm font-semibold">Account-isolated data</p>
         <p className="text-sm leading-6 text-slate-300">
-          Transaction, category, budget, report, insight, intelligence and assistant queries are scoped to your authenticated user before financial data leaves the API.
+          Transaction, category, budget, financial-account, report, insight, intelligence and assistant queries are scoped to your authenticated user before financial data leaves the API.
         </p>
       </div>
     </aside>

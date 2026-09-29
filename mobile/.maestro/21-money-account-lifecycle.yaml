@@ -1,0 +1,213 @@
+appId: com.davidegea.smartexpenseai
+---
+- tapOn:
+    id: "tab-mi-dinero"
+- extendedWaitUntil:
+    visible: "Mi dinero"
+    timeout: 15000
+
+# Start from the state established by 20-money-workspace:
+# Trade Republic 1,000 EUR + Bankinter 200 EUR = 1,200 EUR.
+- scrollUntilVisible:
+    element: "Trade Republic"
+    direction: DOWN
+    timeout: 10000
+- scrollUntilVisible:
+    element: "Corriente · Bankinter"
+    direction: DOWN
+    timeout: 10000
+
+# Account cards are rendered in creation order. Trade Republic is first and the primary Bankinter
+# is second, so select the second repeated action explicitly instead of relying on viewport state.
+- tapOn:
+    text: "Actualizar saldo"
+    index: 1
+- extendedWaitUntil:
+    visible: "Actualizar saldo"
+    timeout: 10000
+- assertVisible: "Bankinter · actual 200,00 €"
+- tapOn: "Nuevo saldo"
+- eraseText
+- inputText: "250.00"
+- hideKeyboard
+- tapOn: "Guardar nuevo saldo"
+- scrollUntilVisible:
+    element: "PATRIMONIO · OFFLINE-FIRST"
+    direction: UP
+    timeout: 10000
+- extendedWaitUntil:
+    visible: "1.250,00 €"
+    timeout: 15000
+
+# Exercise metadata editing and current inclusion semantics on the same Bankinter account.
+# Excluding it must affect the current total but must not mutate the broker or delete history.
+- scrollUntilVisible:
+    element: "Corriente · Bankinter"
+    direction: DOWN
+    timeout: 10000
+- tapOn:
+    text: "Editar"
+    index: 1
+- extendedWaitUntil:
+    visible: "Editar cuenta"
+    timeout: 10000
+- tapOn: "Nombre de cuenta"
+- eraseText
+- inputText: "Bankinter Principal"
+- hideKeyboard
+- scrollUntilVisible:
+    element: "Incluir en patrimonio"
+    direction: DOWN
+    timeout: 10000
+- assertVisible:
+    checked: true
+- tapOn:
+    checked: true
+- tapOn:
+    id: "money-account-submit"
+- extendedWaitUntil:
+    visible: "Bankinter Principal"
+    timeout: 15000
+- scrollUntilVisible:
+    element: "PATRIMONIO · OFFLINE-FIRST"
+    direction: UP
+    timeout: 10000
+- extendedWaitUntil:
+    visible: "1.000,00 €"
+    timeout: 15000
+
+# Re-include the edited account so the subsequent same-bank test starts again at 1,250 EUR.
+- scrollUntilVisible:
+    element: "Bankinter Principal"
+    direction: DOWN
+    timeout: 10000
+- tapOn:
+    text: "Editar"
+    index: 1
+- extendedWaitUntil:
+    visible: "Editar cuenta"
+    timeout: 10000
+- scrollUntilVisible:
+    element: "Incluir en patrimonio"
+    direction: DOWN
+    timeout: 10000
+- assertVisible:
+    checked: false
+- tapOn:
+    checked: false
+- tapOn:
+    id: "money-account-submit"
+- scrollUntilVisible:
+    element: "PATRIMONIO · OFFLINE-FIRST"
+    direction: UP
+    timeout: 10000
+- extendedWaitUntil:
+    visible: "1.250,00 €"
+    timeout: 15000
+
+# Add a second independent account from the same institution. This guards against accidental
+# institution-level uniqueness or account replacement.
+- tapOn: "Cuenta"
+- extendedWaitUntil:
+    visible: "Añadir cuenta"
+    timeout: 10000
+- scrollUntilVisible:
+    element: "Desliza para ver todas las entidades disponibles"
+    direction: DOWN
+    timeout: 10000
+- tapOn: "Buscar banco"
+- inputText: "Bankinter"
+- hideKeyboard
+- tapOn:
+    id: "bank-institution-bankinter"
+- scrollUntilVisible:
+    element: "Nombre de la cuenta"
+    direction: DOWN
+    timeout: 10000
+- tapOn: "Nombre de cuenta"
+- eraseText
+- inputText: "Bankinter Ahorro"
+- hideKeyboard
+- scrollUntilVisible:
+    element: "Saldo actual"
+    direction: DOWN
+    timeout: 10000
+- tapOn:
+    text: "Saldo actual"
+    index: 1
+- inputText: "50.00"
+- hideKeyboard
+- scrollUntilVisible:
+    element: "Incluir en patrimonio"
+    direction: DOWN
+    timeout: 10000
+- scroll
+- tapOn:
+    id: "money-account-submit"
+- extendedWaitUntil:
+    visible: "Bankinter Ahorro"
+    timeout: 15000
+
+- scrollUntilVisible:
+    element: "PATRIMONIO · OFFLINE-FIRST"
+    direction: UP
+    timeout: 10000
+- extendedWaitUntil:
+    visible: "3 activas"
+    timeout: 15000
+- assertVisible: "1.300,00 €"
+
+# The new savings account is the third card, so archive the third repeated action explicitly.
+- scrollUntilVisible:
+    element: "Bankinter Ahorro"
+    direction: DOWN
+    timeout: 10000
+- tapOn:
+    text: "Archivar"
+    index: 2
+- extendedWaitUntil:
+    visible: "¿Archivar cuenta?"
+    timeout: 10000
+- tapOn: "Archivar"
+- extendedWaitUntil:
+    notVisible: "Bankinter Ahorro"
+    timeout: 15000
+- scrollUntilVisible:
+    element: "Trade Republic"
+    direction: UP
+    timeout: 10000
+- assertVisible: "Trade Republic"
+- scrollUntilVisible:
+    element: "Bankinter Principal"
+    direction: DOWN
+    timeout: 10000
+- assertVisible: "Bankinter Principal"
+
+- scrollUntilVisible:
+    element: "PATRIMONIO · OFFLINE-FIRST"
+    direction: UP
+    timeout: 10000
+- extendedWaitUntil:
+    visible: "2 activas"
+    timeout: 15000
+- assertVisible: "1.250,00 €"
+
+# Broker purpose must still be investment after unrelated balance, metadata, inclusion and archive
+# operations. The history section must remain available after all observations were created.
+- scrollUntilVisible:
+    element: "Trade Republic"
+    direction: DOWN
+    timeout: 10000
+- assertVisible: "Inversión"
+- scrollUntilVisible:
+    element: "Evolución del patrimonio"
+    direction: DOWN
+    timeout: 10000
+- assertVisible: "Últimos 12 meses · snapshots manuales"
+
+# Return to Activity so the original cross-client bridge runs only after the complete money suite.
+- tapOn:
+    id: "tab-activity"
+- extendedWaitUntil:
+    visible: "Your transactions"
+    timeout: 15000

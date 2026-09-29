@@ -9,6 +9,12 @@ InsightKind = Literal[
     "cash_flow",
     "expense_change",
     "category_concentration",
+    "net_worth_liquidity",
+    "investment_share",
+    "emergency_coverage",
+    "net_worth_growth",
+    "opportunity_capital",
+    "account_concentration",
 ]
 InsightPriority = Literal["attention", "positive", "info"]
 MetricFormat = Literal["currency", "percent", "count", "text"]
