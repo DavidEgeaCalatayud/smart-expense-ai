@@ -6,11 +6,29 @@ import subprocess
 import urllib.request
 
 
-REQUIRED = {"Quality gate", "Mobile quality", "Android emulator E2E"}
+# These are GitHub check-run *job* names, not workflow display names. Requiring the jobs directly
+# binds permanent Android distribution to the same exact source SHA that passed product quality,
+# native/cross-client Android, supply-chain security and deterministic benchmark evidence.
+REQUIRED = {
+    "Quality gate",
+    "Mobile quality",
+    "Android emulator E2E",
+    "Image security (backend)",
+    "Image security (frontend)",
+    "Image security (postgres)",
+    "Image security (render-free)",
+    "Backend and frontend CycloneDX SBOMs",
+    "Labelled benchmark integrity",
+    "Cancel-reactivate development diagnostic",
+    "TF-IDF category classification",
+    "Deterministic forecast benchmark",
+    "IsolationForest causal benchmark",
+}
 
 
 def require_checks(checks, sha):
-    # Only the GitHub Actions app can supply these checks. Ignore older reruns.
+    # Only the GitHub Actions app can supply these checks. When a workflow/job is rerun, accept
+    # only its newest check-run id so an older green execution cannot mask a newer red rerun.
     latest = {}
     for check in checks:
         if check.get("head_sha") != sha or check.get("app", {}).get("slug") != "github-actions":
