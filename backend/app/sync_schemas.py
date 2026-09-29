@@ -174,6 +174,15 @@ class FinancialAccountSyncPayload(BaseModel):
         return _require_timezone(value, "balanceUpdatedAt")
 
     @model_validator(mode="after")
+    def classify_broker_as_investment(self) -> "FinancialAccountSyncPayload":
+        # Keep sync-v1 consistent with the REST contract and the Android local model.
+        # A broker is always patrimonial investment capital, regardless of stale/legacy
+        # clients sending opportunities/daily/etc.
+        if self.accountType == "broker":
+            self.purpose = "investment"
+        return self
+
+    @model_validator(mode="after")
     def validate_balance_observation_batch(self) -> "FinancialAccountSyncPayload":
         if not self.balanceObservations:
             return self

@@ -22,6 +22,7 @@ import type { LocalFinancialAccountRow } from '../../database/types';
 import { useConflicts } from '../../sync/useConflicts';
 import { useForegroundSync } from '../../sync/useForegroundSync';
 import { MobileBankLogo, MobileBankPicker } from './bankCatalog';
+import { suggestedMobileAccountNameForInstitution } from './bankCatalogData';
 import { useFinancialAccounts } from './useFinancialAccounts';
 
 const ACCOUNT_TYPES: readonly [FinancialAccountType, string][] = [
@@ -120,6 +121,13 @@ const EMPTY_FORM: AccountFormState = {
   includeInNetWorth: true,
 };
 
+function purposeForType(
+  accountType: FinancialAccountType,
+  requestedPurpose: FinancialAccountPurpose,
+): FinancialAccountPurpose {
+  return accountType === 'broker' ? 'investment' : requestedPurpose;
+}
+
 export function MoneyScreen() {
   const {
     accounts,
@@ -183,7 +191,7 @@ export function MoneyScreen() {
       name: account.name,
       institution: account.institution ?? '',
       accountType: account.account_type,
-      purpose: account.purpose,
+      purpose: purposeForType(account.account_type, account.purpose),
       currentBalance: minorUnitsToDecimal(account.current_balance_minor),
       includeInNetWorth: account.include_in_net_worth === 1,
     });
@@ -192,18 +200,22 @@ export function MoneyScreen() {
 
   const submitForm = async () => {
     try {
+      const normalizedForm = {
+        ...form,
+        purpose: purposeForType(form.accountType, form.purpose),
+      };
       if (formMode === 'create') {
         await create({
-          ...form,
-          institution: form.institution || null,
+          ...normalizedForm,
+          institution: normalizedForm.institution || null,
         });
       } else if (formMode === 'edit' && editingId) {
         await updateMetadata(editingId, {
-          name: form.name,
-          institution: form.institution || null,
-          accountType: form.accountType,
-          purpose: form.purpose,
-          includeInNetWorth: form.includeInNetWorth,
+          name: normalizedForm.name,
+          institution: normalizedForm.institution || null,
+          accountType: normalizedForm.accountType,
+          purpose: normalizedForm.purpose,
+          includeInNetWorth: normalizedForm.includeInNetWorth,
         });
       }
       closeForm();
@@ -344,8 +356,13 @@ export function MoneyScreen() {
                 setForm((current) => ({
                   ...current,
                   institution: bank.name,
-                  name: current.name.trim() ? current.name : bank.name,
+                  name: suggestedMobileAccountNameForInstitution(
+                    current.name,
+                    current.institution,
+                    bank.name,
+                  ),
                   accountType: bank.suggestedType,
+                  purpose: purposeForType(bank.suggestedType, current.purpose),
                 }));
               }}
               onManualChange={(institution) => setForm((current) => ({ ...current, institution }))}
@@ -365,7 +382,11 @@ export function MoneyScreen() {
               {ACCOUNT_TYPES.map(([value, label]) => (
                 <Pressable
                   key={value}
-                  onPress={() => setForm((current) => ({ ...current, accountType: value }))}
+                  onPress={() => setForm((current) => ({
+                    ...current,
+                    accountType: value,
+                    purpose: purposeForType(value, current.purpose),
+                  }))}
                   style={[styles.chip, form.accountType === value && styles.chipActive]}
                 >
                   <Text style={[styles.chipText, form.accountType === value && styles.chipTextActive]}>{label}</Text>
@@ -375,15 +396,31 @@ export function MoneyScreen() {
 
             <Text style={styles.fieldLabel}>Finalidad</Text>
             <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.chips}>
-              {PURPOSES.map(([value, label]) => (
-                <Pressable
-                  key={value}
-                  onPress={() => setForm((current) => ({ ...current, purpose: value }))}
-                  style={[styles.chip, form.purpose === value && styles.chipActive]}
-                >
-                  <Text style={[styles.chipText, form.purpose === value && styles.chipTextActive]}>{label}</Text>
-                </Pressable>
-              ))}
+              {PURPOSES.map(([value, label]) => {
+                const effectivePurpose = purposeForType(form.accountType, form.purpose);
+                const lockedByBroker = form.accountType === 'broker' && value !== 'investment';
+                return (
+                  <Pressable
+                    key={value}
+                    disabled={lockedByBroker}
+                    onPress={() => setForm((current) => ({
+                      ...current,
+                      purpose: purposeForType(current.accountType, value),
+                    }))}
+                    style={[
+                      styles.chip,
+                      effectivePurpose === value && styles.chipActive,
+                      lockedByBroker && styles.chipDisabled,
+                    ]}
+                  >
+                    <Text style={[
+                      styles.chipText,
+                      effectivePurpose === value && styles.chipTextActive,
+                      lockedByBroker && styles.chipTextDisabled,
+                    ]}>{label}</Text>
+                  </Pressable>
+                );
+              })}
             </ScrollView>
 
             {formMode === 'create' ? (
@@ -410,7 +447,12 @@ export function MoneyScreen() {
                 onValueChange={(includeInNetWorth) => setForm((current) => ({ ...current, includeInNetWorth }))}
               />
             </View>
-            <Pressable disabled={busy} onPress={() => void submitForm()} style={styles.primaryButtonWide}>
+            <Pressable
+              testID="money-account-submit"
+              disabled={busy}
+              onPress={() => void submitForm()}
+              style={styles.primaryButtonWide}
+            >
               <Text style={styles.primaryButtonText}>{isSaving ? 'Guardando…' : formMode === 'create' ? 'Añadir cuenta' : 'Guardar cambios'}</Text>
             </Pressable>
           </View>
@@ -473,13 +515,16 @@ export function MoneyScreen() {
               <Text style={styles.muted}>{relativeUpdated(account.balance_updated_at)}</Text>
             </View>
             <View style={styles.actionRow}>
+              <Pressable onPress={() => openEdit(account)} style={styles.secondaryButton}><Text style={styles.secondaryText}>Editar</Text></Pressable>
               <Pressable
-                onPress={() => { setBalanceAccount(account); setNextBalance(minorUnitsToDecimal(account.current_balance_minor)); }}
+                onPress={() => {
+                  setBalanceAccount(account);
+                  setNextBalance(minorUnitsToDecimal(account.current_balance_minor));
+                }}
                 style={styles.primaryButton}
               >
-                <Text style={styles.primaryButtonText}>Saldo</Text>
+                <Text style={styles.primaryButtonText}>Actualizar saldo</Text>
               </Pressable>
-              <Pressable onPress={() => openEdit(account)} style={styles.secondaryButton}><Text style={styles.secondaryText}>Editar</Text></Pressable>
               <Pressable onPress={() => requestArchive(account)} style={styles.archiveButton}><Text style={styles.archiveText}>Archivar</Text></Pressable>
             </View>
           </View>
@@ -487,23 +532,23 @@ export function MoneyScreen() {
 
         <View style={styles.sectionCard}>
           <View style={styles.sectionHeader}>
-            <View>
-              <Text style={styles.sectionTitle}>Evolución del patrimonio</Text>
-              <Text style={styles.muted}>Últimos 12 meses · snapshots manuales</Text>
-            </View>
-            {history.length >= 2 ? (
-              <Text style={[styles.changeText, changeMinor < 0 && styles.negative]}>
-                {changeMinor >= 0 ? '+' : ''}{formatEuro(changeMinor)}
-              </Text>
-            ) : null}
+            <Text style={styles.sectionTitle}>Evolución del patrimonio</Text>
+            <Text style={styles.muted}>Últimos 12 meses · snapshots manuales</Text>
           </View>
           <HistoryBars points={history} />
-          {pendingHistory ? <Text style={styles.pendingNote}>Hay puntos pendientes de sincronizar.</Text> : null}
+          {history.length >= 2 ? (
+            <Text style={[styles.changeText, changeMinor < 0 && styles.negative]}>
+              {changeMinor >= 0 ? '+' : ''}{formatEuro(changeMinor)} desde el primer punto visible
+              {pendingHistory ? ' · incluye cambios pendientes de sincronizar' : ''}
+            </Text>
+          ) : null}
         </View>
 
         <View style={styles.sectionCard}>
           <Text style={styles.sectionTitle}>Cómo se calcula</Text>
-          <Text style={styles.muted}>Disponible = Día a día + Otro. Reservado = Ahorro + Emergencia + Oportunidades. Invertido = Inversión. Todo se calcula en céntimos enteros; la conversión decimal solo se usa para mostrar o sincronizar.</Text>
+          <Text style={styles.muted}>
+            Disponible = Día a día + Otro. Reservado = Ahorro + Emergencia + Oportunidades. Invertido = Inversión. Todo se calcula en céntimos enteros; la conversión decimal solo se usa para mostrar o sincronizar.
+          </Text>
         </View>
       </ScrollView>
     </SafeAreaView>
@@ -511,62 +556,63 @@ export function MoneyScreen() {
 }
 
 const styles = StyleSheet.create({
-  safeArea: { flex: 1, backgroundColor: '#f6f8f7' },
-  content: { padding: 18, paddingBottom: 120, gap: 16 },
-  eyebrow: { color: '#527064', fontSize: 11, fontWeight: '800', letterSpacing: 1.1 },
+  safeArea: { flex: 1, backgroundColor: '#f3f7f5' },
+  content: { paddingHorizontal: 18, paddingBottom: 32, gap: 16 },
   titleRow: { flexDirection: 'row', alignItems: 'flex-start', gap: 12 },
-  title: { fontSize: 31, fontWeight: '800', letterSpacing: -0.8, marginTop: 3 },
-  subtitle: { color: '#596575', fontSize: 14, lineHeight: 20, marginTop: 5 },
-  addButton: { backgroundColor: '#125c47', borderRadius: 16, paddingHorizontal: 14, minHeight: 44, flexDirection: 'row', alignItems: 'center', gap: 4 },
+  eyebrow: { fontSize: 12, fontWeight: '800', letterSpacing: 1.2, color: '#23755f' },
+  title: { fontSize: 32, lineHeight: 38, fontWeight: '900', color: '#0f172a', marginTop: 2 },
+  subtitle: { fontSize: 15, lineHeight: 21, color: '#627068', marginTop: 4 },
+  addButton: { flexDirection: 'row', gap: 4, alignItems: 'center', backgroundColor: '#126b52', paddingHorizontal: 14, paddingVertical: 10, borderRadius: 14 },
   addButtonText: { color: '#fff', fontWeight: '800' },
-  hero: { backgroundColor: '#0f3f34', borderRadius: 28, padding: 22, gap: 10 },
-  heroLabel: { color: '#b9d8cd', fontSize: 11, fontWeight: '800', letterSpacing: 1.2 },
-  heroAmount: { color: '#fff', fontSize: 38, fontWeight: '800', letterSpacing: -1 },
-  breakdownRow: { flexDirection: 'row', gap: 8, marginTop: 8 },
-  breakdownItem: { flex: 1, backgroundColor: 'rgba(255,255,255,0.09)', borderRadius: 14, padding: 10 },
-  breakdownLabel: { color: '#b9d8cd', fontSize: 10, fontWeight: '700' },
-  breakdownValue: { color: '#fff', fontSize: 13, fontWeight: '800', marginTop: 4 },
+  hero: { backgroundColor: '#0f5f49', borderRadius: 24, padding: 22, gap: 14 },
+  heroLabel: { color: '#bce6d9', fontWeight: '800', letterSpacing: 1.1, fontSize: 12 },
+  heroAmount: { color: '#fff', fontWeight: '900', fontSize: 36 },
+  breakdownRow: { flexDirection: 'row', gap: 8 },
+  breakdownItem: { flex: 1, gap: 2 },
+  breakdownLabel: { color: '#bce6d9', fontSize: 11, fontWeight: '700' },
+  breakdownValue: { color: '#fff', fontSize: 14, fontWeight: '800' },
   purposeGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: 10 },
-  purposeCard: { backgroundColor: '#fff', borderRadius: 18, padding: 14, width: '48%', borderWidth: 1, borderColor: '#e3eae6' },
-  purposeLabel: { color: '#68756f', fontSize: 12, fontWeight: '700' },
-  purposeValue: { fontSize: 17, fontWeight: '800', marginTop: 5 },
-  sectionCard: { backgroundColor: '#fff', borderRadius: 22, padding: 17, gap: 12, borderWidth: 1, borderColor: '#e3eae6' },
+  purposeCard: { width: '48%', backgroundColor: '#fff', borderWidth: 1, borderColor: '#dae5df', padding: 14, borderRadius: 16 },
+  purposeLabel: { color: '#6b786f', fontSize: 12, fontWeight: '700' },
+  purposeValue: { color: '#172033', fontSize: 18, fontWeight: '900', marginTop: 3 },
+  sectionCard: { backgroundColor: '#fff', borderWidth: 1, borderColor: '#dce6e0', borderRadius: 20, padding: 16, gap: 12 },
   sectionHeader: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 12 },
-  sectionTitle: { fontSize: 18, fontWeight: '800' },
-  fieldLabel: { color: '#47564f', fontSize: 12, fontWeight: '700', marginTop: 2 },
-  input: { backgroundColor: '#f8faf9', borderWidth: 1, borderColor: '#dce5e0', borderRadius: 14, paddingHorizontal: 14, minHeight: 48, fontSize: 16 },
-  chips: { gap: 8, paddingVertical: 2 },
-  chip: { borderWidth: 1, borderColor: '#d8e1dc', backgroundColor: '#fff', borderRadius: 999, paddingHorizontal: 13, paddingVertical: 9 },
-  chipActive: { backgroundColor: '#dff3e9', borderColor: '#9ecbb9' },
-  chipText: { color: '#596575', fontWeight: '700', fontSize: 12 },
-  chipTextActive: { color: '#125c47' },
-  switchRow: { flexDirection: 'row', alignItems: 'center', gap: 12, paddingVertical: 4 },
-  accountCard: { backgroundColor: '#fff', borderRadius: 22, padding: 17, gap: 13, borderWidth: 1, borderColor: '#e3eae6' },
-  accountTopRow: { flexDirection: 'row', alignItems: 'center', gap: 11 },
-  accountName: { fontSize: 17, fontWeight: '800' },
-  accountAmount: { fontSize: 28, fontWeight: '800', letterSpacing: -0.6 },
-  accountMetaRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', gap: 8 },
-  purposeTag: { color: '#125c47', fontWeight: '800', fontSize: 12, backgroundColor: '#e6f4ee', paddingHorizontal: 10, paddingVertical: 6, borderRadius: 999 },
-  statusPill: { backgroundColor: '#f1f4f2', paddingHorizontal: 8, paddingVertical: 5, borderRadius: 999 },
-  statusText: { color: '#596575', fontSize: 10, fontWeight: '700' },
-  actionRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 8, alignItems: 'center' },
-  balanceHeading: { flexDirection: 'row', alignItems: 'center', gap: 10, flex: 1 },
-  primaryButton: { backgroundColor: '#125c47', borderRadius: 13, minHeight: 42, paddingHorizontal: 14, justifyContent: 'center', alignItems: 'center' },
-  primaryButtonWide: { backgroundColor: '#125c47', borderRadius: 14, minHeight: 48, justifyContent: 'center', alignItems: 'center' },
+  sectionTitle: { color: '#101827', fontSize: 20, fontWeight: '900' },
+  cardTitle: { color: '#172033', fontSize: 14, fontWeight: '800' },
+  fieldLabel: { color: '#263443', fontWeight: '800', fontSize: 13, marginTop: 2 },
+  input: { borderWidth: 1, borderColor: '#d4dfda', borderRadius: 14, paddingHorizontal: 14, paddingVertical: 12, backgroundColor: '#fbfdfc', color: '#13201b' },
+  chips: { gap: 8, paddingRight: 8 },
+  chip: { borderWidth: 1, borderColor: '#cfdad5', paddingHorizontal: 12, paddingVertical: 8, borderRadius: 999 },
+  chipActive: { backgroundColor: '#d9efe7', borderColor: '#126b52' },
+  chipDisabled: { opacity: 0.35 },
+  chipText: { color: '#5c6962', fontWeight: '700' },
+  chipTextActive: { color: '#0f5f49' },
+  chipTextDisabled: { color: '#8d9892' },
+  switchRow: { flexDirection: 'row', alignItems: 'center', gap: 14 },
+  primaryButton: { backgroundColor: '#126b52', paddingHorizontal: 14, paddingVertical: 10, borderRadius: 13, alignSelf: 'flex-start' },
+  primaryButtonWide: { backgroundColor: '#126b52', paddingHorizontal: 14, paddingVertical: 13, borderRadius: 14, alignItems: 'center' },
   primaryButtonText: { color: '#fff', fontWeight: '800' },
-  secondaryButton: { backgroundColor: '#f2f6f4', borderRadius: 13, minHeight: 42, paddingHorizontal: 14, justifyContent: 'center', alignItems: 'center' },
-  secondaryText: { color: '#125c47', fontWeight: '800' },
-  archiveButton: { minHeight: 42, paddingHorizontal: 10, justifyContent: 'center' },
-  archiveText: { color: '#a23939', fontWeight: '700' },
-  emptyCard: { backgroundColor: '#fff', borderRadius: 22, padding: 20, gap: 10, alignItems: 'flex-start', borderWidth: 1, borderColor: '#e3eae6' },
-  cardTitle: { fontWeight: '800', fontSize: 14 },
-  muted: { color: '#65716b', fontSize: 12, lineHeight: 18 },
-  error: { color: '#b42318', backgroundColor: '#fff0ee', borderRadius: 12, padding: 10, fontSize: 12 },
-  conflictCard: { borderTopWidth: 1, borderTopColor: '#edf0ee', paddingTop: 12, gap: 8 },
-  chart: { height: 120, flexDirection: 'row', alignItems: 'flex-end', gap: 4, paddingTop: 8 },
+  secondaryButton: { borderWidth: 1, borderColor: '#b8c9c1', paddingHorizontal: 12, paddingVertical: 9, borderRadius: 12 },
+  secondaryText: { color: '#285d4d', fontWeight: '800' },
+  archiveButton: { paddingHorizontal: 8, paddingVertical: 9 },
+  archiveText: { color: '#ad3535', fontWeight: '800' },
+  emptyCard: { backgroundColor: '#fff', borderWidth: 1, borderColor: '#dce6e0', padding: 20, borderRadius: 20, gap: 12 },
+  accountCard: { backgroundColor: '#fff', borderWidth: 1, borderColor: '#dce6e0', borderRadius: 20, padding: 16, gap: 10 },
+  accountTopRow: { flexDirection: 'row', alignItems: 'center', gap: 12 },
+  accountName: { color: '#111827', fontSize: 18, fontWeight: '900' },
+  accountAmount: { color: '#101827', fontSize: 28, fontWeight: '900' },
+  accountMetaRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', gap: 12 },
+  purposeTag: { backgroundColor: '#e3f3ed', color: '#156148', paddingHorizontal: 10, paddingVertical: 5, borderRadius: 999, fontWeight: '800', fontSize: 12 },
+  statusPill: { backgroundColor: '#eef3f0', borderRadius: 999, paddingHorizontal: 8, paddingVertical: 4 },
+  statusText: { color: '#627068', fontSize: 11, fontWeight: '800' },
+  actionRow: { flexDirection: 'row', flexWrap: 'wrap', alignItems: 'center', gap: 8 },
+  balanceHeading: { flexDirection: 'row', alignItems: 'center', gap: 10, flex: 1 },
+  conflictCard: { backgroundColor: '#fff8eb', borderWidth: 1, borderColor: '#f1d7a7', padding: 12, borderRadius: 14, gap: 8 },
+  muted: { color: '#6b776f', lineHeight: 20 },
+  error: { color: '#a32626', fontWeight: '700' },
+  chart: { height: 130, flexDirection: 'row', alignItems: 'flex-end', gap: 4, paddingTop: 8 },
   chartColumn: { flex: 1, height: '100%', justifyContent: 'flex-end' },
-  chartBar: { minHeight: 5, backgroundColor: '#2c8b6d', borderRadius: 5 },
-  changeText: { color: '#167654', fontWeight: '800' },
-  negative: { color: '#b42318' },
-  pendingNote: { color: '#8b6a24', fontSize: 11, fontWeight: '700' },
+  chartBar: { width: '100%', minWidth: 3, backgroundColor: '#22a27c', borderRadius: 4 },
+  changeText: { color: '#126b52', fontWeight: '800' },
+  negative: { color: '#ad3535' },
 });

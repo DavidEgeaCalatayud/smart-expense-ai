@@ -23,7 +23,9 @@ export function NotificationObserver() {
       const { route, account } = request.content.data ?? {};
       if (seen.has(request.identifier) || account !== user.id) return;
       seen.add(request.identifier);
-      if (route === '/predictions' || route === '/budgets' || route === '/intelligence') router.push(route);
+      if (route === '/predictions' || route === '/budgets' || route === '/intelligence' || route === '/payment-detection') {
+        router.push(route);
+      }
       void Notifications.clearLastNotificationResponseAsync().catch(() => undefined);
     };
     const listener = Notifications.addNotificationResponseReceivedListener(receive);

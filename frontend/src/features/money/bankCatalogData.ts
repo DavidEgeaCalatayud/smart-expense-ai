@@ -24,8 +24,12 @@ export const BANK_INSTITUTIONS: BankInstitution[] = [
   { id: 'ibercaja', name: 'Ibercaja', domain: 'ibercaja.es', aliases: [], suggestedType: 'checking' },
   { id: 'revolut', name: 'Revolut', domain: 'revolut.com', aliases: [], suggestedType: 'wallet' },
   { id: 'n26', name: 'N26', domain: 'n26.com', aliases: [], suggestedType: 'checking' },
+  { id: 'trading-212', name: 'Trading 212', domain: 'trading212.com', aliases: ['trading212', 'trading 212 invest'], suggestedType: 'broker' },
+  { id: 'quantfury', name: 'Quantfury', domain: 'quantfury.com', aliases: ['quant fury'], suggestedType: 'broker' },
   { id: 'trade-republic', name: 'Trade Republic', domain: 'traderepublic.com', aliases: ['trade republic bank'], suggestedType: 'broker' },
   { id: 'myinvestor', name: 'MyInvestor', domain: 'myinvestor.es', aliases: ['my investor'], suggestedType: 'broker' },
+  { id: 'etoro', name: 'eToro', domain: 'etoro.com', aliases: ['e toro', 'etoro money'], suggestedType: 'broker' },
+  { id: 'collectr', name: 'Collectr', domain: 'getcollectr.com', aliases: ['collectr app', 'getcollectr', 'tcg portfolio'], suggestedType: 'broker' },
   { id: 'wise', name: 'Wise', domain: 'wise.com', aliases: ['transferwise'], suggestedType: 'wallet' },
   { id: 'paypal', name: 'PayPal', domain: 'paypal.com', aliases: [], suggestedType: 'wallet' },
 ];

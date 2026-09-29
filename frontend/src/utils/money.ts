@@ -3,7 +3,12 @@ import type { MoneyAmount } from '../types/transactions';
 const MONEY_PATTERN = /^-?\d+(?:\.\d{1,2})?$/;
 
 export function normalizeMoneyAmount(value: string): MoneyAmount {
-  const trimmed = value.trim();
+  const input = value.trim();
+  const commaCount = (input.match(/,/g) ?? []).length;
+  if (commaCount > 1 || (commaCount === 1 && input.includes('.'))) {
+    throw new Error('Money values must use one decimal separator and at most two decimal places.');
+  }
+  const trimmed = commaCount === 1 ? input.replace(',', '.') : input;
   if (!MONEY_PATTERN.test(trimmed)) {
     throw new Error('Money values must use at most two decimal places.');
   }

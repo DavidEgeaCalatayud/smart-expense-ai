@@ -276,9 +276,12 @@ def test_stale_offline_batch_does_not_write_intermediate_history(client: TestCli
     assert created.status_code == 201, created.text
     account_id = created.json()["id"]
 
+    # Broker creation already normalizes purpose to investment, so changing purpose to
+    # investment would be a no-op and would not advance the server version. Change a real
+    # metadata field to guarantee this offline mutation is stale.
     web_update = client.patch(
         f"/api/v2/financial-accounts/{account_id}",
-        json={"purpose": "investment"},
+        json={"institution": "Trade Republic Web"},
     )
     assert web_update.status_code == 200, web_update.text
 

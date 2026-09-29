@@ -15,6 +15,7 @@ from sqlalchemy import (
     Index,
     Numeric,
     String,
+    event,
     func,
     text,
     true,
@@ -93,6 +94,14 @@ class FinancialAccount(Base):
         cascade="all, delete-orphan",
         passive_deletes=True,
     )
+
+
+@event.listens_for(FinancialAccount, "before_insert")
+@event.listens_for(FinancialAccount, "before_update")
+def _normalize_broker_purpose(_mapper: object, _connection: object, account: FinancialAccount) -> None:
+    """Keep REST, sync and any future ORM write path on the same classification invariant."""
+    if account.account_type == "broker":
+        account.purpose = "investment"
 
 
 class FinancialAccountBalanceSnapshot(Base):

@@ -11,6 +11,9 @@ test('email link resets password once and revokes an existing browser session', 
   expect(registration.status()).toBe(201);
   await page.goto('/login');
   await page.getByRole('link', { name: 'Forgot password?' }).click();
+  // React Router can update the URL before the old LoginPage input has unmounted. Waiting
+  // for the destination heading prevents filling the stale login email field.
+  await expect(page.getByRole('heading', { name: 'Forgot password' })).toBeVisible();
   await page.getByLabel('Email', { exact: true }).fill(email);
   await page.getByRole('button', { name: 'Send recovery email' }).click();
   await expect(page.getByRole('status')).toContainText('If an account exists');

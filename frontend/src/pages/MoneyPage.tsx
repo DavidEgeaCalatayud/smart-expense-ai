@@ -10,6 +10,11 @@ import { useCallback, useEffect, useMemo, useState } from 'react';
 import { PageHeader } from '../components/layout/PageHeader';
 import { ApiErrorAlert } from '../components/ui/ApiErrorAlert';
 import { ConfirmDialog } from '../components/ui/ConfirmDialog';
+import {
+  buildFinancialAccountEditPayload,
+  purposeForAccountType,
+  suggestedAccountNameForInstitution,
+} from '../features/money/accountDraft';
 import { BankInstitutionPicker, BankLogo } from '../features/money/bankCatalog';
 import {
   archiveFinancialAccount,
@@ -175,6 +180,7 @@ function AccountForm({
   onCancel: () => void;
 }) {
   const [draft, setDraft] = useState(initial);
+  const effectivePurpose = purposeForAccountType(draft.accountType, draft.purpose);
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/40 p-4 backdrop-blur-sm">
@@ -191,7 +197,7 @@ function AccountForm({
         <form
           onSubmit={(event) => {
             event.preventDefault();
-            void onSubmit(draft);
+            void onSubmit({ ...draft, purpose: effectivePurpose });
           }}
           className="grid gap-4 md:grid-cols-2"
         >
@@ -201,8 +207,13 @@ function AccountForm({
               setDraft((current) => ({
                 ...current,
                 institution: bank.name,
-                name: current.name.trim() ? current.name : bank.name,
+                name: suggestedAccountNameForInstitution(
+                  current.name,
+                  current.institution,
+                  bank.name,
+                ),
                 accountType: bank.suggestedType,
+                purpose: purposeForAccountType(bank.suggestedType, current.purpose),
               }));
             }}
             onManualChange={(institution) => {
@@ -225,7 +236,14 @@ function AccountForm({
             Tipo
             <select
               value={draft.accountType}
-              onChange={(event) => setDraft((current) => ({ ...current, accountType: event.target.value as FinancialAccountType }))}
+              onChange={(event) => {
+                const accountType = event.target.value as FinancialAccountType;
+                setDraft((current) => ({
+                  ...current,
+                  accountType,
+                  purpose: purposeForAccountType(accountType, current.purpose),
+                }));
+              }}
               className="mt-2 w-full rounded-2xl border border-slate-200 px-4 py-3 font-normal"
             >
               {TYPE_OPTIONS.map((option) => <option key={option.value} value={option.value}>{option.label}</option>)}
@@ -234,12 +252,22 @@ function AccountForm({
           <label className="text-sm font-semibold text-slate-700">
             Finalidad
             <select
-              value={draft.purpose}
-              onChange={(event) => setDraft((current) => ({ ...current, purpose: event.target.value as FinancialAccountPurpose }))}
-              className="mt-2 w-full rounded-2xl border border-slate-200 px-4 py-3 font-normal"
+              value={effectivePurpose}
+              disabled={draft.accountType === 'broker'}
+              onChange={(event) => setDraft((current) => ({
+                ...current,
+                purpose: purposeForAccountType(
+                  current.accountType,
+                  event.target.value as FinancialAccountPurpose,
+                ),
+              }))}
+              className="mt-2 w-full rounded-2xl border border-slate-200 px-4 py-3 font-normal disabled:bg-slate-50 disabled:text-slate-500"
             >
               {PURPOSE_OPTIONS.map((option) => <option key={option.value} value={option.value}>{option.label}</option>)}
             </select>
+            {draft.accountType === 'broker' && (
+              <span className="mt-1 block text-xs font-normal text-slate-500">Los brokers siempre se contabilizan como inversión.</span>
+            )}
           </label>
           <label className="text-sm font-semibold text-slate-700">
             Saldo actual
@@ -326,6 +354,7 @@ export function MoneyPage() {
         ...draft,
         name: draft.name.trim(),
         institution: draft.institution.trim(),
+        purpose: purposeForAccountType(draft.accountType, draft.purpose),
         currentBalance: normalizeMoneyAmount(draft.currentBalance),
       });
       setShowCreate(false);
@@ -343,16 +372,7 @@ export function MoneyPage() {
     try {
       setBusy(true);
       setError(null);
-      await updateFinancialAccount(editing.id, {
-        name: draft.name.trim(),
-        institution: draft.institution.trim() || null,
-        accountType: draft.accountType,
-        purpose: draft.purpose,
-        includeInNetWorth: draft.includeInNetWorth,
-      });
-      if (normalizeMoneyAmount(draft.currentBalance) !== editing.currentBalance) {
-        await updateFinancialAccountBalance(editing.id, normalizeMoneyAmount(draft.currentBalance));
-      }
+      await updateFinancialAccount(editing.id, buildFinancialAccountEditPayload(editing, draft));
       setEditing(null);
       setMessage('Cuenta actualizada.');
       await load();
@@ -553,7 +573,7 @@ export function MoneyPage() {
             name: editing.name,
             institution: editing.institution ?? '',
             accountType: editing.accountType,
-            purpose: editing.purpose,
+            purpose: purposeForAccountType(editing.accountType, editing.purpose),
             currentBalance: editing.currentBalance,
             currency: 'EUR',
             includeInNetWorth: editing.includeInNetWorth,

@@ -66,6 +66,8 @@ def account_payload(balance: str, snapshot_id: str | None) -> dict[str, object]:
         "name": "Trade Republic",
         "institution": "Trade Republic",
         "accountType": "broker",
+        # Intentionally send a non-investment purpose to verify the server-side ORM
+        # invariant also protects sync clients, including older app versions.
         "purpose": "opportunities",
         "currentBalance": balance,
         "currency": "EUR",
@@ -141,13 +143,21 @@ def test_offline_account_create_and_balance_update_keep_canonical_snapshot_ids(c
     assert create_push.json()["results"][0]["status"] == "applied"
     assert create_push.json()["results"][0]["serverVersion"] == 1
 
+    accounts_after_create = client.get("/api/v2/financial-accounts")
+    assert accounts_after_create.status_code == 200
+    synced_created = next(item for item in accounts_after_create.json() if item["id"] == account_id)
+    assert synced_created["accountType"] == "broker"
+    assert synced_created["purpose"] == "investment"
+
     pulled = client.get("/api/v2/sync/pull", params={"cursor": cursor, "limit": 100})
     assert pulled.status_code == 200, pulled.text
     created_changes = pulled.json()["changes"]
-    assert any(
-        item["entityType"] == "financial_account" and item["entityId"] == account_id
+    created_account_change = next(
+        item
         for item in created_changes
+        if item["entityType"] == "financial_account" and item["entityId"] == account_id
     )
+    assert created_account_change["payload"]["purpose"] == "investment"
     assert any(
         item["entityType"] == "financial_account_snapshot"
         and item["entityId"] == first_snapshot_id
@@ -182,6 +192,7 @@ def test_offline_account_create_and_balance_update_keep_canonical_snapshot_ids(c
     assert accounts.status_code == 200
     account = next(item for item in accounts.json() if item["id"] == account_id)
     assert account["currentBalance"] == "1250.00"
+    assert account["purpose"] == "investment"
 
     _, latest_cursor = bootstrap_all(client)
     all_changes, _ = bootstrap_all(client)
@@ -226,9 +237,11 @@ def test_financial_account_sync_conflict_and_snapshot_read_only_contract(client:
     assert created.status_code == 200
     assert created.json()["results"][0]["serverVersion"] == 1
 
+    # Broker purpose is already normalized to investment by every ORM write path. Change
+    # institution so the server version definitely advances and the following mutation is stale.
     web_update = client.patch(
         f"/api/v2/financial-accounts/{account_id}",
-        json={"purpose": "investment"},
+        json={"institution": "Trade Republic Web"},
     )
     assert web_update.status_code == 200
 

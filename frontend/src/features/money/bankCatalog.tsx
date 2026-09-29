@@ -19,8 +19,9 @@ export function BankLogo({
   fallbackName: string;
   className?: string;
 }) {
-  const bank = findBankInstitution(institution) ?? findBankInstitution(fallbackName);
-  const [failed, setFailed] = useState(false);
+  const bank = findBankInstitution(fallbackName) ?? findBankInstitution(institution);
+  const [failedDomain, setFailedDomain] = useState<string | null>(null);
+  const failed = bank ? failedDomain === bank.domain : false;
   const initials = (bank?.name ?? fallbackName)
     .split(/\s+/)
     .filter(Boolean)
@@ -44,7 +45,7 @@ export function BankLogo({
         className="h-full w-full object-contain"
         loading="lazy"
         referrerPolicy="no-referrer"
-        onError={() => setFailed(true)}
+        onError={() => setFailedDomain(bank.domain)}
       />
     </div>
   );
@@ -68,7 +69,7 @@ export function BankInstitutionPicker({
       <div className="flex flex-wrap items-end justify-between gap-3">
         <div>
           <p className="text-sm font-semibold text-slate-800">Banco o plataforma</p>
-          <p className="mt-1 text-xs text-slate-500">Busca y selecciona la entidad para mostrar su logo en Mi dinero.</p>
+          <p className="mt-1 text-xs text-slate-500">Puedes añadir tantas cuentas como necesites. Los brokers se clasifican automáticamente como inversión y suman en Invertido.</p>
         </div>
         {selected && (
           <div className="flex items-center gap-2 rounded-xl bg-white px-3 py-2 text-xs font-semibold text-slate-700 shadow-sm">
@@ -83,12 +84,13 @@ export function BankInstitutionPicker({
         <input
           value={query}
           onChange={(event) => setQuery(event.target.value)}
-          placeholder="Buscar Bankinter, imagin, Trade Republic..."
+          placeholder="Buscar Bankinter, eToro, Trading 212..."
           className="w-full rounded-2xl border border-slate-200 bg-white py-3 pl-10 pr-4 text-sm font-normal outline-none focus:border-brand-400"
         />
       </div>
 
-      <div className="mt-3 grid max-h-64 gap-2 overflow-y-auto pr-1 sm:grid-cols-2 lg:grid-cols-3">
+      <p className="mt-2 text-center text-[11px] font-semibold text-slate-500">Desliza para ver todas las entidades disponibles</p>
+      <div className="mt-2 grid max-h-64 gap-2 overflow-y-auto overscroll-contain pr-1 sm:grid-cols-2 lg:grid-cols-3">
         {filtered.map((bank) => {
           const active = selected?.id === bank.id;
           return (
