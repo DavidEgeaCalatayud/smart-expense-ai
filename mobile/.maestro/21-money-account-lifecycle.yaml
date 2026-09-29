@@ -17,12 +17,12 @@ appId: com.davidegea.smartexpenseai
     direction: DOWN
     timeout: 10000
 
-# Update Bankinter specifically. Relational selectors are intentional: generic action labels are
-# repeated once per account and previously allowed Maestro to update the broker by mistake.
+# Account cards are created deterministically by 20-money-workspace: Trade Republic first and
+# Bankinter second. Maestro's Android accessibility tree does not preserve a reliable `below:`
+# relationship between a card title and the action row, so use the explicit repeated-action index.
 - tapOn:
     text: "Actualizar saldo"
-    below:
-      text: "Bankinter"
+    index: 1
 - extendedWaitUntil:
     visible: "Actualizar saldo"
     timeout: 10000
@@ -48,8 +48,7 @@ appId: com.davidegea.smartexpenseai
     timeout: 10000
 - tapOn:
     text: "Editar"
-    below:
-      text: "Bankinter"
+    index: 1
 - extendedWaitUntil:
     visible: "Editar cuenta"
     timeout: 10000
@@ -85,8 +84,7 @@ appId: com.davidegea.smartexpenseai
     timeout: 10000
 - tapOn:
     text: "Editar"
-    below:
-      text: "Bankinter Principal"
+    index: 1
 - extendedWaitUntil:
     visible: "Editar cuenta"
     timeout: 10000
@@ -160,16 +158,15 @@ appId: com.davidegea.smartexpenseai
     timeout: 15000
 - assertVisible: "1.300,00 €"
 
-# Archive only the newly-created second Bankinter account. Because it is the final account card,
-# the relational selector cannot accidentally hit the primary Bankinter or Trade Republic action.
+# Bankinter Ahorro is the third deterministic account card after Trade Republic and Bankinter
+# Principal, so select the third archive action instead of relying on Android's relative tree.
 - scrollUntilVisible:
     element: "Bankinter Ahorro"
     direction: DOWN
     timeout: 10000
 - tapOn:
     text: "Archivar"
-    below:
-      text: "Bankinter Ahorro"
+    index: 2
 - extendedWaitUntil:
     visible: "¿Archivar cuenta?"
     timeout: 10000
