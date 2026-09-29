@@ -61,7 +61,7 @@ appId: com.davidegea.smartexpenseai
     element: "Nombre de la cuenta"
     direction: DOWN
     timeout: 10000
-- tapOn: "Nombre de cuenta"
+- tapOn: "Nombre de la cuenta"
 - eraseText
 - inputText: "Bankinter Ahorro"
 - hideKeyboard
