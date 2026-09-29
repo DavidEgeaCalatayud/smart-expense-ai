@@ -25,11 +25,9 @@ appId: com.davidegea.smartexpenseai
     element: "Saldo actual"
     direction: DOWN
     timeout: 10000
-# Both the field label and TextInput expose "Saldo actual" to accessibility.
-# Index 1 is the editable control; index 0 is the non-clickable Text label.
-- tapOn:
-    text: "Saldo actual"
-    index: 1
+# The current React Native accessibility hierarchy exposes the balance field as
+# one actionable "Saldo actual" node after the institution selection.
+- tapOn: "Saldo actual"
 - inputText: "1000.00"
 - hideKeyboard
 - scrollUntilVisible:
@@ -67,9 +65,7 @@ appId: com.davidegea.smartexpenseai
     element: "Saldo actual"
     direction: DOWN
     timeout: 10000
-- tapOn:
-    text: "Saldo actual"
-    index: 1
+- tapOn: "Saldo actual"
 - inputText: "200.00"
 - hideKeyboard
 - scrollUntilVisible:
