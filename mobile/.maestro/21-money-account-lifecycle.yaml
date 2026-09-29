@@ -13,13 +13,12 @@ appId: com.davidegea.smartexpenseai
     direction: DOWN
     timeout: 10000
 - scrollUntilVisible:
-    element: "Bankinter"
+    element: "Corriente · Bankinter"
     direction: DOWN
     timeout: 10000
 
-# Account cards are created deterministically by 20-money-workspace: Trade Republic first and
-# Bankinter second. Maestro's Android accessibility tree does not preserve a reliable `below:`
-# relationship between a card title and the action row, so use the explicit repeated-action index.
+# Account cards are rendered in creation order. Trade Republic is first and the primary Bankinter
+# is second, so select the second repeated action explicitly instead of relying on viewport state.
 - tapOn:
     text: "Actualizar saldo"
     index: 1
@@ -43,7 +42,7 @@ appId: com.davidegea.smartexpenseai
 # Exercise metadata editing and current inclusion semantics on the same Bankinter account.
 # Excluding it must affect the current total but must not mutate the broker or delete history.
 - scrollUntilVisible:
-    element: "Bankinter"
+    element: "Corriente · Bankinter"
     direction: DOWN
     timeout: 10000
 - tapOn:
@@ -158,8 +157,7 @@ appId: com.davidegea.smartexpenseai
     timeout: 15000
 - assertVisible: "1.300,00 €"
 
-# Bankinter Ahorro is the third deterministic account card after Trade Republic and Bankinter
-# Principal, so select the third archive action instead of relying on Android's relative tree.
+# The new savings account is the third card, so archive the third repeated action explicitly.
 - scrollUntilVisible:
     element: "Bankinter Ahorro"
     direction: DOWN

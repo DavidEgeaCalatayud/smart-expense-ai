@@ -25,11 +25,9 @@ appId: com.davidegea.smartexpenseai
     element: "Saldo actual"
     direction: DOWN
     timeout: 10000
-# Both the field label and TextInput expose "Saldo actual" to accessibility.
-# Index 1 is the editable control; index 0 is the non-clickable Text label.
-- tapOn:
-    text: "Saldo actual"
-    index: 1
+# The current React Native accessibility hierarchy exposes the balance field as
+# one actionable "Saldo actual" node after the institution selection.
+- tapOn: "Saldo actual"
 - inputText: "1000.00"
 - hideKeyboard
 - scrollUntilVisible:
@@ -46,9 +44,6 @@ appId: com.davidegea.smartexpenseai
 - assertVisible: "Inversión"
 
 # A second independent bank account must coexist with the broker.
-# Anchor the scroll on the title-row eyebrow rather than the generic "Mi dinero"
-# label: WorkspaceNav also exposes "Mi dinero" lower in the hierarchy, which can
-# make Maestro stop before the add-account button is actually visible.
 - scrollUntilVisible:
     element: "PATRIMONIO · OFFLINE-FIRST"
     direction: UP
@@ -70,9 +65,7 @@ appId: com.davidegea.smartexpenseai
     element: "Saldo actual"
     direction: DOWN
     timeout: 10000
-- tapOn:
-    text: "Saldo actual"
-    index: 1
+- tapOn: "Saldo actual"
 - inputText: "200.00"
 - hideKeyboard
 - scrollUntilVisible:
@@ -83,27 +76,26 @@ appId: com.davidegea.smartexpenseai
 - tapOn:
     id: "money-account-submit"
 
-# Saving closes the form at its current scroll offset. The two account cards are
-# immediately visible there, while the summary/count remains above the viewport.
-# Assert the second account first, then return to the summary before checking the
-# active count and total. Broker -> Inversión was already asserted immediately
-# after creating Trade Republic, so do not repeat that assertion after a scroll:
-# the purpose label can legitimately be outside Maestro's visible viewport.
+# Saving closes the form at its current scroll offset. Assert both account cards,
+# then use the stable Mi dinero tab to reset the workspace scroll position before
+# validating the summary. This avoids a long scrollUntilVisible over a dynamic
+# ScrollView after the second account is inserted.
 - extendedWaitUntil:
     visible: "Bankinter"
     timeout: 15000
 - assertVisible: "Trade Republic"
-- scrollUntilVisible:
-    element: "PATRIMONIO · OFFLINE-FIRST"
-    direction: UP
-    timeout: 10000
+- tapOn:
+    id: "tab-mi-dinero"
+- extendedWaitUntil:
+    visible: "PATRIMONIO TOTAL"
+    timeout: 15000
 - extendedWaitUntil:
     visible: "2 activas"
     timeout: 15000
 - assertVisible: "1.200,00 €"
 
 # Leave the money workspace in a stable state so the harness can continue into
-# the cross-client tests instead of stopping on viewport-only assertions.
+# the extended account lifecycle and cross-client tests.
 - tapOn:
     id: "tab-activity"
 - extendedWaitUntil:
