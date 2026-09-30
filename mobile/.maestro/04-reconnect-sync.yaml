@@ -14,3 +14,6 @@ appId: com.davidegea.smartexpenseai
     element: "Synced"
     direction: DOWN
     timeout: 30000
+# Freeze the V1 replica before the host advances the server to V2. This prevents foreground
+# synchronization from silently pulling V2 between the host mutation and the stale local edit.
+- stopApp
