@@ -92,6 +92,12 @@ appId: com.davidegea.smartexpenseai
 - tapOn:
     text: "Editar"
     index: 1
+# The account form preserves the list scroll offset. The edit action can open correctly with the
+# heading just above the viewport, so reveal it before asserting that the form is open.
+- scrollUntilVisible:
+    element: "Editar cuenta"
+    direction: UP
+    timeout: 10000
 - extendedWaitUntil:
     visible: "Editar cuenta"
     timeout: 10000
