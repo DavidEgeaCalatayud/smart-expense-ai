@@ -18,9 +18,11 @@ appId: com.davidegea.smartexpenseai
     timeout: 10000
     centerElement: true
 
-# Centering the unique account metadata makes Bankinter the actionable card in the viewport.
-# Relational selectors proved unreliable in Maestro's React Native accessibility tree.
-- tapOn: "Actualizar saldo"
+# Account cards are rendered in creation order. The action labels repeat once per card, so use
+# their explicit occurrence instead of viewport position or React Native relational selectors.
+- tapOn:
+    text: "Actualizar saldo"
+    index: 1
 - extendedWaitUntil:
     visible: "Actualizar saldo"
     timeout: 10000
@@ -43,7 +45,9 @@ appId: com.davidegea.smartexpenseai
     direction: DOWN
     timeout: 10000
     centerElement: true
-- tapOn: "Editar"
+- tapOn:
+    text: "Editar"
+    index: 1
 - extendedWaitUntil:
     visible: "Editar cuenta"
     timeout: 10000
@@ -81,7 +85,9 @@ appId: com.davidegea.smartexpenseai
     direction: DOWN
     timeout: 10000
     centerElement: true
-- tapOn: "Editar"
+- tapOn:
+    text: "Editar"
+    index: 1
 - extendedWaitUntil:
     visible: "Editar cuenta"
     timeout: 10000
@@ -158,7 +164,9 @@ appId: com.davidegea.smartexpenseai
     direction: DOWN
     timeout: 10000
     centerElement: true
-- tapOn: "Archivar"
+- tapOn:
+    text: "Archivar"
+    index: 2
 - extendedWaitUntil:
     visible: "¿Archivar cuenta?"
     timeout: 10000
