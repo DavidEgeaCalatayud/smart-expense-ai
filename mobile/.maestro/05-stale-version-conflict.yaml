@@ -1,11 +1,8 @@
 appId: com.davidegea.smartexpenseai
 ---
-# Flow 04 leaves the app stopped with local V1. The host has advanced the server to V2 while the
-# client cannot synchronize. Enter airplane mode before relaunching so the edit is guaranteed to
-# be based on V1, then restore connectivity and require the real stale_version conflict path.
-- setAirplaneMode: enabled
-- launchApp
-- openLink: "smartexpenseai://transactions"
+# Flow 04 leaves the already-loaded app on the transactions screen with local V1 and airplane mode
+# enabled. The host then advances the server to V2 while the client cannot synchronize. Edit V1
+# locally, restore connectivity, and require the real stale_version conflict path.
 - extendedWaitUntil:
     visible: "Your transactions"
     timeout: 15000
