@@ -16,13 +16,11 @@ appId: com.davidegea.smartexpenseai
     element: "Corriente · Bankinter"
     direction: DOWN
     timeout: 10000
+    centerElement: true
 
-# Account action labels repeat. Anchor each action to the unique balance rendered in the same
-# card so Maestro cannot select Trade Republic when both cards are partially visible.
-- tapOn:
-    text: "Actualizar saldo"
-    below:
-      text: "200,00 €"
+# Centering the unique account metadata makes Bankinter the actionable card in the viewport.
+# Relational selectors proved unreliable in Maestro's React Native accessibility tree.
+- tapOn: "Actualizar saldo"
 - extendedWaitUntil:
     visible: "Actualizar saldo"
     timeout: 10000
@@ -44,10 +42,8 @@ appId: com.davidegea.smartexpenseai
     element: "Corriente · Bankinter"
     direction: DOWN
     timeout: 10000
-- tapOn:
-    text: "Editar"
-    below:
-      text: "250,00 €"
+    centerElement: true
+- tapOn: "Editar"
 - extendedWaitUntil:
     visible: "Editar cuenta"
     timeout: 10000
@@ -84,10 +80,8 @@ appId: com.davidegea.smartexpenseai
     element: "Bankinter Principal"
     direction: DOWN
     timeout: 10000
-- tapOn:
-    text: "Editar"
-    below:
-      text: "250,00 €"
+    centerElement: true
+- tapOn: "Editar"
 - extendedWaitUntil:
     visible: "Editar cuenta"
     timeout: 10000
@@ -163,10 +157,8 @@ appId: com.davidegea.smartexpenseai
     element: "Bankinter Ahorro"
     direction: DOWN
     timeout: 10000
-- tapOn:
-    text: "Archivar"
-    below:
-      text: "50,00 €"
+    centerElement: true
+- tapOn: "Archivar"
 - extendedWaitUntil:
     visible: "¿Archivar cuenta?"
     timeout: 10000
