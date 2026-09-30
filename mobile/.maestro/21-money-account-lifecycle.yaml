@@ -67,6 +67,10 @@ appId: com.davidegea.smartexpenseai
     checked: true
 - tapOn:
     checked: true
+- scrollUntilVisible:
+    element: "Guardar cambios"
+    direction: DOWN
+    timeout: 10000
 - tapOn:
     id: "money-account-submit"
 - extendedWaitUntil:
@@ -99,6 +103,10 @@ appId: com.davidegea.smartexpenseai
     checked: false
 - tapOn:
     checked: false
+- scrollUntilVisible:
+    element: "Guardar cambios"
+    direction: DOWN
+    timeout: 10000
 - tapOn:
     id: "money-account-submit"
 - scrollUntilVisible:
@@ -143,7 +151,10 @@ appId: com.davidegea.smartexpenseai
     element: "Incluir en patrimonio"
     direction: DOWN
     timeout: 10000
-- scroll
+- scrollUntilVisible:
+    element: "Añadir cuenta"
+    direction: DOWN
+    timeout: 10000
 - tapOn:
     id: "money-account-submit"
 - extendedWaitUntil:
