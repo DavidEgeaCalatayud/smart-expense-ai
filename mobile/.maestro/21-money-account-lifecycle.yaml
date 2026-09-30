@@ -17,9 +17,12 @@ appId: com.davidegea.smartexpenseai
     direction: DOWN
     timeout: 10000
 
-# scrollUntilVisible centers the Bankinter metadata row and leaves its action row as the visible
-# target. Maestro indexes only currently exposed matching nodes, so a global index is unstable.
-- tapOn: "Actualizar saldo"
+# Account action labels repeat. Anchor each action to the unique balance rendered in the same
+# card so Maestro cannot select Trade Republic when both cards are partially visible.
+- tapOn:
+    text: "Actualizar saldo"
+    below:
+      text: "200,00 €"
 - extendedWaitUntil:
     visible: "Actualizar saldo"
     timeout: 10000
@@ -37,18 +40,19 @@ appId: com.davidegea.smartexpenseai
     visible: "1.250,00 €"
     timeout: 15000
 
-# After returning to the hero and scrolling back to Bankinter, Maestro exposes only the target
-# card's action row. Do not use a global account index here: indexes are evaluated on visible nodes.
 - scrollUntilVisible:
     element: "Corriente · Bankinter"
     direction: DOWN
     timeout: 10000
-- tapOn: "Editar"
+- tapOn:
+    text: "Editar"
+    below:
+      text: "250,00 €"
 - extendedWaitUntil:
     visible: "Editar cuenta"
     timeout: 10000
 - scrollUntilVisible:
-    element: "Nombre de cuenta"
+    element: "Nombre de la cuenta"
     direction: DOWN
     timeout: 10000
 - tapOn: "Nombre de cuenta"
@@ -80,7 +84,10 @@ appId: com.davidegea.smartexpenseai
     element: "Bankinter Principal"
     direction: DOWN
     timeout: 10000
-- tapOn: "Editar"
+- tapOn:
+    text: "Editar"
+    below:
+      text: "250,00 €"
 - extendedWaitUntil:
     visible: "Editar cuenta"
     timeout: 10000
@@ -156,7 +163,10 @@ appId: com.davidegea.smartexpenseai
     element: "Bankinter Ahorro"
     direction: DOWN
     timeout: 10000
-- tapOn: "Archivar"
+- tapOn:
+    text: "Archivar"
+    below:
+      text: "50,00 €"
 - extendedWaitUntil:
     visible: "¿Archivar cuenta?"
     timeout: 10000
