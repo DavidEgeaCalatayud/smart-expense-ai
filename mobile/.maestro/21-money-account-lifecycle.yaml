@@ -109,20 +109,17 @@ appId: com.davidegea.smartexpenseai
 - extendedWaitUntil:
     visible: "Editar cuenta"
     timeout: 10000
-- scrollUntilVisible:
-    element: "Incluir en patrimonio"
-    direction: DOWN
-    timeout: 10000
-    visibilityPercentage: 50
-    centerElement: true
-# Re-enable the same centered switch. The following 1,250 EUR total is the semantic assertion that
-# the toggle really changed, rather than merely finding some other checked=false accessibility node.
-- tapOn:
-    point: "90%,50%"
+# Position the bottom of the form with a stable submit selector. On this re-enable path Maestro can
+# render the switch fully while failing to satisfy centerElement for its label near the scroll limit.
 - scrollUntilVisible:
     element: "Guardar cambios"
     direction: DOWN
     timeout: 10000
+    centerElement: true
+# In this form state the Android hierarchy contains exactly one checked=true node: the net-worth
+# switch. The following 1,250 EUR assertion remains the semantic proof that it was re-enabled.
+- tapOn:
+    checked: true
 - tapOn:
     id: "money-account-submit"
 - scrollUntilVisible:
