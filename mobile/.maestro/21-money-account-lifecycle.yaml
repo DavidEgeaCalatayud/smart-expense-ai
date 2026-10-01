@@ -69,6 +69,8 @@ appId: com.davidegea.smartexpenseai
     element: "Incluir en patrimonio"
     direction: DOWN
     timeout: 10000
+    visibilityPercentage: 50
+    centerElement: true
 - assertVisible:
     checked: true
 - tapOn:
@@ -111,6 +113,8 @@ appId: com.davidegea.smartexpenseai
     element: "Incluir en patrimonio"
     direction: DOWN
     timeout: 10000
+    visibilityPercentage: 50
+    centerElement: true
 - assertVisible:
     checked: false
 - tapOn:
@@ -163,6 +167,8 @@ appId: com.davidegea.smartexpenseai
     element: "Incluir en patrimonio"
     direction: DOWN
     timeout: 10000
+    visibilityPercentage: 50
+    centerElement: true
 - scrollUntilVisible:
     element: "Añadir cuenta"
     direction: DOWN
