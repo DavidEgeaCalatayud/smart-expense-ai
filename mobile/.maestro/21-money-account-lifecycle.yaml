@@ -227,6 +227,14 @@ appId: com.davidegea.smartexpenseai
     element: "Trade Republic"
     direction: DOWN
     timeout: 10000
+# The card title can be visible while the lower purpose row is still below the viewport. Scroll to
+# the purpose itself so the broker invariant is asserted against a rendered accessibility node.
+- scrollUntilVisible:
+    element: "Inversión"
+    direction: DOWN
+    timeout: 10000
+    visibilityPercentage: 50
+    centerElement: true
 - assertVisible: "Inversión"
 - scrollUntilVisible:
     element: "Evolución del patrimonio"
