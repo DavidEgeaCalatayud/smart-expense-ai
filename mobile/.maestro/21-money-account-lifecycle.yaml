@@ -71,10 +71,10 @@ appId: com.davidegea.smartexpenseai
     timeout: 10000
     visibilityPercentage: 50
     centerElement: true
-- assertVisible:
-    checked: true
+# The label is centered by the previous command. Tap the switch at the right edge of the same row
+# instead of matching a generic checked node from the Android accessibility tree.
 - tapOn:
-    checked: true
+    point: "90%,50%"
 - scrollUntilVisible:
     element: "Guardar cambios"
     direction: DOWN
@@ -115,10 +115,10 @@ appId: com.davidegea.smartexpenseai
     timeout: 10000
     visibilityPercentage: 50
     centerElement: true
-- assertVisible:
-    checked: false
+# Re-enable the same centered switch. The following 1,250 EUR total is the semantic assertion that
+# the toggle really changed, rather than merely finding some other checked=false accessibility node.
 - tapOn:
-    checked: false
+    point: "90%,50%"
 - scrollUntilVisible:
     element: "Guardar cambios"
     direction: DOWN
