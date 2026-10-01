@@ -1,0 +1,56 @@
+name: Temporary money switch fix
+
+on:
+  push:
+    branches: [release/v1-readiness]
+    paths:
+      - .github/workflows/temporary-money-switch-fix.yml
+      - mobile/src/features/money/MoneyScreen.tsx
+      - mobile/.maestro/21-money-account-lifecycle.yaml
+
+permissions:
+  contents: write
+
+jobs:
+  patch:
+    if: github.event.head_commit.message != 'test(android): target net worth switch deterministically'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+        with:
+          ref: release/v1-readiness
+      - name: Apply exact accessibility and Maestro selectors
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+
+          screen_path = Path('mobile/src/features/money/MoneyScreen.tsx')
+          screen = screen_path.read_text()
+          old_switch = '''              <Switch\n                value={form.includeInNetWorth}\n                onValueChange={(includeInNetWorth) => setForm((current) => ({ ...current, includeInNetWorth }))}\n              />'''
+          new_switch = '''              <Switch\n                testID="money-account-include-net-worth"\n                accessibilityLabel="Incluir en patrimonio"\n                value={form.includeInNetWorth}\n                onValueChange={(includeInNetWorth) => setForm((current) => ({ ...current, includeInNetWorth }))}\n              />'''
+          if screen.count(old_switch) != 1:
+              raise SystemExit(f'Expected exactly one net-worth switch, found {screen.count(old_switch)}')
+          screen_path.write_text(screen.replace(old_switch, new_switch))
+
+          flow_path = Path('mobile/.maestro/21-money-account-lifecycle.yaml')
+          flow = flow_path.read_text()
+          replacements = {
+              '''- assertVisible:\n    checked: true\n- tapOn:\n    checked: true''': '''- assertVisible:\n    id: "money-account-include-net-worth"\n    checked: true\n- tapOn:\n    id: "money-account-include-net-worth"\n- assertVisible:\n    id: "money-account-include-net-worth"\n    checked: false''',
+              '''- assertVisible:\n    checked: false\n- tapOn:\n    checked: false''': '''- assertVisible:\n    id: "money-account-include-net-worth"\n    checked: false\n- tapOn:\n    id: "money-account-include-net-worth"\n- assertVisible:\n    id: "money-account-include-net-worth"\n    checked: true''',
+          }
+          for old, new in replacements.items():
+              if flow.count(old) != 1:
+                  raise SystemExit(f'Expected exactly one selector block: {old!r}; found {flow.count(old)}')
+              flow = flow.replace(old, new)
+          flow_path.write_text(flow)
+          PY
+          git diff --check
+          grep -n 'money-account-include-net-worth' mobile/src/features/money/MoneyScreen.tsx mobile/.maestro/21-money-account-lifecycle.yaml
+      - name: Commit deterministic selector fix
+        run: |
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add mobile/src/features/money/MoneyScreen.tsx mobile/.maestro/21-money-account-lifecycle.yaml
+          git diff --cached --exit-code && { echo 'No changes to commit'; exit 1; } || true
+          git commit -m 'test(android): target net worth switch deterministically'
+          git push origin HEAD:release/v1-readiness
