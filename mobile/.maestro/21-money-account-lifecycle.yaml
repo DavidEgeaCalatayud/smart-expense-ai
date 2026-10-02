@@ -116,10 +116,11 @@ appId: com.davidegea.smartexpenseai
     direction: DOWN
     timeout: 10000
     centerElement: true
-# In this form state the Android hierarchy contains exactly one checked=true node: the net-worth
-# switch. The following 1,250 EUR assertion remains the semantic proof that it was re-enabled.
+# After the previous save this form's net-worth switch is OFF. React Native exposes the Switch as
+# the only Android node with checked=false here, so target that state directly instead of the old
+# checked=true selector, which could hit another selected control and leave the total unchanged.
 - tapOn:
-    checked: true
+    checked: false
 - tapOn:
     id: "money-account-submit"
 - scrollUntilVisible:
