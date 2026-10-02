@@ -443,6 +443,7 @@ export function MoneyScreen() {
                 <Text style={styles.muted}>Desactívalo para cuentas informativas que no quieras sumar.</Text>
               </View>
               <Switch
+                testID="money-include-net-worth-switch"
                 value={form.includeInNetWorth}
                 onValueChange={(includeInNetWorth) => setForm((current) => ({ ...current, includeInNetWorth }))}
               />
