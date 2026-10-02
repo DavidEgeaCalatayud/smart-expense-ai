@@ -16,9 +16,10 @@ appId: com.davidegea.smartexpenseai
     element: "Corriente · Bankinter"
     direction: DOWN
     timeout: 10000
+    centerElement: true
 
-# Account cards are rendered in creation order. Trade Republic is first and the primary Bankinter
-# is second, so select the second repeated action explicitly instead of relying on viewport state.
+# Account cards are rendered in creation order. The action labels repeat once per card, so use
+# their explicit occurrence instead of viewport position or React Native relational selectors.
 - tapOn:
     text: "Actualizar saldo"
     index: 1
@@ -39,18 +40,30 @@ appId: com.davidegea.smartexpenseai
     visible: "1.250,00 €"
     timeout: 15000
 
-# Exercise metadata editing and current inclusion semantics on the same Bankinter account.
-# Excluding it must affect the current total but must not mutate the broker or delete history.
 - scrollUntilVisible:
     element: "Corriente · Bankinter"
     direction: DOWN
     timeout: 10000
+    centerElement: true
 - tapOn:
     text: "Editar"
     index: 1
+# The account form preserves the list scroll offset. Reveal its heading before asserting the form
+# is open; otherwise the edit can succeed while "Editar cuenta" remains above the viewport.
+- scrollUntilVisible:
+    element: "Editar cuenta"
+    direction: UP
+    timeout: 10000
 - extendedWaitUntil:
     visible: "Editar cuenta"
     timeout: 10000
+# Target the TextInput accessibility label itself, not the nearby field label. This guarantees the
+# editable node is actually in the viewport before Maestro taps it.
+- scrollUntilVisible:
+    element: "Nombre de cuenta"
+    direction: DOWN
+    timeout: 10000
+    centerElement: true
 - tapOn: "Nombre de cuenta"
 - eraseText
 - inputText: "Bankinter Principal"
@@ -59,10 +72,15 @@ appId: com.davidegea.smartexpenseai
     element: "Incluir en patrimonio"
     direction: DOWN
     timeout: 10000
-- assertVisible:
-    checked: true
+    visibilityPercentage: 50
+# Use the explicit React Native testID rather than viewport coordinates or the generic checked
+# attribute: several unrelated Android nodes expose checked=false.
 - tapOn:
-    checked: true
+    id: "money-include-net-worth-switch"
+- scrollUntilVisible:
+    element: "Guardar cambios"
+    direction: DOWN
+    timeout: 10000
 - tapOn:
     id: "money-account-submit"
 - extendedWaitUntil:
@@ -76,14 +94,20 @@ appId: com.davidegea.smartexpenseai
     visible: "1.000,00 €"
     timeout: 15000
 
-# Re-include the edited account so the subsequent same-bank test starts again at 1,250 EUR.
 - scrollUntilVisible:
     element: "Bankinter Principal"
     direction: DOWN
     timeout: 10000
+    centerElement: true
 - tapOn:
     text: "Editar"
     index: 1
+# The account form preserves the list scroll offset. The edit action can open correctly with the
+# heading just above the viewport, so reveal it before asserting that the form is open.
+- scrollUntilVisible:
+    element: "Editar cuenta"
+    direction: UP
+    timeout: 10000
 - extendedWaitUntil:
     visible: "Editar cuenta"
     timeout: 10000
@@ -91,10 +115,13 @@ appId: com.davidegea.smartexpenseai
     element: "Incluir en patrimonio"
     direction: DOWN
     timeout: 10000
-- assertVisible:
-    checked: false
+    visibilityPercentage: 50
 - tapOn:
-    checked: false
+    id: "money-include-net-worth-switch"
+- scrollUntilVisible:
+    element: "Guardar cambios"
+    direction: DOWN
+    timeout: 10000
 - tapOn:
     id: "money-account-submit"
 - scrollUntilVisible:
@@ -105,8 +132,6 @@ appId: com.davidegea.smartexpenseai
     visible: "1.250,00 €"
     timeout: 15000
 
-# Add a second independent account from the same institution. This guards against accidental
-# institution-level uniqueness or account replacement.
 - tapOn: "Cuenta"
 - extendedWaitUntil:
     visible: "Añadir cuenta"
@@ -120,10 +145,13 @@ appId: com.davidegea.smartexpenseai
 - hideKeyboard
 - tapOn:
     id: "bank-institution-bankinter"
+# The field label can become visible while the TextInput remains below the viewport. Scroll to the
+# input's accessibility label so the next tap cannot race an off-screen editable node.
 - scrollUntilVisible:
-    element: "Nombre de la cuenta"
+    element: "Nombre de cuenta"
     direction: DOWN
     timeout: 10000
+    centerElement: true
 - tapOn: "Nombre de cuenta"
 - eraseText
 - inputText: "Bankinter Ahorro"
@@ -141,7 +169,12 @@ appId: com.davidegea.smartexpenseai
     element: "Incluir en patrimonio"
     direction: DOWN
     timeout: 10000
-- scroll
+    visibilityPercentage: 50
+    centerElement: true
+- scrollUntilVisible:
+    element: "Añadir cuenta"
+    direction: DOWN
+    timeout: 10000
 - tapOn:
     id: "money-account-submit"
 - extendedWaitUntil:
@@ -157,11 +190,11 @@ appId: com.davidegea.smartexpenseai
     timeout: 15000
 - assertVisible: "1.300,00 €"
 
-# The new savings account is the third card, so archive the third repeated action explicitly.
 - scrollUntilVisible:
     element: "Bankinter Ahorro"
     direction: DOWN
     timeout: 10000
+    centerElement: true
 - tapOn:
     text: "Archivar"
     index: 2
@@ -192,12 +225,18 @@ appId: com.davidegea.smartexpenseai
     timeout: 15000
 - assertVisible: "1.250,00 €"
 
-# Broker purpose must still be investment after unrelated balance, metadata, inclusion and archive
-# operations. The history section must remain available after all observations were created.
 - scrollUntilVisible:
     element: "Trade Republic"
     direction: DOWN
     timeout: 10000
+# The card title can be visible while the lower purpose row is still below the viewport. Scroll to
+# the purpose itself so the broker invariant is asserted against a rendered accessibility node.
+- scrollUntilVisible:
+    element: "Inversión"
+    direction: DOWN
+    timeout: 10000
+    visibilityPercentage: 50
+    centerElement: true
 - assertVisible: "Inversión"
 - scrollUntilVisible:
     element: "Evolución del patrimonio"
@@ -205,7 +244,8 @@ appId: com.davidegea.smartexpenseai
     timeout: 10000
 - assertVisible: "Últimos 12 meses · snapshots manuales"
 
-# Return to Activity so the original cross-client bridge runs only after the complete money suite.
+# Return to Activity only after the complete money lifecycle has passed; the cross-client bridge
+# starts after this flow and therefore cannot hide a partial Mi dinero run.
 - tapOn:
     id: "tab-activity"
 - extendedWaitUntil:

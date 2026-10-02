@@ -1,7 +1,11 @@
 appId: com.davidegea.smartexpenseai
 ---
-# Keep the foreground replica left by 04-reconnect-sync at V1. The host-side helper has advanced
-# the server to V2; relaunching here would mount useForegroundSync and pull V2 before the stale edit.
+# Flow 04 leaves the already-loaded app on the transactions screen with local V1 and airplane mode
+# enabled. The host then advances the server to V2 while the client cannot synchronize. Edit V1
+# locally, restore connectivity, and require the real stale_version conflict path.
+- extendedWaitUntil:
+    visible: "Your transactions"
+    timeout: 15000
 - scrollUntilVisible:
     element: "Offline Coffee"
     direction: DOWN
@@ -22,6 +26,18 @@ appId: com.davidegea.smartexpenseai
     direction: DOWN
     timeout: 10000
 - tapOn: "Save changes"
+- extendedWaitUntil:
+    visible: "Local Coffee"
+    timeout: 15000
+- scrollUntilVisible:
+    element: "Pending sync"
+    direction: DOWN
+    timeout: 15000
+- assertVisible: "Pending sync"
+- setAirplaneMode: disabled
+- extendedWaitUntil:
+    visible: "Online"
+    timeout: 30000
 - scrollUntilVisible:
     element: "Conflicts need a decision"
     direction: UP
