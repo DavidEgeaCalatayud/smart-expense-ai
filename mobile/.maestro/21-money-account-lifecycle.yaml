@@ -70,11 +70,10 @@ appId: com.davidegea.smartexpenseai
     direction: DOWN
     timeout: 10000
     visibilityPercentage: 50
-    centerElement: true
-# The label is centered by the previous command. Tap the switch at the right edge of the same row
-# instead of matching a generic checked node from the Android accessibility tree.
+# Use the explicit React Native testID rather than viewport coordinates or the generic checked
+# attribute: several unrelated Android nodes expose checked=false.
 - tapOn:
-    point: "90%,50%"
+    id: "money-include-net-worth-switch"
 - scrollUntilVisible:
     element: "Guardar cambios"
     direction: DOWN
@@ -109,18 +108,17 @@ appId: com.davidegea.smartexpenseai
 - extendedWaitUntil:
     visible: "Editar cuenta"
     timeout: 10000
-# Position the bottom of the form with a stable submit selector. On this re-enable path Maestro can
-# render the switch fully while failing to satisfy centerElement for its label near the scroll limit.
+- scrollUntilVisible:
+    element: "Incluir en patrimonio"
+    direction: DOWN
+    timeout: 10000
+    visibilityPercentage: 50
+- tapOn:
+    id: "money-include-net-worth-switch"
 - scrollUntilVisible:
     element: "Guardar cambios"
     direction: DOWN
     timeout: 10000
-    centerElement: true
-# After the previous save this form's net-worth switch is OFF. React Native exposes the Switch as
-# the only Android node with checked=false here, so target that state directly instead of the old
-# checked=true selector, which could hit another selected control and leave the total unchanged.
-- tapOn:
-    checked: false
 - tapOn:
     id: "money-account-submit"
 - scrollUntilVisible:
