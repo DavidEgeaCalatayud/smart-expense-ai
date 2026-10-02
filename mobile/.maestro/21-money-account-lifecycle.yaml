@@ -57,10 +57,13 @@ appId: com.davidegea.smartexpenseai
 - extendedWaitUntil:
     visible: "Editar cuenta"
     timeout: 10000
+# Target the TextInput accessibility label itself, not the nearby field label. This guarantees the
+# editable node is actually in the viewport before Maestro taps it.
 - scrollUntilVisible:
-    element: "Nombre de la cuenta"
+    element: "Nombre de cuenta"
     direction: DOWN
     timeout: 10000
+    centerElement: true
 - tapOn: "Nombre de cuenta"
 - eraseText
 - inputText: "Bankinter Principal"
@@ -142,10 +145,13 @@ appId: com.davidegea.smartexpenseai
 - hideKeyboard
 - tapOn:
     id: "bank-institution-bankinter"
+# The field label can become visible while the TextInput remains below the viewport. Scroll to the
+# input's accessibility label so the next tap cannot race an off-screen editable node.
 - scrollUntilVisible:
-    element: "Nombre de la cuenta"
+    element: "Nombre de cuenta"
     direction: DOWN
     timeout: 10000
+    centerElement: true
 - tapOn: "Nombre de cuenta"
 - eraseText
 - inputText: "Bankinter Ahorro"
