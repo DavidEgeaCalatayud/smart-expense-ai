@@ -2,6 +2,10 @@
 
 ## Current boundary
 
+The current candidate and permanent-signing workflow are documented in
+[v1-release-status.md](v1-release-status.md). Candidate Android version is `1.0.0-rc.1`,
+versionCode `4`. Physical acceptance remains pending until recorded against the exact build.
+
 The HTTPS backend is deployed at `https://smart-expense-free.onrender.com`, backed by Neon PostgreSQL. PR #103 records the live API, authentication, synchronization, deletion and redeployment-persistence checks. A linked EAS project and permanent Android signing identity are still pending. Native/cross-client E2E alone does not establish that an official signed release has been delivered.
 
 | Artifact | Purpose | Distribution |

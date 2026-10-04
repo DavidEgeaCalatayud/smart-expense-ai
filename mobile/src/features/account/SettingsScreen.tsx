@@ -24,7 +24,7 @@ export function SettingsScreen() {
       <Text style={s.body}>Your account records and reports use euros. Amounts are shown in the account currency without exchange-rate conversion.</Text></View>
     <NotificationSettings />
     <View style={s.card}><Text style={s.sectionTitle}>About</Text>
-      <Text style={s.cardTitle}>Smart Expense AI</Text><Text style={s.body}>Version {Constants.expoConfig?.version ?? '0.4.0'}</Text>
+      <Text style={s.cardTitle}>Smart Expense AI</Text><Text style={s.body}>Version {Constants.expoConfig?.version ?? 'unknown'}</Text>
       <Pressable accessibilityRole="link" style={s.secondaryButton} onPress={() => void Linking.openURL('https://github.com/DavidEgeaCalatayud/smart-expense-ai/blob/main/docs/privacy.md').catch(() => setError('Connect to open the privacy information.'))}><Text>Privacy and data handling</Text></Pressable>
       <Link href="/account" style={{ color: '#125c47', paddingVertical: 12 }}>Account, data export and deletion →</Link>
     </View>

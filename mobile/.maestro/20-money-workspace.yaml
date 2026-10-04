@@ -76,13 +76,16 @@ appId: com.davidegea.smartexpenseai
 - tapOn:
     id: "money-account-submit"
 
-# Saving closes the form at its current scroll offset. Assert both account cards,
-# then use the stable Mi dinero tab to reset the workspace scroll position before
-# validating the summary. This avoids a long scrollUntilVisible over a dynamic
-# ScrollView after the second account is inserted.
+# Saving closes the form at its current scroll offset. Bankinter is visible at
+# that offset; scroll upward to prove the existing broker card still coexists
+# before resetting the workspace via its stable tab and validating the summary.
 - extendedWaitUntil:
     visible: "Bankinter"
     timeout: 15000
+- scrollUntilVisible:
+    element: "Trade Republic"
+    direction: UP
+    timeout: 10000
 - assertVisible: "Trade Republic"
 - tapOn:
     id: "tab-mi-dinero"
