@@ -1,6 +1,6 @@
 import type { FinancialAccountPurpose, FinancialAccountType } from '@smart-expense-ai/api-contracts';
 import { minorUnitsToDecimal } from '@smart-expense-ai/domain-types';
-import { useMemo, useState } from 'react';
+import { useCallback, useMemo, useState } from 'react';
 
 import Ionicons from '../../ui/Icon';
 import {
@@ -24,6 +24,7 @@ import { useForegroundSync } from '../../sync/useForegroundSync';
 import { MobileBankLogo, MobileBankPicker } from './bankCatalog';
 import { suggestedMobileAccountNameForInstitution } from './bankCatalogData';
 import { useFinancialAccounts } from './useFinancialAccounts';
+import { InvestmentSection } from './InvestmentSection';
 
 const ACCOUNT_TYPES: readonly [FinancialAccountType, string][] = [
   ['checking', 'Corriente'],
@@ -154,6 +155,11 @@ export function MoneyScreen() {
     await reload();
     await reloadConflicts();
   });
+
+  const refreshInvestmentServerState = useCallback(async () => {
+    await refreshHealth();
+    await syncNow();
+  }, [refreshHealth, syncNow]);
 
   const [formMode, setFormMode] = useState<'closed' | 'create' | 'edit'>('closed');
   const [editingId, setEditingId] = useState<string | null>(null);
@@ -310,6 +316,8 @@ export function MoneyScreen() {
           <View style={styles.purposeCard}><Text style={styles.purposeLabel}>Emergencia</Text><Text style={styles.purposeValue}>{formatEuro(summary.emergencyFund)}</Text></View>
           <View style={styles.purposeCard}><Text style={styles.purposeLabel}>Oportunidades</Text><Text style={styles.purposeValue}>{formatEuro(summary.opportunities)}</Text></View>
         </View>
+
+        <InvestmentSection accounts={accounts} onServerChanged={refreshInvestmentServerState} />
 
         {accountConflicts.length > 0 ? (
           <View style={styles.sectionCard}>

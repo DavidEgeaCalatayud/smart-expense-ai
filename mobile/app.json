@@ -2,7 +2,7 @@
   "expo": {
     "name": "Smart Expense AI",
     "slug": "smart-expense-ai-mobile",
-    "version": "1.0.0-rc.1",
+    "version": "1.0.0-rc.2",
     "orientation": "portrait",
     "scheme": "smartexpenseai",
     "icon": "./assets/icon.png",
@@ -10,7 +10,7 @@
     "newArchEnabled": true,
     "android": {
       "package": "com.davidegea.smartexpenseai",
-      "versionCode": 4,
+      "versionCode": 5,
       "icon": "./assets/icon.png",
       "adaptiveIcon": {
         "foregroundImage": "./assets/icon.png",
