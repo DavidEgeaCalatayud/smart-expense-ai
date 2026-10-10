@@ -3,6 +3,7 @@ import { useCallback, useEffect, useMemo, useState } from 'react';
 
 import type { FinancialAccount } from '../../types/financialAccounts';
 import type {
+  InvestmentMovement,
   InvestmentMovementType,
   InvestmentPortfolio,
   InvestmentPortfolioHistory,
@@ -12,6 +13,7 @@ import type {
 import {
   createInvestmentPosition,
   fetchInvestmentHistory,
+  fetchInvestmentMovements,
   fetchInvestmentPortfolios,
   refreshInvestmentNavs,
   updateInvestmentHoldings,
@@ -35,6 +37,15 @@ const MOVEMENT_OPTIONS: { value: InvestmentMovementType; label: string }[] = [
   { value: 'adjustment', label: 'Ajuste' },
 ];
 
+const MOVEMENT_LABELS: Record<InvestmentMovement['movementType'], string> = {
+  initial: 'Posición inicial',
+  contribution: 'Aportación',
+  sale: 'Venta',
+  transfer_in: 'Traspaso de entrada',
+  transfer_out: 'Traspaso de salida',
+  adjustment: 'Ajuste',
+};
+
 function formatEuro(value: string): string {
   return new Intl.NumberFormat('es-ES', {
     style: 'currency',
@@ -50,6 +61,16 @@ function formatPercent(value: string | null): string {
     minimumFractionDigits: 2,
     maximumFractionDigits: 2,
   })} %`;
+}
+
+function formatAverageCost(position: InvestmentPosition): string {
+  const units = Number(position.units);
+  if (!Number.isFinite(units) || units <= 0) return '—';
+  const average = Number(position.costTotal) / units;
+  return `${average.toLocaleString('es-ES', {
+    minimumFractionDigits: 2,
+    maximumFractionDigits: 6,
+  })} €/part.`;
 }
 
 function normalizeUnits(value: string): string {
@@ -243,6 +264,8 @@ export function InvestmentPortfolioSection({
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<ApiErrorPresentation | null>(null);
   const [refreshNote, setRefreshNote] = useState('');
+  const [movementHistory, setMovementHistory] = useState<Record<string, InvestmentMovement[]>>({});
+  const [movementLoading, setMovementLoading] = useState<string | null>(null);
 
   const load = useCallback(async (selectedRange: InvestmentRange = range) => {
     const result = await fetchInvestmentPortfolios();
@@ -309,6 +332,27 @@ export function InvestmentPortfolioSection({
     }
   };
 
+  const toggleMovements = async (positionId: string) => {
+    if (movementHistory[positionId]) {
+      setMovementHistory((current) => {
+        const next = { ...current };
+        delete next[positionId];
+        return next;
+      });
+      return;
+    }
+    try {
+      setMovementLoading(positionId);
+      setError(null);
+      const rows = await fetchInvestmentMovements(positionId);
+      setMovementHistory((current) => ({ ...current, [positionId]: rows }));
+    } catch (caught) {
+      setError(getApiErrorPresentation(caught, 'No se pudieron cargar los movimientos de la posición.'));
+    } finally {
+      setMovementLoading(null);
+    }
+  };
+
   return (
     <section className="mb-8 rounded-3xl border border-slate-200 bg-white p-6 shadow-soft">
       <div className="flex flex-wrap items-start justify-between gap-4">
@@ -357,7 +401,12 @@ export function InvestmentPortfolioSection({
                       <p className="font-bold text-slate-950">{position.name}</p>
                       <p className="mt-1 font-mono text-xs text-slate-500">{position.isin}</p>
                     </div>
-                    <button type="button" onClick={() => setEditing(position)} className="rounded-xl border border-slate-200 bg-white px-3 py-1.5 text-xs font-semibold text-slate-600">Participaciones</button>
+                    <div className="flex flex-wrap justify-end gap-2">
+                      <button type="button" onClick={() => void toggleMovements(position.id)} className="rounded-xl border border-slate-200 bg-white px-3 py-1.5 text-xs font-semibold text-slate-600">
+                        {movementHistory[position.id] ? 'Ocultar movimientos' : 'Movimientos'}
+                      </button>
+                      <button type="button" onClick={() => setEditing(position)} className="rounded-xl border border-slate-200 bg-white px-3 py-1.5 text-xs font-semibold text-slate-600">Participaciones</button>
+                    </div>
                   </div>
                   <div className="mt-4 flex items-end justify-between gap-4">
                     <div>
@@ -369,6 +418,7 @@ export function InvestmentPortfolioSection({
                     <div className="text-right text-xs text-slate-500">
                       <p>{position.units} participaciones</p>
                       <p>Coste {formatEuro(position.costTotal)}</p>
+                      <p>Coste medio {formatAverageCost(position)}</p>
                     </div>
                   </div>
                   <div className="mt-3 border-t border-slate-200 pt-3 text-xs text-slate-500">
@@ -383,6 +433,28 @@ export function InvestmentPortfolioSection({
                       <p>VL pendiente · valor provisional = coste aportado.</p>
                     )}
                   </div>
+                  {movementLoading === position.id && (
+                    <p className="mt-3 text-xs font-medium text-slate-500">Cargando movimientos…</p>
+                  )}
+                  {movementHistory[position.id] && (
+                    <div className="mt-3 space-y-2 border-t border-slate-200 pt-3">
+                      {movementHistory[position.id]!.map((movement) => (
+                        <div key={movement.id} className="flex items-start justify-between gap-4 rounded-xl bg-white px-3 py-2 text-xs">
+                          <div>
+                            <p className="font-semibold text-slate-700">{MOVEMENT_LABELS[movement.movementType]}</p>
+                            <p className="text-slate-500">
+                              {new Intl.DateTimeFormat('es-ES').format(new Date(movement.occurredAt))}
+                              {movement.note ? ` · ${movement.note}` : ''}
+                            </p>
+                          </div>
+                          <div className="text-right text-slate-500">
+                            <p className="font-semibold text-slate-700">{movement.unitsAfter} part.</p>
+                            <p>{formatEuro(movement.costTotalAfter)}</p>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  )}
                 </div>
               ))}
             </div>
