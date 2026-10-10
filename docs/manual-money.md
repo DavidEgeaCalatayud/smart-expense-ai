@@ -1,6 +1,6 @@
 # Mi dinero: cuentas manuales y patrimonio
 
-`Mi dinero` reúne saldos que el usuario mantiene manualmente en bancos, brokers, wallets, efectivo u otros lugares. La primera versión no solicita credenciales bancarias ni conecta con Open Banking.
+`Mi dinero` reúne saldos de bancos, brokers, wallets, efectivo u otros lugares. Las cuentas normales siguen siendo manuales; las cuentas broker pueden convertirse en carteras gestionadas por posiciones de fondos, sin solicitar credenciales bancarias ni conectar con Open Banking.
 
 ## Alcance
 
@@ -56,6 +56,16 @@ La variación del patrimonio incluye altas y bajas de cuentas, depósitos, retir
 
 `GET /api/v2/net-worth/history?months=N` devuelve el histórico diario y la variación monetaria/porcentual del periodo.
 
+## Carteras de inversión por ISIN
+
+Una cuenta de tipo `broker` puede contener posiciones de fondos. Cada posición guarda nombre, ISIN, participaciones, coste total y un historial de movimientos de participaciones/coste. Cuando existen posiciones, el saldo agregado del broker se calcula a partir de ellas y entra en `Invertido` y en el patrimonio total.
+
+El backend mantiene una caché de valores liquidativos públicos por ISIN. La valoración usa `participaciones × último VL`; mientras todavía no exista un VL compatible, usa el coste aportado como fallback explícito para no convertir una cartera real en cero. Cada cambio de valoración que modifica el saldo del broker crea un snapshot de fuente `market` y se distribuye a Android mediante el mismo `sync-v1` de las cuentas financieras.
+
+La primera integración automática incluye proveedores públicos desacoplados por ISIN. No se almacenan credenciales de MyInvestor ni se automatiza el login del broker. Una aportación, venta o traspaso se representa actualizando las participaciones/coste y registrando el movimiento; una futura importación CSV puede alimentar el mismo modelo sin cambiar el contrato de valoración.
+
+Web y Android muestran valor actual, capital aportado, ganancia monetaria/porcentual, último VL y fecha, además de histórico 1M/3M/1A/Todo cuando existen cotizaciones guardadas.
+
 ## Android offline-first
 
 Android conserva cuentas y observaciones en SQLite cifrado con SQLCipher. Las cuentas son entidades mutables de `sync-v1`; las observaciones históricas son server-authored/read-only para el cliente una vez sincronizadas.
@@ -73,7 +83,7 @@ El payload conserva además `historyBase`, el estado patrimonial conocido antes 
 
 El servidor mantiene el control de concurrencia sobre la cuenta final. Sólo si la mutación queda `applied` o es un reintento `duplicate` se reconcilian las observaciones intermedias. Los identificadores de snapshot hacen esta reconciliación idempotente: un reintento de red no duplica puntos históricos. Si la versión base está obsoleta, la mutación entra en conflicto y el lote histórico no se escribe hasta que el usuario resuelva el conflicto.
 
-La versión de esquema móvil que introduce el estado patrimonial temporal es la v4.
+La versión de esquema móvil que introduce el estado patrimonial temporal es la v4. La v5 amplía las observaciones para aceptar snapshots de valoración de mercado (`market`).
 
 ## Dashboard
 
@@ -113,9 +123,9 @@ Las cuentas y sus observaciones forman parte de los datos financieros del usuari
 
 ## Orden de despliegue
 
-1. Desplegar backend y ejecutar las migraciones Alembic hasta la revisión `0017_fin_account_state_history` (archivo `0017_financial_account_state_history.py`).
+1. Desplegar backend y ejecutar las migraciones Alembic hasta la revisión `0018_investment_portfolios`.
 2. Verificar API web y sincronización.
-3. Distribuir después la versión Android con esquema SQLite v4.
+3. Distribuir después la versión Android con esquema SQLite v5.
 
 Este orden evita que un cliente móvil nuevo reciba payloads históricos que una API antigua todavía no conoce.
 
@@ -125,6 +135,7 @@ Este orden evita que un cliente móvil nuevo reciba payloads históricos que una
 - multimoneda;
 - conciliación bancaria;
 - vincular obligatoriamente cada transacción con una cuenta;
-- modelar subcuentas específicas de una entidad.
+- conexión autenticada directa con brokers o scraping de sus portales;
+- importación automática de extractos/CSV de brokers (siguiente iteración).
 
 Si se quiere separar efectivo e inversión de un mismo proveedor, pueden crearse dos cuentas manuales, por ejemplo `Trade Republic · Efectivo` y `Trade Republic · Inversiones`.
