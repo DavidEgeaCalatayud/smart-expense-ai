@@ -11,6 +11,7 @@ from app.models.financial_account import FinancialAccount, FinancialAccountBalan
 from app.models.historical_analysis import HistoricalAnalysisSnapshot
 from app.models.import_batch import ImportBatch
 from app.models.intelligence import IntelligenceFinding, IntelligenceScan
+from app.models.investment import InvestmentPosition, InvestmentPositionMovement
 from app.models.transaction import Transaction
 from app.models.user import User
 from app.services.password_reset_service import invalidate_account_sessions
@@ -21,6 +22,8 @@ from app.privacy_schemas import (
     PrivacyExportFinancialAccount,
     PrivacyExportFinancialAccountBalanceSnapshot,
     PrivacyExportImportBatch,
+    PrivacyExportInvestmentPosition,
+    PrivacyExportInvestmentPositionMovement,
     PrivacyExportResponseWithImports,
 )
 from app.schemas import (
@@ -106,6 +109,19 @@ def build_privacy_export(db: Session, user: User) -> PrivacyExportResponseWithIm
         .order_by(
             FinancialAccountBalanceSnapshot.recorded_at.asc(),
             FinancialAccountBalanceSnapshot.id.asc(),
+        )
+    ).all()
+    investment_positions = db.scalars(
+        select(InvestmentPosition)
+        .where(InvestmentPosition.user_id == user.id)
+        .order_by(InvestmentPosition.created_at.asc(), InvestmentPosition.id.asc())
+    ).all()
+    investment_movements = db.scalars(
+        select(InvestmentPositionMovement)
+        .where(InvestmentPositionMovement.user_id == user.id)
+        .order_by(
+            InvestmentPositionMovement.occurred_at.asc(),
+            InvestmentPositionMovement.id.asc(),
         )
     ).all()
 
@@ -264,6 +280,34 @@ def build_privacy_export(db: Session, user: User) -> PrivacyExportResponseWithIm
                 source=snapshot.source,
             )
             for snapshot in financial_account_snapshots
+        ],
+        investmentPositions=[
+            PrivacyExportInvestmentPosition(
+                id=str(position.id),
+                financialAccountId=str(position.financial_account_id),
+                name=position.name,
+                isin=position.isin,
+                units=f"{position.units:f}",
+                costTotal=f"{position.cost_total:.2f}",
+                currency=position.currency,
+                archived=position.archived,
+                createdAt=position.created_at,
+                updatedAt=position.updated_at,
+            )
+            for position in investment_positions
+        ],
+        investmentPositionMovements=[
+            PrivacyExportInvestmentPositionMovement(
+                id=str(movement.id),
+                positionId=str(movement.position_id),
+                movementType=movement.movement_type,
+                unitsAfter=f"{movement.units_after:f}",
+                costTotalAfter=f"{movement.cost_total_after:.2f}",
+                occurredAt=movement.occurred_at,
+                note=movement.note,
+                createdAt=movement.created_at,
+            )
+            for movement in investment_movements
         ],
     )
 
