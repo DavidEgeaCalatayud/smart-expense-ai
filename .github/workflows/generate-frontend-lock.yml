@@ -1,4 +1,4 @@
-name: Generate frontend lockfile v2
+name: Generate frontend lockfile v3
 
 on:
   push:
@@ -17,6 +17,8 @@ jobs:
       - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020
         with:
           node-version: '22'
+      - name: Use npm 11 for lockfile generation
+        run: npm install --global npm@11
       - name: Regenerate lockfile only
         working-directory: frontend
         run: |
