@@ -1,4 +1,4 @@
-name: Generate frontend lockfile v3
+name: Generate frontend lockfile v4
 
 on:
   push:
@@ -7,7 +7,7 @@ on:
       - '.github/workflows/generate-frontend-lock.yml'
 
 permissions:
-  contents: read
+  contents: write
 
 jobs:
   lockfile:
@@ -33,3 +33,11 @@ jobs:
           name: regenerated-frontend-lock
           path: frontend/package-lock.json
           retention-days: 1
+      - name: Commit regenerated lockfile
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add frontend/package-lock.json
+          git diff --cached --quiet && exit 0
+          git commit -m "Security: regenerate frontend lockfile"
+          git push origin HEAD:feature/investment-portfolios
