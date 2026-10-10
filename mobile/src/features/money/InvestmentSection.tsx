@@ -1,6 +1,8 @@
 import { decimalToMinorUnits } from '@smart-expense-ai/domain-types';
 import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useSQLiteContext } from 'expo-sqlite';
 
+import { readServerCache, writeServerCache } from '../../database/serverCacheRepository';
 import type { LocalFinancialAccountRow } from '../../database/types';
 import { ActivityIndicator, Pressable, StyleSheet, Text, TextInput, View } from '../../ui/primitives';
 import {
@@ -219,6 +221,11 @@ function PositionEditor({
   );
 }
 
+interface CachedInvestmentWorkspace {
+  portfolios: MobileInvestmentPortfolio[];
+  histories: Record<string, MobileInvestmentHistory>;
+}
+
 export function InvestmentSection({
   accounts,
   onServerChanged,
@@ -226,6 +233,7 @@ export function InvestmentSection({
   accounts: LocalFinancialAccountRow[];
   onServerChanged: () => Promise<void>;
 }) {
+  const db = useSQLiteContext();
   const brokerAccounts = useMemo(
     () => accounts.filter((account) => account.account_type === 'broker'),
     [accounts],
@@ -240,21 +248,46 @@ export function InvestmentSection({
   const [error, setError] = useState<string | null>(null);
   const [refreshNote, setRefreshNote] = useState<string | null>(null);
 
-  const load = useCallback(async (selectedRange: InvestmentRange = range) => {
-    const next = await fetchInvestmentPortfolios();
-    setPortfolios(next);
-    const pairs = await Promise.all(next.map(async (portfolio) => [
-      portfolio.financialAccountId,
-      await fetchInvestmentHistory(portfolio.financialAccountId, selectedRange),
-    ] as const));
-    setHistories(Object.fromEntries(pairs));
-  }, [range]);
+  const load = useCallback(async (selectedRange: InvestmentRange = range): Promise<boolean> => {
+    const cacheKey = `investment-workspace:${selectedRange}`;
+    const cached = await readServerCache<CachedInvestmentWorkspace>(db, cacheKey);
+    if (cached) {
+      setPortfolios(cached.value.portfolios);
+      setHistories(cached.value.histories);
+    }
+
+    try {
+      const next = await fetchInvestmentPortfolios();
+      const pairs = await Promise.all(next.map(async (portfolio) => [
+        portfolio.financialAccountId,
+        await fetchInvestmentHistory(portfolio.financialAccountId, selectedRange),
+      ] as const));
+      const nextHistories = Object.fromEntries(pairs);
+      setPortfolios(next);
+      setHistories(nextHistories);
+      await writeServerCache<CachedInvestmentWorkspace>(
+        db,
+        cacheKey,
+        { portfolios: next, histories: nextHistories },
+      );
+      setRefreshNote(null);
+      return true;
+    } catch (caught) {
+      if (cached) {
+        setRefreshNote(
+          `Sin conexión · última cartera guardada ${new Date(cached.fetchedAt).toLocaleString('es-ES')}`,
+        );
+        return false;
+      }
+      throw caught;
+    }
+  }, [db, range]);
 
   useEffect(() => {
     let active = true;
     void load()
-      .then(async () => {
-        if (!active) return;
+      .then(async (online) => {
+        if (!active || !online) return;
         const result = await refreshInvestmentNavs(false);
         if (!active) return;
         if (result.results.some((item) => item.status === 'updated')) {
