@@ -7,6 +7,7 @@ import {
   getAccessToken,
   getRefreshToken,
   invalidateMobileSessionAndRequireLocalWipe,
+  notifyMobileSessionInvalidated,
   saveMobileSession,
 } from '../auth/secureCredentials';
 
@@ -81,6 +82,7 @@ export class MobileApiClient {
           (error as { status?: unknown }).status === 401
         ) {
           await invalidateMobileSessionAndRequireLocalWipe();
+          notifyMobileSessionInvalidated();
         }
         throw error;
       } finally {
