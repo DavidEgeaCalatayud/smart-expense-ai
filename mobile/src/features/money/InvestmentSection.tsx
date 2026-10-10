@@ -424,6 +424,37 @@ export function InvestmentSection({
             </View>
           ))}
 
+          {portfolio.positions.length > 0 ? (
+            <View style={styles.allocationCard}>
+              <View style={styles.sectionHeader}>
+                <View>
+                  <Text style={styles.cardTitle}>Distribución</Text>
+                  <Text style={styles.muted}>Peso por valor actual</Text>
+                </View>
+                <Text style={styles.muted}>Último VL · {portfolio.latestValuationDate ?? 'pendiente'}</Text>
+              </View>
+              {portfolio.positions.map((position) => {
+                const totalMinor = Math.max(0, decimalToMinorUnits(portfolio.totalValue));
+                const positionMinor = Math.max(0, decimalToMinorUnits(position.currentValue));
+                const weight = totalMinor > 0 ? (positionMinor / totalMinor) * 100 : 0;
+                const width = `${Math.max(0, Math.min(100, weight))}%` as `${number}%`;
+                return (
+                  <View key={`allocation-${position.id}`} style={styles.allocationRow}>
+                    <View style={styles.sectionHeader}>
+                      <Text style={[styles.muted, { flex: 1 }]} numberOfLines={1}>{position.name}</Text>
+                      <Text style={styles.allocationPercent}>
+                        {weight.toLocaleString('es-ES', { minimumFractionDigits: 1, maximumFractionDigits: 1 })} %
+                      </Text>
+                    </View>
+                    <View style={styles.allocationTrack}>
+                      <View style={[styles.allocationFill, { width }]} />
+                    </View>
+                  </View>
+                );
+              })}
+            </View>
+          ) : null}
+
           <View style={styles.rangeRow}>
             {RANGES.map(([value, label]) => (
               <Pressable key={value} onPress={() => void changeRange(value)} style={[styles.rangeChip, range === value && styles.rangeChipActive]}>
@@ -469,6 +500,11 @@ const styles = StyleSheet.create({
   chipActive: { backgroundColor: '#d9efe7', borderColor: '#126b52' },
   chipText: { color: '#5c6962', fontWeight: '700', fontSize: 11 },
   chipTextActive: { color: '#0f5f49' },
+  allocationCard: { backgroundColor: '#f7faf8', borderRadius: 15, padding: 12, gap: 10 },
+  allocationRow: { gap: 5 },
+  allocationPercent: { color: '#285d4d', fontWeight: '800', fontSize: 11 },
+  allocationTrack: { height: 7, borderRadius: 999, overflow: 'hidden', backgroundColor: '#e2e8e4' },
+  allocationFill: { height: 7, borderRadius: 999, backgroundColor: '#17765a' },
   rangeRow: { flexDirection: 'row', alignSelf: 'flex-start', backgroundColor: '#f1f5f3', borderRadius: 11, padding: 3 },
   rangeChip: { paddingHorizontal: 10, paddingVertical: 5, borderRadius: 8 },
   rangeChipActive: { backgroundColor: '#fff' },
