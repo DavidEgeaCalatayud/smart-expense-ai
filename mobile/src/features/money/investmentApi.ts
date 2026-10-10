@@ -2,6 +2,17 @@ import { getSharedMobileApiClient } from '../../api/client';
 
 export type InvestmentRange = '1m' | '3m' | '1y' | 'all';
 export type InvestmentMovementType = 'contribution' | 'sale' | 'transfer_in' | 'transfer_out' | 'adjustment';
+export type InvestmentMovementRecordType = 'initial' | InvestmentMovementType;
+
+export interface MobileInvestmentMovement {
+  id: string;
+  positionId: string;
+  movementType: InvestmentMovementRecordType;
+  unitsAfter: string;
+  costTotalAfter: string;
+  occurredAt: string;
+  note: string | null;
+}
 
 export interface MobileInvestmentPosition {
   id: string;
@@ -73,6 +84,12 @@ export function updateInvestmentHoldings(
     method: 'PUT',
     body: JSON.stringify(payload),
   });
+}
+
+export function fetchInvestmentMovements(positionId: string): Promise<MobileInvestmentMovement[]> {
+  return client.request(
+    `/api/v2/investments/positions/${encodeURIComponent(positionId)}/movements`,
+  );
 }
 
 export function refreshInvestmentNavs(force = false): Promise<{
