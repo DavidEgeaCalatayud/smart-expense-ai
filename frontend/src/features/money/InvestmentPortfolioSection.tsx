@@ -387,6 +387,40 @@ export function InvestmentPortfolioSection({
               ))}
             </div>
 
+            {portfolio.positions.length > 0 && (
+              <div className="mt-5 rounded-2xl border border-slate-100 bg-slate-50 p-4">
+                <div className="flex flex-wrap items-center justify-between gap-2">
+                  <div>
+                    <p className="text-sm font-bold text-slate-950">Distribución de la cartera</p>
+                    <p className="text-xs text-slate-500">Peso por valor actual</p>
+                  </div>
+                  <p className="text-xs text-slate-500">
+                    Último VL: {portfolio.latestValuationDate
+                      ? new Intl.DateTimeFormat('es-ES').format(new Date(`${portfolio.latestValuationDate}T12:00:00Z`))
+                      : 'pendiente'}
+                  </p>
+                </div>
+                <div className="mt-4 space-y-3">
+                  {portfolio.positions.map((position) => {
+                    const portfolioCents = Math.max(0, moneyToCents(portfolio.totalValue));
+                    const positionCents = Math.max(0, moneyToCents(position.currentValue));
+                    const weight = portfolioCents > 0 ? (positionCents / portfolioCents) * 100 : 0;
+                    return (
+                      <div key={`allocation-${position.id}`}>
+                        <div className="mb-1 flex items-center justify-between gap-3 text-xs">
+                          <span className="truncate font-semibold text-slate-700">{position.name}</span>
+                          <span className="font-semibold text-slate-500">{weight.toLocaleString('es-ES', { minimumFractionDigits: 1, maximumFractionDigits: 1 })} %</span>
+                        </div>
+                        <div className="h-2 overflow-hidden rounded-full bg-slate-200">
+                          <div className="h-full rounded-full bg-brand-600" style={{ width: `${Math.max(0, Math.min(100, weight))}%` }} />
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+            )}
+
             <div className="mt-5">
               <div className="mb-3 flex flex-wrap items-center justify-between gap-3">
                 <div>
