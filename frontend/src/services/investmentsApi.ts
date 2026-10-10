@@ -1,5 +1,6 @@
 import { apiFetch } from './apiClient';
 import type {
+  InvestmentMovement,
   InvestmentMovementType,
   InvestmentPortfolio,
   InvestmentPortfolioHistory,
@@ -41,6 +42,14 @@ export function updateInvestmentHoldings(
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(payload),
   }, 'v2');
+}
+
+export function fetchInvestmentMovements(positionId: string): Promise<InvestmentMovement[]> {
+  return apiFetch<InvestmentMovement[]>(
+    `/investments/positions/${encodeURIComponent(positionId)}/movements`,
+    {},
+    'v2',
+  );
 }
 
 export function refreshInvestmentNavs(force = false): Promise<NavRefreshResponse> {
