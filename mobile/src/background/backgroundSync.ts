@@ -39,7 +39,14 @@ TaskManager.defineTask(BACKGROUND_SYNC_TASK_NAME, async () => {
       try {
         await initializeDatabase(db);
         await bindLocalAccount(db, user.id);
-        await runForegroundSync(db, new SyncClient(getSharedMobileApiClient()));
+        const apiClient = getSharedMobileApiClient();
+        // Background work is best-effort on Android. Refresh public fund NAVs first so any
+        // resulting market snapshot is pulled into the encrypted local account store below.
+        // The backend itself throttles fresh public-source fetches for 12 hours.
+        await apiClient.request('/api/v2/investments/nav/refresh', {
+          method: 'POST',
+        }).catch(() => undefined);
+        await runForegroundSync(db, new SyncClient(apiClient));
         await refreshFinancialNotifications(db, user.id).catch(() => undefined);
         return BackgroundTask.BackgroundTaskResult.Success;
       } finally {
