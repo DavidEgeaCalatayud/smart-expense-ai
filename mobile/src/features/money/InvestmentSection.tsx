@@ -8,12 +8,14 @@ import { ActivityIndicator, Pressable, StyleSheet, Text, TextInput, View } from 
 import {
   createInvestmentPosition,
   fetchInvestmentHistory,
+  fetchInvestmentMovements,
   fetchInvestmentPortfolios,
   refreshInvestmentNavs,
   updateInvestmentHoldings,
   type InvestmentMovementType,
   type InvestmentRange,
   type MobileInvestmentHistory,
+  type MobileInvestmentMovement,
   type MobileInvestmentPortfolio,
   type MobileInvestmentPosition,
 } from './investmentApi';
@@ -33,6 +35,15 @@ const MOVEMENTS: readonly [InvestmentMovementType, string][] = [
   ['adjustment', 'Ajuste'],
 ];
 
+const MOVEMENT_LABELS: Record<MobileInvestmentMovement['movementType'], string> = {
+  initial: 'Posición inicial',
+  contribution: 'Aportación',
+  sale: 'Venta',
+  transfer_in: 'Traspaso de entrada',
+  transfer_out: 'Traspaso de salida',
+  adjustment: 'Ajuste',
+};
+
 function euro(decimal: string): string {
   const minor = decimalToMinorUnits(decimal);
   const negative = minor < 0;
@@ -49,6 +60,16 @@ function percent(value: string | null): string {
     minimumFractionDigits: 2,
     maximumFractionDigits: 2,
   })} %`;
+}
+
+function averageCost(position: MobileInvestmentPosition): string {
+  const units = Number(position.units);
+  if (!Number.isFinite(units) || units <= 0) return '—';
+  const average = Number(position.costTotal) / units;
+  return `${average.toLocaleString('es-ES', {
+    minimumFractionDigits: 2,
+    maximumFractionDigits: 6,
+  })} €/part.`;
 }
 
 function normalizeUnits(value: string): string {
@@ -247,6 +268,8 @@ export function InvestmentSection({
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [refreshNote, setRefreshNote] = useState<string | null>(null);
+  const [movementHistory, setMovementHistory] = useState<Record<string, MobileInvestmentMovement[]>>({});
+  const [movementLoading, setMovementLoading] = useState<string | null>(null);
 
   const load = useCallback(async (selectedRange: InvestmentRange = range): Promise<boolean> => {
     const cacheKey = `investment-workspace:${selectedRange}`;
@@ -342,6 +365,27 @@ export function InvestmentSection({
     }
   };
 
+  const toggleMovements = async (positionId: string) => {
+    if (movementHistory[positionId]) {
+      setMovementHistory((current) => {
+        const next = { ...current };
+        delete next[positionId];
+        return next;
+      });
+      return;
+    }
+    try {
+      setMovementLoading(positionId);
+      setError(null);
+      const rows = await fetchInvestmentMovements(positionId);
+      setMovementHistory((current) => ({ ...current, [positionId]: rows }));
+    } catch (caught) {
+      setError(caught instanceof Error ? caught.message : 'No se pudieron cargar los movimientos.');
+    } finally {
+      setMovementLoading(null);
+    }
+  };
+
   return (
     <View style={styles.sectionCard}>
       <View style={styles.sectionHeader}>
@@ -408,20 +452,49 @@ export function InvestmentSection({
                   <Text style={styles.cardTitle}>{position.name}</Text>
                   <Text style={styles.isin}>{position.isin}</Text>
                 </View>
-                <Pressable onPress={() => setEditing(position)} style={styles.secondaryButton}>
-                  <Text style={styles.secondaryText}>Participaciones</Text>
-                </Pressable>
+                <View style={styles.positionActions}>
+                  <Pressable onPress={() => void toggleMovements(position.id)} style={styles.secondaryButton}>
+                    <Text style={styles.secondaryText}>
+                      {movementHistory[position.id] ? 'Ocultar movimientos' : 'Movimientos'}
+                    </Text>
+                  </Pressable>
+                  <Pressable onPress={() => setEditing(position)} style={styles.secondaryButton}>
+                    <Text style={styles.secondaryText}>Participaciones</Text>
+                  </Pressable>
+                </View>
               </View>
               <Text style={styles.positionValue}>{euro(position.currentValue)}</Text>
               <Text style={Number(position.gainAmount) >= 0 ? styles.positive : styles.negative}>
                 {euro(position.gainAmount)} · {percent(position.gainPercent)}
               </Text>
-              <Text style={styles.muted}>{position.units} participaciones · coste {euro(position.costTotal)}</Text>
+              <Text style={styles.muted}>
+                {position.units} participaciones · coste {euro(position.costTotal)} · medio {averageCost(position)}
+              </Text>
               <Text style={styles.muted}>
                 {position.latestNav
                   ? `VL ${position.latestNav} € · ${position.navDate ?? 'sin fecha'}`
                   : 'VL pendiente · valoración provisional por coste'}
               </Text>
+              {movementLoading === position.id ? <ActivityIndicator /> : null}
+              {movementHistory[position.id] ? (
+                <View style={styles.movementList}>
+                  {movementHistory[position.id]!.map((movement) => (
+                    <View key={movement.id} style={styles.movementRow}>
+                      <View style={{ flex: 1 }}>
+                        <Text style={styles.movementTitle}>{MOVEMENT_LABELS[movement.movementType]}</Text>
+                        <Text style={styles.muted}>
+                          {new Date(movement.occurredAt).toLocaleDateString('es-ES')}
+                          {movement.note ? ` · ${movement.note}` : ''}
+                        </Text>
+                      </View>
+                      <View style={{ alignItems: 'flex-end' }}>
+                        <Text style={styles.movementValue}>{movement.unitsAfter} part.</Text>
+                        <Text style={styles.muted}>{euro(movement.costTotalAfter)}</Text>
+                      </View>
+                    </View>
+                  ))}
+                </View>
+              ) : null}
             </View>
           ))}
 
@@ -489,7 +562,12 @@ const styles = StyleSheet.create({
   portfolioCard: { borderWidth: 1, borderColor: '#e2e8e4', borderRadius: 18, padding: 14, gap: 12 },
   portfolioValue: { color: '#101827', fontSize: 20, fontWeight: '900' },
   positionCard: { backgroundColor: '#f7faf8', borderRadius: 15, padding: 12, gap: 6 },
+  positionActions: { flexDirection: 'row', flexWrap: 'wrap', justifyContent: 'flex-end', gap: 6 },
   positionValue: { color: '#101827', fontSize: 22, fontWeight: '900' },
+  movementList: { borderTopWidth: 1, borderTopColor: '#e2e8e4', marginTop: 6, paddingTop: 8, gap: 8 },
+  movementRow: { flexDirection: 'row', alignItems: 'flex-start', gap: 10 },
+  movementTitle: { color: '#263443', fontSize: 12, fontWeight: '800' },
+  movementValue: { color: '#172033', fontSize: 12, fontWeight: '800' },
   positive: { color: '#137a57', fontSize: 12, fontWeight: '800' },
   negative: { color: '#ad3535', fontSize: 12, fontWeight: '800' },
   isin: { color: '#68756e', fontSize: 11, fontFamily: 'monospace' },
