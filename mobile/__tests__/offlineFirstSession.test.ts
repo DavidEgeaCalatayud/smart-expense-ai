@@ -1,4 +1,4 @@
-const secure = {
+const mockSecure = {
   accessToken: 'access-1' as string | null,
   refreshToken: 'refresh-1' as string | null,
   user: { id: 'user-1', email: 'user@example.com', displayName: 'User' } as {
@@ -7,33 +7,33 @@ const secure = {
   wipeRequired: false,
 };
 
-const invalidate = jest.fn(async () => {
-  secure.accessToken = null;
-  secure.refreshToken = null;
-  secure.user = null;
-  secure.wipeRequired = true;
+const mockInvalidate = jest.fn(async () => {
+  mockSecure.accessToken = null;
+  mockSecure.refreshToken = null;
+  mockSecure.user = null;
+  mockSecure.wipeRequired = true;
 });
-const saveSession = jest.fn(async (
+const mockSaveSession = jest.fn(async (
   credentials: { accessToken: string; refreshToken: string },
   user: { id: string; email: string; displayName: string },
 ) => {
-  secure.accessToken = credentials.accessToken;
-  secure.refreshToken = credentials.refreshToken;
-  secure.user = user;
+  mockSecure.accessToken = credentials.accessToken;
+  mockSecure.refreshToken = credentials.refreshToken;
+  mockSecure.user = user;
 });
 
 jest.mock('../src/auth/secureCredentials', () => ({
   clearMobileCredentials: jest.fn(async () => {
-    secure.accessToken = null;
-    secure.refreshToken = null;
-    secure.user = null;
+    mockSecure.accessToken = null;
+    mockSecure.refreshToken = null;
+    mockSecure.user = null;
   }),
-  getAccessToken: jest.fn(async () => secure.accessToken),
-  getRefreshToken: jest.fn(async () => secure.refreshToken),
-  getMobileUser: jest.fn(async () => secure.user),
-  hasLocalWipeRequirement: jest.fn(async () => secure.wipeRequired),
-  invalidateMobileSessionAndRequireLocalWipe: invalidate,
-  saveMobileSession: saveSession,
+  getAccessToken: jest.fn(async () => mockSecure.accessToken),
+  getRefreshToken: jest.fn(async () => mockSecure.refreshToken),
+  getMobileUser: jest.fn(async () => mockSecure.user),
+  hasLocalWipeRequirement: jest.fn(async () => mockSecure.wipeRequired),
+  invalidateMobileSessionAndRequireLocalWipe: mockInvalidate,
+  saveMobileSession: mockSaveSession,
 }));
 
 jest.mock('../src/auth/deviceIdentity', () => ({
@@ -50,12 +50,12 @@ import {
 const cachedUser = { id: 'user-1', email: 'user@example.com', displayName: 'User' };
 
 function resetLocalSession() {
-  secure.accessToken = 'access-1';
-  secure.refreshToken = 'refresh-1';
-  secure.user = cachedUser;
-  secure.wipeRequired = false;
-  invalidate.mockClear();
-  saveSession.mockClear();
+  mockSecure.accessToken = 'access-1';
+  mockSecure.refreshToken = 'refresh-1';
+  mockSecure.user = cachedUser;
+  mockSecure.wipeRequired = false;
+  mockInvalidate.mockClear();
+  mockSaveSession.mockClear();
 }
 
 function client(overrides: Partial<Pick<MobileAuthClient, 'me' | 'refresh'>>): MobileAuthClient {
@@ -78,7 +78,7 @@ it('restores a complete local session without any network dependency', async () 
       refreshToken: 'refresh-1',
     },
   });
-  expect(invalidate).not.toHaveBeenCalled();
+  expect(mockInvalidate).not.toHaveBeenCalled();
 });
 
 it('preserves the offline session when /auth/me cannot reach the server', async () => {
@@ -95,7 +95,7 @@ it('preserves the offline session when /auth/me cannot reach the server', async 
     status: 'offline',
   });
   expect(authClient.refresh).not.toHaveBeenCalled();
-  expect(invalidate).not.toHaveBeenCalled();
+  expect(mockInvalidate).not.toHaveBeenCalled();
 });
 
 it('invalidates only after both access and refresh credentials are rejected with 401', async () => {
@@ -113,8 +113,8 @@ it('invalidates only after both access and refresh credentials are rejected with
     status: 'invalid',
   });
   expect(authClient.refresh).toHaveBeenCalledWith('refresh-1', 'device-1');
-  expect(invalidate).toHaveBeenCalledTimes(1);
-  expect(secure.wipeRequired).toBe(true);
+  expect(mockInvalidate).toHaveBeenCalledTimes(1);
+  expect(mockSecure.wipeRequired).toBe(true);
 });
 
 it('does not rotate or invalidate a startup snapshot superseded by a newer session', async () => {
@@ -124,9 +124,9 @@ it('does not rotate or invalidate a startup snapshot superseded by a newer sessi
     refreshToken: 'refresh-1',
   };
   const me = jest.fn().mockImplementation(async () => {
-    secure.accessToken = 'access-2';
-    secure.refreshToken = 'refresh-2';
-    secure.user = { id: 'user-2', email: 'other@example.com', displayName: 'Other' };
+    mockSecure.accessToken = 'access-2';
+    mockSecure.refreshToken = 'refresh-2';
+    mockSecure.user = { id: 'user-2', email: 'other@example.com', displayName: 'Other' };
     throw new MobileAuthHttpError(401, 'old access token');
   });
   const authClient = client({ me });
@@ -135,5 +135,5 @@ it('does not rotate or invalidate a startup snapshot superseded by a newer sessi
     status: 'superseded',
   });
   expect(authClient.refresh).not.toHaveBeenCalled();
-  expect(invalidate).not.toHaveBeenCalled();
+  expect(mockInvalidate).not.toHaveBeenCalled();
 });
