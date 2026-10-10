@@ -9,6 +9,12 @@ appId: com.davidegea.smartexpenseai
 
 # Investment platform: catalog selection must normalize the local purpose to investment.
 - tapOn: "Cuenta"
+# Inversiones sits between the patrimonio summary and the account editor. Opening the
+# form preserves the current ScrollView offset, so reveal the editor before asserting it.
+- scrollUntilVisible:
+    element: "Añadir cuenta"
+    direction: DOWN
+    timeout: 10000
 - extendedWaitUntil:
     visible: "Añadir cuenta"
     timeout: 10000
@@ -49,6 +55,12 @@ appId: com.davidegea.smartexpenseai
     direction: UP
     timeout: 10000
 - tapOn: "Cuenta"
+# Inversiones sits between the patrimonio summary and the account editor. Opening the
+# form preserves the current ScrollView offset, so reveal the editor before asserting it.
+- scrollUntilVisible:
+    element: "Añadir cuenta"
+    direction: DOWN
+    timeout: 10000
 - extendedWaitUntil:
     visible: "Añadir cuenta"
     timeout: 10000
