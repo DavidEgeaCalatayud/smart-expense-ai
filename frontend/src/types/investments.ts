@@ -5,6 +5,17 @@ export type InvestmentMovementType =
   | 'transfer_in'
   | 'transfer_out'
   | 'adjustment';
+export type InvestmentMovementRecordType = 'initial' | InvestmentMovementType;
+
+export interface InvestmentMovement {
+  id: string;
+  positionId: string;
+  movementType: InvestmentMovementRecordType;
+  unitsAfter: string;
+  costTotalAfter: string;
+  occurredAt: string;
+  note: string | null;
+}
 
 export interface InvestmentPosition {
   id: string;
