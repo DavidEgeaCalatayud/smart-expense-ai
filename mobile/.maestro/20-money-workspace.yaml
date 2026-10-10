@@ -25,6 +25,13 @@ appId: com.davidegea.smartexpenseai
 - tapOn: "Buscar banco"
 - inputText: "Trade Republic"
 - hideKeyboard
+- scrollUntilVisible:
+    element:
+      id: "bank-institution-trade-republic"
+    direction: DOWN
+    timeout: 10000
+    visibilityPercentage: 50
+    centerElement: true
 - tapOn:
     id: "bank-institution-trade-republic"
 - scrollUntilVisible:
@@ -71,6 +78,13 @@ appId: com.davidegea.smartexpenseai
 - tapOn: "Buscar banco"
 - inputText: "Bankinter"
 - hideKeyboard
+- scrollUntilVisible:
+    element:
+      id: "bank-institution-bankinter"
+    direction: DOWN
+    timeout: 10000
+    visibilityPercentage: 50
+    centerElement: true
 - tapOn:
     id: "bank-institution-bankinter"
 - scrollUntilVisible:
