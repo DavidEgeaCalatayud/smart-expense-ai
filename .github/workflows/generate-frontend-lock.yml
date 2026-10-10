@@ -19,7 +19,9 @@ jobs:
           node-version: '22'
       - name: Regenerate lockfile only
         working-directory: frontend
-        run: npm install --package-lock-only --ignore-scripts --no-audit --no-fund
+        run: |
+          rm -f package-lock.json
+          npm install --package-lock-only --ignore-scripts --no-audit --no-fund
       - name: Verify exact security floors
         working-directory: frontend
         run: |
