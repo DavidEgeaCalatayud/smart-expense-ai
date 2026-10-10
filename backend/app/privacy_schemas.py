@@ -75,6 +75,30 @@ class PrivacyExportFinancialAccountBalanceSnapshot(BaseModel):
     source: str
 
 
+class PrivacyExportInvestmentPosition(BaseModel):
+    id: str
+    financialAccountId: str
+    name: str
+    isin: str
+    units: str
+    costTotal: str
+    currency: str
+    archived: bool
+    createdAt: datetime
+    updatedAt: datetime
+
+
+class PrivacyExportInvestmentPositionMovement(BaseModel):
+    id: str
+    positionId: str
+    movementType: str
+    unitsAfter: str
+    costTotalAfter: str
+    occurredAt: datetime
+    note: str | None
+    createdAt: datetime
+
+
 class PrivacyExportSubscription(BaseModel):
     planTier: str
     subscriptionStatus: str
@@ -88,6 +112,10 @@ class PrivacyExportResponseWithImports(PrivacyExportResponse):
     categorySuggestions: list[PrivacyExportCategorySuggestion] = Field(default_factory=list)
     financialAccounts: list[PrivacyExportFinancialAccount] = Field(default_factory=list)
     financialAccountBalanceSnapshots: list[PrivacyExportFinancialAccountBalanceSnapshot] = Field(
+        default_factory=list
+    )
+    investmentPositions: list[PrivacyExportInvestmentPosition] = Field(default_factory=list)
+    investmentPositionMovements: list[PrivacyExportInvestmentPositionMovement] = Field(
         default_factory=list
     )
     subscription: PrivacyExportSubscription | None = None
