@@ -31,6 +31,7 @@ import {
 import {
   acknowledgeLocalWipeRequirement,
   invalidateMobileSessionAndRequireLocalWipe,
+  subscribeMobileSessionInvalidation,
   type MobileAuthUser,
 } from './secureCredentials';
 
@@ -65,20 +66,17 @@ export function AuthProvider({ children }: PropsWithChildren) {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
+  const clearRejectedSession = useCallback(async () => {
+    await pauseAndDrainSessionWork();
+    await clearLocalAccountData(db);
+    await acknowledgeLocalWipeRequirement();
+    setUser(null);
+  }, [db]);
+
+  useEffect(() => subscribeMobileSessionInvalidation(() => clearRejectedSession()), [clearRejectedSession]);
+
   useEffect(() => {
     let cancelled = false;
-
-    const clearRejectedSession = async () => {
-      await pauseAndDrainSessionWork();
-      try {
-        await clearLocalAccountData(db);
-        await acknowledgeLocalWipeRequirement();
-        if (!cancelled) setUser(null);
-      } finally {
-        // Keep session work paused after an invalid session. A later explicit login/register binds
-        // the new account and resumes it.
-      }
-    };
 
     void (async () => {
       try {
@@ -114,7 +112,7 @@ export function AuthProvider({ children }: PropsWithChildren) {
               return;
             }
             if (validation.status === 'invalid') {
-              await clearRejectedSession();
+              if (!cancelled) await clearRejectedSession();
               return;
             }
 
@@ -148,7 +146,7 @@ export function AuthProvider({ children }: PropsWithChildren) {
     return () => {
       cancelled = true;
     };
-  }, [client, db]);
+  }, [clearRejectedSession, client, db]);
 
   useEffect(() => {
     if (isLoading) {
