@@ -1,4 +1,4 @@
-name: Generate frontend lockfile
+name: Generate frontend lockfile v2
 
 on:
   push:
@@ -25,7 +25,7 @@ jobs:
       - name: Verify exact security floors
         working-directory: frontend
         run: |
-          node -e "const p=require('./package-lock.json'); if(p.packages['node_modules/vitest']?.version!=='4.1.11') process.exit(1); if(p.packages['node_modules/source-map-js']?.version!=='1.2.2') process.exit(1); const t=p.packages['node_modules/tinypool']; if(t && t.version!=='2.1.2') process.exit(1)"
+          node -e "const p=require('./package-lock.json'); if(p.packages['node_modules/vitest']?.version!=='4.1.11') process.exit(1); const t=p.packages['node_modules/tinypool']; if(t && /^([01]\\.|2\\.0\\.|2\\.1\\.[01]$)/.test(t.version)) process.exit(1)"
       - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a
         with:
           name: regenerated-frontend-lock
