@@ -25,7 +25,8 @@ import {
   loginMobileSession,
   logoutMobileSession,
   registerMobileSession,
-  restoreMobileSession,
+  restoreLocalMobileSession,
+  validateRestoredMobileSession,
 } from './sessionManager';
 import {
   acknowledgeLocalWipeRequirement,
@@ -66,22 +67,71 @@ export function AuthProvider({ children }: PropsWithChildren) {
 
   useEffect(() => {
     let cancelled = false;
+
+    const clearRejectedSession = async () => {
+      await pauseAndDrainSessionWork();
+      try {
+        await clearLocalAccountData(db);
+        await acknowledgeLocalWipeRequirement();
+        if (!cancelled) setUser(null);
+      } finally {
+        // Keep session work paused after an invalid session. A later explicit login/register binds
+        // the new account and resumes it.
+      }
+    };
+
     void (async () => {
       try {
-        const restored = await restoreMobileSession(client);
+        // Security boundary first: restoreLocalMobileSession checks the durable wipe marker before
+        // trusting any cached credentials. A complete local session does not wait for Render.
+        const restored = await restoreLocalMobileSession();
         if (restored.shouldClearLocalData) {
-          // A headless revocation marker is acknowledged only after the SQLite wipe succeeds. If
-          // the process dies during the wipe the marker remains, so the next startup retries it.
+          // A headless revocation/partial-session marker is acknowledged only after the SQLite wipe
+          // succeeds. If the process dies during the wipe, the next startup retries it.
           await clearLocalAccountData(db);
           await acknowledgeLocalWipeRequirement();
         }
-        if (restored.user) {
-          await bindLocalAccount(db, restored.user.id);
-          resumeSessionWork();
+
+        if (!restored.user || !restored.snapshot) {
+          if (!cancelled) setUser(null);
+          return;
         }
+
+        // Bind the account-local replica before any network call so Mi dinero can render from
+        // SQLite immediately when the device is offline or Render is waking from sleep.
+        await bindLocalAccount(db, restored.user.id);
+        resumeSessionWork();
         if (!cancelled) {
           setUser(restored.user);
+          setIsLoading(false);
         }
+
+        // Revalidate in the background. Network/time-out/5xx failures intentionally preserve the
+        // offline session. Only an access-token 401 followed by a refresh-token 401 invalidates it.
+        void validateRestoredMobileSession(client, restored.snapshot)
+          .then(async (validation) => {
+            if (cancelled || validation.status === 'offline' || validation.status === 'superseded') {
+              return;
+            }
+            if (validation.status === 'invalid') {
+              await clearRejectedSession();
+              return;
+            }
+
+            // /auth/me is authoritative for profile fields. If the server identity differs from
+            // the cached identity, bindLocalAccount performs the account-boundary wipe before the
+            // new user can become visible.
+            if (validation.user.id !== restored.user.id) {
+              await pauseAndDrainSessionWork();
+              await bindLocalAccount(db, validation.user.id);
+              resumeSessionWork();
+            }
+            if (!cancelled) setUser(validation.user);
+          })
+          .catch(() => {
+            // Unexpected validation failures are non-destructive. Foreground sync/reconnect will
+            // retry; only confirmed 401 + rejected refresh is allowed to destroy an offline session.
+          });
       } catch (restoreError) {
         if (!cancelled) {
           setError(errorMessage(restoreError));
@@ -89,10 +139,12 @@ export function AuthProvider({ children }: PropsWithChildren) {
         }
       } finally {
         if (!cancelled) {
+          // For authenticated local sessions this was already cleared before remote validation.
           setIsLoading(false);
         }
       }
     })();
+
     return () => {
       cancelled = true;
     };
