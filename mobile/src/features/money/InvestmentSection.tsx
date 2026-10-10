@@ -285,7 +285,8 @@ export function InvestmentSection({
 
   useEffect(() => {
     let active = true;
-    void load()
+    void Promise.resolve()
+      .then(() => load())
       .then(async (online) => {
         if (!active || !online) return;
         const result = await refreshInvestmentNavs(false);
