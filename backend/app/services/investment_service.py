@@ -198,7 +198,10 @@ def list_portfolios(db: Session, user_id: UUID) -> list[InvestmentPortfolioRespo
     ).order_by(FinancialAccount.created_at.asc())).all()
     response: list[InvestmentPortfolioResponse] = []
     for account in accounts:
-        positions = [_position_response(db, p) for p in _active_positions(db, user_id, account.id)]
+        rows = _active_positions(db, user_id, account.id)
+        if not rows:
+            continue
+        positions = [_position_response(db, p) for p in rows]
         total_value = sum((Decimal(p.currentValue) for p in positions), ZERO)
         total_cost = sum((Decimal(p.costTotal) for p in positions), ZERO)
         gain = total_value - total_cost
