@@ -9,6 +9,9 @@ const SECURE_OPTIONS: SecureStore.SecureStoreOptions = {
   keychainAccessible: SecureStore.WHEN_UNLOCKED_THIS_DEVICE_ONLY,
 };
 
+type SessionInvalidationListener = () => void | Promise<void>;
+const sessionInvalidationListeners = new Set<SessionInvalidationListener>();
+
 export interface MobileCredentials {
   accessToken: string;
   refreshToken: string;
@@ -91,4 +94,17 @@ export async function hasLocalWipeRequirement(): Promise<boolean> {
 
 export function acknowledgeLocalWipeRequirement(): Promise<void> {
   return SecureStore.deleteItemAsync(LOCAL_WIPE_REQUIRED_KEY, SECURE_OPTIONS);
+}
+
+export function subscribeMobileSessionInvalidation(
+  listener: SessionInvalidationListener,
+): () => void {
+  sessionInvalidationListeners.add(listener);
+  return () => sessionInvalidationListeners.delete(listener);
+}
+
+export function notifyMobileSessionInvalidated(): void {
+  sessionInvalidationListeners.forEach((listener) => {
+    void Promise.resolve().then(listener).catch(() => undefined);
+  });
 }
