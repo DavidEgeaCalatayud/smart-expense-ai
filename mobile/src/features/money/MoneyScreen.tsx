@@ -435,6 +435,7 @@ export function MoneyScreen() {
               <>
                 <Text style={styles.fieldLabel}>Saldo actual</Text>
                 <TextInput
+                  testID="money-account-balance-input"
                   accessibilityLabel="Saldo actual"
                   keyboardType="decimal-pad"
                   value={form.currentBalance}
