@@ -21,7 +21,7 @@ function normalize(value: string): string {
   return value.normalize('NFD').replace(/[\u0300-\u036f]/g, '').trim().toLowerCase();
 }
 
-export function searchMyInvestorFunds(query: string): MyInvestorFundCatalogItem[] {
+export function searchMyInvestorFunds(query: string): readonly MyInvestorFundCatalogItem[] {
   const term = normalize(query);
   if (!term) return MYINVESTOR_FUND_CATALOG;
   return MYINVESTOR_FUND_CATALOG.filter((fund) =>
