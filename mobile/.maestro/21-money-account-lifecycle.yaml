@@ -185,9 +185,17 @@ appId: com.davidegea.smartexpenseai
     element: "PATRIMONIO · OFFLINE-FIRST"
     direction: UP
     timeout: 10000
+- scrollUntilVisible:
+    element: "Mis cuentas"
+    direction: DOWN
+    timeout: 10000
 - extendedWaitUntil:
     visible: "3 activas"
     timeout: 15000
+- scrollUntilVisible:
+    element: "PATRIMONIO · OFFLINE-FIRST"
+    direction: UP
+    timeout: 10000
 - assertVisible: "1.300,00 €"
 
 - scrollUntilVisible:
@@ -220,9 +228,17 @@ appId: com.davidegea.smartexpenseai
     element: "PATRIMONIO · OFFLINE-FIRST"
     direction: UP
     timeout: 10000
+- scrollUntilVisible:
+    element: "Mis cuentas"
+    direction: DOWN
+    timeout: 10000
 - extendedWaitUntil:
     visible: "2 activas"
     timeout: 15000
+- scrollUntilVisible:
+    element: "PATRIMONIO · OFFLINE-FIRST"
+    direction: UP
+    timeout: 10000
 - assertVisible: "1.250,00 €"
 
 - scrollUntilVisible:
