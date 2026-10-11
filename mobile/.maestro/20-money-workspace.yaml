@@ -9,6 +9,12 @@ appId: com.davidegea.smartexpenseai
 
 # Investment platform: catalog selection must normalize the local purpose to investment.
 - tapOn: "Cuenta"
+# Inversiones sits between the patrimonio summary and the account editor. Opening the
+# form preserves the current ScrollView offset, so reveal the editor before asserting it.
+- scrollUntilVisible:
+    element: "Añadir cuenta"
+    direction: DOWN
+    timeout: 10000
 - extendedWaitUntil:
     visible: "Añadir cuenta"
     timeout: 10000
@@ -19,15 +25,23 @@ appId: com.davidegea.smartexpenseai
 - tapOn: "Buscar banco"
 - inputText: "Trade Republic"
 - hideKeyboard
+- scrollUntilVisible:
+    element:
+      id: "bank-institution-trade-republic"
+    direction: DOWN
+    timeout: 10000
+    visibilityPercentage: 50
+    centerElement: true
 - tapOn:
     id: "bank-institution-trade-republic"
 - scrollUntilVisible:
     element: "Saldo actual"
     direction: DOWN
     timeout: 10000
-# The current React Native accessibility hierarchy exposes the balance field as
-# one actionable "Saldo actual" node after the institution selection.
-- tapOn: "Saldo actual"
+# Target the editable balance control explicitly. The visible "Saldo actual" label and input
+# can both match text selectors, and the bank search may otherwise retain focus on some runs.
+- tapOn:
+    id: "money-account-balance-input"
 - inputText: "1000.00"
 - hideKeyboard
 - scrollUntilVisible:
@@ -49,6 +63,12 @@ appId: com.davidegea.smartexpenseai
     direction: UP
     timeout: 10000
 - tapOn: "Cuenta"
+# Inversiones sits between the patrimonio summary and the account editor. Opening the
+# form preserves the current ScrollView offset, so reveal the editor before asserting it.
+- scrollUntilVisible:
+    element: "Añadir cuenta"
+    direction: DOWN
+    timeout: 10000
 - extendedWaitUntil:
     visible: "Añadir cuenta"
     timeout: 10000
@@ -59,13 +79,21 @@ appId: com.davidegea.smartexpenseai
 - tapOn: "Buscar banco"
 - inputText: "Bankinter"
 - hideKeyboard
+- scrollUntilVisible:
+    element:
+      id: "bank-institution-bankinter"
+    direction: DOWN
+    timeout: 10000
+    visibilityPercentage: 50
+    centerElement: true
 - tapOn:
     id: "bank-institution-bankinter"
 - scrollUntilVisible:
     element: "Saldo actual"
     direction: DOWN
     timeout: 10000
-- tapOn: "Saldo actual"
+- tapOn:
+    id: "money-account-balance-input"
 - inputText: "200.00"
 - hideKeyboard
 - scrollUntilVisible:
@@ -92,9 +120,19 @@ appId: com.davidegea.smartexpenseai
 - extendedWaitUntil:
     visible: "PATRIMONIO TOTAL"
     timeout: 15000
+# The investment section now sits between the patrimonio summary and the account list.
+# Scroll to the account section before asserting the active-account count.
+- scrollUntilVisible:
+    element: "Mis cuentas"
+    direction: DOWN
+    timeout: 10000
 - extendedWaitUntil:
     visible: "2 activas"
     timeout: 15000
+- scrollUntilVisible:
+    element: "PATRIMONIO · OFFLINE-FIRST"
+    direction: UP
+    timeout: 10000
 - assertVisible: "1.200,00 €"
 
 # Leave the money workspace in a stable state so the harness can continue into

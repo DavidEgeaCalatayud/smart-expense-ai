@@ -16,6 +16,7 @@ import {
   suggestedAccountNameForInstitution,
 } from '../features/money/accountDraft';
 import { BankInstitutionPicker, BankLogo } from '../features/money/bankCatalog';
+import { InvestmentPortfolioSection } from '../features/money/InvestmentPortfolioSection';
 import {
   archiveFinancialAccount,
   createFinancialAccount,
@@ -468,6 +469,8 @@ export function MoneyPage() {
               ))}
             </div>
           </section>
+
+          <InvestmentPortfolioSection accounts={accounts} onChanged={load} />
 
           <section className="mb-8">
             <div className="mb-4 flex items-end justify-between gap-4">

@@ -1,7 +1,7 @@
 # Android V1 release boundary
 
 This record separates a downloadable release candidate from an accepted stable Android release.
-The product-wide candidate is `v1.0.0-rc.1`; Android uses versionName `1.0.0-rc.1` and versionCode `4`.
+The product-wide candidate is `v1.0.0-rc.2`; Android uses versionName `1.0.0-rc.2` and versionCode `5`.
 Backend API version `1.4.0` is an independent API version and is not being downgraded.
 
 ## Observed deployment
@@ -22,8 +22,8 @@ It is intentionally not a scheduled keep-alive for the sleeping Free service.
 ## Candidate publication
 
 After all exact-source checks succeed and the source is merged into `main`, run
-`Installable Android preview` with `release_tag=v1.0.0-rc.1`, or create an
-`android-preview/v1.0.0-rc.1` branch at that reviewed commit. Release source verification
+`Installable Android preview` with `release_tag=v1.0.0-rc.2`, or create an
+`android-preview/v1.0.0-rc.2` branch at that reviewed commit. Release source verification
 requires the newest GitHub Actions check run on that exact SHA to be successful for:
 
 - `Quality gate`, `Mobile quality` and `Android emulator E2E`;

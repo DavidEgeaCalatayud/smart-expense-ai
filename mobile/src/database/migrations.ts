@@ -218,6 +218,34 @@ const MIGRATIONS: readonly Migration[] = [
            ), 0)`,
     ],
   },
+  {
+    version: 5,
+    statements: [
+      `ALTER TABLE financial_account_snapshots RENAME TO financial_account_snapshots_v4`,
+      `DROP INDEX IF EXISTS ix_financial_account_snapshots_account_recorded`,
+      `CREATE TABLE financial_account_snapshots (
+        id TEXT PRIMARY KEY NOT NULL,
+        financial_account_id TEXT NOT NULL,
+        balance_minor INTEGER NOT NULL,
+        include_in_net_worth INTEGER NOT NULL DEFAULT 1 CHECK (include_in_net_worth IN (0, 1)),
+        archived INTEGER NOT NULL DEFAULT 0 CHECK (archived IN (0, 1)),
+        recorded_at TEXT NOT NULL,
+        source TEXT NOT NULL CHECK (source IN ('manual', 'open_banking', 'import', 'market')),
+        pending INTEGER NOT NULL DEFAULT 0 CHECK (pending IN (0, 1)),
+        FOREIGN KEY (financial_account_id) REFERENCES financial_accounts(id) ON DELETE CASCADE
+      )`,
+      `INSERT INTO financial_account_snapshots (
+         id, financial_account_id, balance_minor, include_in_net_worth, archived,
+         recorded_at, source, pending
+       ) SELECT
+         id, financial_account_id, balance_minor, include_in_net_worth, archived,
+         recorded_at, source, pending
+       FROM financial_account_snapshots_v4`,
+      `DROP TABLE financial_account_snapshots_v4`,
+      `CREATE INDEX IF NOT EXISTS ix_financial_account_snapshots_account_recorded
+        ON financial_account_snapshots(financial_account_id, recorded_at, id)`,
+    ],
+  },
 ];
 
 async function runMigrationTransaction(

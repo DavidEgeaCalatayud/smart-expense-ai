@@ -108,7 +108,7 @@ class FinancialAccountBalanceSnapshot(Base):
     __tablename__ = "financial_account_balance_snapshots"
     __table_args__ = (
         CheckConstraint(
-            "source IN ('manual', 'open_banking', 'import')",
+            "source IN ('manual', 'open_banking', 'import', 'market')",
             name="ck_financial_account_balance_snapshots_source",
         ),
         Index(

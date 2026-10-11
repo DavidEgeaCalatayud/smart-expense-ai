@@ -26,6 +26,9 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ### Added
 
+- **Mi dinero · Inversiones**: broker portfolios driven by fund positions (ISIN, units, total cost and movement history), with automatic portfolio balance aggregation into net worth.
+- Provider-decoupled public NAV refresh for the first supported JPMorgan/Fidelity fund ISINs, cached valuation evidence, explicit cost fallback when no NAV is available, and market-authored net-worth snapshots synchronized to Android.
+- Web and Android investment workspaces with per-position return, portfolio return, latest NAV evidence and capital-contributed vs current-value history over 1M/3M/1Y/all ranges.
 - Blocking container-image security for the backend, frontend and hardened PostgreSQL runtimes: fresh image builds, Trivy HIGH/CRITICAL OS/library scans with no vulnerability allowlist, retained full-image CycloneDX SBOMs, BuildKit max provenance/image digests and per-image diagnostic artifacts.
 - Premium exportable monthly reports through authenticated `/api/v2/reports/monthly` and `/api/v2/reports/monthly.csv`, with exact Decimal summaries/category breakdowns, deterministic ordering, spreadsheet-formula injection protection, private no-store downloads and `exportableReports` entitlement gating.
 - `advanced-financial-insights-v1` and the protected **Advanced Insights** workspace, composing deterministic cash-flow, month-over-month expense change, budget pressure, category concentration and persisted Financial Intelligence evidence without introducing another model or invented forecast confidence.

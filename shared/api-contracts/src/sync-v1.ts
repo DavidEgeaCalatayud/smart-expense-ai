@@ -23,7 +23,7 @@ export type FinancialAccountPurpose =
   | 'opportunities'
   | 'investment'
   | 'other';
-export type FinancialAccountSnapshotSource = 'manual' | 'open_banking' | 'import';
+export type FinancialAccountSnapshotSource = 'manual' | 'open_banking' | 'import' | 'market';
 
 export interface TransactionSyncPayload {
   merchant: string;
