@@ -15,6 +15,8 @@ export async function clearLocalAccountData(db: SQLiteDatabase): Promise<void> {
     await txn.execAsync('DELETE FROM payment_account_links');
     await txn.execAsync('DELETE FROM transactions');
     await txn.execAsync('DELETE FROM budgets');
+    await txn.execAsync('DELETE FROM financial_position_snapshots');
+    await txn.execAsync('DELETE FROM financial_account_positions');
     await txn.execAsync('DELETE FROM financial_account_snapshots');
     await txn.execAsync('DELETE FROM financial_accounts');
     await txn.execAsync('DELETE FROM categories');

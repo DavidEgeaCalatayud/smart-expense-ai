@@ -218,6 +218,41 @@ const MIGRATIONS: readonly Migration[] = [
            ), 0)`,
     ],
   },
+  {
+    version: 5,
+    statements: [
+      `CREATE TABLE IF NOT EXISTS financial_account_positions (
+        id TEXT PRIMARY KEY NOT NULL,
+        financial_account_id TEXT NOT NULL,
+        instrument_type TEXT NOT NULL CHECK (instrument_type IN ('cash', 'fund')),
+        name TEXT NOT NULL,
+        isin TEXT,
+        invested_minor INTEGER NOT NULL DEFAULT 0,
+        units TEXT,
+        average_price_minor INTEGER,
+        current_value_minor INTEGER NOT NULL,
+        archived INTEGER NOT NULL DEFAULT 0 CHECK (archived IN (0, 1)),
+        created_at TEXT NOT NULL,
+        updated_at TEXT NOT NULL,
+        FOREIGN KEY (financial_account_id) REFERENCES financial_accounts(id) ON DELETE CASCADE
+      )`,
+      `CREATE INDEX IF NOT EXISTS ix_financial_account_positions_account
+        ON financial_account_positions(financial_account_id, archived, created_at, id)`,
+      `CREATE UNIQUE INDEX IF NOT EXISTS uq_financial_account_positions_cash
+        ON financial_account_positions(financial_account_id)
+        WHERE instrument_type = 'cash' AND archived = 0`,
+      `CREATE TABLE IF NOT EXISTS financial_position_snapshots (
+        id TEXT PRIMARY KEY NOT NULL,
+        position_id TEXT NOT NULL,
+        current_value_minor INTEGER NOT NULL,
+        archived INTEGER NOT NULL DEFAULT 0 CHECK (archived IN (0, 1)),
+        recorded_at TEXT NOT NULL,
+        FOREIGN KEY (position_id) REFERENCES financial_account_positions(id) ON DELETE CASCADE
+      )`,
+      `CREATE INDEX IF NOT EXISTS ix_financial_position_snapshots_position_recorded
+        ON financial_position_snapshots(position_id, recorded_at, id)`,
+    ],
+  },
 ];
 
 async function runMigrationTransaction(

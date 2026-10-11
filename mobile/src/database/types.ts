@@ -76,3 +76,26 @@ export interface LocalFinancialAccountSnapshotRow {
   source: FinancialAccountSnapshotSource;
   pending: 0 | 1;
 }
+
+export interface LocalFinancialAccountPositionRow {
+  id: string;
+  financial_account_id: string;
+  instrument_type: 'cash' | 'fund';
+  name: string;
+  isin: string | null;
+  invested_minor: number;
+  units: string | null;
+  average_price_minor: number | null;
+  current_value_minor: number;
+  archived: 0 | 1;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface LocalFinancialPositionSnapshotRow {
+  id: string;
+  position_id: string;
+  current_value_minor: number;
+  archived: 0 | 1;
+  recorded_at: string;
+}
