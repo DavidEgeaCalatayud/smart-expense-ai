@@ -118,9 +118,19 @@ appId: com.davidegea.smartexpenseai
 - extendedWaitUntil:
     visible: "PATRIMONIO TOTAL"
     timeout: 15000
+# The investment section now sits between the patrimonio summary and the account list.
+# Scroll to the account section before asserting the active-account count.
+- scrollUntilVisible:
+    element: "Mis cuentas"
+    direction: DOWN
+    timeout: 10000
 - extendedWaitUntil:
     visible: "2 activas"
     timeout: 15000
+- scrollUntilVisible:
+    element: "PATRIMONIO · OFFLINE-FIRST"
+    direction: UP
+    timeout: 10000
 - assertVisible: "1.200,00 €"
 
 # Leave the money workspace in a stable state so the harness can continue into
