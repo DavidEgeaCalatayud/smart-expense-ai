@@ -25,10 +25,19 @@ export function useInvestmentPositions(
   }, [account, db]);
 
   useEffect(() => {
-    void reload().catch((caught) => {
-      setError(caught instanceof Error ? caught.message : 'No se pudo cargar la composición.');
-    });
-  }, [reload]);
+    let active = true;
+    void ensureInvestmentComposition(db, account)
+      .then(() => listInvestmentPositions(db, account.id))
+      .then((nextPositions) => {
+        if (active) setPositions(nextPositions);
+      })
+      .catch((caught) => {
+        if (active) {
+          setError(caught instanceof Error ? caught.message : 'No se pudo cargar la composición.');
+        }
+      });
+    return () => { active = false; };
+  }, [account, db]);
 
   const mutate = useCallback(async (operation: () => Promise<void>) => {
     setIsSaving(true);
