@@ -38,9 +38,10 @@ appId: com.davidegea.smartexpenseai
     element: "Saldo actual"
     direction: DOWN
     timeout: 10000
-# The current React Native accessibility hierarchy exposes the balance field as
-# one actionable "Saldo actual" node after the institution selection.
-- tapOn: "Saldo actual"
+# Target the editable balance control explicitly. The visible "Saldo actual" label and input
+# can both match text selectors, and the bank search may otherwise retain focus on some runs.
+- tapOn:
+    id: "money-account-balance-input"
 - inputText: "1000.00"
 - hideKeyboard
 - scrollUntilVisible:
@@ -91,7 +92,8 @@ appId: com.davidegea.smartexpenseai
     element: "Saldo actual"
     direction: DOWN
     timeout: 10000
-- tapOn: "Saldo actual"
+- tapOn:
+    id: "money-account-balance-input"
 - inputText: "200.00"
 - hideKeyboard
 - scrollUntilVisible:
