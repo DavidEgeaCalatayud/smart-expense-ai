@@ -22,6 +22,8 @@ import type { LocalFinancialAccountRow } from '../../database/types';
 import { useConflicts } from '../../sync/useConflicts';
 import { useForegroundSync } from '../../sync/useForegroundSync';
 import { MobileBankLogo, MobileBankPicker } from './bankCatalog';
+import { MyInvestorComposition } from './MyInvestorComposition';
+import { isMyInvestorAccount } from './investmentPositions';
 import { suggestedMobileAccountNameForInstitution } from './bankCatalogData';
 import { useFinancialAccounts } from './useFinancialAccounts';
 
@@ -517,17 +519,22 @@ export function MoneyScreen() {
             </View>
             <View style={styles.actionRow}>
               <Pressable onPress={() => openEdit(account)} style={styles.secondaryButton}><Text style={styles.secondaryText}>Editar</Text></Pressable>
-              <Pressable
-                onPress={() => {
-                  setBalanceAccount(account);
-                  setNextBalance(minorUnitsToDecimal(account.current_balance_minor));
-                }}
-                style={styles.primaryButton}
-              >
-                <Text style={styles.primaryButtonText}>Actualizar saldo</Text>
-              </Pressable>
+              {!isMyInvestorAccount(account) ? (
+                <Pressable
+                  onPress={() => {
+                    setBalanceAccount(account);
+                    setNextBalance(minorUnitsToDecimal(account.current_balance_minor));
+                  }}
+                  style={styles.primaryButton}
+                >
+                  <Text style={styles.primaryButtonText}>Actualizar saldo</Text>
+                </Pressable>
+              ) : null}
               <Pressable onPress={() => requestArchive(account)} style={styles.archiveButton}><Text style={styles.archiveText}>Archivar</Text></Pressable>
             </View>
+            {isMyInvestorAccount(account) ? (
+              <MyInvestorComposition account={account} onParentChanged={reload} />
+            ) : null}
           </View>
         ))}
 
