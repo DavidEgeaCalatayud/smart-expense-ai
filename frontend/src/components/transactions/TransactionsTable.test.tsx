@@ -10,7 +10,7 @@ const transaction: DetailedTransaction = {
   category: 'Food',
   amount: '64.35',
   date: '2026-08-24',
-  type: 'Gasto',
+  type: 'expense',
   paymentMethod: 'card',
   status: 'normal',
   isRecurring: true,
