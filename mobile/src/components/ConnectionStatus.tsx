@@ -73,14 +73,9 @@ export function ConnectionStatus({
 
 const styles = StyleSheet.create({
   compact: {
-    minHeight: 36,
+    minHeight: uiTokens.touchTarget,
     alignSelf: 'flex-start',
-    backgroundColor: '#edf7f2',
-    borderRadius: uiTokens.radius.pill,
-    paddingHorizontal: 12,
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 7,
+    justifyContent: 'center',
   },
   panel: {
     backgroundColor: uiTokens.color.surface,
@@ -97,12 +92,5 @@ const styles = StyleSheet.create({
   label: { fontSize: 14, fontWeight: '800' },
   detail: { fontSize: 12, lineHeight: 18, color: '#475569' },
   time: { fontSize: 11, color: '#64748b' },
-  button: {
-    minHeight: uiTokens.touchTarget,
-    justifyContent: 'center',
-    backgroundColor: uiTokens.color.text,
-    paddingHorizontal: 14,
-    paddingVertical: 11,
-    borderRadius: uiTokens.radius.sm,
-  },
+  button: { minWidth: 96 },
 });
