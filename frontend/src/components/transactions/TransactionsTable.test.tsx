@@ -10,7 +10,7 @@ const transaction: DetailedTransaction = {
   category: 'Food',
   amount: '64.35',
   date: '2026-08-24',
-  type: 'expense',
+  type: 'Gasto',
   paymentMethod: 'card',
   status: 'normal',
   isRecurring: true,
@@ -41,7 +41,7 @@ describe('TransactionsTable', () => {
       expect(representation).toHaveTextContent('Food');
       expect(representation).toHaveTextContent('2026-08-24');
       expect(representation).toHaveTextContent('Tarjeta');
-      expect(representation).toHaveTextContent('expense');
+      expect(representation).toHaveTextContent('Gasto');
       expect(representation).toHaveTextContent('Normal');
       expect(representation).toHaveTextContent('-€64.35');
     }
