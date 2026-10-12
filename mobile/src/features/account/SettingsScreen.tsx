@@ -16,7 +16,7 @@ export function SettingsScreen() {
     isRefreshing={false} onRefresh={() => undefined}>
     <View style={s.card}>
       <Text style={s.sectionTitle}>Apariencia</Text>
-      <ChoiceField<AparienciaPreference> label="Apariencia de la app" value={preferences.appearance} options={[{ value: 'system', label: 'Seguir sistema' }, { value: 'light', label: 'Claro' }, { value: 'dark', label: 'Oscuro' }]}
+      <ChoiceField<AparienciaPreference> label="Apariencia de la app" testID="choice-app-appearance" accessibilityLabel="App appearance" value={preferences.appearance} options={[{ value: 'system', label: 'Seguir sistema' }, { value: 'light', label: 'Claro' }, { value: 'dark', label: 'Oscuro' }]}
         onChange={(value) => { void preferences.setApariencia(value).catch(() => setError('No se ha podido guardar la apariencia')); }} />
       {error ? <Text style={s.error}>{error}</Text> : null}
     </View>
