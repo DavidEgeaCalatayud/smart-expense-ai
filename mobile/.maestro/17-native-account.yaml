@@ -38,9 +38,9 @@ appId: com.davidegea.smartexpenseai
     timeout: 20000
 - tapOn:
     id: "choice-app-appearance"
-- tapOn: "Dark"
+- tapOn: "Oscuro"
 - assertVisible: "EUR · Euro"
 - takeScreenshot: mobile-dark-settings
 - tapOn:
     id: "choice-app-appearance"
-- tapOn: "Light"
+- tapOn: "Claro"
