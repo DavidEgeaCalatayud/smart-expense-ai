@@ -104,7 +104,7 @@ describe('ImportPage', () => {
   it('detects mappings, previews normalized rows and commits the reviewed file', async () => {
     render(<ImportPage />);
 
-    fireEvent.change(screen.getByLabelText('CSV file'), {
+    fireEvent.change(screen.getByLabelText('Archivo CSV'), {
       target: { files: [csvFile()] },
     });
 
@@ -145,7 +145,7 @@ describe('ImportPage', () => {
     });
 
     render(<ImportPage />);
-    fireEvent.change(screen.getByLabelText('CSV file'), {
+    fireEvent.change(screen.getByLabelText('Archivo CSV'), {
       target: { files: [csvFile()] },
     });
     await waitFor(() => expect(detectCsv).toHaveBeenCalledOnce());
