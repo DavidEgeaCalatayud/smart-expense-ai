@@ -49,20 +49,20 @@ const mappingFields: Array<{
   label: string;
   required: boolean;
 }> = [
-  { key: 'date', label: 'Date', required: true },
-  { key: 'amount', label: 'Amount', required: true },
-  { key: 'merchant', label: 'Merchant / concept', required: true },
-  { key: 'description', label: 'Description / reference', required: false },
-  { key: 'category', label: 'Category', required: false },
-  { key: 'type', label: 'Transaction type', required: false },
-  { key: 'currency', label: 'Currency', required: false },
-  { key: 'paymentMethod', label: 'Payment method', required: false },
+  { key: 'date', label: 'Fecha', required: true },
+  { key: 'amount', label: 'Importe', required: true },
+  { key: 'merchant', label: 'Comercio / concepto', required: true },
+  { key: 'description', label: 'Descripción / referencia', required: false },
+  { key: 'category', label: 'Categoría', required: false },
+  { key: 'type', label: 'Tipo de movimiento', required: false },
+  { key: 'currency', label: 'Moneda', required: false },
+  { key: 'paymentMethod', label: 'Método de pago', required: false },
 ];
 
 function localError(message: string): ApiErrorPresentation {
   return {
     kind: 'validation',
-    title: 'Check the CSV file',
+    title: 'Revisa el archivo CSV',
     message,
     retryable: false,
   };
@@ -83,15 +83,15 @@ function MappingSelect({
     <label className="space-y-2 text-sm">
       <span className="font-semibold text-slate-700">
         {field.label}
-        {!field.required && <span className="ml-1 font-normal text-slate-400">optional</span>}
+        {!field.required && <span className="ml-1 font-normal text-slate-400">opcional</span>}
       </span>
       <select
         value={value ?? ''}
         onChange={(event) => onChange(event.target.value || null)}
         className="w-full rounded-xl border border-slate-200 bg-white px-3 py-2.5 text-sm text-slate-700 outline-none transition focus:border-brand-400 focus:ring-2 focus:ring-brand-100"
-        aria-label={`${field.label} column`}
+        aria-label={`Columna ${field.label}`}
       >
-        <option value="">{field.required ? 'Select a column' : 'Not mapped'}</option>
+        <option value="">{field.required ? 'Selecciona una columna' : 'Sin asignar'}</option>
         {headers.map((header) => (
           <option key={header} value={header}>
             {header}
@@ -122,13 +122,13 @@ function BatchHistory({ batches }: { batches: ImportBatch[] }) {
           <History size={19} />
         </div>
         <div>
-          <h2 className="font-bold text-slate-950">Import history</h2>
-          <p className="text-sm text-slate-500">Auditable batches for this account only.</p>
+          <h2 className="font-bold text-slate-950">Historial de importaciones</h2>
+          <p className="text-sm text-slate-500">Tus importaciones anteriores y su resultado.</p>
         </div>
       </div>
 
       {batches.length === 0 ? (
-        <p className="rounded-2xl bg-slate-50 px-4 py-5 text-sm text-slate-500">No CSV imports yet.</p>
+        <p className="rounded-2xl bg-slate-50 px-4 py-5 text-sm text-slate-500">Todavía no has importado ningún CSV.</p>
       ) : (
         <div className="space-y-3">
           {batches.map((batch) => (
@@ -141,9 +141,9 @@ function BatchHistory({ batches }: { batches: ImportBatch[] }) {
                   </p>
                 </div>
                 <div className="flex flex-wrap gap-2">
-                  <Badge tone="green">{batch.rowsImported} imported</Badge>
-                  <Badge tone="amber">{batch.duplicatesSkipped} duplicates</Badge>
-                  {batch.invalidRows > 0 && <Badge tone="red">{batch.invalidRows} invalid</Badge>}
+                  <Badge tone="green">{batch.rowsImported} importados</Badge>
+                  <Badge tone="amber">{batch.duplicatesSkipped} duplicados</Badge>
+                  {batch.invalidRows > 0 && <Badge tone="red">{batch.invalidRows} no válidos</Badge>}
                 </div>
               </div>
             </article>
@@ -171,7 +171,7 @@ export function ImportPage() {
   useEffect(() => {
     void fetchImportBatches()
       .then((response) => setBatches(response.items))
-      .catch((caught) => setError(getApiErrorPresentation(caught, 'Unable to load import history.')));
+      .catch((caught) => setError(getApiErrorPresentation(caught, 'No se ha podido cargar el historial de importaciones.')));
   }, []);
 
   const mappingReady = Boolean(mapping.date && mapping.amount && mapping.merchant);
@@ -201,7 +201,7 @@ export function ImportPage() {
     setCommitted(false);
 
     if (file.size > 2_000_000) {
-      setError(localError('CSV files are limited to 2 MB in this import workflow.'));
+      setError(localError('El archivo CSV no puede superar los 2 MB.'));
       return;
     }
 
@@ -225,7 +225,7 @@ export function ImportPage() {
       setFileData(null);
       setDetection(null);
       setMapping(EMPTY_MAPPING);
-      setError(getApiErrorPresentation(caught, 'Unable to inspect the CSV file.'));
+      setError(getApiErrorPresentation(caught, 'No se ha podido leer el archivo CSV.'));
     } finally {
       setIsDetecting(false);
     }
@@ -240,7 +240,7 @@ export function ImportPage() {
       setPreview(await previewCsvImport(payload));
       setCommitted(false);
     } catch (caught) {
-      setError(getApiErrorPresentation(caught, 'Unable to preview the CSV import.'));
+      setError(getApiErrorPresentation(caught, 'No se ha podido preparar la vista previa del CSV.'));
     } finally {
       setIsPreviewing(false);
     }
@@ -255,13 +255,13 @@ export function ImportPage() {
       setCommitted(true);
       setSuccessMessage(
         result.importedCount > 0
-          ? `${result.importedCount} transactions imported. ${result.duplicatesSkipped} duplicates skipped.`
-          : `No new transactions imported. ${result.duplicatesSkipped} duplicates were already present.`,
+          ? `${result.importedCount} movimientos importados. ${result.duplicatesSkipped} duplicados omitidos.`
+          : `No se han importado movimientos nuevos. ${result.duplicatesSkipped} duplicados ya estaban registrados.`,
       );
       const history = await fetchImportBatches();
       setBatches(history.items);
     } catch (caught) {
-      setError(getApiErrorPresentation(caught, 'Unable to commit the CSV import.'));
+      setError(getApiErrorPresentation(caught, 'No se ha podido completar la importación del CSV.'));
     } finally {
       setIsCommitting(false);
     }
@@ -273,14 +273,14 @@ export function ImportPage() {
         <div>
           <div className="mb-2 flex items-center gap-2 text-sm font-semibold text-brand-700">
             <FileSpreadsheet size={17} />
-            Historical data ingestion
+            Importación de movimientos
           </div>
-          <h1 className="text-3xl font-bold tracking-tight text-slate-950">Import transactions from CSV</h1>
+          <h1 className="text-3xl font-bold tracking-tight text-slate-950">Importar movimientos desde CSV</h1>
           <p className="mt-2 max-w-3xl text-sm leading-6 text-slate-500">
-            Detect bank columns, map them explicitly, normalize money and dates, preview every decision and import only after duplicate and validation checks.
+            Selecciona un extracto CSV, revisa cómo se interpretan sus columnas y confirma la importación antes de guardar nada.
           </p>
         </div>
-        <Badge tone="brand">Transactional import</Badge>
+        <Badge tone="brand">Importación segura</Badge>
       </header>
 
       {error && <ApiErrorAlert error={error} />}
@@ -298,15 +298,15 @@ export function ImportPage() {
                 <UploadCloud size={20} />
               </div>
               <div>
-                <h2 className="font-bold text-slate-950">1. Upload and detect</h2>
-                <p className="text-sm text-slate-500">UTF-8 CSV, up to 2 MB / 10,000 rows.</p>
+                <h2 className="font-bold text-slate-950">1. Selecciona el archivo</h2>
+                <p className="text-sm text-slate-500">CSV de hasta 2 MB y 10.000 filas.</p>
               </div>
             </div>
 
             <label className="flex cursor-pointer flex-col items-center justify-center rounded-2xl border-2 border-dashed border-slate-200 bg-slate-50 px-5 py-8 text-center transition hover:border-brand-300 hover:bg-brand-50/30">
               <UploadCloud className="mb-3 text-slate-400" size={28} />
-              <span className="font-semibold text-slate-800">Choose a CSV statement</span>
-              <span className="mt-1 text-xs text-slate-500">The browser reads the file locally before sending text to the authenticated API.</span>
+              <span className="font-semibold text-slate-800">Elegir un extracto CSV</span>
+              <span className="mt-1 text-xs text-slate-500">Revisaremos el archivo antes de importar los movimientos.</span>
               <input
                 type="file"
                 accept=".csv,text/csv,text/plain"
@@ -316,12 +316,12 @@ export function ImportPage() {
               />
             </label>
 
-            {isDetecting && <p className="mt-4 text-sm font-medium text-brand-700">Detecting columns…</p>}
+            {isDetecting && <p className="mt-4 text-sm font-medium text-brand-700">Detectando columnas…</p>}
             {detection && fileData && (
               <div className="mt-4 rounded-2xl border border-slate-200 p-4 text-sm">
                 <p className="font-semibold text-slate-900">{fileData.filename}</p>
                 <p className="mt-1 text-slate-500">
-                  Delimiter: <strong>{delimiterLabel}</strong> · {detection.headers.length} columns · hash {detection.fileHash.slice(0, 12)}…
+                  Separador: <strong>{delimiterLabel}</strong> · {detection.headers.length} columnas{detection.fileHash.slice(0, 12)}…
                 </p>
               </div>
             )}
@@ -330,8 +330,8 @@ export function ImportPage() {
           {detection && (
             <div className="rounded-3xl border border-slate-200 bg-white p-5 shadow-soft sm:p-6">
               <div className="mb-5">
-                <h2 className="font-bold text-slate-950">2. Map columns</h2>
-                <p className="mt-1 text-sm text-slate-500">Required fields must be mapped explicitly; optional fields use safe defaults.</p>
+                <h2 className="font-bold text-slate-950">2. Asigna las columnas</h2>
+                <p className="mt-1 text-sm text-slate-500">Comprueba qué columna corresponde a cada dato antes de continuar.</p>
               </div>
               <div className="grid gap-4 sm:grid-cols-2">
                 {mappingFields.map((field) => (
@@ -348,7 +348,7 @@ export function ImportPage() {
                 ))}
               </div>
               <p className="mt-4 rounded-xl bg-slate-50 px-3 py-2 text-xs leading-5 text-slate-500">
-                Missing category defaults to <strong>Other</strong> for expenses and <strong>Salary</strong> for income. Unknown mapped categories are rejected rather than invented.
+                Si no hay categoría, los gastos se asignarán a <strong>Other</strong> y los ingresos a <strong>Salary</strong>.
               </p>
             </div>
           )}
@@ -358,12 +358,12 @@ export function ImportPage() {
           {detection && (
             <div className="rounded-3xl border border-slate-200 bg-white p-5 shadow-soft sm:p-6">
               <div className="mb-5">
-                <h2 className="font-bold text-slate-950">3. Normalization rules</h2>
-                <p className="mt-1 text-sm text-slate-500">Control ambiguous bank formats before validation.</p>
+                <h2 className="font-bold text-slate-950">3. Revisa el formato</h2>
+                <p className="mt-1 text-sm text-slate-500">Indica cómo aparecen las fechas y los importes en tu archivo.</p>
               </div>
               <div className="grid gap-4 sm:grid-cols-2">
                 <label className="space-y-2 text-sm">
-                  <span className="font-semibold text-slate-700">Date format</span>
+                  <span className="font-semibold text-slate-700">Formato de fecha</span>
                   <select
                     aria-label="Date format"
                     value={options.dateFormat}
@@ -373,7 +373,7 @@ export function ImportPage() {
                     }}
                     className="w-full rounded-xl border border-slate-200 px-3 py-2.5"
                   >
-                    <option value="auto">Auto (unambiguous EU/ISO)</option>
+                    <option value="auto">Automático</option>
                     <option value="yyyy-mm-dd">YYYY-MM-DD</option>
                     <option value="dd/mm/yyyy">DD/MM/YYYY</option>
                     <option value="mm/dd/yyyy">MM/DD/YYYY</option>
@@ -382,7 +382,7 @@ export function ImportPage() {
                 </label>
 
                 <label className="space-y-2 text-sm">
-                  <span className="font-semibold text-slate-700">Decimal separator</span>
+                  <span className="font-semibold text-slate-700">Separador decimal</span>
                   <select
                     aria-label="Decimal separator"
                     value={options.decimalSeparator}
@@ -393,13 +393,13 @@ export function ImportPage() {
                     className="w-full rounded-xl border border-slate-200 px-3 py-2.5"
                   >
                     <option value="auto">Auto</option>
-                    <option value="comma">Comma (42,51)</option>
-                    <option value="dot">Dot (42.51)</option>
+                    <option value="comma">Coma (42,51)</option>
+                    <option value="dot">Punto (42.51)</option>
                   </select>
                 </label>
 
                 <label className="space-y-2 text-sm">
-                  <span className="font-semibold text-slate-700">Amount convention</span>
+                  <span className="font-semibold text-slate-700">Cómo interpretar los importes</span>
                   <select
                     aria-label="Amount convention"
                     value={options.amountConvention}
@@ -409,14 +409,14 @@ export function ImportPage() {
                     }}
                     className="w-full rounded-xl border border-slate-200 px-3 py-2.5"
                   >
-                    <option value="negative_expense">Negative = expense</option>
-                    <option value="positive_expense">Positive = expense</option>
-                    <option value="explicit_type">Use mapped type column</option>
+                    <option value="negative_expense">Negativo = gasto</option>
+                    <option value="positive_expense">Positivo = gasto</option>
+                    <option value="explicit_type">Usar la columna de tipo</option>
                   </select>
                 </label>
 
                 <label className="space-y-2 text-sm">
-                  <span className="font-semibold text-slate-700">Default payment method</span>
+                  <span className="font-semibold text-slate-700">Método de pago por defecto</span>
                   <select
                     aria-label="Default payment method"
                     value={options.defaultPaymentMethod}
@@ -426,16 +426,16 @@ export function ImportPage() {
                     }}
                     className="w-full rounded-xl border border-slate-200 px-3 py-2.5"
                   >
-                    <option value="bank_transfer">Bank transfer</option>
-                    <option value="card">Card</option>
-                    <option value="direct_debit">Direct debit</option>
-                    <option value="cash">Cash</option>
+                    <option value="bank_transfer">Transferencia</option>
+                    <option value="card">Tarjeta</option>
+                    <option value="direct_debit">Domiciliación</option>
+                    <option value="cash">Efectivo</option>
                   </select>
                 </label>
               </div>
               <div className="mt-4 flex items-start gap-2 rounded-xl border border-amber-100 bg-amber-50 px-3 py-2 text-xs leading-5 text-amber-800">
                 <AlertTriangle size={16} className="mt-0.5 shrink-0" />
-                CSV import currently accepts EUR only. Non-EUR rows are rejected so analytics never sum currencies without an FX conversion model.
+                Actualmente la importación admite movimientos en euros. Las filas en otra moneda no se importarán.
               </div>
 
               <button
@@ -444,7 +444,7 @@ export function ImportPage() {
                 disabled={!payload || isPreviewing}
                 className="mt-5 inline-flex w-full items-center justify-center rounded-2xl bg-brand-600 px-5 py-3 text-sm font-semibold text-white transition hover:bg-brand-700 disabled:cursor-not-allowed disabled:opacity-50"
               >
-                {isPreviewing ? 'Validating CSV…' : 'Preview import'}
+                {isPreviewing ? 'Revisando CSV…' : 'Ver vista previa'}
               </button>
             </div>
           )}
@@ -453,32 +453,32 @@ export function ImportPage() {
             <div className="rounded-3xl border border-slate-200 bg-white p-5 shadow-soft sm:p-6">
               <div className="mb-5 flex flex-col justify-between gap-3 sm:flex-row sm:items-center">
                 <div>
-                  <h2 className="font-bold text-slate-950">4. Validate and import</h2>
-                  <p className="mt-1 text-sm text-slate-500">Fingerprints compare this file with existing account history and with itself.</p>
+                  <h2 className="font-bold text-slate-950">4. Revisa e importa</h2>
+                  <p className="mt-1 text-sm text-slate-500">Comprueba los movimientos detectados y los posibles duplicados antes de confirmar.</p>
                 </div>
                 <Badge tone={preview.invalidRows === 0 ? 'green' : 'red'}>
-                  {preview.invalidRows === 0 ? 'Ready to import' : 'Fix invalid rows'}
+                  {preview.invalidRows === 0 ? 'Listo para importar' : 'Revisa las filas no válidas'}
                 </Badge>
               </div>
 
               <div className="grid gap-3 sm:grid-cols-4">
                 <Metric label="Total" value={preview.rowsTotal} tone="slate" />
-                <Metric label="Valid" value={preview.validRows} tone="green" />
-                <Metric label="Duplicates" value={preview.duplicateRows} tone="amber" />
-                <Metric label="Invalid" value={preview.invalidRows} tone="red" />
+                <Metric label="Válidas" value={preview.validRows} tone="green" />
+                <Metric label="Duplicadas" value={preview.duplicateRows} tone="amber" />
+                <Metric label="No válidas" value={preview.invalidRows} tone="red" />
               </div>
 
               <div className="mt-5 overflow-x-auto rounded-2xl border border-slate-200">
                 <table className="w-full min-w-[760px] text-left text-sm">
                   <thead className="bg-slate-50 text-xs uppercase tracking-wide text-slate-400">
                     <tr>
-                      <th className="px-4 py-3">Row</th>
-                      <th className="px-4 py-3">Status</th>
-                      <th className="px-4 py-3">Date</th>
-                      <th className="px-4 py-3">Merchant</th>
-                      <th className="px-4 py-3">Amount</th>
-                      <th className="px-4 py-3">Category</th>
-                      <th className="px-4 py-3">Details</th>
+                      <th className="px-4 py-3">Fila</th>
+                      <th className="px-4 py-3">Estado</th>
+                      <th className="px-4 py-3">Fecha</th>
+                      <th className="px-4 py-3">Comercio</th>
+                      <th className="px-4 py-3">Importe</th>
+                      <th className="px-4 py-3">Categoría</th>
+                      <th className="px-4 py-3">Detalles</th>
                     </tr>
                   </thead>
                   <tbody>
@@ -486,9 +486,9 @@ export function ImportPage() {
                       <tr key={row.rowNumber} className="border-t border-slate-100">
                         <td className="px-4 py-3 text-slate-500">{row.rowNumber}</td>
                         <td className="px-4 py-3">
-                          {row.status === 'valid' && <Badge tone="green">Valid</Badge>}
-                          {row.status === 'duplicate' && <Badge tone="amber">Duplicate</Badge>}
-                          {row.status === 'invalid' && <Badge tone="red">Invalid</Badge>}
+                          {row.status === 'valid' && <Badge tone="green">Válida</Badge>}
+                          {row.status === 'duplicate' && <Badge tone="amber">Duplicada</Badge>}
+                          {row.status === 'invalid' && <Badge tone="red">No válida</Badge>}
                         </td>
                         <td className="px-4 py-3 text-slate-600">{row.transaction?.date ?? '—'}</td>
                         <td className="px-4 py-3 font-medium text-slate-800">{row.transaction?.merchant ?? '—'}</td>
@@ -503,18 +503,18 @@ export function ImportPage() {
                 </table>
               </div>
               {preview.previewTruncated && (
-                <p className="mt-2 text-xs text-slate-400">Only the first 100 rows are displayed; validation counts cover the full file.</p>
+                <p className="mt-2 text-xs text-slate-400">Se muestran las primeras 100 filas; los totales corresponden al archivo completo.</p>
               )}
 
               {preview.invalidRows > 0 ? (
                 <div className="mt-5 flex items-start gap-3 rounded-2xl border border-rose-200 bg-rose-50 p-4 text-sm text-rose-700">
                   <XCircle size={19} className="mt-0.5 shrink-0" />
-                  <p>The commit is intentionally blocked. No valid rows will be partially written while invalid rows remain.</p>
+                  <p>Corrige las filas no válidas antes de importar. No se guardará nada hasta entonces.</p>
                 </div>
               ) : (
                 <div className="mt-5 flex items-start gap-3 rounded-2xl border border-emerald-200 bg-emerald-50 p-4 text-sm text-emerald-700">
                   <CheckCircle2 size={19} className="mt-0.5 shrink-0" />
-                  <p>{preview.validRows} new rows are ready. {preview.duplicateRows} duplicate rows will be skipped and recorded in the import batch.</p>
+                  <p>{preview.validRows} filas nuevas listas. {preview.duplicateRows} duplicados se omitirán.</p>
                 </div>
               )}
 
@@ -524,7 +524,7 @@ export function ImportPage() {
                 disabled={preview.invalidRows > 0 || isCommitting || committed}
                 className="mt-5 inline-flex w-full items-center justify-center rounded-2xl bg-slate-950 px-5 py-3 text-sm font-semibold text-white transition hover:bg-slate-800 disabled:cursor-not-allowed disabled:opacity-50"
               >
-                {isCommitting ? 'Importing transactionally…' : committed ? 'Import completed' : `Import ${preview.validRows} transactions`}
+                {isCommitting ? 'Importando…' : committed ? 'Importación completada' : `Importar ${preview.validRows} movimientos`}
               </button>
             </div>
           )}
