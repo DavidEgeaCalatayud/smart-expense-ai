@@ -27,7 +27,7 @@ import { useFinancialAccounts } from './useFinancialAccounts';
 import { useSnackbar } from '../../ui/Snackbar';
 import { CardSkeleton } from '../../ui/Skeleton';
 import { ActionPressable } from '../../ui/ActionPressable';
-import { canonicalMoneyInput, formatMoneyInput } from '../../ui/moneyInput';
+import { formatMoneyEditingInput, formatMoneyInput } from '../../ui/moneyInput';
 import { useRevealScrollTarget } from '../../ui/useRevealScrollTarget';
 
 const ACCOUNT_TYPES: readonly [FinancialAccountType, string][] = [
@@ -455,8 +455,8 @@ export function MoneyScreen() {
                   accessibilityLabel="Saldo actual"
                   keyboardType="decimal-pad"
                   value={form.currentBalance}
-                  onChangeText={(currentBalance) => setForm((current) => ({ ...current, currentBalance }))}
-                  onFocus={() => setForm((current) => ({ ...current, currentBalance: canonicalMoneyInput(current.currentBalance) }))}
+                  onChangeText={(currentBalance) => setForm((current) => ({ ...current, currentBalance: formatMoneyEditingInput(currentBalance) }))}
+                  onFocus={() => setForm((current) => ({ ...current, currentBalance: formatMoneyEditingInput(current.currentBalance) }))}
                   onBlur={() => setForm((current) => ({ ...current, currentBalance: current.currentBalance.trim() ? formatMoneyInput(current.currentBalance) : '' }))}
                   placeholder="1.000,00 €"
                   style={styles.input}
@@ -508,8 +508,8 @@ export function MoneyScreen() {
               accessibilityLabel="Nuevo saldo"
               keyboardType="decimal-pad"
               value={nextBalance}
-              onChangeText={setNextBalance}
-              onFocus={() => setNextBalance((current) => canonicalMoneyInput(current))}
+              onChangeText={(value) => setNextBalance(formatMoneyEditingInput(value))}
+              onFocus={() => setNextBalance((current) => formatMoneyEditingInput(current))}
               onBlur={() => { if (nextBalance.trim()) setNextBalance(formatMoneyInput(nextBalance)); }}
               placeholder="1.250,00 €"
               style={styles.input}
