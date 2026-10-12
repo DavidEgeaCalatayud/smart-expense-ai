@@ -34,7 +34,7 @@ import type {
   NetWorthHistory,
   NetWorthSummary,
 } from '../types/financialAccounts';
-import { moneyToCents, normalizeMoneyAmount } from '../utils/money';
+import { formatMoneyInput, moneyToCents, normalizeMoneyAmount } from '../utils/money';
 
 const TYPE_OPTIONS: { value: FinancialAccountType; label: string }[] = [
   { value: 'checking', label: 'Cuenta corriente' },
@@ -324,7 +324,15 @@ function AccountForm({
               inputMode="decimal"
               value={draft.currentBalance}
               onChange={(event) => setDraft((current) => ({ ...current, currentBalance: event.target.value }))}
-              placeholder="1.000,00"
+              onFocus={() => {
+                if (!draft.currentBalance.trim()) return;
+                try { setDraft((current) => ({ ...current, currentBalance: normalizeMoneyAmount(current.currentBalance) })); } catch { /* Keep invalid input editable. */ }
+              }}
+              onBlur={() => {
+                if (!draft.currentBalance.trim()) return;
+                try { setDraft((current) => ({ ...current, currentBalance: formatMoneyInput(current.currentBalance) })); } catch { /* Validation is shown on submit. */ }
+              }}
+              placeholder="1.000,00 €"
               className="mt-2 w-full rounded-2xl border border-slate-200 px-4 py-3 font-normal"
             />
           </label>
@@ -663,6 +671,14 @@ export function MoneyPage() {
                 inputMode="decimal"
                 value={balanceValue}
                 onChange={(event) => setBalanceValue(event.target.value)}
+                onFocus={() => {
+                  if (!balanceValue.trim()) return;
+                  try { setBalanceValue(normalizeMoneyAmount(balanceValue)); } catch { /* Keep invalid input editable. */ }
+                }}
+                onBlur={() => {
+                  if (!balanceValue.trim()) return;
+                  try { setBalanceValue(formatMoneyInput(balanceValue)); } catch { /* Validation is shown on submit. */ }
+                }}
                 className="mt-2 w-full rounded-2xl border border-slate-200 px-4 py-3 font-normal"
               />
             </label>
