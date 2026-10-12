@@ -38,8 +38,18 @@ export const ScrollView = forwardRef<Native.ScrollView, Native.ScrollViewProps>(
   const { dark } = useAppPreferences(); return <Native.ScrollView {...props} ref={ref} style={mapStyle(props.style, dark)} contentContainerStyle={mapStyle(props.contentContainerStyle, dark)} />;
 });
 export const Pressable = forwardRef<Native.View, Native.PressableProps>(function Pressable(props, ref) {
-  const { dark } = useAppPreferences(); const style = props.style;
-  return <Native.Pressable {...props} ref={ref} style={(state) => mapStyle(typeof style === 'function' ? style(state) : style, dark)} />;
+  const { dark } = useAppPreferences();
+  const style = props.style;
+  return (
+    <Native.Pressable
+      {...props}
+      ref={ref}
+      style={(state) => mapStyle([
+        typeof style === 'function' ? style(state) : style,
+        state.pressed && !props.disabled ? { opacity: 0.82, transform: [{ scale: 0.985 }] } : null,
+      ], dark)}
+    />
+  );
 });
 export const SafeAreaView = forwardRef<Native.View, SafeAreaViewProps>(function SafeAreaView(props, ref) {
   const { dark } = useAppPreferences(); return <NativeSafeAreaView {...props} ref={ref} style={mapStyle(props.style, dark)} />;
