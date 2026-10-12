@@ -19,33 +19,33 @@ test('recurring transaction history becomes an explainable upcoming-payments cal
   const merchant = `Weekly Cloud ${unique}`;
 
   await page.goto('/register');
-  await page.getByLabel('Display name').fill('Recurring Calendar User');
-  await page.getByLabel('Email').fill(email);
-  await page.getByLabel('Password').fill(password);
-  await page.getByRole('button', { name: 'Create account' }).click();
-  await expect(page.getByRole('heading', { name: 'Your financial overview' })).toBeVisible();
+  await page.getByLabel('Nombre').fill('Recurring Calendar User');
+  await page.getByLabel('Correo electrónico').fill(email);
+  await page.getByLabel('Contraseña').fill(password);
+  await page.getByRole('button', { name: 'Crear cuenta' }).click();
+  await expect(page.getByRole('heading', { name: 'Tu visión financiera' })).toBeVisible();
 
-  await page.getByRole('link', { name: 'Transactions' }).click();
-  await expect(page.getByRole('heading', { name: 'Transactions' })).toBeVisible();
+  await page.getByRole('link', { name: 'Movimientos' }).click();
+  await expect(page.getByRole('heading', { name: 'Movimientos' })).toBeVisible();
   const form = page.getByRole('form', { name: 'Add transaction form' });
   const categorySelect = form.getByRole('combobox', { name: 'Category', exact: true });
   await expect(categorySelect).toHaveValue('Food');
 
   for (const daysAgo of [28, 21, 14, 7]) {
     await form.getByLabel('Merchant').fill(merchant);
-    await form.getByRole('spinbutton', { name: 'Amount' }).fill('10.99');
+    await form.getByLabel('Amount').fill('10.99');
     await form.getByLabel('Description').fill(`Recurring calendar occurrence ${daysAgo}`);
     await form.getByLabel('Date').fill(localDateDaysAgo(daysAgo));
     await categorySelect.selectOption({ label: 'Subscriptions' });
     await form.getByRole('button', { name: 'Add transaction' }).click();
 
-    await expect(page.getByRole('status')).toContainText('Transaction created successfully.');
+    await expect(page.getByRole('status')).toContainText('Movimiento guardado.');
     await expect(form.getByLabel('Merchant')).toHaveValue('');
     await expect(form.getByRole('button', { name: 'Add transaction' })).toBeEnabled();
   }
 
-  await page.getByRole('link', { name: 'Predictions' }).click();
-  await expect(page.getByRole('heading', { name: 'Predictions' })).toBeVisible();
+  await page.getByRole('link', { name: 'Predicciones' }).click();
+  await expect(page.getByRole('heading', { name: 'Predicciones' })).toBeVisible();
 
   const calendar = page.getByRole('region', { name: 'Upcoming recurring payment calendar' });
   await expect(calendar.getByText(merchant)).toHaveCount(5);
