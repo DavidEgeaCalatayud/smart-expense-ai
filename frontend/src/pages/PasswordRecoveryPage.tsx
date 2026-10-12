@@ -32,7 +32,7 @@ export function PasswordRecoveryPage({ mode }: { mode: 'request' | 'reset' }) {
     if (submitting.current) return;
     setError(null);
     if (reset && password !== confirmation) {
-      setError(getApiErrorPresentation(new Error('Las contraseñas no coinciden.'), 'Check your password'));
+      setError(getApiErrorPresentation(new Error('Las contraseñas no coinciden.'), 'Revisa la contraseña'));
       return;
     }
     submitting.current = true;
@@ -43,13 +43,13 @@ export function PasswordRecoveryPage({ mode }: { mode: 'request' | 'reset' }) {
         clearLocalSession();
         setPassword('');
         setConfirmation('');
-        setMessage('Password changed. You have been signed out on all devices. Sign in with your new password.');
+        setMessage('Contraseña actualizada. Se han cerrado las sesiones anteriores. Inicia sesión con tu nueva contraseña.');
       } else {
         const result = await requestPasswordReset(email);
         setMessage(result.message);
       }
     } catch (caught) {
-      setError(getApiErrorPresentation(caught, 'Unable to complete password recovery.'));
+      setError(getApiErrorPresentation(caught, 'No se ha podido completar la recuperación de contraseña.'));
     } finally {
       submitting.current = false;
       setPending(false);
@@ -61,8 +61,8 @@ export function PasswordRecoveryPage({ mode }: { mode: 'request' | 'reset' }) {
       <p className="mb-6 font-bold text-brand-700">Smart Expense AI</p>
       <h1 className="text-2xl font-bold text-slate-950">{reset ? 'Restablecer contraseña' : 'Recuperar contraseña'}</h1>
       <p className="mt-2 text-sm leading-6 text-slate-600">{reset
-        ? 'Choose a password with 12–128 characters. This will sign you out on all devices.'
-        : "We'll send you a secure link to choose a new password. Check your spam folder too."}</p>
+        ? 'Elige una contraseña de entre 12 y 128 caracteres. Al cambiarla se cerrarán las sesiones anteriores.'
+        : 'Te enviaremos un enlace seguro para elegir una nueva contraseña. Revisa también la carpeta de spam.'}</p>
       {message ? <p role="status" className="mt-6 rounded-xl bg-emerald-50 p-4 text-sm text-emerald-900">{message}</p>
         : reset && !validToken ? <p role="alert" className="mt-6 text-sm text-red-700">Este enlace de recuperación no es válido o está incompleto. Solicita uno nuevo.</p>
         : <form onSubmit={(event) => void submit(event)} className="mt-6 space-y-5">
@@ -70,7 +70,7 @@ export function PasswordRecoveryPage({ mode }: { mode: 'request' | 'reset' }) {
             <label className="block text-sm font-semibold">Nueva contraseña<input className={fieldClass} type="password" autoComplete="new-password" minLength={12} maxLength={128} required value={password} onChange={(e) => setPassword(e.target.value)} /></label>
             <label className="block text-sm font-semibold">Confirmar nueva contraseña<input className={fieldClass} type="password" autoComplete="new-password" minLength={12} maxLength={128} required value={confirmation} onChange={(e) => setConfirmation(e.target.value)} /></label>
           </> : <label className="block text-sm font-semibold">Correo electrónico<input className={fieldClass} type="email" autoComplete="email" maxLength={320} required value={email} onChange={(e) => setEmail(e.target.value)} /></label>}
-          <button disabled={pending} type="submit" className="w-full rounded-2xl bg-brand-600 px-5 py-3 font-semibold text-white disabled:opacity-60">{pending ? 'Please wait…' : reset ? 'Guardar nueva contraseña' : 'Enviar correo de recuperación'}</button>
+          <button disabled={pending} type="submit" className="w-full rounded-2xl bg-brand-600 px-5 py-3 font-semibold text-white disabled:opacity-60">{pending ? 'Procesando…' : reset ? 'Guardar nueva contraseña' : 'Enviar correo de recuperación'}</button>
         </form>}
       {error && <ApiErrorAlert className="mt-5" error={error} />}
       {reset && !message && <Link className="mt-5 block text-sm font-semibold text-brand-700" to={ROUTES.forgotPassword}>Solicitar un nuevo enlace</Link>}
