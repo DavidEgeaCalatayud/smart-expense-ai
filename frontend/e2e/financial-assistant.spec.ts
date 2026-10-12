@@ -35,13 +35,13 @@ test('Financial Assistant renders only backend-grounded evidence for a stateless
   });
 
   await page.getByRole('link', { name: 'Asistente' }).click();
-  await expect(page.getByRole('heading', { name: 'Ask your financial data, not a black box' })).toBeVisible();
-  await page.getByLabel('Ask about your finances').fill('Why did I spend more this month?');
-  await page.getByRole('button', { name: 'Ask Financial Assistant' }).click();
+  await expect(page.getByRole('heading', { name: 'Pregunta directamente sobre tus finanzas' })).toBeVisible();
+  await page.getByLabel('Pregunta sobre tus finanzas').fill('Why did I spend more this month?');
+  await page.getByRole('button', { name: 'Preguntar al asistente' }).click();
 
   const answer = page.getByRole('region', { name: 'Financial Assistant answer' });
   await expect(answer.getByText(/€273.35 more/)).toBeVisible();
-  await expect(answer.getByText('Period comparison')).toBeVisible();
+  await expect(answer.getByText('Comparación de periodos')).toBeVisible();
   await expect(answer.getByText('2026-07 vs 2026-08 expense comparison')).toBeVisible();
   expect(postedBody).toEqual({ question: 'Why did I spend more this month?' });
 });
