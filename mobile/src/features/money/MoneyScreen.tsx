@@ -5,7 +5,6 @@ import type { ScrollView as NativeScrollView, TextInput as NativeTextInput } fro
 
 import Ionicons from '../../ui/Icon';
 import {
-  ActivityIndicator,
   Alert,
   Pressable,
   RefreshControl,
@@ -181,6 +180,9 @@ export function MoneyScreen() {
       y: Math.max(0, y - 12),
       animated: true,
     });
+    if (section === 'account-form') {
+      setTimeout(() => nameInputRef.current?.focus(), 280);
+    }
   };
 
   const scheduleReveal = (section: RevealedSection) => {
@@ -317,14 +319,14 @@ export function MoneyScreen() {
 
         <View style={styles.titleRow}>
           <View style={{ flex: 1 }}>
-            <Text style={styles.eyebrow}>PATRIMONIO · OFFLINE-FIRST</Text>
+            <Text style={styles.eyebrow}>PATRIMONIO</Text>
             <Text style={styles.title}>Mi dinero</Text>
             <Text style={styles.subtitle}>Todo lo que tienes, aunque esté repartido entre bancos, brokers y efectivo.</Text>
           </View>
-          <Pressable disabled={busy} onPress={openCreate} style={styles.addButton}>
+          <ActionPressable haptic="selection" disabled={busy} onPress={openCreate} style={styles.addButton}>
             <Ionicons name="add" size={20} color="#fff" />
             <Text style={styles.addButtonText}>Cuenta</Text>
-          </Pressable>
+          </ActionPressable>
         </View>
 
         <ConnectionStatus refreshing={isSyncing} onRefresh={() => { void syncNow().catch(() => undefined); }} />
@@ -541,9 +543,9 @@ export function MoneyScreen() {
               style={styles.input}
             />
             <Text style={styles.muted}>El saldo anterior no se borra: se guardará un nuevo punto en tu historial.</Text>
-            <Pressable disabled={busy} onPress={() => void submitBalance()} style={styles.primaryButtonWide}>
+            <ActionPressable haptic="success" disabled={busy} onPress={() => void submitBalance()} style={styles.primaryButtonWide}>
               <Text style={styles.primaryButtonText}>Guardar nuevo saldo</Text>
-            </Pressable>
+            </ActionPressable>
           </View>
         ) : null}
 
@@ -557,7 +559,7 @@ export function MoneyScreen() {
             <Ionicons name="wallet-outline" size={32} color="#125c47" />
             <Text style={styles.cardTitle}>Todavía no has añadido dinero</Text>
             <Text style={styles.muted}>Añade tu primera cuenta manualmente. No necesitas conectar ningún banco.</Text>
-            <Pressable onPress={openCreate} style={styles.primaryButton}><Text style={styles.primaryButtonText}>Añadir cuenta</Text></Pressable>
+            <ActionPressable haptic="selection" onPress={openCreate} style={styles.primaryButton}><Text style={styles.primaryButtonText}>Añadir cuenta</Text></ActionPressable>
           </View>
         ) : null}
 
@@ -596,7 +598,7 @@ export function MoneyScreen() {
         <View style={styles.sectionCard}>
           <View style={styles.sectionHeader}>
             <Text style={styles.sectionTitle}>Evolución del patrimonio</Text>
-            <Text style={styles.muted}>Últimos 12 meses · snapshots manuales</Text>
+            <Text style={styles.muted}>Últimos 12 meses · historial de saldos</Text>
           </View>
           <HistoryBars points={history} />
           {history.length >= 2 ? (
@@ -610,7 +612,7 @@ export function MoneyScreen() {
         <View style={styles.sectionCard}>
           <Text style={styles.sectionTitle}>Cómo se calcula</Text>
           <Text style={styles.muted}>
-            Disponible = Día a día + Otro. Reservado = Ahorro + Emergencia + Oportunidades. Invertido = Inversión. Todo se calcula en céntimos enteros; la conversión decimal solo se usa para mostrar o sincronizar.
+            Agrupamos tus cuentas según la finalidad que hayas elegido para mostrar cuánto tienes disponible, reservado e invertido.
           </Text>
         </View>
       </ScrollView>
