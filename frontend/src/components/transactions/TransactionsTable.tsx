@@ -17,7 +17,7 @@ const statusTone = {
 
 const statusLabels = {
   normal: 'Normal',
-  review: 'Needs review',
+  review: 'Requiere revisión',
 } as const;
 
 const typeTone = {
@@ -26,10 +26,10 @@ const typeTone = {
 } as const;
 
 const paymentMethodLabels = {
-  card: 'Card',
-  cash: 'Cash',
-  bank_transfer: 'Bank transfer',
-  direct_debit: 'Direct debit',
+  card: 'Tarjeta',
+  cash: 'Efectivo',
+  bank_transfer: 'Transferencia',
+  direct_debit: 'Domiciliación',
 };
 
 function TransactionActions({
@@ -46,7 +46,7 @@ function TransactionActions({
       <button
         type="button"
         onClick={() => onEdit(transaction)}
-        className="inline-flex h-9 w-9 items-center justify-center rounded-xl border border-slate-200 text-slate-500 transition hover:bg-slate-50 hover:text-slate-900"
+        className="inline-flex h-11 w-11 items-center justify-center rounded-xl border border-slate-200 text-slate-500 transition hover:bg-slate-50 hover:text-slate-900"
         aria-label={`Edit ${transaction.merchant}`}
       >
         <Pencil size={16} />
@@ -54,7 +54,7 @@ function TransactionActions({
       <button
         type="button"
         onClick={() => onDelete(transaction.id)}
-        className="inline-flex h-9 w-9 items-center justify-center rounded-xl border border-red-100 text-red-500 transition hover:bg-red-50"
+        className="inline-flex h-11 w-11 items-center justify-center rounded-xl border border-red-100 text-red-500 transition hover:bg-red-50"
         aria-label={`Delete ${transaction.merchant}`}
       >
         <Trash2 size={16} />
@@ -85,7 +85,7 @@ function TransactionAmount({ transaction }: { transaction: DetailedTransaction }
 
 export function TransactionsTable({
   transactions,
-  emptyMessage = 'No transactions match the current filters.',
+  emptyMessage = 'No hay movimientos que coincidan con los filtros.',
   onEdit,
   onDelete,
 }: TransactionsTableProps) {
@@ -93,15 +93,15 @@ export function TransactionsTable({
     <section className="rounded-3xl border border-slate-200 bg-white p-4 shadow-soft sm:p-6">
       <div className="mb-6 flex flex-col justify-between gap-3 sm:flex-row sm:items-center">
         <div>
-          <h2 className="text-lg font-bold">Transaction list</h2>
-          <p className="text-sm text-slate-500">Persistent movements with transparent rule-based review.</p>
+          <h2 className="text-lg font-bold">Movimientos</h2>
+          <p className="text-sm text-slate-500">Revisa tus ingresos y gastos y edita cualquier movimiento cuando lo necesites.</p>
         </div>
-        <Badge tone="brand">{transactions.length} results</Badge>
+        <Badge tone="brand">{transactions.length} resultados</Badge>
       </div>
 
       {transactions.length === 0 ? (
         <div className="py-12 text-center" data-testid="transactions-empty-state">
-          <p className="font-semibold text-slate-700">Nothing to show yet</p>
+          <p className="font-semibold text-slate-700">Todavía no hay nada que mostrar</p>
           <p className="mx-auto mt-2 max-w-md text-sm leading-6 text-slate-500">{emptyMessage}</p>
         </div>
       ) : (
@@ -119,7 +119,7 @@ export function TransactionsTable({
                       <h3 className="truncate font-bold text-slate-950">{transaction.merchant}</h3>
                       {transaction.isRecurring && <RecurringIndicator />}
                     </div>
-                    <p className="mt-1 text-sm text-slate-500">{transaction.description || 'No description'}</p>
+                    <p className="mt-1 text-sm text-slate-500">{transaction.description || 'Sin descripción'}</p>
                   </div>
                   <div className="shrink-0 text-right text-base">
                     <TransactionAmount transaction={transaction} />
@@ -128,25 +128,25 @@ export function TransactionsTable({
 
                 <dl className="mt-4 grid grid-cols-2 gap-x-4 gap-y-3 text-sm sm:grid-cols-3">
                   <div>
-                    <dt className="text-xs font-semibold uppercase tracking-wide text-slate-400">Category</dt>
+                    <dt className="text-xs font-semibold uppercase tracking-wide text-slate-400">Categoría</dt>
                     <dd className="mt-1 font-medium text-slate-700">{transaction.category}</dd>
                   </div>
                   <div>
-                    <dt className="text-xs font-semibold uppercase tracking-wide text-slate-400">Date</dt>
+                    <dt className="text-xs font-semibold uppercase tracking-wide text-slate-400">Fecha</dt>
                     <dd className="mt-1 font-medium text-slate-700">{transaction.date}</dd>
                   </div>
                   <div>
-                    <dt className="text-xs font-semibold uppercase tracking-wide text-slate-400">Method</dt>
+                    <dt className="text-xs font-semibold uppercase tracking-wide text-slate-400">Método</dt>
                     <dd className="mt-1 font-medium text-slate-700">{paymentMethodLabels[transaction.paymentMethod]}</dd>
                   </div>
                   <div>
-                    <dt className="text-xs font-semibold uppercase tracking-wide text-slate-400">Type</dt>
+                    <dt className="text-xs font-semibold uppercase tracking-wide text-slate-400">Tipo</dt>
                     <dd className="mt-1">
                       <Badge tone={typeTone[transaction.type]}>{transaction.type}</Badge>
                     </dd>
                   </div>
                   <div>
-                    <dt className="text-xs font-semibold uppercase tracking-wide text-slate-400">Review</dt>
+                    <dt className="text-xs font-semibold uppercase tracking-wide text-slate-400">Revisión</dt>
                     <dd className="mt-1">
                       <Badge tone={statusTone[transaction.status]}>{statusLabels[transaction.status]}</Badge>
                     </dd>
@@ -164,15 +164,15 @@ export function TransactionsTable({
             <table className="w-full min-w-[1040px] border-collapse text-left text-sm">
               <thead>
                 <tr className="border-b border-slate-200 text-xs uppercase tracking-wide text-slate-400">
-                  <th className="pb-3 font-semibold">Merchant</th>
-                  <th className="pb-3 font-semibold">Description</th>
-                  <th className="pb-3 font-semibold">Category</th>
-                  <th className="pb-3 font-semibold">Date</th>
-                  <th className="pb-3 font-semibold">Type</th>
-                  <th className="pb-3 font-semibold">Method</th>
-                  <th className="pb-3 font-semibold">Review</th>
-                  <th className="pb-3 text-right font-semibold">Amount</th>
-                  <th className="pb-3 text-right font-semibold">Actions</th>
+                  <th className="pb-3 font-semibold">Comercio</th>
+                  <th className="pb-3 font-semibold">Descripción</th>
+                  <th className="pb-3 font-semibold">Categoría</th>
+                  <th className="pb-3 font-semibold">Fecha</th>
+                  <th className="pb-3 font-semibold">Tipo</th>
+                  <th className="pb-3 font-semibold">Método</th>
+                  <th className="pb-3 font-semibold">Revisión</th>
+                  <th className="pb-3 text-right font-semibold">Importe</th>
+                  <th className="pb-3 text-right font-semibold">Acciones</th>
                 </tr>
               </thead>
               <tbody>
@@ -182,13 +182,13 @@ export function TransactionsTable({
                       <div className="flex items-center gap-2 font-semibold text-slate-900">
                         {transaction.merchant}
                         {transaction.isRecurring && (
-                          <span title="Recurring transaction" className="text-brand-600">
+                          <span title="Movimiento recurrente" className="text-brand-600">
                             <Repeat size={15} aria-hidden="true" />
                           </span>
                         )}
                       </div>
                     </td>
-                    <td className="py-4 text-slate-500">{transaction.description || 'No description'}</td>
+                    <td className="py-4 text-slate-500">{transaction.description || 'Sin descripción'}</td>
                     <td className="py-4 text-slate-500">{transaction.category}</td>
                     <td className="py-4 text-slate-500">{transaction.date}</td>
                     <td className="py-4">
