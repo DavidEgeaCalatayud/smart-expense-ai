@@ -46,8 +46,8 @@ export function ReportsScreen() {
     ) : null}
     {report && report.month === month ? <>
       <View style={s.row}>
-        <View style={s.rowCard}><Text style={s.metadata}>Ingresos</Text><Text style={s.cardValue}>{report.totalIngresos} €</Text></View>
-        <View style={s.rowCard}><Text style={s.metadata}>Gastos</Text><Text style={s.cardValue}>{report.totalGastos} €</Text></View>
+        <View style={s.rowCard}><Text style={s.metadata}>Ingresos</Text><Text style={s.cardValue}>{report.totalIncome} €</Text></View>
+        <View style={s.rowCard}><Text style={s.metadata}>Gastos</Text><Text style={s.cardValue}>{report.totalExpenses} €</Text></View>
       </View>
       <View style={s.card}><Text style={s.cardTitle}>Neto: {report.net} €</Text>
         <Text style={s.body}>{report.transactionCount} movimientos en {month}</Text></View>
@@ -62,7 +62,7 @@ export function ReportsScreen() {
         <Text style={s.cardTitle}>{category.category}</Text>
         <Text style={s.body}>{category.total} € · {category.type} · {category.transactionCount} movimientos</Text>
       </View>)}
-      {report.categoryBreakdown.length === 0 ? <Text style={s.empty}>No movimientos for this month.</Text> : null}
+      {report.categoryBreakdown.length === 0 ? <Text style={s.empty}>No hay movimientos este mes.</Text> : null}
     </> : null}
     {shareError ? <Text style={s.error}>{shareError}</Text> : null}
   </ServerWorkspaceShell>;
