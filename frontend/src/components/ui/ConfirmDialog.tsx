@@ -1,4 +1,5 @@
 import { AlertTriangle } from 'lucide-react';
+import { useEffect, useRef } from 'react';
 
 interface ConfirmDialogProps {
   isOpen: boolean;
@@ -14,18 +15,65 @@ export function ConfirmDialog({
   isOpen,
   title,
   description,
-  confirmLabel = 'Confirm',
+  confirmLabel = 'Confirmar',
   isConfirming = false,
   onCancel,
   onConfirm,
 }: ConfirmDialogProps) {
-  if (!isOpen) {
-    return null;
-  }
+  const dialogRef = useRef<HTMLDivElement>(null);
+  const cancelRef = useRef<HTMLButtonElement>(null);
+  const previouslyFocusedRef = useRef<HTMLElement | null>(null);
+
+  useEffect(() => {
+    if (!isOpen) return undefined;
+
+    previouslyFocusedRef.current = document.activeElement instanceof HTMLElement ? document.activeElement : null;
+    const previousOverflow = document.body.style.overflow;
+    document.body.style.overflow = 'hidden';
+    window.requestAnimationFrame(() => cancelRef.current?.focus());
+
+    const onKeyDown = (event: KeyboardEvent) => {
+      if (event.key === 'Escape' && !isConfirming) {
+        event.preventDefault();
+        onCancel();
+        return;
+      }
+      if (event.key !== 'Tab') return;
+      const focusable = dialogRef.current?.querySelectorAll<HTMLElement>(
+        'button:not([disabled]), [href], input:not([disabled]), select:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex="-1"])',
+      );
+      if (!focusable?.length) return;
+      const first = focusable[0];
+      const last = focusable[focusable.length - 1];
+      if (event.shiftKey && document.activeElement === first) {
+        event.preventDefault();
+        last.focus();
+      } else if (!event.shiftKey && document.activeElement === last) {
+        event.preventDefault();
+        first.focus();
+      }
+    };
+
+    window.addEventListener('keydown', onKeyDown);
+    return () => {
+      document.body.style.overflow = previousOverflow;
+      window.removeEventListener('keydown', onKeyDown);
+      previouslyFocusedRef.current?.focus();
+    };
+  }, [isOpen, isConfirming, onCancel]);
+
+  if (!isOpen) return null;
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/40 px-4" role="presentation">
+    <div
+      className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/40 px-4 backdrop-blur-sm"
+      role="presentation"
+      onMouseDown={(event) => {
+        if (event.target === event.currentTarget && !isConfirming) onCancel();
+      }}
+    >
       <div
+        ref={dialogRef}
         role="dialog"
         aria-modal="true"
         aria-labelledby="confirm-dialog-title"
@@ -37,31 +85,28 @@ export function ConfirmDialog({
             <AlertTriangle size={20} />
           </div>
           <div>
-            <h2 id="confirm-dialog-title" className="text-lg font-bold text-slate-950">
-              {title}
-            </h2>
-            <p id="confirm-dialog-description" className="mt-2 text-sm leading-6 text-slate-500">
-              {description}
-            </p>
+            <h2 id="confirm-dialog-title" className="text-lg font-bold text-slate-950">{title}</h2>
+            <p id="confirm-dialog-description" className="mt-2 text-sm leading-6 text-slate-500">{description}</p>
           </div>
         </div>
 
         <div className="mt-6 flex justify-end gap-3">
           <button
+            ref={cancelRef}
             type="button"
             onClick={onCancel}
             disabled={isConfirming}
-            className="rounded-2xl border border-slate-200 px-4 py-2.5 text-sm font-semibold text-slate-700 transition hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-50"
+            className="min-h-11 rounded-2xl border border-slate-200 px-4 py-2.5 text-sm font-semibold text-slate-700 transition hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-50"
           >
-            Cancel
+            Cancelar
           </button>
           <button
             type="button"
             onClick={onConfirm}
             disabled={isConfirming}
-            className="rounded-2xl bg-red-600 px-4 py-2.5 text-sm font-semibold text-white transition hover:bg-red-700 disabled:cursor-not-allowed disabled:opacity-60"
+            className="min-h-11 rounded-2xl bg-red-600 px-4 py-2.5 text-sm font-semibold text-white transition hover:bg-red-700 disabled:cursor-not-allowed disabled:opacity-60"
           >
-            {isConfirming ? 'Deleting...' : confirmLabel}
+            {isConfirming ? 'Procesando…' : confirmLabel}
           </button>
         </div>
       </div>
