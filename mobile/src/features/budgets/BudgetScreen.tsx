@@ -25,6 +25,7 @@ import { useSnackbar } from '../../ui/Snackbar';
 import { CardSkeleton } from '../../ui/Skeleton';
 import { ActionPressable } from '../../ui/ActionPressable';
 import { canonicalMoneyInput, formatMoneyInput } from '../../ui/moneyInput';
+import { useRevealScrollTarget } from '../../ui/useRevealScrollTarget';
 
 const STATUS_LABEL = {
   synced: 'Sincronizado',
@@ -81,22 +82,11 @@ export function BudgetScreen() {
   const [editingId, setEditingId] = useState<string | null>(null);
   const scrollViewRef = useRef<NativeScrollView>(null);
   const limitInputRef = useRef<NativeTextInput>(null);
-  const formYRef = useRef<number | null>(null);
-  const pendingRevealRef = useRef(false);
-  const [formHighlighted, setFormHighlighted] = useState(false);
   const { showSnackbar } = useSnackbar();
+  const revealTarget = useRevealScrollTarget<'budget-form'>(scrollViewRef);
 
   const revealForm = () => {
-    pendingRevealRef.current = true;
-    requestAnimationFrame(() => requestAnimationFrame(() => {
-      const y = formYRef.current;
-      if (y === null || !pendingRevealRef.current) return;
-      pendingRevealRef.current = false;
-      scrollViewRef.current?.scrollTo({ y: Math.max(0, y - 12), animated: true });
-      setFormHighlighted(true);
-      setTimeout(() => setFormHighlighted(false), 900);
-      setTimeout(() => limitInputRef.current?.focus(), 260);
-    }));
+    revealTarget.reveal('budget-form', { focus: () => limitInputRef.current?.focus() });
   };
 
   const categoryName = useMemo(() => {
@@ -223,11 +213,8 @@ export function BudgetScreen() {
         ) : null}
 
         <View
-          style={[styles.formCard, formHighlighted && styles.formCardHighlighted]}
-          onLayout={(event) => {
-            formYRef.current = event.nativeEvent.layout.y;
-            if (pendingRevealRef.current) revealForm();
-          }}
+          style={[styles.formCard, revealTarget.highlightedTarget === 'budget-form' && styles.formCardHighlighted]}
+          onLayout={revealTarget.onLayout('budget-form')}
         >
           <Text style={styles.sectionTitle}>{editingId ? 'Editar presupuesto' : 'Nuevo presupuesto'}</Text>
           <TextInput
