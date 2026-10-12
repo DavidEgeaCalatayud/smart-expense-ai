@@ -181,7 +181,7 @@ export function CategoriesPage() {
                           <button type="button" aria-label="Save category name" onClick={() => void handleRename(category.id)} className="rounded-xl bg-brand-600 px-3 text-white"><Check size={16} /></button>
                         </div>
                       ) : <h2 className="font-bold text-slate-950">{category.name}</h2>}
-                      <p className="mt-1 text-sm text-slate-500">{category.transactionType} · {isPersonal ? 'personal' : 'sistema'} · {category.transactionCount ?? 0} movimientos</p>
+                      <p className="mt-1 text-sm text-slate-500">{category.transactionType === 'expense' ? 'Gasto' : 'Ingreso'} · {isPersonal ? 'personal' : 'sistema'} · {category.transactionCount ?? 0} movimientos</p>
                     </div>
                   </div>
                   {category.archived && <span className="rounded-full bg-slate-100 px-3 py-1 text-xs font-semibold text-slate-500">Archivada</span>}
@@ -195,7 +195,7 @@ export function CategoriesPage() {
                     </div>
                     {targets.length > 0 && (
                       <div className="flex flex-col gap-2 sm:flex-row">
-                        <select aria-label={`Reassign ${category.name} movimientos`} value={reassignTargets[category.id] ?? ''} onChange={(event) => setReassignTargets((current) => ({ ...current, [category.id]: event.target.value }))} className="min-w-0 flex-1 rounded-xl border border-slate-200 px-3 py-2 text-sm">
+                        <select aria-label={`Reasignar movimientos de ${category.name}`} value={reassignTargets[category.id] ?? ''} onChange={(event) => setReassignTargets((current) => ({ ...current, [category.id]: event.target.value }))} className="min-w-0 flex-1 rounded-xl border border-slate-200 px-3 py-2 text-sm">
                           <option value="">Reasignar movimientos a...</option>
                           {targets.map((target) => <option key={target.id} value={target.id}>{target.name}</option>)}
                         </select>
@@ -217,7 +217,7 @@ export function CategoriesPage() {
       <ConfirmDialog
         isOpen={archiveCandidate !== null}
         title="¿Archivar la categoría y conservar el historial?"
-        description={`Existing movimientos will remain assigned to ${archiveCandidate?.name ?? 'this category'}, but it will no longer be available for new movimientos or new budgets.`}
+        description={`Los movimientos existentes seguirán asignados a ${archiveCandidate?.name ?? 'esta categoría'}, pero la categoría dejará de estar disponible para nuevos movimientos y presupuestos.`}
         confirmLabel="Archivar y conservar historial"
         isConfirming={archiveCandidate ? busyId === archiveCandidate.id : false}
         onCancel={() => setArchiveCandidate(null)}
