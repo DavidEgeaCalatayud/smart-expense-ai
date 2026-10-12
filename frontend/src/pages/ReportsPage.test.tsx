@@ -30,11 +30,10 @@ describe('ReportsPage', () => {
 
     render(<ReportsPage />);
 
-    expect(await screen.findByText('Premium report export')).toBeInTheDocument();
-    expect(screen.getByText(/does not have this entitlement enabled/i)).toBeInTheDocument();
-    expect(screen.getByText(/billing checkout is not yet exposed/i)).toBeInTheDocument();
-    expect(fetchMonthlyReport).not.toHaveBeenCalled();
-    expect(screen.queryByRole('button', { name: 'Download CSV' })).not.toBeInTheDocument();
+    expect(await screen.findByText('Exportación de informes Premium')).toBeInTheDocument();
+    expect(screen.getByText(/no está incluida actualmente en tu cuenta/i)).toBeInTheDocument();
+        expect(fetchMonthlyReport).not.toHaveBeenCalled();
+    expect(screen.queryByRole('button', { name: 'Descargar CSV' })).not.toBeInTheDocument();
   });
 
   it('does not misrepresent an entitlement lookup failure as a free-plan lock', async () => {
@@ -42,9 +41,9 @@ describe('ReportsPage', () => {
 
     render(<ReportsPage />);
 
-    expect(await screen.findByText('Unable to verify report access')).toBeInTheDocument();
-    expect(screen.queryByText('Premium report export')).not.toBeInTheDocument();
-    expect(screen.queryByText(/does not have this entitlement enabled/i)).not.toBeInTheDocument();
+    expect(await screen.findByText('No se ha podido comprobar el acceso a informes')).toBeInTheDocument();
+    expect(screen.queryByText('Exportación de informes Premium')).not.toBeInTheDocument();
+    expect(screen.queryByText(/no está incluida actualmente en tu cuenta/i)).not.toBeInTheDocument();
     expect(fetchMonthlyReport).not.toHaveBeenCalled();
   });
 
@@ -90,7 +89,7 @@ describe('ReportsPage', () => {
 
     render(<ReportsPage />);
 
-    const incomeCard = (await screen.findByText('Income')).closest('article');
+    const incomeCard = (await screen.findByText('Ingresos')).closest('article');
     expect(incomeCard).not.toBeNull();
     expect(incomeCard).toHaveTextContent('€1,000.00');
     expect(screen.getByText('€32.34')).toBeInTheDocument();
@@ -98,9 +97,9 @@ describe('ReportsPage', () => {
     expect(screen.getByText('Food')).toBeInTheDocument();
     expect(screen.getByText('Salary')).toBeInTheDocument();
 
-    fireEvent.click(screen.getByRole('button', { name: 'Download CSV' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Descargar CSV' }));
 
-    expect(await screen.findByText('Downloaded smart-expense-report-2026-09.csv.')).toBeInTheDocument();
+    expect(await screen.findByText('Descargado smart-expense-report-2026-09.csv.')).toBeInTheDocument();
     expect(downloadMonthlyReport).toHaveBeenCalledWith(expect.stringMatching(/^\d{4}-\d{2}$/));
     expect(createObjectURL).toHaveBeenCalledTimes(1);
     expect(click).toHaveBeenCalledTimes(1);
