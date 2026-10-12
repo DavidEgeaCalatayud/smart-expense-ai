@@ -197,7 +197,7 @@ export function TransactionsTable({
                     <td className="py-4 text-slate-500">{transaction.category}</td>
                     <td className="py-4 text-slate-500">{transaction.date}</td>
                     <td className="py-4">
-                      <Badge tone={typeTone[transaction.type]}>{transaction.type}</Badge>
+                      <Badge tone={typeTone[transaction.type]}>{typeLabels[transaction.type]}</Badge>
                     </td>
                     <td className="py-4 text-slate-500">{paymentMethodLabels[transaction.paymentMethod]}</td>
                     <td className="py-4">
