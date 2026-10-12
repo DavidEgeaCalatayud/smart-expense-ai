@@ -3,7 +3,7 @@ import { Link } from '../../ui/Link';
 import { useState } from 'react';
 import { Linking, Pressable, Text, View } from '../../ui/primitives';
 import notices from '../../../assets/third-party-notices.json';
-import { useAppPreferences, type AparienciaPreference } from '../../preferences/AppPreferences';
+import { useAppPreferences, type AppearancePreference } from '../../preferences/AppPreferences';
 import { ChoiceField } from '../../components/ChoiceField';
 import { ServerWorkspaceShell, serverWorkspaceStyles as s } from '../../components/ServerWorkspaceShell';
 import { NotificationSettings } from './NotificationSettings';
@@ -16,8 +16,8 @@ export function SettingsScreen() {
     isRefreshing={false} onRefresh={() => undefined}>
     <View style={s.card}>
       <Text style={s.sectionTitle}>Apariencia</Text>
-      <ChoiceField<AparienciaPreference> label="Apariencia de la app" testID="choice-app-appearance" accessibilityLabel="App appearance" value={preferences.appearance} options={[{ value: 'system', label: 'Seguir sistema' }, { value: 'light', label: 'Claro' }, { value: 'dark', label: 'Oscuro' }]}
-        onChange={(value) => { void preferences.setApariencia(value).catch(() => setError('No se ha podido guardar la apariencia')); }} />
+      <ChoiceField<AppearancePreference> label="Apariencia de la app" testID="choice-app-appearance" accessibilityLabel="App appearance" value={preferences.appearance} options={[{ value: 'system', label: 'Seguir sistema' }, { value: 'light', label: 'Claro' }, { value: 'dark', label: 'Oscuro' }]}
+        onChange={(value) => { void preferences.setAppearance(value).catch(() => setError('No se ha podido guardar la apariencia')); }} />
       {error ? <Text style={s.error}>{error}</Text> : null}
     </View>
     <View style={s.card}><Text style={s.sectionTitle}>Moneda</Text><Text style={s.cardValue}>EUR · Euro</Text>
@@ -25,7 +25,7 @@ export function SettingsScreen() {
     <NotificationSettings />
     <View style={s.card}><Text style={s.sectionTitle}>Acerca de</Text>
       <Text style={s.cardTitle}>Smart Expense AI</Text><Text style={s.body}>Versión {Constants.expoConfig?.version ?? 'unknown'}</Text>
-      <Pressable accessibilityRole="link" style={s.secondaryButton} onPress={() => void Linking.openURL('https://github.com/DavidEgeaCalatayud/smart-expense-ai/blob/main/docs/privacy.md').catch(() => setError('Connect to open the privacy information.'))}><Text>Privacidad y tratamiento de datos</Text></Pressable>
+      <Pressable accessibilityRole="link" style={s.secondaryButton} onPress={() => void Linking.openURL('https://github.com/DavidEgeaCalatayud/smart-expense-ai/blob/main/docs/privacy.md').catch(() => setError('Conéctate para abrir la información de privacidad.'))}><Text>Privacidad y tratamiento de datos</Text></Pressable>
       <Link href="/account" style={{ color: '#125c47', paddingVertical: 12 }}>Cuenta, exportación y eliminación de datos →</Link>
     </View>
     <Text style={s.sectionTitle}>Licencias</Text>
@@ -35,8 +35,8 @@ export function SettingsScreen() {
         <Text style={s.cardTitle}>{item.name}</Text><Text style={s.metadata}>{item.version} · {item.license}</Text>
       </Pressable>
       {notice === item.name ? <>
-        <Text selectable style={s.body}>{item.text || 'The package publishes its licence with its source distribution.'}</Text>
-        <Pressable accessibilityRole="link" style={s.secondaryButton} onPress={() => void Linking.openURL(item.url).catch(() => setError('Connect to open the package source.'))}><Text>Código fuente del paquete</Text></Pressable>
+        <Text selectable style={s.body}>{item.text || 'El paquete publica su licencia junto con el código fuente.'}</Text>
+        <Pressable accessibilityRole="link" style={s.secondaryButton} onPress={() => void Linking.openURL(item.url).catch(() => setError('Conéctate para abrir el código fuente del paquete.'))}><Text>Código fuente del paquete</Text></Pressable>
       </> : null}
     </View>)}
   </ServerWorkspaceShell>;
