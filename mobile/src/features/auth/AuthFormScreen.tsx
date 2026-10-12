@@ -1,7 +1,6 @@
 import { Link } from '../../ui/Link';
 import { useState } from 'react';
 import {
-  ActivityIndicator,
   KeyboardAvoidingView,
   Platform,
   Pressable,
@@ -9,11 +8,11 @@ import {
   ScrollView,
   StyleSheet,
   Text,
-  TextInput,
   View,
 } from '../../ui/primitives';
 import Ionicons from '../../ui/Icon';
-import { ActionPressable } from '../../ui/ActionPressable';
+import { Button } from '../../ui/Button';
+import { Input } from '../../ui/Input';
 import { uiTokens } from '../../ui/tokens';
 
 import { useAuth } from '../../auth/AuthProvider';
@@ -66,7 +65,7 @@ export function AuthFormScreen({ mode }: AuthFormScreenProps) {
 
           <View style={styles.form}>
             {isRegister ? (
-              <TextInput
+              <Input
                 accessibilityLabel="Display name"
                 autoFocus
                 autoCapitalize="words"
@@ -78,7 +77,7 @@ export function AuthFormScreen({ mode }: AuthFormScreenProps) {
                 value={displayName}
               />
             ) : null}
-            <TextInput
+            <Input
               accessibilityLabel="Email"
               autoFocus={!isRegister}
               autoCapitalize="none"
@@ -90,7 +89,7 @@ export function AuthFormScreen({ mode }: AuthFormScreenProps) {
               value={email}
             />
             <View style={styles.passwordWrap}>
-              <TextInput
+              <Input
                 accessibilityLabel="Password"
                 autoCapitalize="none"
                 autoComplete={isRegister ? 'new-password' : 'current-password'}
@@ -128,18 +127,14 @@ export function AuthFormScreen({ mode }: AuthFormScreenProps) {
             ) : null}
             {error ? <Text style={styles.error}>{error}</Text> : null}
 
-            <ActionPressable
+            <Button
               accessibilityLabel={isRegister ? 'Submit create account' : 'Submit sign in'}
-              accessibilityRole="button"
               haptic="success"
               disabled={disabled}
+              loading={isSubmitting}
+              label={isRegister ? 'Crear cuenta' : 'Iniciar sesión'}
               onPress={() => void submit()}
-              style={[styles.primaryButton, disabled && styles.buttonDisabled]}
-            >
-              {isSubmitting ? <ActivityIndicator color="#ffffff" /> : (
-                <Text style={styles.primaryButtonText}>{isRegister ? 'Crear cuenta' : 'Iniciar sesión'}</Text>
-              )}
-            </ActionPressable>
+            />
           </View>
 
           <View style={styles.switchRow}>
@@ -167,32 +162,13 @@ const styles = StyleSheet.create({
   title: { fontSize: 36, fontWeight: '800' },
   subtitle: { fontSize: 15, lineHeight: 22, opacity: 0.68 },
   form: { gap: 12 },
-  input: {
-    backgroundColor: uiTokens.color.surface,
-    borderColor: uiTokens.color.border,
-    borderRadius: uiTokens.radius.md,
-    borderWidth: 1,
-    fontSize: 16,
-    paddingHorizontal: 14,
-    paddingVertical: 14,
-    minHeight: 50,
-  },
+  input: { paddingVertical: 14 },
   passwordWrap: { position: 'relative', justifyContent: 'center' },
   passwordInput: { paddingRight: 52 },
   eyeButton: { position: 'absolute', right: 3, width: uiTokens.touchTarget, height: uiTokens.touchTarget, alignItems: 'center', justifyContent: 'center' },
   requirement: { fontSize: 12, color: '#64748b', fontWeight: '600' },
   requirementOk: { color: uiTokens.color.success },
   error: { color: uiTokens.color.danger, fontSize: 14, lineHeight: 20 },
-  primaryButton: {
-    alignItems: 'center',
-    backgroundColor: uiTokens.color.text,
-    borderRadius: uiTokens.radius.md,
-    justifyContent: 'center',
-    minHeight: 50,
-    paddingHorizontal: 18,
-  },
-  primaryButtonText: { color: '#ffffff', fontSize: 16, fontWeight: '700' },
-  buttonDisabled: { opacity: 0.45 },
   switchRow: { alignItems: 'center', flexDirection: 'row', flexWrap: 'wrap', gap: 6, justifyContent: 'center', marginTop: 22 },
   switchText: { fontSize: 14, opacity: 0.68 },
   linkText: { fontSize: 14, fontWeight: '700', color: uiTokens.color.brand },
