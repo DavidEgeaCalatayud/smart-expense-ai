@@ -11,7 +11,7 @@ import type { TransactionFilters as Filters } from '../../repositories/transacti
 import { useConflicts } from '../../sync/useConflicts';
 import { useForegroundSync } from '../../sync/useForegroundSync';
 import { TransactionEditor } from './TransactionEditor';
-import { Snackbar } from '../../ui/Snackbar';
+import { useSnackbar } from '../../ui/Snackbar';
 import { CardSkeleton } from '../../ui/Skeleton';
 import { ActionPressable } from '../../ui/ActionPressable';
 import { TransactionFilters } from './TransactionFilters';
@@ -31,7 +31,7 @@ export function TransactionScreen() {
   const [initialType, setInitialType] = useState<'expense' | 'income'>('expense');
   const [categories, setCategories] = useState<LocalCategoryRow[]>([]);
   const [actionError, setActionError] = useState<string | null>(null);
-  const [toast, setToast] = useState<string | null>(null);
+  const { showSnackbar } = useSnackbar();
   const { transactions, isLoading, isSaving, error, reload, create, update, remove } = useTransactions(filters, 51, page * 50);
   const reloadAll = useCallback(async () => {
     await reload();
@@ -54,7 +54,7 @@ export function TransactionScreen() {
     try {
       if (editing) await update(editing.id, input); else await create(input);
       closeEditor();
-      setToast(wasEditing ? 'Movimiento actualizado' : 'Movimiento guardado');
+      showSnackbar(wasEditing ? 'Movimiento actualizado' : 'Movimiento guardado');
       await refreshHealth();
       refresh();
     } catch (caught) {
@@ -64,7 +64,7 @@ export function TransactionScreen() {
   };
   const requestDelete = (item: LocalTransactionRow) => Alert.alert('Delete transaction?', `${item.merchant} · ${minorUnitsToDecimal(item.amount_minor)} €`, [
     { text: 'Cancel', style: 'cancel' },
-    { text: 'Delete', style: 'destructive', onPress: () => { void remove(item.id).then(() => setToast('Movimiento eliminado')).then(refreshHealth).then(refresh).catch(() => undefined); } },
+    { text: 'Delete', style: 'destructive', onPress: () => { void remove(item.id).then(() => showSnackbar('Movimiento eliminado')).then(refreshHealth).then(refresh).catch(() => undefined); } },
   ]);
   const busy = isSaving || isResolving;
   const activeFilters = Object.entries(filters).filter(([key, value]) => key !== 'search' && value !== undefined).length;
@@ -136,7 +136,7 @@ export function TransactionScreen() {
     {filterOpen ? <TransactionFilters filters={filters} categories={categories} onChange={changeFilters} onClose={() => setFilterOpen(false)} /> : null}
     {editor || linkType ? <TransactionEditor item={editing} initialType={linkType ?? initialType} categories={categories.filter((c) => c.archived === 0)} saving={busy}
       error={actionError} onSave={saved} onClose={closeEditor} /> : null}
-      <Snackbar message={toast} onDismiss={() => setToast(null)} />
+      <Snackbar message={toast} onDismiss={() => showSnackbar(null)} />
   </SafeAreaView>;
 }
 const styles = StyleSheet.create({
