@@ -15,7 +15,7 @@ appId: com.davidegea.smartexpenseai
     timeout: 30000
 - tapOn: "Sign out"
 - extendedWaitUntil:
-    visible: "Welcome back"
+    visible: "Bienvenido de nuevo"
     timeout: 15000
 - tapOn: "Create one"
 - tapOn: "Display name"
@@ -32,7 +32,7 @@ appId: com.davidegea.smartexpenseai
 - assertVisible: "PATRIMONIO TOTAL"
 - tapOn:
     id: "tab-activity"
-- assertVisible: "Your transactions"
+- assertVisible: "Tus movimientos"
 - extendedWaitUntil:
     visible: "All changes synchronized"
     timeout: 15000
