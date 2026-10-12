@@ -16,7 +16,7 @@ test('email link resets password once and revokes an existing browser session', 
   await expect(page.getByRole('heading', { name: 'Recuperar contraseña' })).toBeVisible();
   await page.getByLabel('Correo electrónico', { exact: true }).fill(email);
   await page.getByRole('button', { name: 'Enviar correo de recuperación' }).click();
-  await expect(page.getByRole('status')).toContainText('If an account exists');
+  await expect(page.getByRole('status')).toContainText('Si existe una cuenta con ese correo');
   const outbox = `/tmp/smart-expense-recovery-outbox/${createHash('sha256').update(email).digest('hex')}.json`;
   let resetUrl = '';
   await expect.poll(async () => {
