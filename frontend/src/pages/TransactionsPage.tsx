@@ -10,6 +10,7 @@ import { TransactionsTable } from '../components/transactions/TransactionsTable'
 import { ApiErrorAlert } from '../components/ui/ApiErrorAlert';
 import { ConfirmDialog } from '../components/ui/ConfirmDialog';
 import { Toast } from '../components/ui/Toast';
+import { Skeleton } from '../components/ui/Skeleton';
 import { fetchTransactionSummary } from '../services/analyticsApi';
 import { getApiErrorPresentation, type ApiErrorPresentation } from '../services/apiClient';
 import { fetchCategories } from '../services/categoriesApi';
@@ -111,7 +112,7 @@ export function TransactionsPage() {
       setPageData(loadedPage);
       setError(null);
     } catch (loadError) {
-      setError(getApiErrorPresentation(loadError, 'Unable to load transactions'));
+      setError(getApiErrorPresentation(loadError, 'No se han podido cargar los movimientos'));
     } finally {
       setHasLoadedPage(true);
       setIsPageLoading(false);
@@ -123,7 +124,7 @@ export function TransactionsPage() {
     try {
       setSummary(await fetchTransactionSummary());
     } catch (loadError) {
-      setError(getApiErrorPresentation(loadError, 'Unable to load transaction summary'));
+      setError(getApiErrorPresentation(loadError, 'No se ha podido cargar el resumen'));
     } finally {
       setIsSummaryLoading(false);
     }
@@ -150,7 +151,7 @@ export function TransactionsPage() {
           return { ...current, category: fallbackCategory };
         });
       } catch (loadError) {
-        if (isActive) setError(getApiErrorPresentation(loadError, 'Unable to load categories'));
+        if (isActive) setError(getApiErrorPresentation(loadError, 'No se han podido cargar las categorías'));
       }
     };
 
@@ -212,7 +213,7 @@ export function TransactionsPage() {
       setSuggestion(await previewCategorySuggestion(merchant, formValues.type));
     } catch (suggestionError) {
       setSuggestion(null);
-      setError(getApiErrorPresentation(suggestionError, 'Unable to suggest a category'));
+      setError(getApiErrorPresentation(suggestionError, 'No se ha podido sugerir una categoría'));
     } finally {
       setIsSuggesting(false);
     }
@@ -244,9 +245,9 @@ export function TransactionsPage() {
       setSuggestion(null);
       setFormValues(buildDefaultFormValues(defaultExpenseCategory));
       await refreshPageAndSummary();
-      setSuccessMessage(isEditing ? 'Transaction updated successfully.' : 'Transaction created successfully.');
+      setSuccessMessage(isEditing ? 'Movimiento actualizado.' : 'Movimiento guardado.');
     } catch (submitError) {
-      setError(getApiErrorPresentation(submitError, 'Unable to save transaction'));
+      setError(getApiErrorPresentation(submitError, 'No se ha podido guardar el movimiento'));
     } finally {
       setIsSubmitting(false);
     }
@@ -292,9 +293,9 @@ export function TransactionsPage() {
       } else {
         await refreshPageAndSummary();
       }
-      setSuccessMessage('Transaction deleted successfully.');
+      setSuccessMessage('Movimiento eliminado.');
     } catch (deleteError) {
-      setError(getApiErrorPresentation(deleteError, 'Unable to delete transaction'));
+      setError(getApiErrorPresentation(deleteError, 'No se ha podido eliminar el movimiento'));
     } finally {
       setDeletingTransactionId(null);
       setTransactionPendingDelete(null);
@@ -310,15 +311,15 @@ export function TransactionsPage() {
   const isRefreshing = hasLoadedPage && isPageLoading;
   const emptyMessage =
     summary.transactionCount === 0
-      ? 'Create your first transaction with the form to start building your financial history.'
-      : 'No transactions match the current server-side filters. Try changing or clearing them.';
+      ? 'Añade tu primer movimiento para empezar a construir tu historial financiero.'
+      : 'No hay movimientos que coincidan con los filtros actuales. Prueba a cambiarlos o limpiarlos.';
 
   return (
     <>
       <PageHeader
-        eyebrow="Transaction management"
-        title="Transactions"
-        description="Paginated, filtered and persisted financial movements served by the decimal-safe API v2 money contract."
+        eyebrow="Actividad"
+        title="Movimientos"
+        description="Consulta, filtra y gestiona tus ingresos y gastos desde un único lugar."
         action={
           <div className="flex flex-wrap gap-2">
             <button
@@ -328,12 +329,12 @@ export function TransactionsPage() {
               className="inline-flex items-center justify-center gap-2 rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm font-semibold text-slate-700 shadow-sm transition hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-50"
             >
               <RefreshCw size={17} className={isRefreshing ? 'animate-spin' : ''} />
-              {isRefreshing ? 'Refreshing...' : 'Refresh'}
+              {isRefreshing ? 'Actualizando…' : 'Refresh'}
             </button>
             <button
               type="button"
               disabled
-              title="CSV import is not available yet"
+              title="La importación CSV está disponible desde su sección específica"
               className="inline-flex cursor-not-allowed items-center justify-center gap-2 rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm font-semibold text-slate-400 opacity-70 shadow-sm"
             >
               <Download size={18} />
@@ -352,10 +353,10 @@ export function TransactionsPage() {
       )}
 
       <section className="mb-6 grid gap-5 md:grid-cols-2 xl:grid-cols-4">
-        <MetricCard title="Total expenses" value={formatCurrency(summary.totalExpenses)} detail="All persisted expenses" trend="up" icon={<ReceiptText size={20} />} />
-        <MetricCard title="Total income" value={formatCurrency(summary.totalIncome)} detail="All persisted income" trend="down" icon={<ReceiptText size={20} />} />
-        <MetricCard title="Recurring items" value={String(summary.recurringCount)} detail="Recurring movements" trend="neutral" icon={<ReceiptText size={20} />} />
-        <MetricCard title="Needs review" value={String(summary.reviewCount)} detail="Rule-based review flags" trend="warning" icon={<ReceiptText size={20} />} />
+        <MetricCard title="Gastos totales" value={formatCurrency(summary.totalExpenses)} detail="Todos tus gastos" trend="up" icon={<ReceiptText size={20} />} />
+        <MetricCard title="Ingresos totales" value={formatCurrency(summary.totalIncome)} detail="Todos tus ingresos" trend="down" icon={<ReceiptText size={20} />} />
+        <MetricCard title="Recurrentes" value={String(summary.recurringCount)} detail="Movimientos recurrentes" trend="neutral" icon={<ReceiptText size={20} />} />
+        <MetricCard title="Requieren revisión" value={String(summary.reviewCount)} detail="Movimientos que conviene revisar" trend="warning" icon={<ReceiptText size={20} />} />
       </section>
 
       <section className="grid gap-6 xl:grid-cols-[0.75fr_1.25fr]">
@@ -383,14 +384,17 @@ export function TransactionsPage() {
           <TransactionFilters categories={categories} filters={filters} onChange={setFilters} />
 
           {!hasLoadedPage ? (
-            <div className="rounded-3xl border border-slate-200 bg-white p-8 text-center text-sm text-slate-500 shadow-soft">
-              Loading transactions and categories...
+            <div className="space-y-3 rounded-3xl border border-slate-200 bg-white p-6 shadow-soft" role="status" aria-label="Cargando movimientos">
+              <Skeleton className="h-5 w-1/3" />
+              <Skeleton className="h-16 w-full" />
+              <Skeleton className="h-16 w-full" />
+              <Skeleton className="h-16 w-full" />
             </div>
           ) : (
             <div className="space-y-3" aria-busy={isPageLoading}>
               {isRefreshing && (
                 <div className="rounded-2xl border border-brand-100 bg-brand-50 px-4 py-2 text-xs font-semibold text-brand-700">
-                  Refreshing results from the API…
+                  Actualizando resultados…
                 </div>
               )}
               <TransactionsTable
@@ -414,13 +418,13 @@ export function TransactionsPage() {
 
       <ConfirmDialog
         isOpen={transactionPendingDelete !== null}
-        title="Delete transaction?"
+        title="¿Eliminar movimiento?"
         description={
           transactionPendingDelete
             ? `${transactionPendingDelete.merchant} · ${formatCurrencyWithDecimals(transactionPendingDelete.amount)} will be permanently removed.`
             : ''
         }
-        confirmLabel="Delete transaction"
+        confirmLabel="Eliminar movimiento"
         isConfirming={deletingTransactionId !== null}
         onCancel={() => {
           if (deletingTransactionId === null) setTransactionPendingDelete(null);
