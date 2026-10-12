@@ -34,7 +34,7 @@ describe('ConfirmDialog', () => {
     );
 
     expect(screen.getByRole('dialog', { name: 'Delete transaction?' })).toBeInTheDocument();
-    fireEvent.click(screen.getByRole('button', { name: 'Cancel' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Cancelar' }));
     fireEvent.click(screen.getByRole('button', { name: 'Delete transaction' }));
 
     expect(onCancel).toHaveBeenCalledOnce();
@@ -54,7 +54,7 @@ describe('ConfirmDialog', () => {
       />,
     );
 
-    expect(screen.getByRole('button', { name: 'Cancel' })).toBeDisabled();
-    expect(screen.getByRole('button', { name: 'Deleting...' })).toBeDisabled();
+    expect(screen.getByRole('button', { name: 'Cancelar' })).toBeDisabled();
+    expect(screen.getByRole('button', { name: 'Procesando…' })).toBeDisabled();
   });
 });
