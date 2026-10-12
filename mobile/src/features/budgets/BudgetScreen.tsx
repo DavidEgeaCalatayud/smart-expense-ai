@@ -21,7 +21,7 @@ import { ConnectionStatus } from '../../components/ConnectionStatus';
 import { useConflicts } from '../../sync/useConflicts';
 import { useForegroundSync } from '../../sync/useForegroundSync';
 import { usePresupuestos } from './usePresupuestos';
-import { Snackbar } from '../../ui/Snackbar';
+import { useSnackbar } from '../../ui/Snackbar';
 import { CardSkeleton } from '../../ui/Skeleton';
 import { ActionPressable } from '../../ui/ActionPressable';
 import { canonicalMoneyInput, formatMoneyInput } from '../../ui/moneyInput';
@@ -79,12 +79,12 @@ export function BudgetScreen() {
   const [limitAmount, setLimitAmount] = useState('');
   const [categoryId, setCategoryId] = useState<string | null>(null);
   const [editingId, setEditingId] = useState<string | null>(null);
-  const [toast, setToast] = useState<string | null>(null);
   const scrollViewRef = useRef<NativeScrollView>(null);
   const limitInputRef = useRef<NativeTextInput>(null);
   const formYRef = useRef<number | null>(null);
   const pendingRevealRef = useRef(false);
   const [formHighlighted, setFormHighlighted] = useState(false);
+  const { showSnackbar } = useSnackbar();
 
   const revealForm = () => {
     pendingRevealRef.current = true;
@@ -121,7 +121,7 @@ export function BudgetScreen() {
         await create(categoryId, limitAmount);
       }
       resetForm();
-      setToast(wasEditing ? 'Presupuesto actualizado' : 'Presupuesto creado');
+      showSnackbar(wasEditing ? 'Presupuesto actualizado' : 'Presupuesto creado');
       await refreshHealth();
       void syncNow().then(reloadConflicts).catch(() => undefined);
     } catch {
@@ -129,7 +129,7 @@ export function BudgetScreen() {
     }
   };
 
-  const requestEliminar = (budgetId: string, label: string) => {
+  const requestDelete = (budgetId: string, label: string) => {
     Alert.alert('¿Eliminar presupuesto?', label, [
       { text: 'Cancelar', style: 'cancel' },
       {
@@ -137,7 +137,7 @@ export function BudgetScreen() {
         style: 'destructive',
         onPress: () => {
           void remove(budgetId)
-            .then(() => setToast('Presupuesto eliminado'))
+            .then(() => showSnackbar('Presupuesto eliminado'))
             .then(refreshHealth)
             .then(() => syncNow())
             .then(reloadConflicts)
@@ -341,7 +341,7 @@ export function BudgetScreen() {
                 </Pressable>
                 <Pressable
                   disabled={busy || budget.sync_status === 'conflict'}
-                  onPress={() => requestEliminar(budget.id, `${label} · ${minorUnitsToDecimal(budget.limit_minor)} €`)}
+                  onPress={() => requestDelete(budget.id, `${label} · ${minorUnitsToDecimal(budget.limit_minor)} €`)}
                   style={styles.secondaryButton}
                 >
                   <Text style={styles.deleteText}>Eliminar</Text>
@@ -351,7 +351,7 @@ export function BudgetScreen() {
           );
         })}
       </ScrollView>
-      <Snackbar message={toast} onDismiss={() => setToast(null)} />
+      <Snackbar message={toast} onDismiss={() => showSnackbar(null)} />
     </SafeAreaView>
   );
 }
