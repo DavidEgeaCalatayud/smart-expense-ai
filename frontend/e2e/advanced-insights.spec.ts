@@ -14,9 +14,8 @@ test('free account sees the real Premium advanced-insights entitlement boundary'
   await expect(page.getByRole('heading', { name: 'Tu visión financiera' })).toBeVisible();
 
   await page.getByRole('link', { name: 'Análisis' }).click();
-  await expect(page.getByRole('heading', { name: 'Advanced Insights' })).toBeVisible();
-  await expect(page.getByRole('heading', { name: 'Premium advanced insights' })).toBeVisible();
-  await expect(page.getByText(/current account does not have this entitlement enabled/i)).toBeVisible();
-  await expect(page.getByText(/billing checkout is not yet exposed/i)).toBeVisible();
-  await expect(page.getByLabel('Advanced insight cards')).toHaveCount(0);
+  await expect(page.getByRole('heading', { name: 'Análisis avanzados' })).toBeVisible();
+  await expect(page.getByRole('heading', { name: 'Análisis avanzados Premium' })).toBeVisible();
+  await expect(page.getByText(/no están incluidos actualmente en tu cuenta/i)).toBeVisible();
+    await expect(page.getByLabel('Tarjetas de análisis avanzados')).toHaveCount(0);
 });
