@@ -143,7 +143,7 @@ export function HistoricalAnalysisPanel() {
           <div className="mt-6 grid gap-4 md:grid-cols-2 xl:grid-cols-4">
             <article className="rounded-2xl bg-slate-50 p-4">
               <div className="flex items-center gap-2 text-sm font-semibold text-slate-600">
-                <TrendIcon size={17} /> Spending trend
+                <TrendIcon size={17} /> Tendencia de gasto
               </div>
               <p className="mt-2 text-xl font-bold text-slate-950">{trendLabel(analysis.trend.direction)}</p>
               <p className="mt-1 text-xs text-slate-500">
@@ -152,21 +152,21 @@ export function HistoricalAnalysisPanel() {
             </article>
             <article className="rounded-2xl bg-slate-50 p-4">
               <div className="flex items-center gap-2 text-sm font-semibold text-slate-600">
-                <CalendarRange size={17} /> Data coverage
+                <CalendarRange size={17} /> Historial disponible
               </div>
               <p className="mt-2 text-xl font-bold text-slate-950">{analysis.coverage.completeMonths}/{analysis.windowMonths} meses</p>
               <p className="mt-1 text-xs text-slate-500">{analysis.analyzedTransactions} gastos · {analysis.coverage.canonicalMerchants} comercios</p>
             </article>
             <article className="rounded-2xl bg-slate-50 p-4">
               <div className="flex items-center gap-2 text-sm font-semibold text-slate-600">
-                <Repeat2 size={17} /> Recurring streams
+                <Repeat2 size={17} /> Pagos recurrentes
               </div>
               <p className="mt-2 text-xl font-bold text-slate-950">{analysis.coverage.recurringStreams}</p>
               <p className="mt-1 text-xs text-slate-500">Patrones de pagos que se repiten con regularidad</p>
             </article>
             <article className="rounded-2xl bg-slate-50 p-4">
               <div className="flex items-center gap-2 text-sm font-semibold text-slate-600">
-                <Activity size={17} /> Historical outliers
+                <Activity size={17} /> Gastos inusuales
               </div>
               <p className="mt-2 text-xl font-bold text-slate-950">{analysis.outliers.length}</p>
               <p className="mt-1 text-xs text-slate-500">Comparados con tu actividad anterior</p>
