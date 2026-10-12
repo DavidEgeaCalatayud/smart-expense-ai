@@ -45,7 +45,7 @@ export function formatMoneyInput(value: string): string {
   if (!canonical || canonical === '-') return value;
   const negative = canonical.startsWith('-');
   const unsigned = negative ? canonical.slice(1) : canonical;
-  const [whole, fraction = ''] = unsigned.split('.');
+  const [whole = '0', fraction = ''] = unsigned.split('.');
   const grouped = whole.replace(/\B(?=(\d{3})+(?!\d))/g, '.');
   return `${negative ? '-' : ''}${grouped},${fraction.padEnd(2, '0')} €`;
 }
