@@ -12,9 +12,10 @@ describe('offline transaction validation', () => {
     expect(normalizeMoneyInput('0.1')).toBe('0.10');
   });
 
-  it('rejects zero and malformed amounts', () => {
+  it('accepts Spanish thousands grouping and rejects genuine over-precision', () => {
+    expect(normalizeMoneyInput('1.234')).toBe('1234.00');
     expect(() => normalizeMoneyInput('0')).toThrow('greater than zero');
-    expect(() => normalizeMoneyInput('1.234')).toThrow();
+    expect(() => normalizeMoneyInput('10.0012')).toThrow();
   });
 
   it('normalizes merchant/category and validates an ISO date', () => {
