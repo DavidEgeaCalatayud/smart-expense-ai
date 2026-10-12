@@ -2,10 +2,10 @@ appId: com.davidegea.smartexpenseai
 ---
 - launchApp
 - extendedWaitUntil:
-    visible: "Welcome back"
+    visible: "Bienvenido de nuevo"
     timeout: 60000
-- tapOn: "Create one"
-- assertVisible: "Create account"
+- tapOn: "Crear una"
+- assertVisible: "Crear cuenta"
 - tapOn: "Display name"
 - inputText: "Mobile E2E"
 - tapOn: "Email"
