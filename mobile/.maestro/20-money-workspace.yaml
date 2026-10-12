@@ -45,7 +45,7 @@ appId: com.davidegea.smartexpenseai
 
 # A second independent bank account must coexist with the broker.
 - scrollUntilVisible:
-    element: "PATRIMONIO · OFFLINE-FIRST"
+    element: "PATRIMONIO"
     direction: UP
     timeout: 10000
 - tapOn: "Cuenta"
@@ -102,5 +102,5 @@ appId: com.davidegea.smartexpenseai
 - tapOn:
     id: "tab-activity"
 - extendedWaitUntil:
-    visible: "Your transactions"
+    visible: "Tus movimientos"
     timeout: 15000
