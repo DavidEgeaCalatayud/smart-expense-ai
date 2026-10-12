@@ -1,5 +1,7 @@
-import { ActivityIndicator, StyleSheet, Text, View } from '../ui/primitives';
+import { StyleSheet, Text, View } from '../ui/primitives';
 import { ActionPressable } from '../ui/ActionPressable';
+import { Button } from '../ui/Button';
+import { StatusPill } from '../ui/StatusPill';
 import { uiTokens } from '../ui/tokens';
 
 import { useOnlineSync } from '../sync/OnlineSyncProvider';
@@ -24,8 +26,7 @@ export function ConnectionStatus({
         onPress={refresh}
         style={styles.compact}
       >
-        <View style={[styles.dot, styles.online]} />
-        <Text style={styles.compactText}>Sincronizado</Text>
+        <StatusPill label="Sincronizado" tone="success" />
       </ActionPressable>
     );
   }
@@ -57,16 +58,15 @@ export function ConnectionStatus({
           <Text style={styles.time}>Última sincronización: {new Date(sync.lastSyncedAt).toLocaleString('es-ES')}</Text>
         ) : null}
       </View>
-      <ActionPressable
-        accessibilityRole="button"
+      <Button
+        label="Actualizar"
         accessibilityLabel="Actualizar datos"
         haptic="selection"
         disabled={busy}
+        loading={busy}
         onPress={refresh}
-        style={[styles.button, busy && styles.disabled]}
-      >
-        {busy ? <ActivityIndicator color="#ffffff" /> : <Text style={styles.buttonText}>Actualizar</Text>}
-      </ActionPressable>
+        style={styles.button}
+      />
     </View>
   );
 }
@@ -82,7 +82,6 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     gap: 7,
   },
-  compactText: { color: uiTokens.color.brand, fontSize: 12, fontWeight: '800' },
   panel: {
     backgroundColor: uiTokens.color.surface,
     borderRadius: uiTokens.radius.lg,
@@ -106,6 +105,4 @@ const styles = StyleSheet.create({
     paddingVertical: 11,
     borderRadius: uiTokens.radius.sm,
   },
-  buttonText: { color: '#ffffff', fontWeight: '700', fontSize: 12 },
-  disabled: { opacity: 0.55 },
 });
