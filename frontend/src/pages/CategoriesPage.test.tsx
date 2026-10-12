@@ -74,7 +74,7 @@ describe('CategoriesPage', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Archivar y conservar historial' }));
     const dialog = screen.getByRole('dialog');
     expect(dialog).toBeInTheDocument();
-    fireEvent.click(within(dialog).getByRole('button', { name: 'Archive & keep history' }));
+    fireEvent.click(within(dialog).getByRole('button', { name: 'Archivar y conservar historial' }));
 
     await waitFor(() => {
       expect(archiveCategory).toHaveBeenCalledWith('user-gym', { mode: 'archive' });
