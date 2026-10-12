@@ -32,24 +32,24 @@ describe('FinancialAssistantPage', () => {
     });
 
     render(<FinancialAssistantPage />);
-    fireEvent.change(screen.getByLabelText('Ask about your finances'), {
+    fireEvent.change(screen.getByLabelText('Pregunta sobre tus finanzas'), {
       target: { value: 'Why did I spend more this month?' },
     });
-    fireEvent.click(screen.getByRole('button', { name: 'Ask Financial Assistant' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Preguntar al asistente' }));
 
     expect(queryFinancialAssistant).toHaveBeenCalledWith('Why did I spend more this month?');
     const answer = await screen.findByRole('region', { name: 'Financial Assistant answer' });
     expect(within(answer).getByText(/€273.35 more/)).toBeInTheDocument();
-    expect(within(answer).getByText('Period comparison')).toBeInTheDocument();
-    expect(within(answer).getByText('Budget service')).toBeInTheDocument();
+    expect(within(answer).getByText('Comparación de periodos')).toBeInTheDocument();
+    expect(within(answer).getByText('Presupuestos')).toBeInTheDocument();
     expect(within(answer).getByText('The latest historical snapshot has not been generated yet.')).toBeInTheDocument();
-    expect(within(answer).getByText('Request req-assistant-1')).toBeInTheDocument();
+    expect(within(answer).getByText('Consulta req-assistant-1')).toBeInTheDocument();
   });
 
   it('uses an example as the next stateless question without auto-submitting it', () => {
     render(<FinancialAssistantPage />);
-    fireEvent.click(screen.getByRole('button', { name: 'Which budgets need my attention?' }));
-    expect(screen.getByLabelText('Ask about your finances')).toHaveValue('Which budgets need my attention?');
+    fireEvent.click(screen.getByRole('button', { name: '¿Qué presupuestos necesitan mi atención?' }));
+    expect(screen.getByLabelText('Pregunta sobre tus finanzas')).toHaveValue('¿Qué presupuestos necesitan mi atención?');
     expect(queryFinancialAssistant).not.toHaveBeenCalled();
   });
 });
