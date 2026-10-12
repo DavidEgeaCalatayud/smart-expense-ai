@@ -90,14 +90,14 @@ test('historical spending becomes a causal month-end forecast with comparable ba
   await page.getByRole('link', { name: 'Predicciones' }).click();
   await expect(page.getByRole('heading', { name: 'Predicciones' })).toBeVisible();
 
-  const forecast = page.getByRole('region', { name: 'Month-end spending forecast' });
-  await expect(forecast.getByText('spending-forecast-v1')).toBeVisible();
-  await expect(forecast.getByRole('heading', { name: 'Estimated month-end spending' })).toBeVisible();
-  await expect(forecast.getByRole('heading', { name: 'Previous 3 complete months' })).toBeVisible();
-  await expect(forecast.getByRole('heading', { name: 'Current-month run rate' })).toBeVisible();
-  await expect(forecast.getByRole('heading', { name: 'Recurrence-aware projection' })).toBeVisible();
-  await expect(forecast.getByText(/day-15 chronological folds/)).toBeVisible();
-  await expect(forecast.getByText('MAE', { exact: true })).toHaveCount(3);
-  await expect(forecast.getByText('sMAPE', { exact: true })).toHaveCount(3);
-  await expect(forecast.getByText('Bias', { exact: true })).toHaveCount(3);
+  const forecast = page.getByRole('region', { name: 'Previsión de gasto de fin de mes' });
+  await expect(forecast.getByText('Previsión de fin de mes')).toBeVisible();
+  await expect(forecast.getByRole('heading', { name: 'Gasto estimado al terminar el mes' })).toBeVisible();
+  await expect(forecast.getByRole('heading', { name: 'Media de los últimos 3 meses' })).toBeVisible();
+  await expect(forecast.getByRole('heading', { name: 'Ritmo de gasto del mes' })).toBeVisible();
+  await expect(forecast.getByRole('heading', { name: 'Proyección con pagos recurrentes' })).toBeVisible();
+  await expect(forecast.getByText(/margen de error se calcula comparando la previsión/i)).toBeVisible();
+  await expect(forecast.getByText('Error medio', { exact: true })).toHaveCount(3);
+  await expect(forecast.getByText('Error %', { exact: true })).toHaveCount(3);
+  await expect(forecast.getByText('Sesgo', { exact: true })).toHaveCount(3);
 });
