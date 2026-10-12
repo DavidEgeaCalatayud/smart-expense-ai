@@ -183,16 +183,24 @@ function AccountForm({
   const effectivePurpose = purposeForAccountType(draft.accountType, draft.purpose);
   const dialogRef = useRef<HTMLElement>(null);
   const nameInputRef = useRef<HTMLInputElement>(null);
+  const onCancelRef = useRef(onCancel);
+  const busyRef = useRef(busy);
 
   useEffect(() => {
+    onCancelRef.current = onCancel;
+    busyRef.current = busy;
+  }, [busy, onCancel]);
+
+  useEffect(() => {
+    const previouslyFocused = document.activeElement instanceof HTMLElement ? document.activeElement : null;
     const previousOverflow = document.body.style.overflow;
     document.body.style.overflow = 'hidden';
     window.requestAnimationFrame(() => nameInputRef.current?.focus());
 
     const onKeyDown = (event: KeyboardEvent) => {
-      if (event.key === 'Escape' && !busy) {
+      if (event.key === 'Escape' && !busyRef.current) {
         event.preventDefault();
-        onCancel();
+        onCancelRef.current();
         return;
       }
       if (event.key !== 'Tab') return;
@@ -214,8 +222,9 @@ function AccountForm({
     return () => {
       document.body.style.overflow = previousOverflow;
       window.removeEventListener('keydown', onKeyDown);
+      previouslyFocused?.focus();
     };
-  }, [busy, onCancel]);
+  }, []);
 
   return (
     <div
