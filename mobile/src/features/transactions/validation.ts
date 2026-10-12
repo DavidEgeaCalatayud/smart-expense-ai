@@ -1,4 +1,5 @@
 import { decimalToMinorUnits, minorUnitsToDecimal } from '@smart-expense-ai/domain-types';
+import { canonicalMoneyInput } from '../../ui/moneyInput';
 
 export interface OfflineTransactionFormInput {
   merchant: string;
@@ -39,7 +40,7 @@ export function localDate(date = new Date()): string {
 }
 
 export function normalizeMoneyInput(value: string): string {
-  const normalized = value.trim().replace(',', '.');
+  const normalized = canonicalMoneyInput(value);
   const minor = decimalToMinorUnits(normalized);
   if (minor <= 0) {
     throw new Error('Amount must be greater than zero');
