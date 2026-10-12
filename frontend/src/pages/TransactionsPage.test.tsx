@@ -142,14 +142,14 @@ describe('TransactionsPage', () => {
     expect(categorySelect.value).toBe('Food');
 
     fireEvent.change(form.getByLabelText('Merchant'), { target: { value: 'Amazon' } });
-    fireEvent.click(form.getByRole('button', { name: 'Suggest category' }));
+    fireEvent.click(form.getByRole('button', { name: 'Sugerir categoría' }));
 
     await waitFor(() => expect(previewCategorySuggestion).toHaveBeenCalledWith('Amazon', 'expense'));
     const suggestion = await screen.findByRole('region', { name: 'AI category suggestion' });
     expect(within(suggestion).getByText('Shopping')).toBeInTheDocument();
     expect(categorySelect.value).toBe('Food');
 
-    fireEvent.click(within(suggestion).getByRole('button', { name: 'Accept' }));
+    fireEvent.click(within(suggestion).getByRole('button', { name: 'Aceptar' }));
     expect(categorySelect.value).toBe('Shopping');
   });
 
