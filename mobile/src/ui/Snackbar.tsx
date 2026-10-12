@@ -1,8 +1,8 @@
-import { useEffect } from 'react';
+import { createContext, type PropsWithChildren, useCallback, useContext, useEffect, useState } from 'react';
 import { StyleSheet, Text, View } from './primitives';
 import { uiTokens } from './tokens';
 
-export function Snackbar({ message, onDismiss }: { message: string | null; onDismiss(): void }) {
+function Snackbar({ message, onDismiss }: { message: string | null; onDismiss(): void }) {
   useEffect(() => {
     if (!message) return undefined;
     const timeout = setTimeout(onDismiss, 3200);
@@ -18,13 +18,35 @@ export function Snackbar({ message, onDismiss }: { message: string | null; onDis
   );
 }
 
+const SnackbarContext = createContext<{ showSnackbar(message: string): void }>({
+  showSnackbar: () => undefined,
+});
+
+export function SnackbarProvider({ children }: PropsWithChildren) {
+  const [message, setMessage] = useState<string | null>(null);
+  const showSnackbar = useCallback((next: string) => setMessage(next), []);
+  const dismiss = useCallback(() => setMessage(null), []);
+
+  return (
+    <SnackbarContext.Provider value={{ showSnackbar }}>
+      {children}
+      <Snackbar message={message} onDismiss={dismiss} />
+    </SnackbarContext.Provider>
+  );
+}
+
+export function useSnackbar() {
+  return useContext(SnackbarContext);
+}
+
 const styles = StyleSheet.create({
   container: {
     position: 'absolute',
     left: 18,
     right: 18,
     bottom: 86,
-    zIndex: 100,
+    zIndex: 1000,
+    elevation: 20,
     minHeight: uiTokens.touchTarget,
     borderRadius: uiTokens.radius.lg,
     backgroundColor: uiTokens.color.text,
