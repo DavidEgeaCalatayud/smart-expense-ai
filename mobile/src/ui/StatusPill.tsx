@@ -1,17 +1,26 @@
 import { StyleSheet, Text, View } from './primitives';
 import { uiTokens } from './tokens';
 
-export function StatusPill({
-  label,
-  tone = 'neutral',
-}: {
-  label: string;
-  tone?: 'success' | 'warning' | 'danger' | 'neutral';
-}) {
+type Tone = 'success' | 'warning' | 'danger' | 'neutral';
+
+export function StatusPill({ label, tone = 'neutral' }: { label: string; tone?: Tone }) {
+  const pillStyle = tone === 'success' ? styles.successPill
+    : tone === 'warning' ? styles.warningPill
+      : tone === 'danger' ? styles.dangerPill
+        : styles.neutralPill;
+  const dotStyle = tone === 'success' ? styles.successDot
+    : tone === 'warning' ? styles.warningDot
+      : tone === 'danger' ? styles.dangerDot
+        : styles.neutralDot;
+  const labelStyle = tone === 'success' ? styles.successLabel
+    : tone === 'warning' ? styles.warningLabel
+      : tone === 'danger' ? styles.dangerLabel
+        : styles.neutralLabel;
+
   return (
-    <View style={[styles.pill, styles[`${tone}Pill`]]}>
-      <View style={[styles.dot, styles[`${tone}Dot`]]} />
-      <Text style={[styles.label, styles[`${tone}Label`]]}>{label}</Text>
+    <View style={[styles.pill, pillStyle]}>
+      <View style={[styles.dot, dotStyle]} />
+      <Text style={[styles.label, labelStyle]}>{label}</Text>
     </View>
   );
 }
