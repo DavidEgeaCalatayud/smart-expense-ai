@@ -20,7 +20,7 @@ test('authenticated user can preview, import and safely re-import a CSV statemen
   await expect(page.getByRole('heading', { name: 'Tu visión financiera' })).toBeVisible();
 
   await page.getByRole('link', { name: 'Importar CSV' }).click();
-  await expect(page.getByRole('heading', { name: 'Import transactions from CSV' })).toBeVisible();
+  await expect(page.getByRole('heading', { name: 'Importar movimientos desde CSV' })).toBeVisible();
 
   const csvInput = page.getByLabel('CSV file');
   await csvInput.setInputFiles({
@@ -29,20 +29,20 @@ test('authenticated user can preview, import and safely re-import a CSV statemen
     buffer: Buffer.from(csv),
   });
 
-  await expect(page.getByLabel('Date column')).toHaveValue('Fecha');
-  await expect(page.getByLabel('Amount column')).toHaveValue('Importe');
-  await expect(page.getByLabel('Merchant / concept column')).toHaveValue('Concepto');
-  await page.getByLabel('Date format').selectOption('dd/mm/yyyy');
-  await page.getByLabel('Decimal separator').selectOption('comma');
+  await expect(page.getByLabel('Columna Fecha')).toHaveValue('Fecha');
+  await expect(page.getByLabel('Columna Importe')).toHaveValue('Importe');
+  await expect(page.getByLabel('Columna Comercio / concepto')).toHaveValue('Concepto');
+  await page.getByLabel('Formato de fecha').selectOption('dd/mm/yyyy');
+  await page.getByLabel('Separador decimal').selectOption('comma');
 
-  await page.getByRole('button', { name: 'Preview import' }).click();
-  await expect(page.getByText('Ready to import')).toBeVisible();
+  await page.getByRole('button', { name: 'Ver vista previa' }).click();
+  await expect(page.getByText('Listo para importar')).toBeVisible();
   await expect(page.getByText(merchant)).toBeVisible();
   await expect(page.getByText('€42.51')).toBeVisible();
-  await expect(page.getByText('2 new rows are ready. 0 duplicate rows will be skipped and recorded in the import batch.')).toBeVisible();
+  await expect(page.getByText('2 filas nuevas listas. 0 duplicados se omitirán.')).toBeVisible();
 
-  await page.getByRole('button', { name: 'Import 2 transactions' }).click();
-  await expect(page.getByRole('status')).toContainText('2 transactions imported. 0 duplicates skipped.');
+  await page.getByRole('button', { name: 'Importar 2 movimientos' }).click();
+  await expect(page.getByRole('status')).toContainText('2 movimientos importados. 0 duplicados omitidos.');
   await expect(page.getByRole('article').getByText('playwright-statement.csv')).toBeVisible();
 
   await page.getByRole('link', { name: 'Movimientos' }).click();
@@ -52,21 +52,21 @@ test('authenticated user can preview, import and safely re-import a CSV statemen
   await expect(importedRow).toContainText('Other');
 
   await page.getByRole('link', { name: 'Importar CSV' }).click();
-  await expect(page.getByRole('heading', { name: 'Import transactions from CSV' })).toBeVisible();
+  await expect(page.getByRole('heading', { name: 'Importar movimientos desde CSV' })).toBeVisible();
   await csvInput.setInputFiles({
     name: 'playwright-statement.csv',
     mimeType: 'text/csv',
     buffer: Buffer.from(csv),
   });
-  await page.getByLabel('Date format').selectOption('dd/mm/yyyy');
-  await page.getByLabel('Decimal separator').selectOption('comma');
-  await page.getByRole('button', { name: 'Preview import' }).click();
+  await page.getByLabel('Formato de fecha').selectOption('dd/mm/yyyy');
+  await page.getByLabel('Separador decimal').selectOption('comma');
+  await page.getByRole('button', { name: 'Ver vista previa' }).click();
 
-  const duplicateOnlyImport = page.getByRole('button', { name: 'Import 0 transactions' });
+  const duplicateOnlyImport = page.getByRole('button', { name: 'Importar 0 movimientos' });
   await expect(duplicateOnlyImport).toBeEnabled();
-  await expect(page.getByText('0 new rows are ready. 2 duplicate rows will be skipped and recorded in the import batch.')).toBeVisible();
+  await expect(page.getByText('0 filas nuevas listas. 2 duplicados se omitirán.')).toBeVisible();
   await duplicateOnlyImport.click();
-  await expect(page.getByRole('status')).toContainText('No new transactions imported. 2 duplicates were already present.');
+  await expect(page.getByRole('status')).toContainText('No se han importado movimientos nuevos. 2 duplicados ya estaban registrados.');
 
   await page.getByRole('link', { name: 'Movimientos' }).click();
   await expect(page.getByRole('heading', { name: 'Movimientos' })).toBeVisible();
