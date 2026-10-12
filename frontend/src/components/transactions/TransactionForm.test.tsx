@@ -75,7 +75,7 @@ describe('TransactionForm', () => {
     );
 
     const suggestion = screen.getByRole('region', { name: 'AI category suggestion' });
-    expect(suggestion).toHaveTextContent('Suggested category');
+    expect(suggestion).toHaveTextContent('Categoría sugerida');
     expect(suggestion).toHaveTextContent('Shopping');
     expect(suggestion).not.toHaveTextContent('%');
     expect(suggestion).not.toHaveTextContent(/confidence/i);
