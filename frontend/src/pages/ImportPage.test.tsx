@@ -109,20 +109,20 @@ describe('ImportPage', () => {
     });
 
     await waitFor(() => expect(detectCsv).toHaveBeenCalledOnce());
-    expect(screen.getByLabelText('Date column')).toHaveValue('Fecha');
-    expect(screen.getByLabelText('Amount column')).toHaveValue('Importe');
-    expect(screen.getByLabelText('Merchant / concept column')).toHaveValue('Concepto');
+    expect(screen.getByLabelText('Columna Fecha')).toHaveValue('Fecha');
+    expect(screen.getByLabelText('Columna Importe')).toHaveValue('Importe');
+    expect(screen.getByLabelText('Columna Comercio / concepto')).toHaveValue('Concepto');
 
-    fireEvent.click(screen.getByRole('button', { name: 'Preview import' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Ver vista previa' }));
     await waitFor(() => expect(previewCsvImport).toHaveBeenCalledOnce());
-    expect(screen.getByText('2 new rows are ready. 1 duplicate rows will be skipped and recorded in the import batch.')).toBeInTheDocument();
+    expect(screen.getByText('2 filas nuevas listas. 1 duplicados se omitirán.')).toBeInTheDocument();
     expect(screen.getByText('MERCADONA 1293')).toBeInTheDocument();
     expect(screen.getByText('€42.51')).toBeInTheDocument();
 
-    fireEvent.click(screen.getByRole('button', { name: 'Import 2 transactions' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Importar 2 movimientos' }));
     await waitFor(() => expect(commitCsvImport).toHaveBeenCalledOnce());
     expect(await screen.findByRole('status')).toHaveTextContent(
-      '2 transactions imported. 1 duplicates skipped.',
+      '2 movimientos importados. 1 duplicados omitidos.',
     );
     expect(fetchImportBatches).toHaveBeenCalledTimes(2);
   });
@@ -150,17 +150,17 @@ describe('ImportPage', () => {
     });
     await waitFor(() => expect(detectCsv).toHaveBeenCalledOnce());
 
-    fireEvent.click(screen.getByRole('button', { name: 'Preview import' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Ver vista previa' }));
     await waitFor(() => expect(previewCsvImport).toHaveBeenCalledOnce());
 
-    const commitButton = screen.getByRole('button', { name: 'Import 1 transactions' });
+    const commitButton = screen.getByRole('button', { name: 'Importar 1 movimientos' });
     expect(commitButton).toBeDisabled();
-    expect(screen.getByText(/commit is intentionally blocked/i)).toBeInTheDocument();
+    expect(screen.getByText(/Corrige las filas no válidas antes de importar/i)).toBeInTheDocument();
 
-    fireEvent.change(screen.getByLabelText('Description / reference column'), {
+    fireEvent.change(screen.getByLabelText('Columna Descripción / referencia'), {
       target: { value: '' },
     });
-    expect(screen.queryByRole('button', { name: 'Import 1 transactions' })).not.toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'Importar 1 movimientos' })).not.toBeInTheDocument();
     expect(commitCsvImport).not.toHaveBeenCalled();
   });
 });
