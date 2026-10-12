@@ -10,7 +10,7 @@ test('email link resets password once and revokes an existing browser session', 
   const registration = await other.request.post('http://localhost:8000/api/v1/auth/register', { data: { email, password: oldPassword, displayName: 'Recovery E2E' } });
   expect(registration.status()).toBe(201);
   await page.goto('/login');
-  await page.getByRole('link', { name: 'Forgot password?' }).click();
+  await page.getByRole('link', { name: '¿La has olvidado?' }).click();
   // React Router can update the URL before the old LoginPage input has unmounted. Waiting
   // for the destination heading prevents filling the stale login email field.
   await expect(page.getByRole('heading', { name: 'Forgot password' })).toBeVisible();
@@ -38,9 +38,9 @@ test('email link resets password once and revokes an existing browser session', 
   await page.getByRole('button', { name: 'Save new password' }).click();
   await expect(page.getByText('This reset link is invalid or expired. Request a new one.')).toBeVisible();
   await page.getByRole('link', { name: 'Back to sign in' }).click();
-  await page.getByLabel('Email', { exact: true }).fill(email);
-  await page.getByLabel('Password', { exact: true }).fill(newPassword);
-  await page.getByRole('button', { name: 'Sign in', exact: true }).click();
+  await page.getByLabel('Correo electrónico', { exact: true }).fill(email);
+  await page.getByLabel('Contraseña', { exact: true }).fill(newPassword);
+  await page.getByRole('button', { name: 'Entrar', exact: true }).click();
   await expect(page).not.toHaveURL(/\/login$/);
   await other.close();
 });
