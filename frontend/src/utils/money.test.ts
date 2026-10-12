@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import {
+  formatMoneyEditingInput,
   formatMoneyInput,
   formatMoneyRounded,
   formatMoneyWithDecimals,
@@ -31,6 +32,12 @@ describe('fixed-point money helpers', () => {
     expect(formatMoneyWithDecimals('-0.30')).toBe('-€0.30');
     expect(formatMoneyRounded('12.50')).toBe('€13');
     expect(isNegativeMoney('-0.01')).toBe(true);
+  });
+
+  it('formats money naturally while the user types', () => {
+    expect(formatMoneyEditingInput('1000')).toBe('1.000');
+    expect(formatMoneyEditingInput('1000,5')).toBe('1.000,5');
+    expect(formatMoneyEditingInput('1234.56')).toBe('1.234,56');
   });
 
   it('accepts localized thousands separators and formatted euro input', () => {
