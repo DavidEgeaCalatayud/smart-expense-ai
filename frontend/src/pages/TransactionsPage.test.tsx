@@ -100,7 +100,7 @@ describe('TransactionsPage', () => {
     expect(fetchCategories).toHaveBeenCalledOnce();
     expect(fetchTransactionSummary).toHaveBeenCalledOnce();
     expect(screen.getAllByRole('option', { name: 'Food' })).toHaveLength(2);
-    expect(screen.getByText(/Showing/)).toHaveTextContent('1–1 of 1');
+    expect(screen.getByText(/Mostrando/)).toHaveTextContent('1–1 de 1');
   });
 
   it('preserves in-progress input when category initialization resolves late', async () => {
@@ -116,7 +116,7 @@ describe('TransactionsPage', () => {
 
     const form = within(getTransactionForm());
     const merchantInput = form.getByLabelText('Merchant') as HTMLInputElement;
-    const amountInput = form.getByRole('spinbutton', { name: 'Amount' }) as HTMLInputElement;
+    const amountInput = form.getByLabelText('Amount') as HTMLInputElement;
 
     fireEvent.change(merchantInput, { target: { value: 'Early merchant input' } });
     fireEvent.change(amountInput, { target: { value: '19.95' } });
@@ -199,7 +199,7 @@ describe('TransactionsPage', () => {
       expect(within(screen.getByTestId('transaction-cards')).getByText('New Market')).toBeInTheDocument(),
     );
     expect(fetchTransactionSummary).toHaveBeenCalledTimes(2);
-    expect(screen.getByRole('status')).toHaveTextContent('Transaction created successfully.');
+    expect(screen.getByRole('status')).toHaveTextContent('Movimiento guardado.');
   });
 
   it('requires confirmation before deleting and refreshes the current page', async () => {
@@ -212,9 +212,9 @@ describe('TransactionsPage', () => {
 
     fireEvent.click(within(cards).getByRole('button', { name: 'Delete Persisted Market' }));
     expect(deleteTransaction).not.toHaveBeenCalled();
-    expect(screen.getByRole('dialog', { name: 'Delete transaction?' })).toBeInTheDocument();
+    expect(screen.getByRole('dialog', { name: '¿Eliminar movimiento?' })).toBeInTheDocument();
 
-    fireEvent.click(screen.getByRole('button', { name: 'Cancel' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Cancelar' }));
     expect(deleteTransaction).not.toHaveBeenCalled();
 
     fireEvent.click(
@@ -222,11 +222,11 @@ describe('TransactionsPage', () => {
         name: 'Delete Persisted Market',
       }),
     );
-    fireEvent.click(screen.getByRole('button', { name: 'Delete transaction' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Eliminar movimiento' }));
 
     await waitFor(() => expect(deleteTransaction).toHaveBeenCalledWith(persistedTransaction.id));
     expect(await screen.findByTestId('transactions-empty-state')).toBeInTheDocument();
     expect(screen.queryByTestId('transaction-cards')).not.toBeInTheDocument();
-    expect(screen.getByRole('status')).toHaveTextContent('Transaction deleted successfully.');
+    expect(screen.getByRole('status')).toHaveTextContent('Movimiento eliminado.');
   });
 });
