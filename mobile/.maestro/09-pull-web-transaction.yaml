@@ -4,7 +4,7 @@ appId: com.davidegea.smartexpenseai
 - launchApp
 - openLink: "smartexpenseai://transactions"
 - extendedWaitUntil:
-    visible: "Your transactions"
+    visible: "Tus movimientos"
     timeout: 15000
 - scrollUntilVisible:
     element: "Web Bridge Coffee"
