@@ -11,6 +11,7 @@ import { useAuth } from '../auth/AuthProvider';
 import { WorkspaceNav, type WorkspaceName } from './WorkspaceNav';
 import { ConnectionStatus } from './ConnectionStatus';
 import { useOnlineSync } from '../sync/OnlineSyncProvider';
+import { uiTokens } from '../ui/tokens';
 
 export function ServerWorkspaceShell({
   active,
@@ -61,36 +62,38 @@ export function ServerWorkspaceShell({
 export const serverWorkspaceStyles = StyleSheet.create({
   section: { gap: 10 },
   sectionTitle: { fontSize: 19, fontWeight: '800' },
-  card: { backgroundColor: '#ffffff', borderRadius: 14, gap: 6, padding: 16 },
+  card: { backgroundColor: uiTokens.color.surface, borderRadius: uiTokens.radius.lg, gap: 6, padding: 16 },
   cardTitle: { fontSize: 16, fontWeight: '800' },
   cardValue: { fontSize: 24, fontWeight: '800' },
   metadata: { fontSize: 13, lineHeight: 19, opacity: 0.65 },
   body: { fontSize: 14, lineHeight: 21 },
   row: { flexDirection: 'row', gap: 10 },
-  rowCard: { backgroundColor: '#ffffff', borderRadius: 14, flex: 1, gap: 4, padding: 14 },
-  error: { color: '#b42318', fontSize: 14, lineHeight: 20 },
+  rowCard: { backgroundColor: uiTokens.color.surface, borderRadius: uiTokens.radius.lg, flex: 1, gap: 4, padding: 14 },
+  error: { color: uiTokens.color.danger, fontSize: 14, lineHeight: 20 },
   empty: { fontSize: 14, lineHeight: 21, opacity: 0.65 },
   primaryButton: {
     alignItems: 'center',
-    backgroundColor: '#111827',
-    borderRadius: 12,
+    backgroundColor: uiTokens.color.text,
+    borderRadius: uiTokens.radius.md,
+    minHeight: uiTokens.touchTarget,
     paddingHorizontal: 14,
     paddingVertical: 12,
   },
   primaryButtonText: { color: '#ffffff', fontSize: 14, fontWeight: '700' },
   secondaryButton: {
     alignItems: 'center',
-    borderColor: '#c9ced6',
-    borderRadius: 12,
+    borderColor: uiTokens.color.border,
+    borderRadius: uiTokens.radius.md,
+    minHeight: uiTokens.touchTarget,
     borderWidth: 1,
     paddingHorizontal: 14,
     paddingVertical: 11,
   },
   secondaryButtonText: { fontSize: 14, fontWeight: '700' },
   input: {
-    backgroundColor: '#ffffff',
-    borderColor: '#d9dde3',
-    borderRadius: 12,
+    backgroundColor: uiTokens.color.surface,
+    borderColor: uiTokens.color.border,
+    borderRadius: uiTokens.radius.md,
     borderWidth: 1,
     fontSize: 16,
     paddingHorizontal: 14,
@@ -99,7 +102,7 @@ export const serverWorkspaceStyles = StyleSheet.create({
 });
 
 const styles = StyleSheet.create({
-  safeArea: { backgroundColor: '#f6f7f9', flex: 1 },
+  safeArea: { backgroundColor: uiTokens.color.background, flex: 1 },
   content: { gap: 18, padding: 20, paddingBottom: 40 },
   accountRow: {
     alignItems: 'center',
