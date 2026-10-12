@@ -3,7 +3,7 @@ appId: com.davidegea.smartexpenseai
 - launchApp
 - openLink: "smartexpenseai://transactions"
 - extendedWaitUntil:
-    visible: "Your transactions"
+    visible: "Tus movimientos"
     timeout: 15000
 - tapOn: "\\+ Add"
 - tapOn: "Merchant"
