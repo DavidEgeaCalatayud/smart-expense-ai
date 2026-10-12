@@ -72,14 +72,14 @@ describe('BudgetsPage', () => {
     const overallEditButton = await screen.findByRole('button', { name: 'Edit overall budget' });
     const overallCard = overallEditButton.closest('article');
     expect(overallCard).not.toBeNull();
-    expect(within(overallCard as HTMLElement).getByText('Overall spending')).toBeInTheDocument();
+    expect(within(overallCard as HTMLElement).getByText('Gasto general')).toBeInTheDocument();
 
     const gymEditButton = screen.getByRole('button', { name: 'Edit Gym budget' });
     const gymCard = gymEditButton.closest('article');
     expect(gymCard).not.toBeNull();
     expect(within(gymCard as HTMLElement).getByText('Gym')).toBeInTheDocument();
-    expect(within(gymCard as HTMLElement).getByText('82.0% used · 5 days left')).toBeInTheDocument();
-    expect(within(gymCard as HTMLElement).getByText('€72.00 remaining')).toBeInTheDocument();
+    expect(within(gymCard as HTMLElement).getByText('82.0% usado · 5 días restantes')).toBeInTheDocument();
+    expect(within(gymCard as HTMLElement).getByText('€72.00 restantes')).toBeInTheDocument();
   });
 
   it('normalizes a category budget amount before submitting it', async () => {
