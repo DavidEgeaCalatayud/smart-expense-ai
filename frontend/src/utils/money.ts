@@ -89,5 +89,6 @@ export function formatMoneyInput(value: string): string {
   const negative = normalized.startsWith('-');
   const unsigned = negative ? normalized.slice(1) : normalized;
   const [whole, fraction] = unsigned.split('.');
-  return `${negative ? '-' : ''}${Number.parseInt(whole, 10).toLocaleString('es-ES')},${fraction} €`;
+  const grouped = whole.replace(/\B(?=(\d{3})+(?!\d))/g, '.');
+  return `${negative ? '-' : ''}${grouped},${fraction} €`;
 }
