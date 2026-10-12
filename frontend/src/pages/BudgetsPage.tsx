@@ -8,7 +8,7 @@ import { createBudget, deleteBudget, fetchBudgets, updateBudget } from '../servi
 import { fetchCategories } from '../services/categoriesApi';
 import type { BudgetMonth, BudgetProgress } from '../types/budgets';
 import type { TransactionCategory } from '../types/transactions';
-import { formatMoneyInput, formatMoneyWithDecimals, normalizeMoneyAmount } from '../utils/money';
+import { formatMoneyEditingInput, formatMoneyInput, formatMoneyWithDecimals, normalizeMoneyAmount } from '../utils/money';
 import { Skeleton } from '../components/ui/Skeleton';
 
 function currentMonth(): string {
@@ -67,10 +67,10 @@ function BudgetCard({
             autoFocus
             aria-label="Updated budget amount"
             value={editAmount}
-            onChange={(event) => onEditAmount(event.target.value)}
+            onChange={(event) => onEditAmount(formatMoneyEditingInput(event.target.value))}
             onFocus={() => {
               if (!editAmount.trim()) return;
-              try { onEditAmount(normalizeMoneyAmount(editAmount)); } catch { /* Keep invalid input editable. */ }
+              onEditAmount(formatMoneyEditingInput(editAmount));
             }}
             onBlur={() => {
               if (!editAmount.trim()) return;
@@ -205,10 +205,10 @@ export function BudgetsPage() {
               inputMode="decimal"
               placeholder="400,00 €"
               value={limitAmount}
-              onChange={(event) => setLimitAmount(event.target.value)}
+              onChange={(event) => setLimitAmount(formatMoneyEditingInput(event.target.value))}
               onFocus={() => {
                 if (!limitAmount.trim()) return;
-                try { setLimitAmount(normalizeMoneyAmount(limitAmount)); } catch { /* Keep invalid input editable. */ }
+                setLimitAmount(formatMoneyEditingInput(limitAmount));
               }}
               onBlur={() => {
                 if (!limitAmount.trim()) return;
