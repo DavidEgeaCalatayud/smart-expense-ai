@@ -96,7 +96,7 @@ const forecast: SpendingForecastResponse = {
   baselines: [
     {
       baseline: 'three_month_mean',
-      label: 'Previous 3 complete months',
+      label: 'Media de los últimos 3 meses',
       available: true,
       projectedMonthEnd: '500.00',
       differenceFromThreeMonthMean: '0.00',
@@ -106,7 +106,7 @@ const forecast: SpendingForecastResponse = {
     },
     {
       baseline: 'run_rate',
-      label: 'Current-month run rate',
+      label: 'Ritmo de gasto del mes',
       available: true,
       projectedMonthEnd: '482.22',
       differenceFromThreeMonthMean: '-17.78',
@@ -116,7 +116,7 @@ const forecast: SpendingForecastResponse = {
     },
     {
       baseline: 'recurrence_aware',
-      label: 'Recurrence-aware projection',
+      label: 'Proyección con pagos recurrentes',
       available: true,
       projectedMonthEnd: '455.99',
       differenceFromThreeMonthMean: '-44.01',
@@ -137,31 +137,31 @@ describe('PredictionsPage', () => {
   it('renders month-end baselines with comparable backtest evidence', async () => {
     render(<PredictionsPage />);
 
-    const forecastRegion = await screen.findByRole('region', { name: 'Month-end spending forecast' });
-    expect(within(forecastRegion).getByText('€420.00 spent through 27 Aug 2026 · 4 days remaining')).toBeInTheDocument();
-    expect(within(forecastRegion).getByText('Previous 3 complete months')).toBeInTheDocument();
-    expect(within(forecastRegion).getByText('Current-month run rate')).toBeInTheDocument();
-    expect(within(forecastRegion).getByText('Recurrence-aware projection')).toBeInTheDocument();
+    const forecastRegion = await screen.findByRole('region', { name: 'Previsión de gasto de fin de mes' });
+    expect(within(forecastRegion).getByText('€420.00 gastados hasta 27 ago 2026 · quedan 4 días')).toBeInTheDocument();
+    expect(within(forecastRegion).getByText('Media de los últimos 3 meses')).toBeInTheDocument();
+    expect(within(forecastRegion).getByText('Ritmo de gasto del mes')).toBeInTheDocument();
+    expect(within(forecastRegion).getByText('Proyección con pagos recurrentes')).toBeInTheDocument();
     expect(within(forecastRegion).getByText('€455.99')).toBeInTheDocument();
     expect(within(forecastRegion).getByText('€22.50')).toBeInTheDocument();
-    expect(within(forecastRegion).getAllByText(/6 walk-forward months · day 15 cutoff/)).toHaveLength(3);
-    expect(within(forecastRegion).getByText(/same day-15 chronological folds/)).toBeInTheDocument();
+    expect(within(forecastRegion).getAllByText(/6 meses comparables · corte en el día 15/)).toHaveLength(3);
+    expect(within(forecastRegion).getByText(/margen de error se calcula comparando la previsión/i)).toBeInTheDocument();
   });
 
   it('renders future totals separately from overdue recurring schedules', async () => {
     render(<PredictionsPage />);
 
     expect(await screen.findByText('€28.98')).toBeInTheDocument();
-    expect(screen.getByText('Upcoming charges').parentElement).toHaveTextContent('2');
-    expect(screen.getByText('Overdue schedules').parentElement).toHaveTextContent('1');
+    expect(screen.getByText('Próximos cargos').parentElement).toHaveTextContent('2');
+    expect(screen.getByText('Pagos recurrentes atrasados').parentElement).toHaveTextContent('1');
 
-    const calendar = screen.getByRole('region', { name: 'Upcoming recurring payment calendar' });
+    const calendar = screen.getByRole('region', { name: 'Calendario de pagos recurrentes próximos' });
     expect(within(calendar).getByText('Spotify')).toBeInTheDocument();
     expect(within(calendar).getByText('Netflix')).toBeInTheDocument();
-    expect(within(calendar).getByText('Price changed')).toBeInTheDocument();
+    expect(within(calendar).getByText('Importe cambiado')).toBeInTheDocument();
 
-    const overdue = screen.getByRole('region', { name: 'Overdue recurring payments' });
+    const overdue = screen.getByRole('region', { name: 'Pagos recurrentes atrasados' });
     expect(within(overdue).getByText('Gym')).toBeInTheDocument();
-    expect(within(overdue).getByText('Overdue')).toBeInTheDocument();
+    expect(within(overdue).getByText('Atrasado')).toBeInTheDocument();
   });
 });
