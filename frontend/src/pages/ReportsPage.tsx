@@ -188,7 +188,7 @@ export function ReportsPage() {
                     {report.categoryBreakdown.map((item) => (
                       <tr key={`${item.type}-${item.category}`}>
                         <td className="px-3 py-4 font-semibold text-slate-800">{item.category}</td>
-                        <td className="px-3 py-4 capitalize text-slate-500">{item.type}</td>
+                        <td className="px-3 py-4 text-slate-500">{item.type === 'expense' ? 'Gasto' : 'Ingreso'}</td>
                         <td className="px-3 py-4 text-right text-slate-500">{item.transactionCount}</td>
                         <td className="px-3 py-4 text-right font-semibold text-slate-900">
                           {formatCurrencyWithDecimals(item.total)}
