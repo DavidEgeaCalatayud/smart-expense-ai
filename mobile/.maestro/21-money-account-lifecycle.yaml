@@ -48,12 +48,8 @@ appId: com.davidegea.smartexpenseai
 - tapOn:
     text: "Editar"
     index: 1
-# The account form preserves the list scroll offset. Reveal its heading before asserting the form
-# is open; otherwise the edit can succeed while "Editar cuenta" remains above the viewport.
-- scrollUntilVisible:
-    element: "Editar cuenta"
-    direction: UP
-    timeout: 10000
+# Opening the inline editor must automatically reveal it with the animated MoneyScreen scroll.
+# Do not add a manual scroll here: this assertion guards the UX regression directly.
 - extendedWaitUntil:
     visible: "Editar cuenta"
     timeout: 10000
@@ -102,12 +98,7 @@ appId: com.davidegea.smartexpenseai
 - tapOn:
     text: "Editar"
     index: 1
-# The account form preserves the list scroll offset. The edit action can open correctly with the
-# heading just above the viewport, so reveal it before asserting that the form is open.
-- scrollUntilVisible:
-    element: "Editar cuenta"
-    direction: UP
-    timeout: 10000
+# The second edit must also auto-reveal the existing editor after its contents are replaced.
 - extendedWaitUntil:
     visible: "Editar cuenta"
     timeout: 10000
