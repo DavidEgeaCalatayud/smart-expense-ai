@@ -121,7 +121,7 @@ describe('TransactionsPage', () => {
     fireEvent.change(merchantInput, { target: { value: 'Early merchant input' } });
     fireEvent.change(amountInput, { target: { value: '19.95' } });
     expect(merchantInput.value).toBe('Early merchant input');
-    expect(amountInput.value).toBe('19.95');
+    expect(amountInput.value).toBe('19,95');
 
     resolveCategories(categories);
 
@@ -129,7 +129,7 @@ describe('TransactionsPage', () => {
       expect(form.getByRole('combobox', { name: 'Category' })).toHaveValue('Food'),
     );
     expect(merchantInput.value).toBe('Early merchant input');
-    expect(amountInput.value).toBe('19.95');
+    expect(amountInput.value).toBe('19,95');
   });
 
   it('shows an AI suggestion without applying it until the user accepts', async () => {
