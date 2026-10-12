@@ -3,12 +3,24 @@ import type { MoneyAmount } from '../types/transactions';
 const MONEY_PATTERN = /^-?\d+(?:\.\d{1,2})?$/;
 
 export function normalizeMoneyAmount(value: string): MoneyAmount {
-  const input = value.trim();
-  const commaCount = (input.match(/,/g) ?? []).length;
-  if (commaCount > 1 || (commaCount === 1 && input.includes('.'))) {
-    throw new Error('Money values must use one decimal separator and at most two decimal places.');
+  let input = value.trim().replace(/\s/g, '').replace(/€/g, '');
+  const negativeInput = input.startsWith('-');
+  if (negativeInput) input = input.slice(1);
+
+  const comma = input.lastIndexOf(',');
+  const dot = input.lastIndexOf('.');
+  let decimalIndex = -1;
+  if (comma >= 0 && dot >= 0) {
+    decimalIndex = Math.max(comma, dot);
+  } else if (comma >= 0) {
+    decimalIndex = input.length - comma - 1 <= 2 ? comma : -1;
+  } else if (dot >= 0) {
+    decimalIndex = input.length - dot - 1 <= 2 ? dot : -1;
   }
-  const trimmed = commaCount === 1 ? input.replace(',', '.') : input;
+
+  const whole = (decimalIndex >= 0 ? input.slice(0, decimalIndex) : input).replace(/[.,]/g, '');
+  const fraction = decimalIndex >= 0 ? input.slice(decimalIndex + 1) : '';
+  const trimmed = `${negativeInput ? '-' : ''}${whole}${decimalIndex >= 0 ? `.${fraction}` : ''}`;
   if (!MONEY_PATTERN.test(trimmed)) {
     throw new Error('Money values must use at most two decimal places.');
   }
@@ -57,4 +69,13 @@ export function formatMoneyRounded(value: MoneyAmount): string {
   const absolute = Math.abs(cents);
   const roundedWhole = Math.floor((absolute + 50) / 100);
   return `${negative ? '-' : ''}€${groupedInteger(roundedWhole)}`;
+}
+
+
+export function formatMoneyInput(value: string): string {
+  const normalized = normalizeMoneyAmount(value);
+  const negative = normalized.startsWith('-');
+  const unsigned = negative ? normalized.slice(1) : normalized;
+  const [whole, fraction] = unsigned.split('.');
+  return `${negative ? '-' : ''}${Number.parseInt(whole, 10).toLocaleString('es-ES')},${fraction} €`;
 }
