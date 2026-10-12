@@ -15,7 +15,7 @@ test('password change keeps the current session active and rotates credentials',
   await expect(page.getByRole('heading', { name: 'Tu visión financiera' })).toBeVisible();
 
   await page.getByRole('button', { name: 'Cerrar sesión' }).click();
-  await expect(page.getByRole('heading', { name: 'Entrar' })).toBeVisible();
+  await expect(page.getByRole('heading', { name: 'Iniciar sesión' })).toBeVisible();
 
   await page.getByLabel('Correo electrónico').fill(email);
   await page.getByLabel('Contraseña').fill(oldPassword);
@@ -39,13 +39,13 @@ test('password change keeps the current session active and rotates credentials',
   await expect(page.getByRole('button', { name: 'Cerrar sesión' })).toBeVisible();
 
   await page.getByRole('button', { name: 'Cerrar sesión' }).click();
-  await expect(page.getByRole('heading', { name: 'Entrar' })).toBeVisible();
+  await expect(page.getByRole('heading', { name: 'Iniciar sesión' })).toBeVisible();
 
   await page.getByLabel('Correo electrónico').fill(email);
   await page.getByLabel('Contraseña').fill(oldPassword);
   await page.getByRole('button', { name: 'Entrar' }).click();
   await expect(page.getByRole('alert')).toBeVisible();
-  await expect(page.getByRole('heading', { name: 'Entrar' })).toBeVisible();
+  await expect(page.getByRole('heading', { name: 'Iniciar sesión' })).toBeVisible();
 
   await page.getByLabel('Contraseña').fill(newPassword);
   await page.getByRole('button', { name: 'Entrar' }).click();
