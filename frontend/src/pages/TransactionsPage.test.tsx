@@ -192,7 +192,7 @@ describe('TransactionsPage', () => {
 
     await waitFor(() =>
       expect(createTransaction).toHaveBeenCalledWith(
-        expect.objectContaining({ merchant: 'New Market', amount: '40', category: 'Food' }),
+        expect.objectContaining({ merchant: 'New Market', amount: '40.00', category: 'Food' }),
       ),
     );
     await waitFor(() =>
