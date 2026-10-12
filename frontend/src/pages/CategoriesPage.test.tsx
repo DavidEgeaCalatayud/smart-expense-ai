@@ -71,7 +71,7 @@ describe('CategoriesPage', () => {
     render(<CategoriesPage />);
     expect(await screen.findByText('Gym')).toBeInTheDocument();
 
-    fireEvent.click(screen.getByRole('button', { name: 'Archive & keep history' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Archivar y conservar historial' }));
     const dialog = screen.getByRole('dialog');
     expect(dialog).toBeInTheDocument();
     fireEvent.click(within(dialog).getByRole('button', { name: 'Archive & keep history' }));
