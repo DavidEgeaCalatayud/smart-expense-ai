@@ -311,7 +311,7 @@ export function ImportPage() {
                 type="file"
                 accept=".csv,text/csv,text/plain"
                 className="sr-only"
-                aria-label="CSV file"
+                aria-label="Archivo CSV"
                 onChange={(event) => void handleFile(event.target.files?.[0])}
               />
             </label>
@@ -365,7 +365,7 @@ export function ImportPage() {
                 <label className="space-y-2 text-sm">
                   <span className="font-semibold text-slate-700">Formato de fecha</span>
                   <select
-                    aria-label="Date format"
+                    aria-label="Formato de fecha"
                     value={options.dateFormat}
                     onChange={(event) => {
                       setOptions((current) => ({ ...current, dateFormat: event.target.value as CsvImportOptions['dateFormat'] }));
@@ -384,7 +384,7 @@ export function ImportPage() {
                 <label className="space-y-2 text-sm">
                   <span className="font-semibold text-slate-700">Separador decimal</span>
                   <select
-                    aria-label="Decimal separator"
+                    aria-label="Separador decimal"
                     value={options.decimalSeparator}
                     onChange={(event) => {
                       setOptions((current) => ({ ...current, decimalSeparator: event.target.value as CsvImportOptions['decimalSeparator'] }));
@@ -401,7 +401,7 @@ export function ImportPage() {
                 <label className="space-y-2 text-sm">
                   <span className="font-semibold text-slate-700">Cómo interpretar los importes</span>
                   <select
-                    aria-label="Amount convention"
+                    aria-label="Cómo interpretar los importes"
                     value={options.amountConvention}
                     onChange={(event) => {
                       setOptions((current) => ({ ...current, amountConvention: event.target.value as CsvImportOptions['amountConvention'] }));
@@ -418,7 +418,7 @@ export function ImportPage() {
                 <label className="space-y-2 text-sm">
                   <span className="font-semibold text-slate-700">Método de pago por defecto</span>
                   <select
-                    aria-label="Default payment method"
+                    aria-label="Método de pago por defecto"
                     value={options.defaultPaymentMethod}
                     onChange={(event) => {
                       setOptions((current) => ({ ...current, defaultPaymentMethod: event.target.value as CsvImportOptions['defaultPaymentMethod'] }));
