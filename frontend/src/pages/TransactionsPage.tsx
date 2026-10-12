@@ -31,6 +31,7 @@ import type {
   TransactionSummary,
 } from '../types/transactions';
 import { formatCurrency, formatCurrencyWithDecimals } from '../utils/formatters';
+import { normalizeMoneyAmount } from '../utils/money';
 
 const PAGE_SIZE = 10;
 
@@ -235,10 +236,11 @@ export function TransactionsPage() {
     setIsSubmitting(true);
 
     try {
+      const payload = { ...formValues, amount: normalizeMoneyAmount(formValues.amount) };
       if (editingTransactionId) {
-        await updateTransaction(editingTransactionId, formValues);
+        await updateTransaction(editingTransactionId, payload);
       } else {
-        await createTransaction(formValues);
+        await createTransaction(payload);
       }
 
       setEditingTransactionId(null);
