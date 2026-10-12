@@ -39,7 +39,7 @@ test('authenticated users only see and mutate their own persisted transactions',
   await expect(expenseMetric).toContainText('€42.50');
 
   await page.getByRole('button', { name: 'Cerrar sesión' }).click();
-  await expect(page.getByRole('heading', { name: 'Entrar' })).toBeVisible();
+  await expect(page.getByRole('heading', { name: 'Iniciar sesión' })).toBeVisible();
   await page.getByRole('link', { name: 'Crear cuenta' }).click();
 
   await page.getByLabel('Nombre').fill('Second Playwright User');
