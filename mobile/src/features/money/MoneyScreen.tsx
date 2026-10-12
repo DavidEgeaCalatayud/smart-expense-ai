@@ -172,6 +172,7 @@ export function MoneyScreen() {
   const accountFormYRef = useRef<number | null>(null);
   const balanceFormYRef = useRef<number | null>(null);
   const pendingRevealRef = useRef<RevealedSection | null>(null);
+  const pendingFocusRef = useRef(false);
   const [highlightedSection, setHighlightedSection] = useState<RevealedSection | null>(null);
 
   const revealSectionAt = (section: RevealedSection, y: number) => {
@@ -183,7 +184,8 @@ export function MoneyScreen() {
     });
     setHighlightedSection(section);
     setTimeout(() => setHighlightedSection((current) => current === section ? null : current), 900);
-    if (section === 'account-form' && formMode === 'edit') {
+    if (section === 'account-form' && pendingFocusRef.current) {
+      pendingFocusRef.current = false;
       setTimeout(() => nameInputRef.current?.focus(), 280);
     }
   };
@@ -218,6 +220,7 @@ export function MoneyScreen() {
   };
 
   const openCreate = () => {
+    pendingFocusRef.current = false;
     setEditingId(null);
     setForm(EMPTY_FORM);
     setFormMode('create');
@@ -225,6 +228,7 @@ export function MoneyScreen() {
   };
 
   const openEdit = (account: LocalFinancialAccountRow) => {
+    pendingFocusRef.current = true;
     setEditingId(account.id);
     setForm({
       name: account.name,
