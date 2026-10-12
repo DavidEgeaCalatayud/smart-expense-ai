@@ -6,16 +6,28 @@ export function normalizeMoneyAmount(value: string): MoneyAmount {
   let input = value.trim().replace(/\s/g, '').replace(/€/g, '');
   const negativeInput = input.startsWith('-');
   if (negativeInput) input = input.slice(1);
+  if (!input) throw new Error('Money values must contain digits.');
 
+  const commaCount = (input.match(/,/g) ?? []).length;
+  const dotCount = (input.match(/\./g) ?? []).length;
   const comma = input.lastIndexOf(',');
   const dot = input.lastIndexOf('.');
   let decimalIndex = -1;
+
   if (comma >= 0 && dot >= 0) {
     decimalIndex = Math.max(comma, dot);
   } else if (comma >= 0) {
-    decimalIndex = input.length - comma - 1 <= 2 ? comma : -1;
+    const grouped = /^\d{1,3}(,\d{3})+$/.test(input);
+    if (!grouped) {
+      if (commaCount > 1) throw new Error('Money values contain ambiguous separators.');
+      decimalIndex = comma;
+    }
   } else if (dot >= 0) {
-    decimalIndex = input.length - dot - 1 <= 2 ? dot : -1;
+    const grouped = /^\d{1,3}(\.\d{3})+$/.test(input);
+    if (!grouped) {
+      if (dotCount > 1) throw new Error('Money values contain ambiguous separators.');
+      decimalIndex = dot;
+    }
   }
 
   const whole = (decimalIndex >= 0 ? input.slice(0, decimalIndex) : input).replace(/[.,]/g, '');
@@ -27,8 +39,8 @@ export function normalizeMoneyAmount(value: string): MoneyAmount {
 
   const negative = trimmed.startsWith('-');
   const unsigned = negative ? trimmed.slice(1) : trimmed;
-  const [whole, fraction = ''] = unsigned.split('.');
-  return `${negative ? '-' : ''}${whole}.${fraction.padEnd(2, '0')}`;
+  const [wholePart, fractionPart = ''] = unsigned.split('.');
+  return `${negative ? '-' : ''}${wholePart}.${fractionPart.padEnd(2, '0')}`;
 }
 
 export function moneyToCents(value: MoneyAmount): number {
