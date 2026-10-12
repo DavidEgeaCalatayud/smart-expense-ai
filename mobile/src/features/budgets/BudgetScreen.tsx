@@ -24,7 +24,7 @@ import { useBudgets } from './useBudgets';
 import { useSnackbar } from '../../ui/Snackbar';
 import { CardSkeleton } from '../../ui/Skeleton';
 import { ActionPressable } from '../../ui/ActionPressable';
-import { canonicalMoneyInput, formatMoneyInput } from '../../ui/moneyInput';
+import { formatMoneyEditingInput, formatMoneyInput } from '../../ui/moneyInput';
 import { useRevealScrollTarget } from '../../ui/useRevealScrollTarget';
 
 const STATUS_LABEL = {
@@ -254,8 +254,8 @@ export function BudgetScreen() {
             ref={limitInputRef}
             accessibilityLabel="Budget limit"
             keyboardType="decimal-pad"
-            onChangeText={setLimitAmount}
-            onFocus={() => setLimitAmount((current) => canonicalMoneyInput(current))}
+            onChangeText={(value) => setLimitAmount(formatMoneyEditingInput(value))}
+            onFocus={() => setLimitAmount((current) => formatMoneyEditingInput(current))}
             onBlur={() => { if (limitAmount.trim()) setLimitAmount(formatMoneyInput(limitAmount)); }}
             placeholder="Límite (ej. 400,00 €)"
             style={styles.input}
