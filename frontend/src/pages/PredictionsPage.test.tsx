@@ -153,7 +153,7 @@ describe('PredictionsPage', () => {
 
     expect(await screen.findByText('€28.98')).toBeInTheDocument();
     expect(screen.getByText('Próximos cargos').parentElement).toHaveTextContent('2');
-    expect(screen.getByText('Pagos recurrentes atrasados').parentElement).toHaveTextContent('1');
+    expect(screen.getAllByText('Pagos recurrentes atrasados')[0]?.parentElement).toHaveTextContent('1');
 
     const calendar = screen.getByRole('region', { name: 'Calendario de pagos recurrentes próximos' });
     expect(within(calendar).getByText('Spotify')).toBeInTheDocument();
