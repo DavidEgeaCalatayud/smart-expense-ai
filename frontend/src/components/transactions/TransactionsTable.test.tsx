@@ -40,12 +40,12 @@ describe('TransactionsTable', () => {
       expect(representation).toHaveTextContent('Weekly groceries');
       expect(representation).toHaveTextContent('Food');
       expect(representation).toHaveTextContent('2026-08-24');
-      expect(representation).toHaveTextContent('Card');
+      expect(representation).toHaveTextContent('Tarjeta');
       expect(representation).toHaveTextContent('expense');
       expect(representation).toHaveTextContent('Normal');
       expect(representation).toHaveTextContent('-€64.35');
     }
-    expect(cards).toHaveTextContent('Recurring');
+    expect(cards).toHaveTextContent('Recurrente');
 
     fireEvent.click(within(cards).getByRole('button', { name: 'Edit Test Market' }));
     expect(onEdit).toHaveBeenCalledWith(transaction);
@@ -60,7 +60,7 @@ describe('TransactionsTable', () => {
     );
 
     expect(screen.getByTestId('transactions-empty-state')).toBeInTheDocument();
-    expect(screen.getAllByText('No transactions match the current filters.')).toHaveLength(1);
+    expect(screen.getAllByText('No hay movimientos que coincidan con los filtros.')).toHaveLength(1);
     expect(screen.queryByTestId('transaction-cards')).not.toBeInTheDocument();
     expect(screen.queryByTestId('transaction-table')).not.toBeInTheDocument();
   });
