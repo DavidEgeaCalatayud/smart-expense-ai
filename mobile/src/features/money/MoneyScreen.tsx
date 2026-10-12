@@ -1,7 +1,7 @@
 import type { FinancialAccountPurpose, FinancialAccountType } from '@smart-expense-ai/api-contracts';
 import { minorUnitsToDecimal } from '@smart-expense-ai/domain-types';
 import { useMemo, useRef, useState } from 'react';
-import type { ScrollView as NativeScrollView } from 'react-native';
+import type { ScrollView as NativeScrollView, TextInput as NativeTextInput } from 'react-native';
 
 import Ionicons from '../../ui/Icon';
 import {
@@ -25,6 +25,10 @@ import { useForegroundSync } from '../../sync/useForegroundSync';
 import { MobileBankLogo, MobileBankPicker } from './bankCatalog';
 import { suggestedMobileAccountNameForInstitution } from './bankCatalogData';
 import { useFinancialAccounts } from './useFinancialAccounts';
+import { Snackbar } from '../../ui/Snackbar';
+import { CardSkeleton } from '../../ui/Skeleton';
+import { ActionPressable } from '../../ui/ActionPressable';
+import { canonicalMoneyInput, formatMoneyInput } from '../../ui/moneyInput';
 
 const ACCOUNT_TYPES: readonly [FinancialAccountType, string][] = [
   ['checking', 'Corriente'],
@@ -163,6 +167,8 @@ export function MoneyScreen() {
   const [form, setForm] = useState<AccountFormState>(EMPTY_FORM);
   const [balanceAccount, setBalanceAccount] = useState<LocalFinancialAccountRow | null>(null);
   const [nextBalance, setNextBalance] = useState('');
+  const [toast, setToast] = useState<string | null>(null);
+  const nameInputRef = useRef<NativeTextInput>(null);
   const scrollViewRef = useRef<NativeScrollView>(null);
   const accountFormYRef = useRef<number | null>(null);
   const balanceFormYRef = useRef<number | null>(null);
@@ -233,6 +239,7 @@ export function MoneyScreen() {
         ...form,
         purpose: purposeForType(form.accountType, form.purpose),
       };
+      const wasCreating = formMode === 'create';
       if (formMode === 'create') {
         await create({
           ...normalizedForm,
@@ -248,6 +255,7 @@ export function MoneyScreen() {
         });
       }
       closeForm();
+      setToast(wasCreating ? 'Cuenta añadida' : 'Cuenta actualizada');
       await refreshHealth();
       void syncNow().then(reloadConflicts).catch(() => undefined);
     } catch {
@@ -261,6 +269,7 @@ export function MoneyScreen() {
       await updateBalance(balanceAccount.id, nextBalance);
       setBalanceAccount(null);
       setNextBalance('');
+      setToast('Saldo actualizado');
       await refreshHealth();
       void syncNow().then(reloadConflicts).catch(() => undefined);
     } catch {
@@ -279,6 +288,7 @@ export function MoneyScreen() {
           style: 'destructive',
           onPress: () => {
             void archive(account.id)
+              .then(() => setToast('Cuenta archivada'))
               .then(refreshHealth)
               .then(() => syncNow())
               .then(reloadConflicts)
@@ -407,6 +417,7 @@ export function MoneyScreen() {
 
             <Text style={styles.fieldLabel}>Nombre de la cuenta</Text>
             <TextInput
+              ref={nameInputRef}
               accessibilityLabel="Nombre de cuenta"
               value={form.name}
               onChangeText={(name) => setForm((current) => ({ ...current, name }))}
@@ -468,7 +479,9 @@ export function MoneyScreen() {
                   keyboardType="decimal-pad"
                   value={form.currentBalance}
                   onChangeText={(currentBalance) => setForm((current) => ({ ...current, currentBalance }))}
-                  placeholder="1000,00"
+                  onFocus={() => setForm((current) => ({ ...current, currentBalance: canonicalMoneyInput(current.currentBalance) }))}
+                  onBlur={() => setForm((current) => ({ ...current, currentBalance: current.currentBalance.trim() ? formatMoneyInput(current.currentBalance) : '' }))}
+                  placeholder="1.000,00 €"
                   style={styles.input}
                 />
               </>
@@ -485,14 +498,16 @@ export function MoneyScreen() {
                 onValueChange={(includeInNetWorth) => setForm((current) => ({ ...current, includeInNetWorth }))}
               />
             </View>
-            <Pressable
+            <ActionPressable
               testID="money-account-submit"
+              accessibilityRole="button"
+              haptic="success"
               disabled={busy}
               onPress={() => void submitForm()}
               style={styles.primaryButtonWide}
             >
               <Text style={styles.primaryButtonText}>{isSaving ? 'Guardando…' : formMode === 'create' ? 'Añadir cuenta' : 'Guardar cambios'}</Text>
-            </Pressable>
+            </ActionPressable>
           </View>
         ) : null}
 
@@ -520,7 +535,9 @@ export function MoneyScreen() {
               keyboardType="decimal-pad"
               value={nextBalance}
               onChangeText={setNextBalance}
-              placeholder="1250,00"
+              onFocus={() => setNextBalance((current) => canonicalMoneyInput(current))}
+              onBlur={() => { if (nextBalance.trim()) setNextBalance(formatMoneyInput(nextBalance)); }}
+              placeholder="1.250,00 €"
               style={styles.input}
             />
             <Text style={styles.muted}>El saldo anterior no se borra: se guardará un nuevo punto en tu historial.</Text>
@@ -534,7 +551,7 @@ export function MoneyScreen() {
           <Text style={styles.sectionTitle}>Mis cuentas</Text>
           <Text style={styles.muted}>{accounts.length} activas</Text>
         </View>
-        {isLoading ? <ActivityIndicator /> : null}
+        {isLoading ? <View style={{ gap: 10 }}><CardSkeleton /><CardSkeleton /></View> : null}
         {!isLoading && accounts.length === 0 ? (
           <View style={styles.emptyCard}>
             <Ionicons name="wallet-outline" size={32} color="#125c47" />
@@ -597,6 +614,7 @@ export function MoneyScreen() {
           </Text>
         </View>
       </ScrollView>
+          <Snackbar message={toast} onDismiss={() => setToast(null)} />
     </SafeAreaView>
   );
 }
@@ -635,12 +653,12 @@ const styles = StyleSheet.create({
   chipTextActive: { color: '#0f5f49' },
   chipTextDisabled: { color: '#8d9892' },
   switchRow: { flexDirection: 'row', alignItems: 'center', gap: 14 },
-  primaryButton: { backgroundColor: '#126b52', paddingHorizontal: 14, paddingVertical: 10, borderRadius: 13, alignSelf: 'flex-start' },
+  primaryButton: { minHeight: 44, justifyContent: 'center', backgroundColor: '#126b52', paddingHorizontal: 14, paddingVertical: 10, borderRadius: 13, alignSelf: 'flex-start' },
   primaryButtonWide: { backgroundColor: '#126b52', paddingHorizontal: 14, paddingVertical: 13, borderRadius: 14, alignItems: 'center' },
   primaryButtonText: { color: '#fff', fontWeight: '800' },
-  secondaryButton: { borderWidth: 1, borderColor: '#b8c9c1', paddingHorizontal: 12, paddingVertical: 9, borderRadius: 12 },
+  secondaryButton: { minHeight: 44, justifyContent: 'center', borderWidth: 1, borderColor: '#b8c9c1', paddingHorizontal: 12, paddingVertical: 9, borderRadius: 12 },
   secondaryText: { color: '#285d4d', fontWeight: '800' },
-  archiveButton: { paddingHorizontal: 8, paddingVertical: 9 },
+  archiveButton: { minHeight: 44, justifyContent: 'center', paddingHorizontal: 8, paddingVertical: 9 },
   archiveText: { color: '#ad3535', fontWeight: '800' },
   emptyCard: { backgroundColor: '#fff', borderWidth: 1, borderColor: '#dce6e0', padding: 20, borderRadius: 20, gap: 12 },
   accountCard: { backgroundColor: '#fff', borderWidth: 1, borderColor: '#dce6e0', borderRadius: 20, padding: 16, gap: 10 },
