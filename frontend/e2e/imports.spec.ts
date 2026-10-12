@@ -13,13 +13,13 @@ test('authenticated user can preview, import and safely re-import a CSV statemen
   ].join('\n');
 
   await page.goto('/register');
-  await page.getByLabel('Display name').fill('CSV Playwright Owner');
-  await page.getByLabel('Email').fill(email);
-  await page.getByLabel('Password').fill(password);
-  await page.getByRole('button', { name: 'Create account' }).click();
-  await expect(page.getByRole('heading', { name: 'Your financial overview' })).toBeVisible();
+  await page.getByLabel('Nombre').fill('CSV Playwright Owner');
+  await page.getByLabel('Correo electrónico').fill(email);
+  await page.getByLabel('Contraseña').fill(password);
+  await page.getByRole('button', { name: 'Crear cuenta' }).click();
+  await expect(page.getByRole('heading', { name: 'Tu visión financiera' })).toBeVisible();
 
-  await page.getByRole('link', { name: 'Import CSV' }).click();
+  await page.getByRole('link', { name: 'Importar CSV' }).click();
   await expect(page.getByRole('heading', { name: 'Import transactions from CSV' })).toBeVisible();
 
   const csvInput = page.getByLabel('CSV file');
@@ -45,13 +45,13 @@ test('authenticated user can preview, import and safely re-import a CSV statemen
   await expect(page.getByRole('status')).toContainText('2 transactions imported. 0 duplicates skipped.');
   await expect(page.getByRole('article').getByText('playwright-statement.csv')).toBeVisible();
 
-  await page.getByRole('link', { name: 'Transactions' }).click();
-  await expect(page.getByRole('heading', { name: 'Transactions' })).toBeVisible();
+  await page.getByRole('link', { name: 'Movimientos' }).click();
+  await expect(page.getByRole('heading', { name: 'Movimientos' })).toBeVisible();
   const importedRow = page.getByRole('row').filter({ hasText: merchant });
   await expect(importedRow).toContainText('€42.51');
   await expect(importedRow).toContainText('Other');
 
-  await page.getByRole('link', { name: 'Import CSV' }).click();
+  await page.getByRole('link', { name: 'Importar CSV' }).click();
   await expect(page.getByRole('heading', { name: 'Import transactions from CSV' })).toBeVisible();
   await csvInput.setInputFiles({
     name: 'playwright-statement.csv',
@@ -68,7 +68,7 @@ test('authenticated user can preview, import and safely re-import a CSV statemen
   await duplicateOnlyImport.click();
   await expect(page.getByRole('status')).toContainText('No new transactions imported. 2 duplicates were already present.');
 
-  await page.getByRole('link', { name: 'Transactions' }).click();
-  await expect(page.getByRole('heading', { name: 'Transactions' })).toBeVisible();
+  await page.getByRole('link', { name: 'Movimientos' }).click();
+  await expect(page.getByRole('heading', { name: 'Movimientos' })).toBeVisible();
   await expect(page.getByRole('row').filter({ hasText: merchant })).toHaveCount(1);
 });
