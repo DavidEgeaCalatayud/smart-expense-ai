@@ -4,16 +4,17 @@ import { Link } from '../ui/Link';
 import { Fragment, useEffect, useState } from 'react';
 import { Keyboard, Pressable, StyleSheet, Text, View } from '../ui/primitives';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { t } from '../i18n';
 
 export type WorkspaceName = 'transactions' | 'categories' | 'budgets' | 'dashboard' | 'intelligence'
   | 'historical' | 'predictions' | 'suggestions' | 'assistant' | 'reports' | 'advanced-insights'
   | 'account' | 'imports' | 'insights' | 'more' | 'settings' | 'money';
 const INSIGHTS = ['intelligence', 'historical', 'predictions', 'suggestions', 'assistant', 'advanced-insights', 'insights'];
 const TABS = [
-  { label: 'Mi dinero', href: '/' as const, icon: 'wallet-outline' as const },
-  { label: 'Activity', href: '/transactions' as const, icon: 'card-outline' as const },
-  { label: 'Insights', href: '/insights' as const, icon: 'sparkles-outline' as const },
-  { label: 'More', href: '/more' as const, icon: 'menu-outline' as const },
+  { id: 'mi-dinero', label: t('money'), href: '/' as const, icon: 'wallet-outline' as const },
+  { id: 'activity', label: t('activity'), href: '/transactions' as const, icon: 'card-outline' as const },
+  { id: 'insights', label: t('insights'), href: '/insights' as const, icon: 'sparkles-outline' as const },
+  { id: 'more', label: t('more'), href: '/more' as const, icon: 'menu-outline' as const },
 ];
 export function navigationArea(pathname: string): number {
   const path = pathname.replace(/^\//, '');
@@ -43,7 +44,7 @@ export function BottomNavigation() {
           <View style={{ backgroundColor: '#125c47', borderRadius: 24, width: 46, height: 46, alignItems: 'center', justifyContent: 'center' }}><Ionicons name="add" color="#fff" size={30} /></View>
         </Pressable> : null}
         <Pressable accessibilityRole="tab" accessibilityLabel={tab.label}
-        accessibilityState={{ selected: active }} testID={`tab-${tab.label.toLowerCase().replace(/\s+/g, '-')}`}
+        accessibilityState={{ selected: active }} testID={`tab-${tab.id}`}
         onPress={() => router.replace(tab.href)} style={styles.tab}>
         <View style={[styles.icon, active && styles.selected]}>
           <Ionicons name={tab.icon} size={23} color={active ? '#125c47' : '#596575'} />
@@ -70,7 +71,7 @@ export function WorkspaceNav({ active }: { active: WorkspaceName }) {
   return <Link href={insight ? '/insights' : '/more'} asChild>
     <Pressable accessibilityRole="button" style={styles.back}>
       <Ionicons name="chevron-back" size={20} color="#125c47" />
-      <Text style={styles.selectedLabel}>{insight ? 'All insights' : 'More'}</Text>
+      <Text style={styles.selectedLabel}>{insight ? 'Todos los análisis' : 'Más'}</Text>
     </Pressable>
   </Link>;
 }
