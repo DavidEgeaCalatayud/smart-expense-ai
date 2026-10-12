@@ -172,6 +172,7 @@ export function MoneyScreen() {
   const accountFormYRef = useRef<number | null>(null);
   const balanceFormYRef = useRef<number | null>(null);
   const pendingRevealRef = useRef<RevealedSection | null>(null);
+  const [highlightedSection, setHighlightedSection] = useState<RevealedSection | null>(null);
 
   const revealSectionAt = (section: RevealedSection, y: number) => {
     if (pendingRevealRef.current !== section) return;
@@ -180,7 +181,9 @@ export function MoneyScreen() {
       y: Math.max(0, y - 12),
       animated: true,
     });
-    if (section === 'account-form') {
+    setHighlightedSection(section);
+    setTimeout(() => setHighlightedSection((current) => current === section ? null : current), 900);
+    if (section === 'account-form' && formMode === 'edit') {
       setTimeout(() => nameInputRef.current?.focus(), 280);
     }
   };
@@ -387,7 +390,7 @@ export function MoneyScreen() {
 
         {formMode !== 'closed' ? (
           <View
-            style={styles.sectionCard}
+            style={[styles.sectionCard, highlightedSection === 'account-form' && styles.sectionCardHighlighted]}
             onLayout={(event) => {
               const y = event.nativeEvent.layout.y;
               accountFormYRef.current = y;
@@ -413,6 +416,7 @@ export function MoneyScreen() {
                   accountType: bank.suggestedType,
                   purpose: purposeForType(bank.suggestedType, current.purpose),
                 }));
+                setTimeout(() => nameInputRef.current?.focus(), 120);
               }}
               onManualChange={(institution) => setForm((current) => ({ ...current, institution }))}
             />
@@ -515,7 +519,7 @@ export function MoneyScreen() {
 
         {balanceAccount ? (
           <View
-            style={styles.sectionCard}
+            style={[styles.sectionCard, highlightedSection === 'balance-form' && styles.sectionCardHighlighted]}
             onLayout={(event) => {
               const y = event.nativeEvent.layout.y;
               balanceFormYRef.current = y;
@@ -642,6 +646,7 @@ const styles = StyleSheet.create({
   purposeLabel: { color: '#6b786f', fontSize: 12, fontWeight: '700' },
   purposeValue: { color: '#172033', fontSize: 18, fontWeight: '900', marginTop: 3 },
   sectionCard: { backgroundColor: '#fff', borderWidth: 1, borderColor: '#dce6e0', borderRadius: 20, padding: 16, gap: 12 },
+  sectionCardHighlighted: { borderColor: '#22a27c', shadowColor: '#22a27c', shadowOpacity: 0.18, shadowRadius: 10, elevation: 2 },
   sectionHeader: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 12 },
   sectionTitle: { color: '#101827', fontSize: 20, fontWeight: '900' },
   cardTitle: { color: '#172033', fontSize: 14, fontWeight: '800' },
