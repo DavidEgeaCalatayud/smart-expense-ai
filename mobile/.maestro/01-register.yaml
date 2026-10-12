@@ -21,6 +21,6 @@ appId: com.davidegea.smartexpenseai
 - tapOn:
     id: "tab-activity"
 - extendedWaitUntil:
-    visible: "Your transactions"
+    visible: "Tus movimientos"
     timeout: 30000
 - runFlow: 20-money-workspace.yaml
