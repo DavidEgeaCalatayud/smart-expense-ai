@@ -34,7 +34,7 @@ import type {
   NetWorthHistory,
   NetWorthSummary,
 } from '../types/financialAccounts';
-import { formatMoneyInput, moneyToCents, normalizeMoneyAmount } from '../utils/money';
+import { formatMoneyEditingInput, formatMoneyInput, moneyToCents, normalizeMoneyAmount } from '../utils/money';
 
 const TYPE_OPTIONS: { value: FinancialAccountType; label: string }[] = [
   { value: 'checking', label: 'Cuenta corriente' },
@@ -332,10 +332,10 @@ function AccountForm({
               required
               inputMode="decimal"
               value={draft.currentBalance}
-              onChange={(event) => setDraft((current) => ({ ...current, currentBalance: event.target.value }))}
+              onChange={(event) => setDraft((current) => ({ ...current, currentBalance: formatMoneyEditingInput(event.target.value) }))}
               onFocus={() => {
                 if (!draft.currentBalance.trim()) return;
-                try { setDraft((current) => ({ ...current, currentBalance: normalizeMoneyAmount(current.currentBalance) })); } catch { /* Keep invalid input editable. */ }
+                setDraft((current) => ({ ...current, currentBalance: formatMoneyEditingInput(current.currentBalance) }));
               }}
               onBlur={() => {
                 if (!draft.currentBalance.trim()) return;
@@ -679,10 +679,10 @@ export function MoneyPage() {
                 autoFocus
                 inputMode="decimal"
                 value={balanceValue}
-                onChange={(event) => setBalanceValue(event.target.value)}
+                onChange={(event) => setBalanceValue(formatMoneyEditingInput(event.target.value))}
                 onFocus={() => {
                   if (!balanceValue.trim()) return;
-                  try { setBalanceValue(normalizeMoneyAmount(balanceValue)); } catch { /* Keep invalid input editable. */ }
+                  setBalanceValue(formatMoneyEditingInput(balanceValue));
                 }}
                 onBlur={() => {
                   if (!balanceValue.trim()) return;
