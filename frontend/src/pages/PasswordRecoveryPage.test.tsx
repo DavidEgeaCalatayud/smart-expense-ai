@@ -28,7 +28,7 @@ describe('Password recovery', () => {
     page('request', '/forgot-password');
     fireEvent.change(screen.getByLabelText('Correo electrónico'), { target: { value: 'user@example.com' } });
     fireEvent.click(screen.getByRole('button', { name: 'Enviar correo de recuperación' }));
-    expect(await screen.findByRole('status')).toHaveTextContent('If an account exists');
+    expect(await screen.findByRole('status')).toHaveTextContent('Si existe una cuenta con ese correo');
     expect(requestPasswordReset).toHaveBeenCalledWith('user@example.com');
   });
   it('removes the token from the URL and does not consume it on opening', async () => {
