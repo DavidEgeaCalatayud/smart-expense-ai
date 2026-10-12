@@ -15,6 +15,7 @@ import { AppLockProvider } from '../src/security/AppLockProvider';
 import { OnlineSyncProvider } from '../src/sync/OnlineSyncProvider';
 import { ActivityIndicator, View } from '../src/ui/primitives';
 import { PaymentDetectionObserver } from '../src/features/paymentDetection/PaymentDetectionObserver';
+import { SnackbarProvider } from '../src/ui/Snackbar';
 
 // Debug-only LogBox banners can cover persistent navigation targets on the
 // headless Android emulator. Keep warnings in the runner logs, but suppress the
@@ -94,6 +95,7 @@ export default function RootLayout() {
   return (
     <SafeAreaProvider>
       <AppPreferencesProvider>
+      <SnackbarProvider>
       <Suspense fallback={<AppFallback />}>
         <SQLiteProvider
           databaseName={DATABASE_NAME}
@@ -105,6 +107,7 @@ export default function RootLayout() {
           </AuthProvider>
         </SQLiteProvider>
       </Suspense>
+      </SnackbarProvider>
       </AppPreferencesProvider>
     </SafeAreaProvider>
   );
