@@ -20,7 +20,7 @@ import { WorkspaceNav } from '../../components/WorkspaceNav';
 import { ConnectionStatus } from '../../components/ConnectionStatus';
 import { useConflicts } from '../../sync/useConflicts';
 import { useForegroundSync } from '../../sync/useForegroundSync';
-import { usePresupuestos } from './usePresupuestos';
+import { useBudgets } from './useBudgets';
 import { useSnackbar } from '../../ui/Snackbar';
 import { CardSkeleton } from '../../ui/Skeleton';
 import { ActionPressable } from '../../ui/ActionPressable';
@@ -57,7 +57,7 @@ export function BudgetScreen() {
     create,
     update,
     remove,
-  } = usePresupuestos(month);
+  } = useBudgets(month);
   const {
     conflicts,
     isResolving,
@@ -288,7 +288,7 @@ export function BudgetScreen() {
         </View>
 
         <View style={styles.sectionHeader}>
-          <Text style={styles.sectionTitle}>Presupuestos for {month}</Text>
+          <Text style={styles.sectionTitle}>Presupuestos de {month}</Text>
           {isLoading ? <View style={{ width: 150 }}><CardSkeleton /></View> : null}
         </View>
 
@@ -304,10 +304,10 @@ export function BudgetScreen() {
         <DataFreshness cachedAt={progress.cachedAt} isCachedFallback={progress.isCachedFallback} />
         {progress.error ? <Text style={styles.error}>{progress.error}</Text> : null}
         {budgets.map((budget) => {
-          const serverPresupuestos = progress.data?.month === month
-            ? [progress.data.totalBudget, ...progress.data.categoryPresupuestos] : [];
-          const spending = serverPresupuestos.find((item) => item?.id === budget.id);
-          const label = budget.category_name ?? 'General monthly budget';
+          const serverBudgets = progress.data?.month === month
+            ? [progress.data.totalBudget, ...progress.data.categoryBudgets] : [];
+          const spending = serverBudgets.find((item) => item?.id === budget.id);
+          const label = budget.category_name ?? 'Presupuesto mensual general';
           return (
             <View key={budget.id} style={styles.card}>
               <View style={styles.cardHeader}>
@@ -351,7 +351,6 @@ export function BudgetScreen() {
           );
         })}
       </ScrollView>
-      <Snackbar message={toast} onDismiss={() => showSnackbar(null)} />
     </SafeAreaView>
   );
 }
