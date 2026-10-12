@@ -47,9 +47,9 @@ test('recurring transaction history becomes an explainable upcoming-payments cal
   await page.getByRole('link', { name: 'Predicciones' }).click();
   await expect(page.getByRole('heading', { name: 'Predicciones' })).toBeVisible();
 
-  const calendar = page.getByRole('region', { name: 'Upcoming recurring payment calendar' });
+  const calendar = page.getByRole('region', { name: 'Calendario de pagos recurrentes próximos' });
   await expect(calendar.getByText(merchant)).toHaveCount(5);
-  await expect(calendar.getByText('Expected')).toHaveCount(5);
-  await expect(page.getByText('Expected next 30 days').locator('..')).toContainText('€54.95');
-  await expect(page.getByText('Overdue schedules').locator('..')).toContainText('0');
+  await expect(calendar.getByText('Previsto')).toHaveCount(5);
+  await expect(page.getByText('Previsto en los próximos 30 días').locator('..')).toContainText('€54.95');
+  await expect(page.getByText('Pagos recurrentes atrasados').locator('..')).toContainText('0');
 });
