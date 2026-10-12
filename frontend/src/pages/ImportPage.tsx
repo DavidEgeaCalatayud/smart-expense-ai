@@ -137,7 +137,7 @@ function BatchHistory({ batches }: { batches: ImportBatch[] }) {
                 <div className="min-w-0">
                   <p className="truncate font-semibold text-slate-900">{batch.filename}</p>
                   <p className="mt-1 text-xs text-slate-400">
-                    {new Date(batch.createdAt).toLocaleString()} · hash {batch.fileHash.slice(0, 12)}…
+                    {new Date(batch.createdAt).toLocaleString('es-ES')}
                   </p>
                 </div>
                 <div className="flex flex-wrap gap-2">
@@ -321,7 +321,7 @@ export function ImportPage() {
               <div className="mt-4 rounded-2xl border border-slate-200 p-4 text-sm">
                 <p className="font-semibold text-slate-900">{fileData.filename}</p>
                 <p className="mt-1 text-slate-500">
-                  Separador: <strong>{delimiterLabel}</strong> · {detection.headers.length} columnas{detection.fileHash.slice(0, 12)}…
+                  Separador: <strong>{delimiterLabel}</strong> · {detection.headers.length} columnas
                 </p>
               </div>
             )}
