@@ -1,3 +1,4 @@
+import { formatMoneyEditingInput, formatMoneyInput } from '../src/ui/moneyInput';
 import { money, expenseChange } from '../src/features/home/financialFormat';
 it('formats decimal cents exactly even for totals above the floating point safe range', () => {
   expect(money('9007199254740993.91').replace(/[^0-9]/g, '')).toBe('900719925474099391');
@@ -8,4 +9,13 @@ it('compares monthly spending without manufacturing a percentage over a zero bas
   expect(expenseChange('108.20', '100.00')).toBe('+8.2%');
   expect(expenseChange('91.80', '100.00')).toBe('−8.2%');
   expect(expenseChange('100.00', '0.00')).toBeNull();
+});
+
+
+describe('localized money input formatting', () => {
+  it('formats money while editing without adding the currency suffix', () => {
+    expect(formatMoneyEditingInput('1000')).toBe('1.000');
+    expect(formatMoneyEditingInput('1000,5')).toBe('1.000,5');
+    expect(formatMoneyInput('1000,5')).toBe('1.000,50 €');
+  });
 });
