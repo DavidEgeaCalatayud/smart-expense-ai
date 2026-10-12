@@ -13,6 +13,7 @@ import type { SQLiteDatabase } from 'expo-sqlite';
 import { runKeyedTransaction } from '../../database/keyedTransaction';
 import type { LocalFinancialAccountRow } from '../../database/types';
 import { assertEntityNotSending, enqueueMutation, type OutboxRow } from '../../sync/outboxRepository';
+import { canonicalMoneyInput } from '../../ui/moneyInput';
 
 const MAX_BALANCE_MINOR = 999_999_999_999;
 
@@ -68,7 +69,7 @@ function normalizePurpose(
 function parseBalance(value: string): number {
   let minor: number;
   try {
-    minor = decimalToMinorUnits(value.trim().replace(',', '.'));
+    minor = decimalToMinorUnits(canonicalMoneyInput(value));
   } catch {
     throw new Error('Introduce un saldo válido con hasta dos decimales.');
   }
