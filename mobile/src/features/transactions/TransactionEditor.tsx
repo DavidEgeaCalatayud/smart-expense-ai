@@ -7,10 +7,12 @@ import { ChoiceField } from '../../components/ChoiceField';
 import { serverWorkspaceStyles as s } from '../../components/ServerWorkspaceShell';
 import type { LocalCategoryRow, LocalTransactionRow } from '../../database/types';
 import { localDate, type OfflineTransactionFormInput } from './validation';
+import { canonicalMoneyInput, formatMoneyInput } from '../../ui/moneyInput';
+import { ActionPressable } from '../../ui/ActionPressable';
 
 export const PAYMENT_METHODS = [
-  { value: 'card' as const, label: 'Card' }, { value: 'cash' as const, label: 'Cash' },
-  { value: 'bank_transfer' as const, label: 'Bank transfer' }, { value: 'direct_debit' as const, label: 'Direct debit' },
+  { value: 'card' as const, label: 'Tarjeta' }, { value: 'cash' as const, label: 'Efectivo' },
+  { value: 'bank_transfer' as const, label: 'Transferencia' }, { value: 'direct_debit' as const, label: 'Domiciliación' },
 ];
 export function TransactionEditor({ item, initialType, categories, saving, error, onSave, onClose }: {
   item: LocalTransactionRow | null; initialType: 'expense' | 'income'; categories: LocalCategoryRow[];
@@ -46,31 +48,34 @@ export function TransactionEditor({ item, initialType, categories, saving, error
         <ScrollView contentContainerStyle={{ padding: 20, gap: 16 }} keyboardShouldPersistTaps="handled">
           <View style={[s.row, { alignItems: 'center', justifyContent: 'space-between' }]}>
             <Text style={s.sectionTitle}>{item ? 'Edit transaction' : 'New transaction'}</Text>
-            <Pressable accessibilityRole="button" disabled={saving} onPress={onClose} style={s.secondaryButton}><Text>Cancel</Text></Pressable>
+            <Pressable accessibilityRole="button" disabled={saving} onPress={onClose} style={s.secondaryButton}><Text>Cancelar</Text></Pressable>
           </View>
           <View style={s.row}>{(['expense', 'income'] as const).map((value) => <Pressable key={value} accessibilityRole="radio"
             accessibilityState={{ checked: type === value }} disabled={saving} onPress={() => changeType(value)}
             style={[type === value ? s.primaryButton : s.secondaryButton, { flex: 1 }]}>
             <Text style={type === value ? s.primaryButtonText : s.secondaryButtonText}>{value === 'expense' ? 'Expense' : 'Income'}</Text>
           </Pressable>)}</View>
-          <TextInput accessibilityLabel="Amount" placeholder="Amount (€)" keyboardType="decimal-pad" maxLength={16}
-            editable={!saving} value={amount} onChangeText={setAmount} style={[s.input, { fontSize: 30, fontWeight: '700' }]} />
-          <TextInput accessibilityLabel="Merchant" placeholder={type === 'income' ? 'From whom? e.g. Employer' : 'Where? e.g. Grocery store'}
+          <TextInput accessibilityLabel="Amount" autoFocus placeholder="Importe (€)" keyboardType="decimal-pad" maxLength={24}
+            editable={!saving} value={amount} onChangeText={setAmount}
+            onFocus={() => setAmount((current) => canonicalMoneyInput(current))}
+            onBlur={() => { if (amount.trim()) setAmount(formatMoneyInput(amount)); }}
+            style={[s.input, { fontSize: 30, fontWeight: '700' }]} />
+          <TextInput accessibilityLabel="Merchant" placeholder={type === 'income' ? '¿De quién? Ej. Empresa' : '¿Dónde? Ej. Supermercado'}
             editable={!saving} value={merchant} onChangeText={setMerchant} maxLength={120} style={s.input} />
-          <ChoiceField label="Category" value={categoryId} options={choices} onChange={setCategoryId} disabled={saving} />
-          {categoryId === '__new' ? <TextInput accessibilityLabel="New category name" placeholder="New category name"
+          <ChoiceField label="Categoría" value={categoryId} options={choices} onChange={setCategoryId} disabled={saving} />
+          {categoryId === '__new' ? <TextInput accessibilityLabel="New category name" placeholder="Nombre de la nueva categoría"
             editable={!saving} value={categoryName} onChangeText={setCategoryName} maxLength={80} style={s.input} /> : null}
-          <DateField label="Transaction date" value={date} disabled={saving} onChange={(value) => { if (value) setDate(value); }} />
-          <ChoiceField<LocalTransactionRow['payment_method']> label="Payment method" value={method} options={PAYMENT_METHODS} onChange={setMethod} disabled={saving} />
-          <TextInput accessibilityLabel="Description" placeholder="Description (optional)" multiline maxLength={500}
+          <DateField label="Fecha" value={date} disabled={saving} onChange={(value) => { if (value) setDate(value); }} />
+          <ChoiceField<LocalTransactionRow['payment_method']> label="Método de pago" value={method} options={PAYMENT_METHODS} onChange={setMethod} disabled={saving} />
+          <TextInput accessibilityLabel="Description" placeholder="Descripción (opcional)" multiline maxLength={500}
             editable={!saving} value={description} onChangeText={setDescription} style={s.input} />
-          <View style={[s.row, { alignItems: 'center', justifyContent: 'space-between' }]}><Text style={s.cardTitle}>Recurring</Text>
+          <View style={[s.row, { alignItems: 'center', justifyContent: 'space-between' }]}><Text style={s.cardTitle}>Recurrente</Text>
             <Switch accessibilityLabel="Recurring transaction" value={recurring} onValueChange={setRecurring} disabled={saving} /></View>
-          <Text style={s.metadata}>Mark subscriptions and other repeating payments. This does not create automatic charges.</Text>
+          <Text style={s.metadata}>Marca suscripciones y otros pagos repetitivos. Esto no crea cargos automáticos.</Text>
           {error ? <Text accessibilityRole="alert" style={s.error}>{error}</Text> : null}
-          <Pressable accessibilityRole="button" disabled={saving} onPress={() => void save().catch(() => undefined)} style={s.primaryButton}>
-            <Text style={s.primaryButtonText}>{saving ? 'Saving…' : item ? 'Save changes' : 'Save transaction'}</Text>
-          </Pressable>
+          <ActionPressable accessibilityRole="button" haptic="success" disabled={saving} onPress={() => void save().catch(() => undefined)} style={s.primaryButton}>
+            <Text style={s.primaryButtonText}>{saving ? 'Guardando…' : item ? 'Guardar cambios' : 'Guardar movimiento'}</Text>
+          </ActionPressable>
         </ScrollView>
       </KeyboardAvoidingView>
     </SafeAreaView>
