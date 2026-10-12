@@ -141,7 +141,7 @@ export function DashboardPage() {
         <ApiErrorAlert
           error={error}
           className="mb-6"
-          onReintentar={() => void loadDashboard(true)}
+          onRetry={() => void loadDashboard(true)}
           retryLabel={isRefreshing ? 'Actualizando…' : 'Reintentar'}
         />
       )}
