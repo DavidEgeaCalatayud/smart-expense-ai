@@ -45,8 +45,8 @@ export function PasswordRecoveryPage({ mode }: { mode: 'request' | 'reset' }) {
         setConfirmation('');
         setMessage('Contraseña actualizada. Se han cerrado las sesiones anteriores. Inicia sesión con tu nueva contraseña.');
       } else {
-        const result = await requestPasswordReset(email);
-        setMessage(result.message);
+        await requestPasswordReset(email);
+        setMessage('Si existe una cuenta con ese correo, recibirás instrucciones para restablecer la contraseña.');
       }
     } catch (caught) {
       setError(getApiErrorPresentation(caught, 'No se ha podido completar la recuperación de contraseña.'));
