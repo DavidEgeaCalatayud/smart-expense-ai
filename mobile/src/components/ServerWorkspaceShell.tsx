@@ -12,6 +12,7 @@ import { WorkspaceNav, type WorkspaceName } from './WorkspaceNav';
 import { ConnectionStatus } from './ConnectionStatus';
 import { useOnlineSync } from '../sync/OnlineSyncProvider';
 import { uiTokens } from '../ui/tokens';
+import { ScreenHeader } from '../ui/ScreenHeader';
 
 export function ServerWorkspaceShell({
   active,
@@ -46,12 +47,7 @@ export function ServerWorkspaceShell({
         <WorkspaceNav active={active} />
         <ConnectionStatus onRefresh={onRefresh} refreshing={isRefreshing} />
 
-        <View style={styles.titleRow}>
-          <View style={styles.titleCopy}>
-            <Text style={styles.title}>{title}</Text>
-            <Text style={styles.subtitle}>{subtitle}</Text>
-          </View>
-        </View>
+        <ScreenHeader title={title} subtitle={subtitle} />
 
         {children}
       </ScrollView>
@@ -114,10 +110,6 @@ const styles = StyleSheet.create({
   eyebrow: { fontSize: 12, fontWeight: '700', letterSpacing: 1.2 },
   accountName: { fontSize: 16, fontWeight: '700' },
   accountEmail: { fontSize: 12, opacity: 0.6 },
-  titleRow: { alignItems: 'flex-start', flexDirection: 'row', gap: 12 },
-  titleCopy: { flex: 1, gap: 7 },
-  title: { fontSize: 30, fontWeight: '800' },
-  subtitle: { fontSize: 15, lineHeight: 22, opacity: 0.7 },
   refreshButton: {
     alignItems: 'center',
     backgroundColor: '#111827',
