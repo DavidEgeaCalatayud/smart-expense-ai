@@ -16,6 +16,7 @@ import { HistoricalAnalysisPanel } from '../components/intelligence/HistoricalAn
 import { PageHeader } from '../components/layout/PageHeader';
 import { ApiErrorAlert } from '../components/ui/ApiErrorAlert';
 import { EmptyStateCard } from '../components/ui/EmptyStateCard';
+import { Skeleton } from '../components/ui/Skeleton';
 import { getApiErrorPresentation, type ApiErrorPresentation } from '../services/apiClient';
 import {
   fetchIntelligenceFindings,
@@ -48,11 +49,23 @@ const emptySummary: IntelligenceSummary = {
 type StatusFilter = FindingStatus | 'all';
 
 const statusFilters: { value: StatusFilter; label: string }[] = [
-  { value: 'open', label: 'Open' },
-  { value: 'dismissed', label: 'Dismissed' },
-  { value: 'resolved', label: 'Resolved' },
-  { value: 'all', label: 'All' },
+  { value: 'open', label: 'Pendientes' },
+  { value: 'dismissed', label: 'Descartados' },
+  { value: 'resolved', label: 'Resueltos' },
+  { value: 'all', label: 'Todos' },
 ];
+
+function findingStatusLabel(status: FindingStatus): string {
+  if (status === 'open') return 'Pendiente';
+  if (status === 'dismissed') return 'Descartado';
+  return 'Resuelto';
+}
+
+function severityLabel(severity: IntelligenceFinding['severity']): string {
+  if (severity === 'high') return 'Alta';
+  if (severity === 'warning') return 'Aviso';
+  return 'Informativa';
+}
 
 const money = (value: unknown) =>
   typeof value === 'string' ? formatCurrencyWithDecimals(value) : '—';
@@ -61,35 +74,35 @@ function evidenceText(finding: IntelligenceFinding): string {
   const evidence = finding.evidence;
   if (finding.type === 'recurring_pattern') {
     const calendar = evidence.streamCalendar ? ` · ${String(evidence.streamCalendar)}` : '';
-    return `${String(evidence.cadence ?? 'Recurring')}${calendar} · ${String(evidence.occurrenceCount ?? '—')} occurrences · score ${String(evidence.patternScore ?? '—')}/100 · median ${money(evidence.medianAmount)} · next ${String(evidence.nextExpectedDate ?? '—')}`;
+    return `${String(evidence.cadence ?? 'Recurrente')}${calendar} · ${String(evidence.occurrenceCount ?? '—')} registros · patrón ${String(evidence.patternScore ?? '—')}/100 · importe habitual ${money(evidence.medianAmount)} · próximo ${String(evidence.nextExpectedDate ?? '—')}`;
   }
   if (finding.type === 'recurring_payment_missing') {
-    return `Expected ${String(evidence.nextExpectedDate ?? '—')} · ${String(evidence.overdueDays ?? '—')} days late · ${String(evidence.missedExpectedOccurrences ?? '—')} missed occurrence(s) · typical ${money(evidence.medianAmount)}`;
+    return `Previsto ${String(evidence.nextExpectedDate ?? '—')} · ${String(evidence.overdueDays ?? '—')} días de retraso · ${String(evidence.missedExpectedOccurrences ?? '—')} cargo(s) esperado(s) no detectado(s) · importe habitual ${money(evidence.medianAmount)}`;
   }
   if (finding.type === 'duplicate_subscription') {
     const months = Array.isArray(evidence.duplicateMonths) ? evidence.duplicateMonths.join(', ') : '—';
-    return `${String(evidence.pairCount ?? '—')} near-duplicate pairs · around ${money(evidence.approximateAmount)} · months ${months}`;
+    return `${String(evidence.pairCount ?? '—')} posibles duplicados · alrededor de ${money(evidence.approximateAmount)} · meses ${months}`;
   }
   if (finding.type === 'frequency_anomaly') {
-    return `${String(evidence.currentCount ?? '—')} charges in ${String(evidence.period ?? '—')} vs ${String(evidence.baselineMedianCount ?? '—')} typical · ${String(evidence.frequencyRatio ?? '—')}× frequency · max ${String(evidence.maxChargesIn7Days ?? '—')} in 7 days`;
+    return `${String(evidence.currentCount ?? '—')} cargos en ${String(evidence.period ?? '—')} frente a ${String(evidence.baselineMedianCount ?? '—')} habituales · frecuencia ${String(evidence.frequencyRatio ?? '—')}× · máximo ${String(evidence.maxChargesIn7Days ?? '—')} en 7 días`;
   }
-  return `${money(evidence.amount)} vs ${String(evidence.baselineScope ?? 'historical')} baseline ${money(evidence.baselineMedian)} · ${String(evidence.ratio ?? '—')}× typical · deviation ${String(evidence.deviationScore ?? '—')} · n=${String(evidence.baselineCount ?? '—')}`;
+  return `${money(evidence.amount)} frente a un importe habitual de ${money(evidence.baselineMedian)} · ${String(evidence.ratio ?? '—')}× lo normal · desviación ${String(evidence.deviationScore ?? '—')}`;
 }
 
 function typeMeta(finding: IntelligenceFinding) {
   if (finding.type === 'recurring_pattern') {
-    return { icon: Repeat2, label: 'Recurring stream' };
+    return { icon: Repeat2, label: 'Pago recurrente' };
   }
   if (finding.type === 'recurring_payment_missing') {
-    return { icon: CalendarClock, label: 'Missing recurring payment' };
+    return { icon: CalendarClock, label: 'Pago recurrente no detectado' };
   }
   if (finding.type === 'duplicate_subscription') {
-    return { icon: CopyCheck, label: 'Possible duplicate subscription' };
+    return { icon: CopyCheck, label: 'Posible suscripción duplicada' };
   }
   if (finding.type === 'frequency_anomaly') {
-    return { icon: Gauge, label: 'Frequency anomaly' };
+    return { icon: Gauge, label: 'Frecuencia inusual' };
   }
-  return { icon: Activity, label: 'Amount anomaly' };
+  return { icon: Activity, label: 'Importe inusual' };
 }
 
 function severityClasses(severity: IntelligenceFinding['severity']) {
@@ -124,7 +137,7 @@ export function AlertsPage() {
       setSummary(loadedSummary);
       setFindings(loadedFindings);
     } catch (loadError) {
-      setError(getApiErrorPresentation(loadError, 'Unable to load financial intelligence'));
+      setError(getApiErrorPresentation(loadError, 'No se ha podido cargar la inteligencia financiera'));
     } finally {
       setIsLoading(false);
       setIsRefreshing(false);
@@ -141,12 +154,10 @@ export function AlertsPage() {
     setNotice(null);
     try {
       const result = await runIntelligenceScan();
-      setNotice(
-        `Analysis completed: ${result.detectedFindings} findings from ${result.analyzedTransactions} expense transactions.`,
-      );
+      setNotice(`Análisis completado: ${result.detectedFindings} aviso${result.detectedFindings === 1 ? '' : 's'} detectado${result.detectedFindings === 1 ? '' : 's'} en ${result.analyzedTransactions} movimientos.`);
       await loadIntelligence(true);
     } catch (scanError) {
-      setError(getApiErrorPresentation(scanError, 'Unable to run financial analysis'));
+      setError(getApiErrorPresentation(scanError, 'No se ha podido ejecutar el análisis financiero'));
     } finally {
       setIsScanning(false);
     }
@@ -158,10 +169,10 @@ export function AlertsPage() {
     setNotice(null);
     try {
       await updateIntelligenceFindingStatus(findingId, status);
-      setNotice(status === 'open' ? 'Finding reopened.' : `Finding marked as ${status}.`);
+      setNotice(status === 'open' ? 'Aviso reabierto.' : status === 'resolved' ? 'Aviso marcado como resuelto.' : 'Aviso descartado.');
       await loadIntelligence(true);
     } catch (updateError) {
-      setError(getApiErrorPresentation(updateError, 'Unable to update finding'));
+      setError(getApiErrorPresentation(updateError, 'No se ha podido actualizar el aviso'));
     } finally {
       setActiveFindingId(null);
     }
@@ -169,14 +180,14 @@ export function AlertsPage() {
 
   const lastScanLabel = summary.lastScanAt
     ? new Date(summary.lastScanAt).toLocaleString()
-    : 'No analysis has been run yet';
+    : 'Todavía no se ha ejecutado ningún análisis';
 
   return (
     <>
       <PageHeader
-        eyebrow="Explainable rules engine"
-        title="Financial intelligence"
-        description="Rules-v2 turns canonical merchants, recurring streams and chronological baselines into persisted findings without simulated AI confidence."
+        eyebrow="Inteligencia financiera"
+        title="Inteligencia financiera"
+        description="Detecta patrones recurrentes, posibles duplicados y gastos inusuales a partir de tu historial."
         action={
           <button
             type="button"
@@ -185,7 +196,7 @@ export function AlertsPage() {
             className="inline-flex items-center justify-center gap-2 rounded-2xl bg-slate-950 px-5 py-3 text-sm font-semibold text-white shadow-soft transition hover:-translate-y-0.5 hover:bg-slate-800 disabled:cursor-not-allowed disabled:opacity-60"
           >
             {isScanning ? <RefreshCw size={18} className="animate-spin" /> : <ScanSearch size={18} />}
-            {isScanning ? 'Analyzing…' : 'Run findings scan'}
+            {isScanning ? 'Analizando…' : 'Analizar movimientos'}
           </button>
         }
       />
@@ -195,7 +206,7 @@ export function AlertsPage() {
           error={error}
           className="mb-5"
           onRetry={() => void loadIntelligence(true)}
-          retryLabel={isRefreshing ? 'Refreshing…' : 'Retry'}
+          retryLabel={isRefreshing ? 'Actualizando…' : 'Reintentar'}
         />
       )}
 
@@ -208,11 +219,11 @@ export function AlertsPage() {
 
       <section className="grid gap-4 md:grid-cols-2 xl:grid-cols-5">
         {[
-          { label: 'Open findings', value: summary.openCount, icon: AlertTriangle },
-          { label: 'Recurring streams', value: summary.recurringCount, icon: Repeat2 },
-          { label: 'Missing recurring', value: summary.missingRecurringCount, icon: CalendarClock },
-          { label: 'Possible duplicates', value: summary.duplicateSubscriptionCount, icon: CopyCheck },
-          { label: 'Basic anomalies', value: summary.anomalyCount, icon: Activity },
+          { label: 'Avisos pendientes', value: summary.openCount, icon: AlertTriangle },
+          { label: 'Pagos recurrentes', value: summary.recurringCount, icon: Repeat2 },
+          { label: 'Pagos esperados', value: summary.missingRecurringCount, icon: CalendarClock },
+          { label: 'Posibles duplicados', value: summary.duplicateSubscriptionCount, icon: CopyCheck },
+          { label: 'Gastos inusuales', value: summary.anomalyCount, icon: Activity },
         ].map((metric) => (
           <article key={metric.label} className="rounded-3xl border border-slate-200 bg-white p-5 shadow-soft">
             <div className="mb-4 flex h-10 w-10 items-center justify-center rounded-2xl bg-brand-50 text-brand-700">
@@ -227,15 +238,15 @@ export function AlertsPage() {
       <section className="mt-6 rounded-3xl border border-slate-200 bg-white p-5 shadow-soft">
         <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
           <div>
-            <h2 className="font-bold text-slate-950">Findings scan state</h2>
+            <h2 className="font-bold text-slate-950">Estado del análisis</h2>
             <p className="mt-1 text-sm text-slate-500">
-              Last scan: {lastScanLabel} · {summary.analyzedTransactions} expense transactions · {summary.ruleVersion}
+              Último análisis: {lastScanLabel} · {summary.analyzedTransactions} movimientos revisados
             </p>
             <p className="mt-1 text-xs text-slate-400">
-              Anomalies: {summary.amountAnomalyCount} amount · {summary.frequencyAnomalyCount} frequency
+              Avisos por importe: {summary.amountAnomalyCount} · por frecuencia: {summary.frequencyAnomalyCount}
             </p>
           </div>
-          <div className="flex flex-wrap gap-2" aria-label="Finding status filter">
+          <div className="flex flex-wrap gap-2" aria-label="Filtro de estado de avisos">
             {statusFilters.map((filter) => (
               <button
                 key={filter.value}
@@ -258,17 +269,23 @@ export function AlertsPage() {
 
       <section className="mt-8 space-y-4">
         {isLoading ? (
-          <div className="rounded-3xl border border-slate-200 bg-white p-10 text-center text-sm text-slate-500 shadow-soft">
-            Loading persisted intelligence findings...
+          <div className="grid gap-4 md:grid-cols-2" role="status" aria-label="Cargando avisos">
+            {[0, 1, 2, 3].map((item) => (
+              <div key={item} className="rounded-3xl border border-slate-200 bg-white p-5 shadow-soft">
+                <Skeleton className="h-4 w-1/3" />
+                <Skeleton className="mt-4 h-6 w-2/3" />
+                <Skeleton className="mt-3 h-4 w-full" />
+              </div>
+            ))}
           </div>
         ) : findings.length === 0 ? (
           <EmptyStateCard
             icon={<ScanSearch size={22} />}
-            title={summary.lastScanAt ? `No ${statusFilter === 'all' ? '' : `${statusFilter} `}findings` : 'Run your first financial analysis'}
+            title={summary.lastScanAt ? 'No hay avisos en este estado' : 'Haz tu primer análisis financiero'}
             description={
               summary.lastScanAt
-                ? 'The current deterministic rules do not have findings in this review state.'
-                : 'The rules engine only creates findings after it has enough persisted transaction evidence; it never fabricates alerts.'
+                ? 'No hay resultados que coincidan con el filtro seleccionado.'
+                : 'Cuando haya suficiente historial, aquí aparecerán patrones y gastos que convenga revisar.'
             }
           />
         ) : (
@@ -286,19 +303,19 @@ export function AlertsPage() {
                       <div className="flex flex-wrap items-center gap-2">
                         <span className="text-xs font-semibold uppercase tracking-wide text-slate-500">{meta.label}</span>
                         <span className={`rounded-full px-2.5 py-1 text-xs font-semibold ${severityClasses(finding.severity)}`}>
-                          {finding.severity}
+                          {severityLabel(finding.severity)}
                         </span>
                         <span className="rounded-full bg-slate-100 px-2.5 py-1 text-xs font-semibold text-slate-600">
-                          {finding.status}
+                          {findingStatusLabel(finding.status)}
                         </span>
                       </div>
                       <h3 className="mt-2 text-lg font-bold text-slate-950">{finding.title}</h3>
                       <p className="mt-2 max-w-3xl text-sm leading-6 text-slate-600">{finding.explanation}</p>
                       <div className="mt-3 rounded-2xl bg-slate-50 px-4 py-3 text-sm text-slate-600">
-                        <span className="font-semibold text-slate-800">Evidence:</span> {evidenceText(finding)}
+                        <span className="font-semibold text-slate-800">Datos:</span> {evidenceText(finding)}
                       </div>
                       <p className="mt-3 text-xs text-slate-400">
-                        Rule {finding.ruleVersion} · last detected {new Date(finding.lastDetectedAt).toLocaleString()}
+                        Detectado por última vez {new Date(finding.lastDetectedAt).toLocaleString('es-ES')}
                       </p>
                     </div>
                   </div>
@@ -312,7 +329,7 @@ export function AlertsPage() {
                           onClick={() => void handleStatus(finding.id, 'resolved')}
                           className="inline-flex items-center gap-2 rounded-xl border border-emerald-200 bg-emerald-50 px-3 py-2 text-xs font-semibold text-emerald-700 disabled:opacity-50"
                         >
-                          <CheckCircle2 size={15} /> Resolve
+                          <CheckCircle2 size={15} /> Resolver
                         </button>
                         <button
                           type="button"
@@ -320,7 +337,7 @@ export function AlertsPage() {
                           onClick={() => void handleStatus(finding.id, 'dismissed')}
                           className="inline-flex items-center gap-2 rounded-xl border border-slate-200 bg-white px-3 py-2 text-xs font-semibold text-slate-600 disabled:opacity-50"
                         >
-                          <XCircle size={15} /> Dismiss
+                          <XCircle size={15} /> Descartar
                         </button>
                       </>
                     ) : (
@@ -330,7 +347,7 @@ export function AlertsPage() {
                         onClick={() => void handleStatus(finding.id, 'open')}
                         className="inline-flex items-center gap-2 rounded-xl border border-slate-200 bg-white px-3 py-2 text-xs font-semibold text-slate-600 disabled:opacity-50"
                       >
-                        <RotateCcw size={15} /> Reopen
+                        <RotateCcw size={15} /> Reabrir
                       </button>
                     )}
                   </div>
