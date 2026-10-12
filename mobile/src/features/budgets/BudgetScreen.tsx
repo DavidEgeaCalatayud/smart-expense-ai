@@ -27,10 +27,10 @@ import { ActionPressable } from '../../ui/ActionPressable';
 import { canonicalMoneyInput, formatMoneyInput } from '../../ui/moneyInput';
 
 const STATUS_LABEL = {
-  synced: 'Synced',
-  pending: 'Pending sync',
-  failed: 'Needs attention',
-  conflict: 'Conflict',
+  synced: 'Sincronizado',
+  pending: 'Pendiente',
+  failed: 'Revisar',
+  conflict: 'Conflicto',
 } as const;
 
 function localCurrentMonth(): string {
