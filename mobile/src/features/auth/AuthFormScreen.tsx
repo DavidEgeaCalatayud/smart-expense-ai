@@ -12,6 +12,9 @@ import {
   TextInput,
   View,
 } from '../../ui/primitives';
+import Ionicons from '../../ui/Icon';
+import { ActionPressable } from '../../ui/ActionPressable';
+import { uiTokens } from '../../ui/tokens';
 
 import { useAuth } from '../../auth/AuthProvider';
 import { E2eLegacyMigrationDiagnostic } from './E2eLegacyMigrationDiagnostic';
@@ -25,18 +28,17 @@ export function AuthFormScreen({ mode }: AuthFormScreenProps) {
   const [displayName, setDisplayName] = useState('');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
+  const [showPassword, setShowPassword] = useState(false);
   const isRegister = mode === 'register';
+  const passwordLongEnough = password.length >= 12;
 
   const submit = async () => {
     clearError();
     try {
-      if (isRegister) {
-        await register(email, password, displayName);
-      } else {
-        await login(email, password);
-      }
+      if (isRegister) await register(email, password, displayName);
+      else await login(email, password);
     } catch {
-      // The provider owns the user-facing error state.
+      // El provider mantiene el error visible.
     }
   };
 
@@ -44,25 +46,19 @@ export function AuthFormScreen({ mode }: AuthFormScreenProps) {
     isSubmitting ||
     !email.trim() ||
     !password ||
-    (isRegister && !displayName.trim());
+    (isRegister && (!displayName.trim() || !passwordLongEnough));
 
   return (
     <SafeAreaView style={styles.safeArea}>
-      <KeyboardAvoidingView
-        behavior={Platform.OS === 'ios' ? 'padding' : undefined}
-        style={styles.flex}
-      >
-        <ScrollView
-          contentContainerStyle={styles.content}
-          keyboardShouldPersistTaps="handled"
-        >
+      <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : undefined} style={styles.flex}>
+        <ScrollView contentContainerStyle={styles.content} keyboardShouldPersistTaps="handled">
           <View style={styles.hero}>
-            <Text style={styles.eyebrow}>SMART EXPENSE AI · ANDROID</Text>
-            <Text style={styles.title}>{isRegister ? 'Create account' : 'Welcome back'}</Text>
+            <Text style={styles.eyebrow}>SMART EXPENSE AI</Text>
+            <Text style={styles.title}>{isRegister ? 'Crear cuenta' : 'Bienvenido de nuevo'}</Text>
             <Text style={styles.subtitle}>
               {isRegister
-                ? 'Use one account to manage your finances on your phone and the web.'
-                : 'Sign in to your finances, with automatic updates online and saved data offline.'}
+                ? 'Una sola cuenta para gestionar tus finanzas desde el móvil y la web.'
+                : 'Accede a tus finanzas y sigue trabajando incluso cuando no tengas conexión.'}
             </Text>
           </View>
 
@@ -72,91 +68,90 @@ export function AuthFormScreen({ mode }: AuthFormScreenProps) {
             {isRegister ? (
               <TextInput
                 accessibilityLabel="Display name"
+                autoFocus
                 autoCapitalize="words"
                 autoComplete="name"
                 maxLength={120}
                 onChangeText={setDisplayName}
-                placeholder="Display name"
+                placeholder="Nombre"
                 style={styles.input}
                 value={displayName}
               />
             ) : null}
             <TextInput
               accessibilityLabel="Email"
+              autoFocus={!isRegister}
               autoCapitalize="none"
               autoComplete="email"
               keyboardType="email-address"
               onChangeText={setEmail}
-              placeholder="Email"
+              placeholder="Correo electrónico"
               style={styles.input}
               value={email}
             />
-            <TextInput
-              accessibilityLabel="Password"
-              autoCapitalize="none"
-              autoComplete={isRegister ? 'new-password' : 'current-password'}
-              maxLength={128}
-              onChangeText={setPassword}
-              placeholder={isRegister ? 'Password (12+ characters)' : 'Password'}
-              secureTextEntry
-              style={styles.input}
-              value={password}
-            />
+            <View style={styles.passwordWrap}>
+              <TextInput
+                accessibilityLabel="Password"
+                autoCapitalize="none"
+                autoComplete={isRegister ? 'new-password' : 'current-password'}
+                maxLength={128}
+                onChangeText={setPassword}
+                placeholder={isRegister ? 'Contraseña (12+ caracteres)' : 'Contraseña'}
+                secureTextEntry={!showPassword}
+                style={[styles.input, styles.passwordInput]}
+                value={password}
+              />
+              <Pressable
+                accessibilityRole="button"
+                accessibilityLabel={showPassword ? 'Ocultar contraseña' : 'Mostrar contraseña'}
+                onPress={() => setShowPassword((value) => !value)}
+                style={styles.eyeButton}
+              >
+                <Ionicons name={showPassword ? 'eye-off-outline' : 'eye-outline'} size={21} color={uiTokens.color.muted} />
+              </Pressable>
+            </View>
+            {isRegister ? (
+              <Text style={[styles.requirement, passwordLongEnough && styles.requirementOk]}>
+                {passwordLongEnough ? '✓' : '○'} Mínimo 12 caracteres
+              </Text>
+            ) : null}
 
             {!isRegister ? (
               <Link href="/forgot-password" asChild>
-                <Pressable
-                  accessibilityLabel="Forgot password link"
-                  accessibilityRole="link"
-                  disabled={isSubmitting}
-                  testID="forgot-password-link"
-                >
-                  <Text style={styles.linkText}>Forgot your password?</Text>
+                <Pressable accessibilityLabel="Forgot password link" accessibilityRole="link" disabled={isSubmitting} testID="forgot-password-link">
+                  <Text style={styles.linkText}>¿Has olvidado la contraseña?</Text>
                 </Pressable>
               </Link>
             ) : null}
             {isSubmitting && !isRegister ? (
-              <Text accessibilityLiveRegion="polite" style={styles.subtitle}>
-                Connecting securely… The server may need up to two minutes to wake up.
-              </Text>
+              <Text accessibilityLiveRegion="polite" style={styles.subtitle}>Conectando de forma segura…</Text>
             ) : null}
             {error ? <Text style={styles.error}>{error}</Text> : null}
 
-            <Pressable
+            <ActionPressable
               accessibilityLabel={isRegister ? 'Submit create account' : 'Submit sign in'}
               accessibilityRole="button"
+              haptic="success"
               disabled={disabled}
               onPress={() => void submit()}
-              style={({ pressed }) => [
-                styles.primaryButton,
-                pressed && styles.buttonPressed,
-                disabled && styles.buttonDisabled,
-              ]}
+              style={[styles.primaryButton, disabled && styles.buttonDisabled]}
             >
-              {isSubmitting ? (
-                <ActivityIndicator color="#ffffff" />
-              ) : (
-                <Text style={styles.primaryButtonText}>
-                  {isRegister ? 'Create account' : 'Sign in'}
-                </Text>
+              {isSubmitting ? <ActivityIndicator color="#ffffff" /> : (
+                <Text style={styles.primaryButtonText}>{isRegister ? 'Crear cuenta' : 'Iniciar sesión'}</Text>
               )}
-            </Pressable>
+            </ActionPressable>
           </View>
 
           <View style={styles.switchRow}>
-            <Text style={styles.switchText}>
-              {isRegister ? 'Already have an account?' : 'New to Smart Expense AI?'}
-            </Text>
+            <Text style={styles.switchText}>{isRegister ? '¿Ya tienes una cuenta?' : '¿Eres nuevo en Smart Expense AI?'}</Text>
             <Link href={isRegister ? '/sign-in' : '/register'} asChild>
               <Pressable accessibilityRole="link" onPress={clearError}>
-                <Text style={styles.linkText}>{isRegister ? 'Sign in' : 'Create one'}</Text>
+                <Text style={styles.linkText}>{isRegister ? 'Iniciar sesión' : 'Crear una'}</Text>
               </Pressable>
             </Link>
           </View>
 
-          <Text style={styles.securityNote}>
-            Your sign-in details are stored securely on this device.
-          </Text>
+          <Text style={styles.securityNote}>Tus credenciales se guardan de forma segura en este dispositivo.</Text>
         </ScrollView>
       </KeyboardAvoidingView>
     </SafeAreaView>
@@ -164,55 +159,42 @@ export function AuthFormScreen({ mode }: AuthFormScreenProps) {
 }
 
 const styles = StyleSheet.create({
-  safeArea: { flex: 1, backgroundColor: '#f6f7f9' },
+  safeArea: { flex: 1, backgroundColor: uiTokens.color.background },
   flex: { flex: 1 },
-  content: {
-    flexGrow: 1,
-    justifyContent: 'center',
-    paddingHorizontal: 24,
-    paddingVertical: 36,
-  },
+  content: { flexGrow: 1, justifyContent: 'center', paddingHorizontal: 24, paddingVertical: 36 },
   hero: { gap: 10, marginBottom: 30 },
   eyebrow: { fontSize: 12, fontWeight: '700', letterSpacing: 1.1 },
   title: { fontSize: 36, fontWeight: '800' },
   subtitle: { fontSize: 15, lineHeight: 22, opacity: 0.68 },
   form: { gap: 12 },
   input: {
-    backgroundColor: '#ffffff',
-    borderColor: '#d9dde3',
-    borderRadius: 12,
+    backgroundColor: uiTokens.color.surface,
+    borderColor: uiTokens.color.border,
+    borderRadius: uiTokens.radius.md,
     borderWidth: 1,
     fontSize: 16,
     paddingHorizontal: 14,
     paddingVertical: 14,
+    minHeight: 50,
   },
-  error: { color: '#b42318', fontSize: 14, lineHeight: 20 },
+  passwordWrap: { position: 'relative', justifyContent: 'center' },
+  passwordInput: { paddingRight: 52 },
+  eyeButton: { position: 'absolute', right: 3, width: uiTokens.touchTarget, height: uiTokens.touchTarget, alignItems: 'center', justifyContent: 'center' },
+  requirement: { fontSize: 12, color: '#64748b', fontWeight: '600' },
+  requirementOk: { color: uiTokens.color.success },
+  error: { color: uiTokens.color.danger, fontSize: 14, lineHeight: 20 },
   primaryButton: {
     alignItems: 'center',
-    backgroundColor: '#111827',
-    borderRadius: 12,
+    backgroundColor: uiTokens.color.text,
+    borderRadius: uiTokens.radius.md,
     justifyContent: 'center',
     minHeight: 50,
     paddingHorizontal: 18,
   },
   primaryButtonText: { color: '#ffffff', fontSize: 16, fontWeight: '700' },
-  buttonPressed: { opacity: 0.82 },
   buttonDisabled: { opacity: 0.45 },
-  switchRow: {
-    alignItems: 'center',
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    gap: 6,
-    justifyContent: 'center',
-    marginTop: 22,
-  },
+  switchRow: { alignItems: 'center', flexDirection: 'row', flexWrap: 'wrap', gap: 6, justifyContent: 'center', marginTop: 22 },
   switchText: { fontSize: 14, opacity: 0.68 },
-  linkText: { fontSize: 14, fontWeight: '700' },
-  securityNote: {
-    fontSize: 12,
-    lineHeight: 18,
-    marginTop: 30,
-    opacity: 0.5,
-    textAlign: 'center',
-  },
+  linkText: { fontSize: 14, fontWeight: '700', color: uiTokens.color.brand },
+  securityNote: { fontSize: 12, lineHeight: 18, marginTop: 30, opacity: 0.5, textAlign: 'center' },
 });
