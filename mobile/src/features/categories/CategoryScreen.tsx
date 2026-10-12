@@ -216,9 +216,9 @@ export function CategoryScreen() {
 
         {categories.map((category) => {
           const isSystem = category.system_category === 1;
-          const isArchivada = category.archived === 1;
+          const isArchived = category.archived === 1;
           return (
-            <View key={category.id} style={[styles.card, isArchivada && styles.archivedCard]}>
+            <View key={category.id} style={[styles.card, isArchived && styles.archivedCard]}>
               <View style={styles.cardHeader}>
                 <View style={styles.cardIdentity}>
                   <Text style={styles.cardTitle}>{category.name}</Text>
@@ -227,13 +227,13 @@ export function CategoryScreen() {
                     {STATUS_LABEL[category.sync_status]}
                   </Text>
                 </View>
-                {isArchivada ? <Text style={styles.archivedBadge}>Archivada</Text> : null}
+                {isArchived ? <Text style={styles.archivedBadge}>Archivada</Text> : null}
               </View>
               <Text style={styles.muted}>{category.transaction_count} movimientos locales</Text>
 
               {!isSystem ? (
                 <View style={styles.actions}>
-                  {!isArchivada ? (
+                  {!isArchived ? (
                     <>
                       <Pressable
                         disabled={busy || category.sync_status === 'conflict'}
@@ -285,14 +285,13 @@ export function CategoryScreen() {
               ) : (
                 <Text style={styles.readOnly}>Categoría incluida</Text>
               )}
-              {!isArchivada && !isSystem && category.transaction_count > 0 ? (
+              {!isArchived && !isSystem && category.transaction_count > 0 ? (
                 <Text style={styles.warning}>Reasigna los movimientos antes de archivar.</Text>
               ) : null}
             </View>
           );
         })}
       </ScrollView>
-      <Snackbar message={toast} onDismiss={() => showSnackbar(null)} />
     </SafeAreaView>
   );
 }
