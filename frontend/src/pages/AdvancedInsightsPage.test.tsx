@@ -28,8 +28,8 @@ describe('AdvancedInsightsPage', () => {
 
     render(<AdvancedInsightsPage />);
 
-    expect(await screen.findByText('Premium advanced insights')).toBeInTheDocument();
-    expect(screen.getByText(/does not have this entitlement enabled/i)).toBeInTheDocument();
+    expect(await screen.findByText('Análisis avanzados Premium')).toBeInTheDocument();
+    expect(screen.getByText(/no están incluidos actualmente en tu cuenta/i)).toBeInTheDocument();
     expect(fetchAdvancedInsights).not.toHaveBeenCalled();
   });
 
@@ -110,8 +110,8 @@ describe('AdvancedInsightsPage', () => {
 
     render(<AdvancedInsightsPage />);
 
-    expect(await screen.findByText('Unable to verify insight access')).toBeInTheDocument();
-    expect(screen.queryByText('Premium advanced insights')).not.toBeInTheDocument();
+    expect(await screen.findByText('No se ha podido comprobar el acceso a análisis')).toBeInTheDocument();
+    expect(screen.queryByText('Análisis avanzados Premium')).not.toBeInTheDocument();
     expect(fetchAdvancedInsights).not.toHaveBeenCalled();
   });
 });
