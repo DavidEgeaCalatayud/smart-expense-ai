@@ -7,7 +7,7 @@ import { ChoiceField } from '../../components/ChoiceField';
 import { serverWorkspaceStyles as s } from '../../components/ServerWorkspaceShell';
 import type { LocalCategoryRow, LocalTransactionRow } from '../../database/types';
 import { localDate, type OfflineTransactionFormInput } from './validation';
-import { canonicalMoneyInput, formatMoneyInput } from '../../ui/moneyInput';
+import { formatMoneyEditingInput, formatMoneyInput } from '../../ui/moneyInput';
 import { ActionPressable } from '../../ui/ActionPressable';
 
 export const PAYMENT_METHODS = [
@@ -56,8 +56,8 @@ export function TransactionEditor({ item, initialType, categories, saving, error
             <Text style={type === value ? s.primaryButtonText : s.secondaryButtonText}>{value === 'expense' ? 'Expense' : 'Income'}</Text>
           </Pressable>)}</View>
           <TextInput accessibilityLabel="Amount" autoFocus placeholder="Importe (€)" keyboardType="decimal-pad" maxLength={24}
-            editable={!saving} value={amount} onChangeText={setAmount}
-            onFocus={() => setAmount((current) => canonicalMoneyInput(current))}
+            editable={!saving} value={amount} onChangeText={(value) => setAmount(formatMoneyEditingInput(value))}
+            onFocus={() => setAmount((current) => formatMoneyEditingInput(current))}
             onBlur={() => { if (amount.trim()) setAmount(formatMoneyInput(amount)); }}
             style={[s.input, { fontSize: 30, fontWeight: '700' }]} />
           <TextInput accessibilityLabel="Merchant" placeholder={type === 'income' ? '¿De quién? Ej. Empresa' : '¿Dónde? Ej. Supermercado'}
