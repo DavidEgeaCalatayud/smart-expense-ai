@@ -20,6 +20,7 @@ import { useCategories } from './useCategories';
 import { useSnackbar } from '../../ui/Snackbar';
 import { CardSkeleton } from '../../ui/Skeleton';
 import { ActionPressable } from '../../ui/ActionPressable';
+import { useRevealScrollTarget } from '../../ui/useRevealScrollTarget';
 
 const STATUS_LABEL = {
   synced: 'Sincronizada',
@@ -53,20 +54,13 @@ export function CategoryScreen() {
   const [name, setName] = useState('');
   const [transactionType, setTransactionType] = useState<CategoryTransactionType>('expense');
   const [editingId, setEditingId] = useState<string | null>(null);
-  const [formHighlighted, setFormHighlighted] = useState(false);
   const { showSnackbar } = useSnackbar();
   const scrollViewRef = useRef<NativeScrollView>(null);
-  const formYRef = useRef<number | null>(null);
   const nameInputRef = useRef<NativeTextInput>(null);
+  const revealTarget = useRevealScrollTarget<'category-form'>(scrollViewRef);
 
   const revealForm = () => {
-    requestAnimationFrame(() => requestAnimationFrame(() => {
-      if (formYRef.current === null) return;
-      scrollViewRef.current?.scrollTo({ y: Math.max(0, formYRef.current - 12), animated: true });
-      setFormHighlighted(true);
-      setTimeout(() => setFormHighlighted(false), 900);
-      setTimeout(() => nameInputRef.current?.focus(), 260);
-    }));
+    revealTarget.reveal('category-form', { focus: () => nameInputRef.current?.focus() });
   };
 
   const resetForm = () => {
@@ -167,8 +161,8 @@ export function CategoryScreen() {
         ) : null}
 
         <View
-          style={[styles.formCard, formHighlighted && styles.formCardHighlighted]}
-          onLayout={(event) => { formYRef.current = event.nativeEvent.layout.y; }}
+          style={[styles.formCard, revealTarget.highlightedTarget === 'category-form' && styles.formCardHighlighted]}
+          onLayout={revealTarget.onLayout('category-form')}
         >
           <Text style={styles.sectionTitle}>{editingId ? 'Renombrar categoría' : 'Nueva categoría'}</Text>
           <TextInput
