@@ -28,6 +28,7 @@ import { useSnackbar } from '../../ui/Snackbar';
 import { CardSkeleton } from '../../ui/Skeleton';
 import { ActionPressable } from '../../ui/ActionPressable';
 import { canonicalMoneyInput, formatMoneyInput } from '../../ui/moneyInput';
+import { useRevealScrollTarget } from '../../ui/useRevealScrollTarget';
 
 const ACCOUNT_TYPES: readonly [FinancialAccountType, string][] = [
   ['checking', 'Corriente'],
@@ -168,37 +169,9 @@ export function MoneyScreen() {
   const [nextBalance, setNextBalance] = useState('');
   const { showSnackbar } = useSnackbar();
   const nameInputRef = useRef<NativeTextInput>(null);
+  const balanceInputRef = useRef<NativeTextInput>(null);
   const scrollViewRef = useRef<NativeScrollView>(null);
-  const accountFormYRef = useRef<number | null>(null);
-  const balanceFormYRef = useRef<number | null>(null);
-  const pendingRevealRef = useRef<RevealedSection | null>(null);
-  const pendingFocusRef = useRef(false);
-  const [highlightedSection, setHighlightedSection] = useState<RevealedSection | null>(null);
-
-  const revealSectionAt = (section: RevealedSection, y: number) => {
-    if (pendingRevealRef.current !== section) return;
-    pendingRevealRef.current = null;
-    scrollViewRef.current?.scrollTo({
-      y: Math.max(0, y - 12),
-      animated: true,
-    });
-    setHighlightedSection(section);
-    setTimeout(() => setHighlightedSection((current) => current === section ? null : current), 900);
-    if (section === 'account-form' && pendingFocusRef.current) {
-      pendingFocusRef.current = false;
-      setTimeout(() => nameInputRef.current?.focus(), 280);
-    }
-  };
-
-  const scheduleReveal = (section: RevealedSection) => {
-    pendingRevealRef.current = section;
-    requestAnimationFrame(() => {
-      requestAnimationFrame(() => {
-        const y = section === 'account-form' ? accountFormYRef.current : balanceFormYRef.current;
-        if (y !== null) revealSectionAt(section, y);
-      });
-    });
-  };
+  const revealTarget = useRevealScrollTarget<RevealedSection>(scrollViewRef);
 
   const accountConflicts = conflicts.filter((conflict) => conflict.entity_type === 'financial_account');
   const changeMinor = history.length >= 2
@@ -213,22 +186,20 @@ export function MoneyScreen() {
   ] as const, [summary]);
 
   const closeForm = () => {
-    if (pendingRevealRef.current === 'account-form') pendingRevealRef.current = null;
+    revealTarget.cancel('account-form');
     setFormMode('closed');
     setEditingId(null);
     setForm(EMPTY_FORM);
   };
 
   const openCreate = () => {
-    pendingFocusRef.current = false;
     setEditingId(null);
     setForm(EMPTY_FORM);
     setFormMode('create');
-    scheduleReveal('account-form');
+    revealTarget.reveal('account-form');
   };
 
   const openEdit = (account: LocalFinancialAccountRow) => {
-    pendingFocusRef.current = true;
     setEditingId(account.id);
     setForm({
       name: account.name,
@@ -239,7 +210,7 @@ export function MoneyScreen() {
       includeInNetWorth: account.include_in_net_worth === 1,
     });
     setFormMode('edit');
-    scheduleReveal('account-form');
+    revealTarget.reveal('account-form', { focus: () => nameInputRef.current?.focus() });
   };
 
   const submitForm = async () => {
@@ -394,12 +365,8 @@ export function MoneyScreen() {
 
         {formMode !== 'closed' ? (
           <View
-            style={[styles.sectionCard, highlightedSection === 'account-form' && styles.sectionCardHighlighted]}
-            onLayout={(event) => {
-              const y = event.nativeEvent.layout.y;
-              accountFormYRef.current = y;
-              revealSectionAt('account-form', y);
-            }}
+            style={[styles.sectionCard, revealTarget.highlightedTarget === 'account-form' && styles.sectionCardHighlighted]}
+            onLayout={revealTarget.onLayout('account-form')}
           >
             <View style={styles.sectionHeader}>
               <Text style={styles.sectionTitle}>{formMode === 'create' ? 'Añadir cuenta' : 'Editar cuenta'}</Text>
@@ -523,12 +490,8 @@ export function MoneyScreen() {
 
         {balanceAccount ? (
           <View
-            style={[styles.sectionCard, highlightedSection === 'balance-form' && styles.sectionCardHighlighted]}
-            onLayout={(event) => {
-              const y = event.nativeEvent.layout.y;
-              balanceFormYRef.current = y;
-              revealSectionAt('balance-form', y);
-            }}
+            style={[styles.sectionCard, revealTarget.highlightedTarget === 'balance-form' && styles.sectionCardHighlighted]}
+            onLayout={revealTarget.onLayout('balance-form')}
           >
             <View style={styles.sectionHeader}>
               <View style={styles.balanceHeading}>
@@ -541,6 +504,7 @@ export function MoneyScreen() {
               <Pressable onPress={() => setBalanceAccount(null)}><Ionicons name="close" size={24} color="#596575" /></Pressable>
             </View>
             <TextInput
+              ref={balanceInputRef}
               accessibilityLabel="Nuevo saldo"
               keyboardType="decimal-pad"
               value={nextBalance}
@@ -593,7 +557,7 @@ export function MoneyScreen() {
                 onPress={() => {
                   setBalanceAccount(account);
                   setNextBalance(minorUnitsToDecimal(account.current_balance_minor));
-                  scheduleReveal('balance-form');
+                  revealTarget.reveal('balance-form', { focus: () => balanceInputRef.current?.focus() });
                 }}
                 style={styles.primaryButton}
               >
