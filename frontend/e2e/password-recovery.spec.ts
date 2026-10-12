@@ -13,9 +13,9 @@ test('email link resets password once and revokes an existing browser session', 
   await page.getByRole('link', { name: '¿La has olvidado?' }).click();
   // React Router can update the URL before the old LoginPage input has unmounted. Waiting
   // for the destination heading prevents filling the stale login email field.
-  await expect(page.getByRole('heading', { name: 'Forgot password' })).toBeVisible();
-  await page.getByLabel('Email', { exact: true }).fill(email);
-  await page.getByRole('button', { name: 'Send recovery email' }).click();
+  await expect(page.getByRole('heading', { name: 'Recuperar contraseña' })).toBeVisible();
+  await page.getByLabel('Correo electrónico', { exact: true }).fill(email);
+  await page.getByRole('button', { name: 'Enviar correo de recuperación' }).click();
   await expect(page.getByRole('status')).toContainText('If an account exists');
   const outbox = `/tmp/smart-expense-recovery-outbox/${createHash('sha256').update(email).digest('hex')}.json`;
   let resetUrl = '';
@@ -27,17 +27,17 @@ test('email link resets password once and revokes an existing browser session', 
   await expect(page).toHaveURL(/\/reset-password$/);
   // Opening the email is safe even for link scanners: no confirmation until submit.
   expect((await other.request.get('http://localhost:8000/api/v1/auth/me')).status()).toBe(200);
-  await page.getByLabel('New password', { exact: true }).fill(newPassword);
-  await page.getByLabel('Confirm new password', { exact: true }).fill(newPassword);
-  await page.getByRole('button', { name: 'Save new password' }).click();
-  await expect(page.getByRole('status')).toContainText('signed out on all devices');
+  await page.getByLabel('Nueva contraseña', { exact: true }).fill(newPassword);
+  await page.getByLabel('Confirmar nueva contraseña', { exact: true }).fill(newPassword);
+  await page.getByRole('button', { name: 'Guardar nueva contraseña' }).click();
+  await expect(page.getByRole('status')).toContainText('cerrado las sesiones anteriores');
   expect((await other.request.get('http://localhost:8000/api/v1/auth/me')).status()).toBe(401);
   await page.goto(resetUrl);
-  await page.getByLabel('New password', { exact: true }).fill(newPassword);
-  await page.getByLabel('Confirm new password', { exact: true }).fill(newPassword);
-  await page.getByRole('button', { name: 'Save new password' }).click();
+  await page.getByLabel('Nueva contraseña', { exact: true }).fill(newPassword);
+  await page.getByLabel('Confirmar nueva contraseña', { exact: true }).fill(newPassword);
+  await page.getByRole('button', { name: 'Guardar nueva contraseña' }).click();
   await expect(page.getByText('This reset link is invalid or expired. Request a new one.')).toBeVisible();
-  await page.getByRole('link', { name: 'Back to sign in' }).click();
+  await page.getByRole('link', { name: 'Volver a iniciar sesión' }).click();
   await page.getByLabel('Correo electrónico', { exact: true }).fill(email);
   await page.getByLabel('Contraseña', { exact: true }).fill(newPassword);
   await page.getByRole('button', { name: 'Entrar', exact: true }).click();
