@@ -24,12 +24,12 @@ test('password change keeps the current session active and rotates credentials',
 
   await page.getByRole('link', { name: 'Seguridad' }).click();
   await expect(page.getByRole('heading', { name: 'Seguridad' })).toBeVisible();
-  await page.getByLabel('Current password').fill(oldPassword);
-  await page.getByLabel('New password').fill(newPassword);
-  await page.getByRole('button', { name: 'Update password' }).click();
+  await page.getByLabel('Contraseña actual').fill(oldPassword);
+  await page.getByLabel('Nueva contraseña').fill(newPassword);
+  await page.getByRole('button', { name: 'Actualizar contraseña' }).click();
 
   await expect(page.getByRole('status')).toContainText(
-    'Password updated. Previously issued sessions have been revoked.',
+    'Contraseña actualizada. Las sesiones anteriores se han cerrado.',
   );
 
   // Force a new authenticated page load so this verifies the rotated cookie,
