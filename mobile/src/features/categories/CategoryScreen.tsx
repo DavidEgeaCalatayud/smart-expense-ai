@@ -16,8 +16,8 @@ import { ConnectionStatus } from '../../components/ConnectionStatus';
 import { useConflicts } from '../../sync/useConflicts';
 import { useForegroundSync } from '../../sync/useForegroundSync';
 import type { CategoryTransactionType } from './offlineCategoryMutations';
-import { useCategorías } from './useCategorías';
-import { Snackbar } from '../../ui/Snackbar';
+import { useCategories } from './useCategories';
+import { useSnackbar } from '../../ui/Snackbar';
 import { CardSkeleton } from '../../ui/Skeleton';
 import { ActionPressable } from '../../ui/ActionPressable';
 
@@ -30,8 +30,8 @@ const STATUS_LABEL = {
 
 export function CategoryScreen() {
   const { user, logout, isSubmitting: isAuthSubmitting } = useAuth();
-  const { categories, isLoading, isSaving, error, reload, create, rename, setArchivada } =
-    useCategorías();
+  const { categories, isLoading, isSaving, error, reload, create, rename, setArchived } =
+    useCategories();
   const {
     conflicts,
     isResolving,
@@ -53,8 +53,8 @@ export function CategoryScreen() {
   const [name, setName] = useState('');
   const [transactionType, setTransactionType] = useState<CategoryTransactionType>('expense');
   const [editingId, setEditingId] = useState<string | null>(null);
-  const [toast, setToast] = useState<string | null>(null);
   const [formHighlighted, setFormHighlighted] = useState(false);
+  const { showSnackbar } = useSnackbar();
   const scrollViewRef = useRef<NativeScrollView>(null);
   const formYRef = useRef<number | null>(null);
   const nameInputRef = useRef<NativeTextInput>(null);
@@ -83,7 +83,7 @@ export function CategoryScreen() {
         await create(name, transactionType);
       }
       resetForm();
-      setToast(wasEditing ? 'Categoría renombrada' : 'Categoría creada');
+      showSnackbar(wasEditing ? 'Categoría renombrada' : 'Categoría creada');
       await refreshHealth();
       void syncNow().then(reloadConflicts).catch(() => undefined);
     } catch {
@@ -215,7 +215,7 @@ export function CategoryScreen() {
         </View>
 
         {categories.map((category) => {
-          const isSystem = category.sistema_category === 1;
+          const isSystem = category.system_category === 1;
           const isArchivada = category.archived === 1;
           return (
             <View key={category.id} style={[styles.card, isArchivada && styles.archivedCard]}>
@@ -250,8 +250,8 @@ export function CategoryScreen() {
                       <Pressable
                         disabled={busy || category.transaction_count > 0 || category.sync_status === 'conflict'}
                         onPress={() =>
-                          void setArchivada(category.id, true)
-                            .then(() => setToast('Categoría archivada'))
+                          void setArchived(category.id, true)
+                            .then(() => showSnackbar('Categoría archivada'))
                             .then(refreshHealth)
                             .then(() => syncNow())
                             .then(reloadConflicts)
@@ -269,8 +269,8 @@ export function CategoryScreen() {
                     <Pressable
                       disabled={busy || category.sync_status === 'conflict'}
                       onPress={() =>
-                        void setArchivada(category.id, false)
-                          .then(() => setToast('Categoría restaurada'))
+                        void setArchived(category.id, false)
+                          .then(() => showSnackbar('Categoría restaurada'))
                           .then(refreshHealth)
                           .then(() => syncNow())
                           .then(reloadConflicts)
@@ -292,7 +292,7 @@ export function CategoryScreen() {
           );
         })}
       </ScrollView>
-      <Snackbar message={toast} onDismiss={() => setToast(null)} />
+      <Snackbar message={toast} onDismiss={() => showSnackbar(null)} />
     </SafeAreaView>
   );
 }
