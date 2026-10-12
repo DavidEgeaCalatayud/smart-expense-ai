@@ -7,14 +7,14 @@ test('free account sees the real Premium reports entitlement boundary', async ({
   const password = 'playwright-secure-password';
 
   await page.goto('/register');
-  await page.getByLabel('Display name').fill('Reports Playwright Owner');
-  await page.getByLabel('Email').fill(email);
-  await page.getByLabel('Password').fill(password);
-  await page.getByRole('button', { name: 'Create account' }).click();
-  await expect(page.getByRole('heading', { name: 'Your financial overview' })).toBeVisible();
+  await page.getByLabel('Nombre').fill('Reports Playwright Owner');
+  await page.getByLabel('Correo electrónico').fill(email);
+  await page.getByLabel('Contraseña').fill(password);
+  await page.getByRole('button', { name: 'Crear cuenta' }).click();
+  await expect(page.getByRole('heading', { name: 'Tu visión financiera' })).toBeVisible();
 
-  await page.getByRole('link', { name: 'Reports' }).click();
-  await expect(page.getByRole('heading', { name: 'Reports' })).toBeVisible();
+  await page.getByRole('link', { name: 'Informes' }).click();
+  await expect(page.getByRole('heading', { name: 'Informes' })).toBeVisible();
   await expect(page.getByRole('heading', { name: 'Premium report export' })).toBeVisible();
   await expect(page.getByText(/current account does not have this entitlement enabled/i)).toBeVisible();
   await expect(page.getByText(/billing checkout is not yet exposed/i)).toBeVisible();
