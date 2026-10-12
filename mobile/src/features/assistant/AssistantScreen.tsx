@@ -1,4 +1,4 @@
-import type { FinancialAssistantRespuesta } from '@smart-expense-ai/api-contracts';
+import type { FinancialAssistantAnswer } from '@smart-expense-ai/api-contracts';
 import { useMemo, useState } from 'react';
 import { ActivityIndicator, Pressable, StyleSheet, Text, TextInput, View } from '../../ui/primitives';
 
@@ -10,7 +10,7 @@ export function AssistantScreen() {
   const api = useMemo(() => createServerDerivedApi(), []);
   const online = useOnlineAction();
   const [question, setQuestion] = useState('');
-  const [answer, setRespuesta] = useState<FinancialAssistantRespuesta | null>(null);
+  const [answer, setRespuesta] = useState<FinancialAssistantAnswer | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
