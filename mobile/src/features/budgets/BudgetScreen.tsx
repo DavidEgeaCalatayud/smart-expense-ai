@@ -1,5 +1,6 @@
 import { minorUnitsToDecimal } from '@smart-expense-ai/domain-types';
-import { useCallback, useMemo, useState } from 'react';
+import { useCallback, useMemo, useRef, useState } from 'react';
+import type { ScrollView as NativeScrollView, TextInput as NativeTextInput } from 'react-native';
 import {
   ActivityIndicator,
   Alert,
@@ -75,6 +76,24 @@ export function BudgetScreen() {
   const [limitAmount, setLimitAmount] = useState('');
   const [categoryId, setCategoryId] = useState<string | null>(null);
   const [editingId, setEditingId] = useState<string | null>(null);
+  const scrollViewRef = useRef<NativeScrollView>(null);
+  const limitInputRef = useRef<NativeTextInput>(null);
+  const formYRef = useRef<number | null>(null);
+  const pendingRevealRef = useRef(false);
+  const [formHighlighted, setFormHighlighted] = useState(false);
+
+  const revealForm = () => {
+    pendingRevealRef.current = true;
+    requestAnimationFrame(() => requestAnimationFrame(() => {
+      const y = formYRef.current;
+      if (y === null || !pendingRevealRef.current) return;
+      pendingRevealRef.current = false;
+      scrollViewRef.current?.scrollTo({ y: Math.max(0, y - 12), animated: true });
+      setFormHighlighted(true);
+      setTimeout(() => setFormHighlighted(false), 900);
+      setTimeout(() => limitInputRef.current?.focus(), 260);
+    }));
+  };
 
   const categoryName = useMemo(() => {
     if (categoryId === null) {
@@ -126,7 +145,7 @@ export function BudgetScreen() {
 
   return (
     <SafeAreaView style={styles.safeArea}>
-      <ScrollView contentContainerStyle={styles.content}
+      <ScrollView ref={scrollViewRef} contentContainerStyle={styles.content}
         refreshControl={<RefreshControl refreshing={isSyncing} onRefresh={() => { void syncNow().catch(() => undefined); }} />}>
         <View style={styles.accountRow}>
           <View style={styles.accountIdentity}>
@@ -196,7 +215,13 @@ export function BudgetScreen() {
           </View>
         ) : null}
 
-        <View style={styles.formCard}>
+        <View
+          style={[styles.formCard, formHighlighted && styles.formCardHighlighted]}
+          onLayout={(event) => {
+            formYRef.current = event.nativeEvent.layout.y;
+            if (pendingRevealRef.current) revealForm();
+          }}
+        >
           <Text style={styles.sectionTitle}>{editingId ? 'Edit budget limit' : 'New budget'}</Text>
           <TextInput
             accessibilityLabel="Budget month"
@@ -232,6 +257,7 @@ export function BudgetScreen() {
           ) : null}
 
           <TextInput
+            ref={limitInputRef}
             accessibilityLabel="Budget limit"
             keyboardType="decimal-pad"
             onChangeText={setLimitAmount}
@@ -293,6 +319,7 @@ export function BudgetScreen() {
                     setEditingId(budget.id);
                     setCategoryId(budget.category_id);
                     setLimitAmount(minorUnitsToDecimal(budget.limit_minor));
+                    revealForm();
                   }}
                   style={styles.secondaryButton}
                 >
@@ -333,7 +360,8 @@ const styles = StyleSheet.create({
   syncMeta: { fontSize: 12, opacity: 0.65 },
   conflictSection: { gap: 8 },
   conflictCard: { backgroundColor: '#fff7ed', borderRadius: 12, gap: 7, padding: 12 },
-  formCard: { backgroundColor: '#fff', borderRadius: 14, gap: 10, padding: 14 },
+  formCard: { backgroundColor: '#fff', borderRadius: 14, borderWidth: 1, borderColor: 'transparent', gap: 10, padding: 14 },
+  formCardHighlighted: { borderColor: '#22a27c', shadowColor: '#22a27c', shadowOpacity: 0.18, shadowRadius: 10, elevation: 2 },
   fieldLabel: { fontSize: 13, fontWeight: '700' },
   input: { borderColor: '#d9dde3', borderRadius: 11, borderWidth: 1, fontSize: 16, paddingHorizontal: 13, paddingVertical: 12 },
   inputDisabled: { opacity: 0.55 },
