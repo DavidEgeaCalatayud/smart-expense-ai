@@ -25,6 +25,11 @@ const typeTone = {
   income: 'green',
 } as const;
 
+const typeLabels = {
+  expense: 'Gasto',
+  income: 'Ingreso',
+} as const;
+
 const paymentMethodLabels = {
   card: 'Tarjeta',
   cash: 'Efectivo',
@@ -68,7 +73,7 @@ function RecurringIndicator() {
     <Badge tone="brand">
       <span className="inline-flex items-center gap-1">
         <Repeat size={13} aria-hidden="true" />
-        Recurring
+        Recurrente
       </span>
     </Badge>
   );
@@ -142,7 +147,7 @@ export function TransactionsTable({
                   <div>
                     <dt className="text-xs font-semibold uppercase tracking-wide text-slate-400">Tipo</dt>
                     <dd className="mt-1">
-                      <Badge tone={typeTone[transaction.type]}>{transaction.type}</Badge>
+                      <Badge tone={typeTone[transaction.type]}>{typeLabels[transaction.type]}</Badge>
                     </dd>
                   </div>
                   <div>
