@@ -6,6 +6,7 @@ import { RecentTransactionsTable } from '../components/dashboard/RecentTransacti
 import { SpendingChart } from '../components/dashboard/SpendingChart';
 import { PageHeader } from '../components/layout/PageHeader';
 import { ApiErrorAlert } from '../components/ui/ApiErrorAlert';
+import { DashboardSkeleton } from '../components/ui/Skeleton';
 import { ROUTES } from '../routes/paths';
 import { getApiErrorPresentation, type ApiErrorPresentation } from '../services/apiClient';
 import { fetchMonthlyExpenses, fetchTransactionSummary } from '../services/analyticsApi';
@@ -63,7 +64,7 @@ const mapMonthlyExpenses = (points: MonthlyExpensePoint[]): MonthlyExpense[] =>
   points.map((point) => {
     const [year, month] = point.month.split('-').map(Number);
     return {
-      month: new Date(year, month - 1, 1).toLocaleDateString('en-US', { month: 'short' }),
+      month: new Date(year, month - 1, 1).toLocaleDateString('es-ES', { month: 'short' }),
       amount: moneyToChartNumber(point.amount),
     };
   });
@@ -101,7 +102,7 @@ export function DashboardPage() {
       setNetWorth(loadedNetWorth);
       setNetWorthHistory(loadedNetWorthHistory);
     } catch (loadError) {
-      setError(getApiErrorPresentation(loadError, 'Unable to load dashboard data'));
+      setError(getApiErrorPresentation(loadError, 'No se ha podido cargar el resumen financiero'));
     } finally {
       setIsLoading(false);
       setIsRefreshing(false);
@@ -112,7 +113,7 @@ export function DashboardPage() {
     void loadDashboard();
   }, [loadDashboard]);
 
-  const currentMonthLabel = new Date().toLocaleDateString('en-US', {
+  const currentMonthLabel = new Date().toLocaleDateString('es-ES', {
     month: 'long',
     year: 'numeric',
   });
@@ -121,9 +122,9 @@ export function DashboardPage() {
   return (
     <>
       <PageHeader
-        eyebrow="Financial dashboard"
-        title="Your financial overview"
-        description="Server-side aggregates and recent activity from API v2 monetary endpoints."
+        eyebrow="Resumen financiero"
+        title="Tu visión financiera"
+        description="Un vistazo a tus gastos, ingresos, patrimonio y actividad reciente."
         action={
           <button
             type="button"
@@ -131,7 +132,7 @@ export function DashboardPage() {
             className="inline-flex items-center justify-center gap-2 rounded-2xl bg-slate-950 px-5 py-3 text-sm font-semibold text-white shadow-soft transition hover:-translate-y-0.5 hover:bg-slate-800"
           >
             <Plus size={18} />
-            Add transaction
+            Añadir movimiento
           </button>
         }
       />
@@ -140,22 +141,20 @@ export function DashboardPage() {
         <ApiErrorAlert
           error={error}
           className="mb-6"
-          onRetry={() => void loadDashboard(true)}
-          retryLabel={isRefreshing ? 'Refreshing…' : 'Retry'}
+          onReintentar={() => void loadDashboard(true)}
+          retryLabel={isRefreshing ? 'Actualizando…' : 'Reintentar'}
         />
       )}
 
       {isLoading ? (
-        <div className="rounded-3xl border border-slate-200 bg-white p-10 text-center text-sm text-slate-500 shadow-soft">
-          Loading dashboard aggregates...
-        </div>
+        <DashboardSkeleton />
       ) : (
         <>
           <section className="grid gap-5 md:grid-cols-2 xl:grid-cols-4">
-            <MetricCard title="Expenses this month" value={formatCurrencyWithDecimals(summary.totalExpenses)} detail={currentMonthLabel} trend="up" icon={<ReceiptText size={20} />} />
-            <MetricCard title="Income this month" value={formatCurrencyWithDecimals(summary.totalIncome)} detail={currentMonthLabel} trend="neutral" icon={<Wallet size={20} />} />
-            <MetricCard title="Balance" value={formatCurrencyWithDecimals(summary.balance)} detail="Income minus expenses this month" trend={isNegativeMoney(summary.balance) ? 'warning' : 'neutral'} icon={<PiggyBank size={20} />} />
-            <MetricCard title="Recurring this month" value={String(summary.recurringCount)} detail="Persisted recurring movements" trend="neutral" icon={<Repeat size={20} />} />
+            <MetricCard title="Gastos este mes" value={formatCurrencyWithDecimals(summary.totalExpenses)} detail={currentMonthLabel} trend="up" icon={<ReceiptText size={20} />} />
+            <MetricCard title="Ingresos este mes" value={formatCurrencyWithDecimals(summary.totalIncome)} detail={currentMonthLabel} trend="neutral" icon={<Wallet size={20} />} />
+            <MetricCard title="Balance" value={formatCurrencyWithDecimals(summary.balance)} detail="Ingresos menos gastos del mes" trend={isNegativeMoney(summary.balance) ? 'warning' : 'neutral'} icon={<PiggyBank size={20} />} />
+            <MetricCard title="Recurrentes este mes" value={String(summary.recurringCount)} detail="Movimientos recurrentes" trend="neutral" icon={<Repeat size={20} />} />
           </section>
 
           <section className="mt-6 overflow-hidden rounded-3xl border border-slate-200 bg-slate-950 p-6 text-white shadow-soft lg:p-8">
