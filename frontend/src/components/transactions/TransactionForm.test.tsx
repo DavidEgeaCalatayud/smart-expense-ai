@@ -80,10 +80,10 @@ describe('TransactionForm', () => {
     expect(suggestion).not.toHaveTextContent('%');
     expect(suggestion).not.toHaveTextContent(/confidence/i);
 
-    fireEvent.click(screen.getByRole('button', { name: 'Accept' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Aceptar' }));
     expect(onAcceptSuggestion).toHaveBeenCalledOnce();
 
-    fireEvent.click(screen.getByRole('button', { name: 'Change' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Cambiar' }));
     expect(onDismissSuggestion).toHaveBeenCalledOnce();
     expect(screen.getByLabelText('Category')).toHaveFocus();
   });
