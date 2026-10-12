@@ -126,22 +126,22 @@ describe('HistoricalAnalysisPanel', () => {
   it('renders temporal stream evidence', async () => {
     render(<HistoricalAnalysisPanel />);
 
-    expect(await screen.findByText('Behavior over time')).toBeInTheDocument();
-    expect(screen.getByText('Increasing')).toBeInTheDocument();
-    expect(screen.getByText(/Partial month excluded from trend calculations/i)).toBeInTheDocument();
-    expect(screen.getByText('Recurring streams')).toBeInTheDocument();
+    expect(await screen.findByText('Evolución en el tiempo')).toBeInTheDocument();
+    expect(screen.getByText('En aumento')).toBeInTheDocument();
+    expect(screen.getByText(/El mes actual aún está incompleto/i)).toBeInTheDocument();
+    expect(screen.getByText('Pagos recurrentes')).toBeInTheDocument();
     expect(screen.getByText('generic service')).toBeInTheDocument();
     expect(screen.getByText('98.4')).toBeInTheDocument();
-    expect(screen.getByText(/Expected payment appears overdue/i)).toBeInTheDocument();
-    expect(screen.getByText(/baseline €10\.00/i)).toBeInTheDocument();
-    expect(screen.getByText(/Deterministic 0–100 pattern index per stream; not a probability/i)).toBeInTheDocument();
+    expect(screen.getByText(/Este pago parece retrasado/i)).toBeInTheDocument();
+    expect(screen.getByText(/importe habitual €10\.00/i)).toBeInTheDocument();
+    expect(screen.getByText(/Cuanto más estable es un patrón/i)).toBeInTheDocument();
   });
 
   it('runs a new 12-month snapshot and replaces the displayed analysis', async () => {
     render(<HistoricalAnalysisPanel />);
     await screen.findByText('generic service');
 
-    fireEvent.click(screen.getByRole('button', { name: 'Run 12-month analysis' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Analizar últimos 12 meses' }));
 
     await waitFor(() => expect(runHistoricalAnalysis).toHaveBeenCalledWith(12));
   });
