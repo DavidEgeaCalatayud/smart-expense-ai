@@ -18,52 +18,55 @@ import {
 } from 'lucide-react';
 import { NavLink, useNavigate } from 'react-router-dom';
 import { useAuth } from '../../auth/useAuth';
+import { t } from '../../i18n';
 import { ROUTES } from '../../routes/paths';
 
 const navigationItems = [
-  { icon: LayoutDashboard, label: 'Dashboard', to: ROUTES.dashboard },
-  { icon: Landmark, label: 'Mi dinero', to: ROUTES.money },
-  { icon: CreditCard, label: 'Transactions', to: ROUTES.transactions },
-  { icon: Tags, label: 'Categories', to: ROUTES.categories },
-  { icon: WalletCards, label: 'Budgets', to: ROUTES.budgets },
-  { icon: FileSpreadsheet, label: 'Import CSV', to: ROUTES.imports },
-  { icon: FileDown, label: 'Reports', to: ROUTES.reports },
-  { icon: Sparkles, label: 'Insights', to: ROUTES.insights },
-  { icon: LineChart, label: 'Predictions', to: ROUTES.predictions },
-  { icon: ScanSearch, label: 'Intelligence', to: ROUTES.alerts },
-  { icon: MessageSquareText, label: 'Assistant', to: ROUTES.assistant },
-  { icon: ShieldCheck, label: 'Security', to: ROUTES.security },
+  { icon: LayoutDashboard, label: t('dashboard'), to: ROUTES.dashboard },
+  { icon: Landmark, label: t('money'), to: ROUTES.money },
+  { icon: CreditCard, label: t('transactions'), to: ROUTES.transactions },
+  { icon: Tags, label: t('categories'), to: ROUTES.categories },
+  { icon: WalletCards, label: t('budgets'), to: ROUTES.budgets },
+  { icon: FileSpreadsheet, label: t('importCsv'), to: ROUTES.imports },
+  { icon: FileDown, label: t('reports'), to: ROUTES.reports },
+  { icon: Sparkles, label: t('insights'), to: ROUTES.insights },
+  { icon: LineChart, label: t('predictions'), to: ROUTES.predictions },
+  { icon: ScanSearch, label: t('intelligence'), to: ROUTES.alerts },
+  { icon: MessageSquareText, label: t('assistant'), to: ROUTES.assistant },
+  { icon: ShieldCheck, label: t('security'), to: ROUTES.security },
 ];
 
-export function Sidebar() {
+export function Sidebar({ className = '', onNavigate }: { className?: string; onNavigate?: () => void }) {
   const { user, signOut } = useAuth();
   const navigate = useNavigate();
 
   const handleSignOut = async () => {
     await signOut();
+    onNavigate?.();
     navigate(ROUTES.login, { replace: true });
   };
 
   return (
-    <aside className="border-r border-slate-200 bg-white px-6 py-6">
-      <div className="mb-10 flex items-center gap-3">
+    <aside className={`border-r border-slate-200 bg-white px-6 py-6 ${className}`}>
+      <div className="mb-8 flex items-center gap-3">
         <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-brand-600 text-white shadow-soft">
           <Brain size={25} />
         </div>
         <div>
           <p className="text-lg font-bold tracking-tight">Smart Expense AI</p>
-          <p className="text-sm text-slate-500">Personal finance workspace</p>
+          <p className="text-sm text-slate-500">Tus finanzas, en un solo lugar</p>
         </div>
       </div>
 
-      <nav className="space-y-2" aria-label="Main navigation">
+      <nav className="space-y-2" aria-label="Navegación principal">
         {navigationItems.map((item) => (
           <NavLink
             key={item.label}
             to={item.to}
             end={item.to === ROUTES.dashboard}
+            onClick={onNavigate}
             className={({ isActive }) =>
-              `flex w-full items-center gap-3 rounded-2xl px-4 py-3 text-left text-sm font-medium transition ${
+              `flex min-h-11 w-full items-center gap-3 rounded-2xl px-4 py-3 text-left text-sm font-medium transition ${
                 isActive
                   ? 'bg-brand-50 text-brand-700'
                   : 'text-slate-500 hover:bg-slate-100 hover:text-slate-900'
@@ -76,7 +79,7 @@ export function Sidebar() {
         ))}
       </nav>
 
-      <div className="mt-10 rounded-3xl border border-slate-200 bg-slate-50 p-4">
+      <div className="mt-8 rounded-3xl border border-slate-200 bg-slate-50 p-4">
         <div className="flex items-center gap-3">
           <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl bg-white text-slate-600 shadow-sm">
             <UserRound size={19} />
@@ -89,20 +92,20 @@ export function Sidebar() {
         <button
           type="button"
           onClick={() => void handleSignOut()}
-          className="mt-4 inline-flex w-full items-center justify-center gap-2 rounded-2xl border border-slate-200 bg-white px-4 py-2.5 text-sm font-semibold text-slate-600 transition hover:bg-slate-100 hover:text-slate-900"
+          className="mt-4 inline-flex min-h-11 w-full items-center justify-center gap-2 rounded-2xl border border-slate-200 bg-white px-4 py-2.5 text-sm font-semibold text-slate-600 transition hover:bg-slate-100 hover:text-slate-900"
         >
           <LogOut size={16} />
-          Sign out
+          {t('signOut')}
         </button>
       </div>
 
       <div className="mt-4 rounded-3xl bg-slate-950 p-5 text-white shadow-soft">
-        <div className="mb-4 flex h-10 w-10 items-center justify-center rounded-2xl bg-white/10">
+        <div className="mb-3 flex h-10 w-10 items-center justify-center rounded-2xl bg-white/10">
           <Database size={20} />
         </div>
-        <p className="mb-2 text-sm font-semibold">Account-isolated data</p>
+        <p className="mb-2 text-sm font-semibold">Tus datos son privados</p>
         <p className="text-sm leading-6 text-slate-300">
-          Transaction, category, budget, financial-account, report, insight, intelligence and assistant queries are scoped to your authenticated user before financial data leaves the API.
+          Tu información financiera se mantiene separada de la de otros usuarios y solo se usa para ofrecerte tus propios análisis.
         </p>
       </div>
     </aside>
