@@ -6,30 +6,30 @@ import { ServerWorkspaceShell, serverWorkspaceStyles as s } from '../../componen
 import { useOnlineSync } from '../../sync/OnlineSyncProvider';
 
 const insights = [
-  ['Intelligence', 'Patterns, unusual spending and subscriptions', '/intelligence', 'sparkles-outline'],
-  ['Predictions', 'Month-end forecast and upcoming payments', '/predictions', 'trending-up-outline'],
-  ['Historical analysis', 'Understand how your finances have changed', '/historical', 'time-outline'],
-  ['Category suggestions', 'Find a category for your next transaction', '/suggestions', 'pricetags-outline'],
-  ['Financial assistant', 'Ask questions about your finances', '/assistant', 'chatbubble-ellipses-outline'],
-  ['Advanced insights', 'Explore the insights included in your plan', '/advanced-insights', 'analytics-outline'],
+  ['Inteligencia', 'Patrones, gastos inusuales y suscripciones', '/intelligence', 'sparkles-outline'],
+  ['Predicciones', 'Previsión de fin de mes y próximos pagos', '/predictions', 'trending-up-outline'],
+  ['Análisis histórico', 'Entiende cómo han cambiado tus finanzas', '/historical', 'time-outline'],
+  ['Sugerencias de categoría', 'Encuentra una categoría para tu próximo movimiento', '/suggestions', 'pricetags-outline'],
+  ['Asistente financiero', 'Haz preguntas sobre tus finanzas', '/assistant', 'chatbubble-ellipses-outline'],
+  ['Análisis avanzados', 'Explora los análisis incluidos en tu plan', '/advanced-insights', 'analytics-outline'],
 ] as const;
 const more = [
   ['Resumen financiero', 'Ingresos, gastos y evolución de tu actividad', '/dashboard', 'home-outline'],
   ['Pagos automáticos', 'Detecta Wallet y avisos bancarios, confirma movimientos y ajusta saldos', '/payment-detection', 'notifications-outline'],
-  ['Budgets', 'Set limits and follow your monthly progress', '/budgets', 'wallet-outline'],
-  ['Categories', 'Organize your income and expenses', '/categories', 'grid-outline'],
-  ['Import CSV', 'Bring in a bank statement with a preview first', '/imports', 'cloud-upload-outline'],
-  ['Predictions', 'Forecast and upcoming subscriptions', '/predictions', 'trending-up-outline'],
-  ['Historical analysis', 'Monthly trends and spending patterns', '/historical', 'time-outline'],
-  ['Financial assistant', 'Ask about your finances', '/assistant', 'chatbubble-ellipses-outline'],
-  ['Reports', 'Monthly summaries and CSV export', '/reports', 'document-text-outline'],
-  ['Account & security', 'Password, privacy, app lock and notifications', '/account', 'shield-checkmark-outline'],
-  ['Settings', 'Appearance, currency and app information', '/settings', 'settings-outline'],
+  ['Presupuestos', 'Define límites y sigue tu progreso mensual', '/budgets', 'wallet-outline'],
+  ['Categorías', 'Organiza tus ingresos y gastos', '/categories', 'grid-outline'],
+  ['Importar CSV', 'Importa un extracto bancario revisándolo antes', '/imports', 'cloud-upload-outline'],
+  ['Predicciones', 'Previsión y próximas suscripciones', '/predictions', 'trending-up-outline'],
+  ['Análisis histórico', 'Tendencias mensuales y patrones de gasto', '/historical', 'time-outline'],
+  ['Asistente financiero', 'Pregunta sobre tus finanzas', '/assistant', 'chatbubble-ellipses-outline'],
+  ['Informes', 'Resúmenes mensuales y exportación CSV', '/reports', 'document-text-outline'],
+  ['Cuenta y seguridad', 'Contraseña, privacidad, bloqueo y notificaciones', '/account', 'shield-checkmark-outline'],
+  ['Ajustes', 'Apariencia, moneda e información de la app', '/settings', 'settings-outline'],
 ] as const;
 export function NavigationHub({ area }: { area: 'insights' | 'more' }) {
   const { syncNow, isSyncing } = useOnlineSync();
-  return <ServerWorkspaceShell active={area} title={area === 'insights' ? 'Insights' : 'More'}
-    subtitle={area === 'insights' ? 'A clearer view of where your money is going.' : 'Your tools, preferences and account.'}
+  return <ServerWorkspaceShell active={area} title={area === 'insights' ? 'Análisis' : 'Más'}
+    subtitle={area === 'insights' ? 'Una visión más clara de dónde va tu dinero.' : 'Tus herramientas, preferencias y cuenta.'}
     isRefreshing={isSyncing} onRefresh={() => void syncNow().catch(() => undefined)}>
     {(area === 'insights' ? insights : more).map(([title, description, href, icon]) =>
       <Link key={href} href={href as Href} asChild><Pressable accessibilityRole="button" style={StyleSheet.flatten([s.card, { flexDirection: 'row', alignItems: 'center', gap: 14 }])}>
@@ -38,9 +38,9 @@ export function NavigationHub({ area }: { area: 'insights' | 'more' }) {
         <Ionicons name="chevron-forward" size={18} color="#596575" />
       </Pressable></Link>)}
     {area === 'more' ? <View style={s.card}>
-      <Text style={s.cardTitle}>Add an expense without searching</Text>
-      <Text style={s.body}>On your Android home screen, hold an empty space, open Widgets, and choose Smart Expense AI. You can also hold the app icon for Add expense and Add income shortcuts.</Text>
-      <Link href="/transactions?quickAdd=expense" asChild><Pressable accessibilityRole="button" style={s.primaryButton}><Text style={s.primaryButtonText}>Quick add expense</Text></Pressable></Link>
+      <Text style={s.cardTitle}>Añade un gasto sin buscar</Text>
+      <Text style={s.body}>En la pantalla de inicio de Android, mantén pulsado un espacio vacío, abre Widgets y elige Smart Expense AI. También puedes mantener pulsado el icono de la app para usar los accesos rápidos de gasto e ingreso.</Text>
+      <Link href="/transactions?quickAdd=expense" asChild><Pressable accessibilityRole="button" style={s.primaryButton}><Text style={s.primaryButtonText}>Añadir gasto rápido</Text></Pressable></Link>
     </View> : null}
   </ServerWorkspaceShell>;
 }
