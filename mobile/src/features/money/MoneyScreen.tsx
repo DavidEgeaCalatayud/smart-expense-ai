@@ -620,7 +620,6 @@ export function MoneyScreen() {
           </Text>
         </View>
       </ScrollView>
-          <Snackbar message={toast} onDismiss={() => showSnackbar(null)} />
     </SafeAreaView>
   );
 }
