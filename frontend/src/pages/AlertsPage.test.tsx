@@ -75,12 +75,12 @@ describe('AlertsPage financial intelligence', () => {
     render(<AlertsPage />);
 
     expect(await screen.findByText('Recurring pattern: StreamBox')).toBeInTheDocument();
-    expect(screen.getByText(/monthly.*4 occurrences.*score 92\.4\/100/i)).toBeInTheDocument();
-    expect(screen.getByText(/median €9\.99/i)).toBeInTheDocument();
+    expect(screen.getByText(/monthly.*4 registros.*patrón 92\.4\/100/i)).toBeInTheDocument();
+    expect(screen.getByText(/importe habitual €9\.99/i)).toBeInTheDocument();
     expect(screen.getByText('Historical analysis panel')).toBeInTheDocument();
-    expect(screen.getByText(/Anomalies: 0 amount · 0 frequency/i)).toBeInTheDocument();
+    expect(screen.getByText(/Avisos por importe: 0 · por frecuencia: 0/i)).toBeInTheDocument();
 
-    const openFindingsCard = screen.getByText('Open findings').closest('article');
+    const openFindingsCard = screen.getByText('Avisos pendientes').closest('article');
     expect(openFindingsCard).not.toBeNull();
     expect(within(openFindingsCard as HTMLElement).getByText('1')).toBeInTheDocument();
 
@@ -91,10 +91,10 @@ describe('AlertsPage financial intelligence', () => {
     render(<AlertsPage />);
     await screen.findByText('Recurring pattern: StreamBox');
 
-    fireEvent.click(screen.getByRole('button', { name: 'Run findings scan' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Analizar movimientos' }));
 
     await waitFor(() => expect(runIntelligenceScan).toHaveBeenCalledOnce());
-    expect(await screen.findByText(/Analysis completed: 1 findings from 8 expense transactions/i)).toBeInTheDocument();
+    expect(await screen.findByText(/Análisis completado: 1 aviso detectado en 8 movimientos/i)).toBeInTheDocument();
     expect(fetchIntelligenceSummary).toHaveBeenCalledTimes(2);
   });
 
@@ -102,11 +102,11 @@ describe('AlertsPage financial intelligence', () => {
     render(<AlertsPage />);
     await screen.findByText('Recurring pattern: StreamBox');
 
-    fireEvent.click(screen.getByRole('button', { name: 'Dismiss' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Descartar' }));
 
     await waitFor(() =>
       expect(updateIntelligenceFindingStatus).toHaveBeenCalledWith(finding.id, 'dismissed'),
     );
-    expect(await screen.findByText('Finding marked as dismissed.')).toBeInTheDocument();
+    expect(await screen.findByText('Aviso descartado.')).toBeInTheDocument();
   });
 });
