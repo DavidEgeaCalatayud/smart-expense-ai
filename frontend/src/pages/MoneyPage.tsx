@@ -6,7 +6,7 @@ import {
   WalletCards,
   X,
 } from 'lucide-react';
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { PageHeader } from '../components/layout/PageHeader';
 import { ApiErrorAlert } from '../components/ui/ApiErrorAlert';
 import { ConfirmDialog } from '../components/ui/ConfirmDialog';
@@ -181,16 +181,63 @@ function AccountForm({
 }) {
   const [draft, setDraft] = useState(initial);
   const effectivePurpose = purposeForAccountType(draft.accountType, draft.purpose);
+  const dialogRef = useRef<HTMLElement>(null);
+  const nameInputRef = useRef<HTMLInputElement>(null);
+
+  useEffect(() => {
+    const previousOverflow = document.body.style.overflow;
+    document.body.style.overflow = 'hidden';
+    window.requestAnimationFrame(() => nameInputRef.current?.focus());
+
+    const onKeyDown = (event: KeyboardEvent) => {
+      if (event.key === 'Escape' && !busy) {
+        event.preventDefault();
+        onCancel();
+        return;
+      }
+      if (event.key !== 'Tab') return;
+      const focusable = dialogRef.current?.querySelectorAll<HTMLElement>(
+        'button:not([disabled]), input:not([disabled]), select:not([disabled]), textarea:not([disabled])',
+      );
+      if (!focusable?.length) return;
+      const first = focusable[0];
+      const last = focusable[focusable.length - 1];
+      if (event.shiftKey && document.activeElement === first) {
+        event.preventDefault();
+        last.focus();
+      } else if (!event.shiftKey && document.activeElement === last) {
+        event.preventDefault();
+        first.focus();
+      }
+    };
+    window.addEventListener('keydown', onKeyDown);
+    return () => {
+      document.body.style.overflow = previousOverflow;
+      window.removeEventListener('keydown', onKeyDown);
+    };
+  }, [busy, onCancel]);
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/40 p-4 backdrop-blur-sm">
-      <section className="max-h-[92vh] w-full max-w-3xl overflow-y-auto rounded-3xl bg-white p-6 shadow-2xl">
+    <div
+      className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/40 p-4 backdrop-blur-sm"
+      role="presentation"
+      onMouseDown={(event) => {
+        if (event.target === event.currentTarget && !busy) onCancel();
+      }}
+    >
+      <section
+        ref={dialogRef}
+        role="dialog"
+        aria-modal="true"
+        aria-label={title}
+        className="max-h-[92vh] w-full max-w-3xl overflow-y-auto rounded-3xl bg-white p-6 shadow-2xl"
+      >
         <div className="mb-6 flex items-center justify-between gap-4">
           <div>
             <p className="text-xs font-semibold uppercase tracking-[0.2em] text-brand-700">Mi dinero</p>
             <h2 className="mt-1 text-2xl font-bold text-slate-950">{title}</h2>
           </div>
-          <button type="button" aria-label="Cerrar" onClick={onCancel} className="rounded-xl border border-slate-200 p-2 text-slate-500">
+          <button type="button" aria-label="Cerrar" onClick={onCancel} className="inline-flex h-11 w-11 items-center justify-center rounded-xl border border-slate-200 text-slate-500">
             <X size={18} />
           </button>
         </div>
@@ -224,6 +271,7 @@ function AccountForm({
           <label className="text-sm font-semibold text-slate-700">
             Nombre de la cuenta
             <input
+              ref={nameInputRef}
               required
               maxLength={120}
               value={draft.name}
@@ -276,7 +324,7 @@ function AccountForm({
               inputMode="decimal"
               value={draft.currentBalance}
               onChange={(event) => setDraft((current) => ({ ...current, currentBalance: event.target.value }))}
-              placeholder="1000.00"
+              placeholder="1.000,00"
               className="mt-2 w-full rounded-2xl border border-slate-200 px-4 py-3 font-normal"
             />
           </label>
@@ -296,10 +344,10 @@ function AccountForm({
             Incluir esta cuenta en mi patrimonio total
           </label>
           <div className="md:col-span-2 mt-2 flex justify-end gap-3">
-            <button type="button" onClick={onCancel} className="rounded-2xl border border-slate-200 px-5 py-3 text-sm font-semibold text-slate-600">
+            <button type="button" onClick={onCancel} className="min-h-11 rounded-2xl border border-slate-200 px-5 py-3 text-sm font-semibold text-slate-600">
               Cancelar
             </button>
-            <button type="submit" disabled={busy} className="rounded-2xl bg-brand-600 px-5 py-3 text-sm font-semibold text-white disabled:opacity-60">
+            <button type="submit" disabled={busy} className="min-h-11 rounded-2xl bg-brand-600 px-5 py-3 text-sm font-semibold text-white disabled:opacity-60">
               {busy ? 'Guardando...' : submitLabel}
             </button>
           </div>
@@ -482,6 +530,14 @@ export function MoneyPage() {
                 <WalletCards className="mx-auto text-slate-400" />
                 <h3 className="mt-4 font-bold text-slate-950">Todavía no has añadido cuentas</h3>
                 <p className="mt-2 text-sm text-slate-500">Añade bancos, brokers, wallets o efectivo. No se conecta con ninguna entidad: tú controlas los saldos manualmente.</p>
+                <button
+                  type="button"
+                  onClick={() => setShowCreate(true)}
+                  className="mt-5 inline-flex min-h-11 items-center justify-center gap-2 rounded-2xl bg-brand-600 px-5 py-3 text-sm font-semibold text-white"
+                >
+                  <Plus size={17} />
+                  Añadir mi primera cuenta
+                </button>
               </div>
             ) : (
               <div className="grid gap-4 md:grid-cols-2 2xl:grid-cols-3">
@@ -500,7 +556,7 @@ export function MoneyPage() {
                           type="button"
                           aria-label={`Editar ${account.name}`}
                           onClick={() => setEditing(account)}
-                          className="rounded-xl border border-slate-200 p-2 text-slate-500 hover:bg-slate-50"
+                          className="inline-flex h-11 w-11 items-center justify-center rounded-xl border border-slate-200 text-slate-500 hover:bg-slate-50"
                         >
                           <Pencil size={15} />
                         </button>
@@ -508,7 +564,7 @@ export function MoneyPage() {
                           type="button"
                           aria-label={`Archivar ${account.name}`}
                           onClick={() => setDeleteCandidate(account)}
-                          className="rounded-xl border border-slate-200 p-2 text-slate-500 hover:bg-slate-50"
+                          className="inline-flex h-11 w-11 items-center justify-center rounded-xl border border-slate-200 text-slate-500 hover:bg-slate-50"
                         >
                           <Trash2 size={15} />
                         </button>
@@ -526,7 +582,7 @@ export function MoneyPage() {
                           setBalanceAccount(account);
                           setBalanceValue(account.currentBalance);
                         }}
-                        className="rounded-xl border border-slate-200 px-3 py-2 text-xs font-semibold text-slate-600 hover:bg-slate-50"
+                        className="min-h-11 rounded-xl border border-slate-200 px-3 py-2 text-xs font-semibold text-slate-600 hover:bg-slate-50"
                       >
                         Actualizar saldo
                       </button>
