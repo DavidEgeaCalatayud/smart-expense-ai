@@ -15,8 +15,7 @@ test('free account sees the real Premium reports entitlement boundary', async ({
 
   await page.getByRole('link', { name: 'Informes' }).click();
   await expect(page.getByRole('heading', { name: 'Informes' })).toBeVisible();
-  await expect(page.getByRole('heading', { name: 'Premium report export' })).toBeVisible();
-  await expect(page.getByText(/current account does not have this entitlement enabled/i)).toBeVisible();
-  await expect(page.getByText(/billing checkout is not yet exposed/i)).toBeVisible();
-  await expect(page.getByRole('button', { name: 'Download CSV' })).toHaveCount(0);
+  await expect(page.getByRole('heading', { name: 'Exportación de informes Premium' })).toBeVisible();
+  await expect(page.getByText(/no está incluida actualmente en tu cuenta/i)).toBeVisible();
+    await expect(page.getByRole('button', { name: 'Descargar CSV' })).toHaveCount(0);
 });
