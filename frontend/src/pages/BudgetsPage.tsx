@@ -217,7 +217,7 @@ export function BudgetsPage() {
               className="mt-2 w-full rounded-2xl border border-slate-200 px-4 py-3 font-normal"
             />
           </label>
-          <button type="submit" disabled={busyId === 'create'} className="self-end rounded-2xl bg-brand-600 px-5 py-3 text-sm font-semibold text-white disabled:opacity-60">{busyId === 'create' ? 'Creando…' : 'Crear presupuesto'}</button>
+          <button type="submit" aria-label="Create budget" disabled={busyId === 'create'} className="self-end rounded-2xl bg-brand-600 px-5 py-3 text-sm font-semibold text-white disabled:opacity-60">{busyId === 'create' ? 'Creando…' : 'Crear presupuesto'}</button>
         </form>
       </section>
 
