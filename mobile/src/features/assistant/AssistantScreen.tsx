@@ -1,4 +1,4 @@
-import type { FinancialAssistantAnswer } from '@smart-expense-ai/api-contracts';
+import type { FinancialAssistantRespuesta } from '@smart-expense-ai/api-contracts';
 import { useMemo, useState } from 'react';
 import { ActivityIndicator, Pressable, StyleSheet, Text, TextInput, View } from '../../ui/primitives';
 
@@ -10,7 +10,7 @@ export function AssistantScreen() {
   const api = useMemo(() => createServerDerivedApi(), []);
   const online = useOnlineAction();
   const [question, setQuestion] = useState('');
-  const [answer, setAnswer] = useState<FinancialAssistantAnswer | null>(null);
+  const [answer, setRespuesta] = useState<FinancialAssistantRespuesta | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -20,9 +20,9 @@ export function AssistantScreen() {
     setIsSubmitting(true);
     setError(null);
     try {
-      setAnswer(await online.run(() => api.queryAssistant(normalized)));
+      setRespuesta(await online.run(() => api.queryAssistant(normalized)));
     } catch (reason) {
-      setError(reason instanceof Error ? reason.message : 'Unable to query Financial Assistant');
+      setError(reason instanceof Error ? reason.message : 'No se ha podido consultar el asistente financiero');
     } finally {
       setIsSubmitting(false);
     }
@@ -31,23 +31,23 @@ export function AssistantScreen() {
   return (
     <ServerWorkspaceShell
       active="assistant"
-      title="Financial Assistant"
-      subtitle="Ask about your finances using the latest information in your account. This conversation is not saved on your phone."
+      title="Asistente financiero"
+      subtitle="Pregunta sobre tus finanzas usando la información más reciente de tu cuenta. Esta conversación no se guarda en el móvil."
       isRefreshing={isSubmitting}
       onRefresh={() => {
-        setAnswer(null);
+        setRespuesta(null);
         setError(null);
         void online.syncNow().catch(() => undefined);
       }}
     >
-      {!online.hasNetwork ? <Text style={s.metadata}>Connect to request a new result.</Text> : null}
+      {!online.hasNetwork ? <Text style={s.metadata}>Conéctate para hacer una nueva consulta.</Text> : null}
       <View style={s.section}>
-        <Text style={s.sectionTitle}>Ask about your finances</Text>
+        <Text style={s.sectionTitle}>Pregunta sobre tus finanzas</Text>
         <TextInput
-          accessibilityLabel="Financial Assistant question"
+          accessibilityLabel="Asistente financiero question"
           multiline
           maxLength={2000}
-          placeholder="For example: How did my spending change compared with last month?"
+          placeholder="Por ejemplo: ¿Cómo ha cambiado mi gasto respecto al mes pasado?"
           value={question}
           onChangeText={setQuestion}
           style={[s.input, styles.questionInput]}
@@ -65,7 +65,7 @@ export function AssistantScreen() {
           {isSubmitting ? (
             <ActivityIndicator color="#ffffff" />
           ) : (
-            <Text style={s.primaryButtonText}>Ask assistant</Text>
+            <Text style={s.primaryButtonText}>Preguntar al asistente</Text>
           )}
         </Pressable>
         {error ? <Text style={s.error}>{error}</Text> : null}
@@ -74,14 +74,14 @@ export function AssistantScreen() {
       {answer ? (
         <View style={s.section}>
           <View style={s.card}>
-            <Text style={s.cardTitle}>Answer</Text>
+            <Text style={s.cardTitle}>Respuesta</Text>
             <Text style={s.body}>{answer.answer}</Text>
-            <Text style={s.metadata}>Request {answer.requestId}</Text>
+            <Text style={s.metadata}>Consulta {answer.requestId}</Text>
           </View>
 
-          <Text style={s.sectionTitle}>Evidence</Text>
+          <Text style={s.sectionTitle}>Evidencias</Text>
           {answer.evidence.length === 0 ? (
-            <Text style={s.empty}>The answer returned no canonical evidence references.</Text>
+            <Text style={s.empty}>La respuesta no incluyó referencias adicionales.</Text>
           ) : (
             answer.evidence.map((evidence) => (
               <View key={`${evidence.source}:${evidence.reference}`} style={s.card}>
@@ -93,7 +93,7 @@ export function AssistantScreen() {
 
           {answer.limitations.length > 0 ? (
             <View style={s.card}>
-              <Text style={s.cardTitle}>Limitations</Text>
+              <Text style={s.cardTitle}>Limitaciones</Text>
               {answer.limitations.map((limitation) => (
                 <Text key={limitation} style={s.body}>• {limitation}</Text>
               ))}
