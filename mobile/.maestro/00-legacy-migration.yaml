@@ -5,4 +5,4 @@ appId: com.davidegea.smartexpenseai
     visible: "Legacy migration verified"
     timeout: 60000
 - assertVisible: "Legacy Migration Probe.*schema v4.*"
-- assertVisible: "Welcome back"
+- assertVisible: "Bienvenido de nuevo"
