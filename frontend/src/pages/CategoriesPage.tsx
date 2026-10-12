@@ -64,7 +64,7 @@ export function CategoriesPage() {
     }
   };
 
-  const handleRenombrar = async (categoryId: string) => {
+  const handleRename = async (categoryId: string) => {
     try {
       setBusyId(categoryId);
       setError(null);
@@ -145,10 +145,10 @@ export function CategoriesPage() {
           </div>
         </div>
         <form onSubmit={(event) => void handleCreate(event)} className="grid gap-4 md:grid-cols-[1fr_180px_auto]">
-          <label className="text-sm font-semibold text-slate-700">Name
+          <label className="text-sm font-semibold text-slate-700">Nombre
             <input aria-label="Category name" value={name} onChange={(event) => setName(event.target.value)} required maxLength={80} className="mt-2 w-full rounded-2xl border border-slate-200 px-4 py-3 font-normal outline-none focus:border-brand-500" />
           </label>
-          <label className="text-sm font-semibold text-slate-700">Type
+          <label className="text-sm font-semibold text-slate-700">Tipo
             <select aria-label="Category type" value={transactionType} onChange={(event) => setTransactionType(event.target.value as TransactionType)} className="mt-2 w-full rounded-2xl border border-slate-200 px-4 py-3 font-normal outline-none focus:border-brand-500">
               <option value="expense">Gasto</option>
               <option value="income">Ingreso</option>
@@ -178,7 +178,7 @@ export function CategoriesPage() {
                       {editingId === category.id ? (
                         <div className="flex gap-2">
                           <input aria-label={`Renombrar ${category.name}`} value={editingName} onChange={(event) => setEditingName(event.target.value)} className="rounded-xl border border-slate-200 px-3 py-2 text-sm" />
-                          <button type="button" aria-label="Save category name" onClick={() => void handleRenombrar(category.id)} className="rounded-xl bg-brand-600 px-3 text-white"><Check size={16} /></button>
+                          <button type="button" aria-label="Save category name" onClick={() => void handleRename(category.id)} className="rounded-xl bg-brand-600 px-3 text-white"><Check size={16} /></button>
                         </div>
                       ) : <h2 className="font-bold text-slate-950">{category.name}</h2>}
                       <p className="mt-1 text-sm text-slate-500">{category.transactionType} · {isPersonal ? 'personal' : 'sistema'} · {category.transactionCount ?? 0} movimientos</p>
@@ -191,12 +191,12 @@ export function CategoriesPage() {
                   <div className="mt-5 space-y-3 border-t border-slate-100 pt-4">
                     <div className="flex flex-wrap gap-2">
                       <button type="button" onClick={() => { setEditingId(category.id); setEditingName(category.name); }} className="inline-flex items-center gap-2 rounded-xl border border-slate-200 px-3 py-2 text-xs font-semibold text-slate-600"><Pencil size={14} /> Renombrar</button>
-                      <button type="button" aria-label="Archive & keep history" onClick={() => setArchiveCandidate(category)} className="inline-flex items-center gap-2 rounded-xl border border-slate-200 px-3 py-2 text-xs font-semibold text-slate-600"><Archive size={14} /> Archivar y conservar historial</button>
+                      <button type="button" aria-label="Archivar y conservar historial" onClick={() => setArchiveCandidate(category)} className="inline-flex items-center gap-2 rounded-xl border border-slate-200 px-3 py-2 text-xs font-semibold text-slate-600"><Archive size={14} /> Archivar y conservar historial</button>
                     </div>
                     {targets.length > 0 && (
                       <div className="flex flex-col gap-2 sm:flex-row">
                         <select aria-label={`Reassign ${category.name} movimientos`} value={reassignTargets[category.id] ?? ''} onChange={(event) => setReassignTargets((current) => ({ ...current, [category.id]: event.target.value }))} className="min-w-0 flex-1 rounded-xl border border-slate-200 px-3 py-2 text-sm">
-                          <option value="">Reassign movimientos to...</option>
+                          <option value="">Reasignar movimientos a...</option>
                           {targets.map((target) => <option key={target.id} value={target.id}>{target.name}</option>)}
                         </select>
                         <button type="button" disabled={!reassignTargets[category.id] || busyId === category.id} onClick={() => void handleReassignAndArchive(category)} className="rounded-xl bg-slate-950 px-4 py-2 text-xs font-semibold text-white disabled:opacity-40">Reasignar y archivar</button>
