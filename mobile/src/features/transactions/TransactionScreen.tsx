@@ -2,7 +2,7 @@ import { minorUnitsToDecimal } from '@smart-expense-ai/domain-types';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { useSQLiteContext } from 'expo-sqlite';
 import { useCallback, useEffect, useState } from 'react';
-import { ActivityIndicator, Alert, FlatList, Pressable, StyleSheet, Text, TextInput, View , SafeAreaView } from '../../ui/primitives';
+import { Alert, FlatList, Pressable, StyleSheet, Text, TextInput, View , SafeAreaView } from '../../ui/primitives';
 import { ConnectionStatus } from '../../components/ConnectionStatus';
 import { serverWorkspaceStyles as s } from '../../components/ServerWorkspaceShell';
 import type { LocalCategoryRow, LocalTransactionRow } from '../../database/types';
@@ -18,7 +18,7 @@ import { TransactionFilters } from './TransactionFilters';
 import { useTransactions } from './useTransactions';
 import type { OfflineTransactionFormInput } from './validation';
 
-const STATUS_LABEL = { synced: 'Synced', pending: 'Pending sync', failed: 'Needs attention', conflict: 'Conflict' } as const;
+const STATUS_LABEL = { synced: 'Sincronizado', pending: 'Pendiente', failed: 'Revisar', conflict: 'Conflicto' } as const;
 export function TransactionScreen() {
   const db = useSQLiteContext();
   const router = useRouter();
@@ -58,13 +58,13 @@ export function TransactionScreen() {
       await refreshHealth();
       refresh();
     } catch (caught) {
-      setActionError(caught instanceof Error ? caught.message : 'Unable to save transaction');
+      setActionError(caught instanceof Error ? caught.message : 'No se ha podido guardar el movimiento');
       throw caught;
     }
   };
-  const requestDelete = (item: LocalTransactionRow) => Alert.alert('Delete transaction?', `${item.merchant} · ${minorUnitsToDecimal(item.amount_minor)} €`, [
-    { text: 'Cancel', style: 'cancel' },
-    { text: 'Delete', style: 'destructive', onPress: () => { void remove(item.id).then(() => showSnackbar('Movimiento eliminado')).then(refreshHealth).then(refresh).catch(() => undefined); } },
+  const requestDelete = (item: LocalTransactionRow) => Alert.alert('¿Eliminar movimiento?', `${item.merchant} · ${minorUnitsToDecimal(item.amount_minor)} €`, [
+    { text: 'Cancelar', style: 'cancel' },
+    { text: 'Eliminar', style: 'destructive', onPress: () => { void remove(item.id).then(() => showSnackbar('Movimiento eliminado')).then(refreshHealth).then(refresh).catch(() => undefined); } },
   ]);
   const busy = isSaving || isResolving;
   const activeFilters = Object.entries(filters).filter(([key, value]) => key !== 'search' && value !== undefined).length;
@@ -109,7 +109,7 @@ export function TransactionScreen() {
       renderItem={({ item }) => <View style={s.card}>
         <View style={s.row}><Text style={[s.cardTitle, { flex: 1 }]}>{item.merchant}</Text>
           <Text style={[s.cardTitle, item.transaction_type === 'income' && styles.link]}>{item.transaction_type === 'income' ? '+' : '−'}{minorUnitsToDecimal(item.amount_minor)} €</Text></View>
-        <Text style={s.metadata}>{item.category_name} · {item.transaction_date} · {item.payment_method.replace('_', ' ')}{item.is_recurring ? ' · Recurring' : ''}</Text>
+        <Text style={s.metadata}>{item.category_name} · {item.transaction_date} · {item.payment_method.replace('_', ' ')}{item.is_recurring ? ' · Recurrente' : ''}</Text>
         {item.description ? <Text style={s.body}>{item.description}</Text> : null}
         <View style={[s.row, { alignItems: 'center' }]}><Text style={[s.metadata, { flex: 1 }]}>{STATUS_LABEL[item.sync_status]}</Text>
           <Pressable accessibilityRole="button" disabled={busy || item.sync_status === 'conflict'} style={styles.action}
@@ -136,7 +136,6 @@ export function TransactionScreen() {
     {filterOpen ? <TransactionFilters filters={filters} categories={categories} onChange={changeFilters} onClose={() => setFilterOpen(false)} /> : null}
     {editor || linkType ? <TransactionEditor item={editing} initialType={linkType ?? initialType} categories={categories.filter((c) => c.archived === 0)} saving={busy}
       error={actionError} onSave={saved} onClose={closeEditor} /> : null}
-      <Snackbar message={toast} onDismiss={() => showSnackbar(null)} />
   </SafeAreaView>;
 }
 const styles = StyleSheet.create({
