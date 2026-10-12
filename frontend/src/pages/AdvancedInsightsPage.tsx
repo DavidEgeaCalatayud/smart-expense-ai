@@ -30,6 +30,33 @@ function priorityLabel(priority: string): string {
   return 'Informativo';
 }
 
+const insightKindLabels: Record<string, string> = {
+  budget_pressure: 'Presupuestos',
+  open_findings: 'Avisos pendientes',
+  cash_flow: 'Flujo de caja',
+  expense_change: 'Cambio de gasto',
+  category_concentration: 'Concentración por categoría',
+  net_worth_liquidity: 'Liquidez',
+  investment_share: 'Inversión',
+  emergency_coverage: 'Fondo de emergencia',
+  net_worth_growth: 'Evolución del patrimonio',
+  opportunity_capital: 'Capital disponible',
+  account_concentration: 'Concentración por cuenta',
+};
+
+const metricLabels: Record<string, string> = {
+  overBudgetCount: 'Presupuestos superados',
+  highestPercentUsed: 'Mayor utilización',
+  totalIncome: 'Ingresos',
+  totalExpenses: 'Gastos',
+  net: 'Neto',
+  openFindingCount: 'Avisos pendientes',
+};
+
+function metricLabel(metric: AdvancedInsightMetric): string {
+  return metricLabels[metric.key] ?? metric.label;
+}
+
 export function AdvancedInsightsPage() {
   const [month, setMonth] = useState(currentMonth);
   const [entitlements, setEntitlements] = useState<ReportEntitlements | null>(null);
@@ -81,7 +108,7 @@ export function AdvancedInsightsPage() {
 
       <section className="mb-6 rounded-3xl border border-slate-200 bg-white p-6 shadow-soft">
         <label className="block max-w-xs text-sm font-semibold text-slate-700">
-          Insight month
+          Mes del análisis
           <input
             type="month"
             required
@@ -132,7 +159,7 @@ export function AdvancedInsightsPage() {
               <div>
                 <h2 className="text-lg font-bold text-slate-950">Resumen de señales del mes</h2>
                 <p className="mt-1 text-sm leading-6 text-slate-500">
-                  {payload.insightVersion} · {payload.month} · {payload.currency}
+                  {payload.month} · {payload.currency}
                 </p>
               </div>
             </div>
@@ -149,7 +176,7 @@ export function AdvancedInsightsPage() {
                   <div className="flex flex-wrap items-start justify-between gap-3">
                     <div>
                       <p className="text-xs font-semibold uppercase tracking-wide text-slate-400">
-                        {insight.kind.replace(/_/g, ' ')}
+                        {insightKindLabels[insight.kind] ?? 'Análisis financiero'}
                       </p>
                       <h2 className="mt-1 text-xl font-bold text-slate-950">{insight.title}</h2>
                     </div>
@@ -163,12 +190,12 @@ export function AdvancedInsightsPage() {
                     {insight.evidence.map((evidence) => (
                       <div key={`${insight.id}-${evidence.source}-${evidence.reference}`} className="rounded-2xl bg-slate-50 p-4">
                         <p className="text-xs font-semibold uppercase tracking-wide text-slate-400">
-                          {evidence.source} · {evidence.reference}
+                          Datos de soporte
                         </p>
                         <dl className="mt-3 grid gap-3 sm:grid-cols-2">
                           {evidence.metrics.map((metric) => (
                             <div key={metric.key}>
-                              <dt className="text-xs text-slate-400">{metric.label}</dt>
+                              <dt className="text-xs text-slate-400">{metricLabel(metric)}</dt>
                               <dd className="mt-1 text-sm font-semibold text-slate-900">
                                 {formatMetric(metric)}
                               </dd>
@@ -185,11 +212,9 @@ export function AdvancedInsightsPage() {
 
           <section className="mt-6 rounded-3xl border border-slate-200 bg-slate-50 p-6">
             <h2 className="text-sm font-bold text-slate-800">Cómo interpretar estos resultados</h2>
-            <ul className="mt-3 space-y-2 text-sm leading-6 text-slate-500">
-              {payload.limitations.map((limitation) => (
-                <li key={limitation}>• {limitation}</li>
-              ))}
-            </ul>
+            <p className="mt-3 text-sm leading-6 text-slate-500">
+              Estos análisis se basan en los datos disponibles de tu cuenta y deben interpretarse como ayuda para revisar tus finanzas, no como una garantía sobre gastos futuros.
+            </p>
           </section>
         </>
       ) : null}
