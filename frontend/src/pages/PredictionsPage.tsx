@@ -16,14 +16,20 @@ import type { UpcomingPaymentItem, UpcomingPaymentsResponse } from '../types/upc
 import { formatCurrencyWithDecimals } from '../utils/formatters';
 
 const statusLabel: Record<UpcomingPaymentItem['status'], string> = {
-  expected: 'Expected',
-  likely: 'Likely',
-  price_changed: 'Price changed',
-  overdue: 'Overdue',
+  expected: 'Previsto',
+  likely: 'Probable',
+  price_changed: 'Importe cambiado',
+  overdue: 'Atrasado',
+};
+
+const baselineLabel: Record<SpendingForecastBaseline['baseline'], string> = {
+  three_month_mean: 'Media de los últimos 3 meses',
+  run_rate: 'Ritmo de gasto del mes',
+  recurrence_aware: 'Proyección con pagos recurrentes',
 };
 
 function formatDate(value: string) {
-  return new Intl.DateTimeFormat('en-GB', {
+  return new Intl.DateTimeFormat('es-ES', {
     day: '2-digit',
     month: 'short',
     year: 'numeric',
@@ -31,7 +37,7 @@ function formatDate(value: string) {
 }
 
 function monthLabel(value: string) {
-  return new Intl.DateTimeFormat('en-GB', {
+  return new Intl.DateTimeFormat('es-ES', {
     month: 'long',
     year: 'numeric',
   }).format(new Date(`${value}-01T00:00:00`));
@@ -56,10 +62,10 @@ function PaymentCard({ item }: { item: UpcomingPaymentItem }) {
       </div>
       <p className="mt-4 text-sm leading-6 text-slate-500">{item.explanation}</p>
       <div className="mt-4 flex flex-wrap gap-2 text-xs font-medium text-slate-500">
-        <span className="rounded-full bg-slate-50 px-3 py-1.5">Score {item.patternScore}</span>
-        <span className="rounded-full bg-slate-50 px-3 py-1.5">{item.occurrenceCount} occurrences</span>
+        <span className="rounded-full bg-slate-50 px-3 py-1.5">Patrón {item.patternScore}/100</span>
+        <span className="rounded-full bg-slate-50 px-3 py-1.5">{item.occurrenceCount} registros</span>
         {item.lifecycleReactivated ? (
-          <span className="rounded-full bg-slate-50 px-3 py-1.5">Reactivated lifecycle</span>
+          <span className="rounded-full bg-slate-50 px-3 py-1.5">Actividad reanudada</span>
         ) : null}
       </div>
     </article>
@@ -73,40 +79,38 @@ function ForecastCard({ baseline }: { baseline: SpendingForecastBaseline }) {
       <div className="flex items-start justify-between gap-3">
         <div>
           <p className="text-xs font-semibold uppercase tracking-[0.16em] text-brand-700">{baseline.baseline}</p>
-          <h3 className="mt-1 font-bold text-slate-950">{baseline.label}</h3>
+          <h3 className="mt-1 font-bold text-slate-950">{baselineLabel[baseline.baseline]}</h3>
         </div>
         <TrendingUp size={20} className="text-brand-700" />
       </div>
       <p className="mt-5 text-3xl font-bold tracking-tight text-slate-950">
-        {baseline.projectedMonthEnd ? formatCurrencyWithDecimals(baseline.projectedMonthEnd) : 'Insufficient history'}
+        {baseline.projectedMonthEnd ? formatCurrencyWithDecimals(baseline.projectedMonthEnd) : 'Historial insuficiente'}
       </p>
       {baseline.differenceFromThreeMonthMean ? (
         <p className="mt-1 text-xs text-slate-500">
           {Number(baseline.differenceFromThreeMonthMean) >= 0 ? '+' : ''}
-          {formatCurrencyWithDecimals(baseline.differenceFromThreeMonthMean)} vs 3-month mean
+          {formatCurrencyWithDecimals(baseline.differenceFromThreeMonthMean)} frente a la media de 3 meses
         </p>
       ) : null}
-      <ul className="mt-4 space-y-1 text-xs leading-5 text-slate-500">
-        {baseline.assumptions.slice(0, 2).map((assumption) => (
-          <li key={assumption}>• {assumption}</li>
-        ))}
-      </ul>
+      <p className="mt-4 text-xs leading-5 text-slate-500">
+        Estimación calculada con tu historial disponible hasta la fecha indicada.
+      </p>
       <div className="mt-5 grid grid-cols-3 gap-2 border-t border-slate-100 pt-4 text-xs">
         <div>
           <p className="font-semibold text-slate-950">{backtest.mae ? formatCurrencyWithDecimals(backtest.mae) : '—'}</p>
-          <p className="text-slate-500">MAE</p>
+          <p className="text-slate-500">Error medio</p>
         </div>
         <div>
           <p className="font-semibold text-slate-950">{backtest.smapePercent ? `${backtest.smapePercent}%` : '—'}</p>
-          <p className="text-slate-500">sMAPE</p>
+          <p className="text-slate-500">Error %</p>
         </div>
         <div>
           <p className="font-semibold text-slate-950">{backtest.bias ? formatCurrencyWithDecimals(backtest.bias) : '—'}</p>
-          <p className="text-slate-500">Bias</p>
+          <p className="text-slate-500">Sesgo</p>
         </div>
       </div>
       <p className="mt-3 text-[11px] text-slate-400">
-        {backtest.support} walk-forward month{backtest.support === 1 ? '' : 's'} · day {backtest.cutoffDay} cutoff
+        {backtest.support} mes{backtest.support === 1 ? '' : 'es'} comparable{backtest.support === 1 ? '' : 's'} · corte en el día {backtest.cutoffDay}
       </p>
     </article>
   );
@@ -129,7 +133,7 @@ export function PredictionsPage() {
       setReport(payments);
       setForecast(spendingForecast);
     } catch (caught) {
-      setError(caught instanceof Error ? caught.message : 'Unable to load predictions.');
+      setError(caught instanceof Error ? caught.message : 'No se han podido cargar las predicciones.');
     } finally {
       setIsLoading(false);
     }
@@ -151,9 +155,9 @@ export function PredictionsPage() {
   return (
     <>
       <PageHeader
-        eyebrow="Deterministic projection"
-        title="Predictions"
-        description="Month-end spending baselines and recurring payments use only evidence available at the forecast date. Backtest error is shown alongside each estimate; no probability or calibrated confidence is implied."
+        eyebrow="Previsión financiera"
+        title="Predicciones"
+        description="Anticípate al gasto de fin de mes y a los próximos pagos usando tu historial financiero."
         action={(
           <button
             type="button"
@@ -173,20 +177,20 @@ export function PredictionsPage() {
         </div>
       ) : null}
 
-      <section className="mb-10" aria-label="Month-end spending forecast">
+      <section className="mb-10" aria-label="Previsión de gasto de fin de mes">
         <div className="mb-4 flex flex-wrap items-end justify-between gap-3">
           <div>
-            <p className="text-xs font-semibold uppercase tracking-[0.18em] text-brand-700">spending-forecast-v1</p>
-            <h2 className="mt-1 text-xl font-bold text-slate-950">Estimated month-end spending</h2>
+            <p className="text-xs font-semibold uppercase tracking-[0.18em] text-brand-700">Previsión de fin de mes</p>
+            <h2 className="mt-1 text-xl font-bold text-slate-950">Gasto estimado al terminar el mes</h2>
             <p className="mt-1 text-sm text-slate-500">
               {forecast
-                ? `${formatCurrencyWithDecimals(forecast.spentSoFar)} spent through ${formatDate(forecast.asOf)} · ${forecast.remainingDays} days remaining`
-                : 'Loading causal forecasting baselines…'}
+                ? `${formatCurrencyWithDecimals(forecast.spentSoFar)} gastados hasta ${formatDate(forecast.asOf)} · quedan ${forecast.remainingDays} días`
+                : 'Calculando la previsión…'}
             </p>
           </div>
           {forecast?.historicalThreeMonthMean ? (
             <p className="text-sm text-slate-500">
-              Previous 3-month mean: <strong className="text-slate-900">{formatCurrencyWithDecimals(forecast.historicalThreeMonthMean)}</strong>
+              Media de los 3 meses anteriores: <strong className="text-slate-900">{formatCurrencyWithDecimals(forecast.historicalThreeMonthMean)}</strong>
             </p>
           ) : null}
         </div>
@@ -197,7 +201,7 @@ export function PredictionsPage() {
         </div>
         {forecast ? (
           <p className="mt-3 text-xs text-slate-500">
-            Backtest uses the same day-{forecast.backtestCutoffDay} chronological folds for all baselines ({forecast.backtestMonths} comparable complete months). Lower MAE/sMAPE is better; signed bias reveals systematic over/under-estimation.
+            El margen de error se calcula comparando la previsión con {forecast.backtestMonths} meses anteriores para que puedas valorar cuánto confiar en la estimación.
           </p>
         ) : null}
       </section>
@@ -205,35 +209,35 @@ export function PredictionsPage() {
       <section className="grid gap-5 md:grid-cols-3">
         <article className="rounded-3xl border border-slate-200 bg-white p-5 shadow-soft">
           <CircleDollarSign className="mb-4 text-brand-700" size={22} />
-          <p className="text-sm font-medium text-slate-500">Expected next 30 days</p>
+          <p className="text-sm font-medium text-slate-500">Previsto en los próximos 30 días</p>
           <p className="mt-2 text-3xl font-bold tracking-tight text-slate-950">
             {report ? formatCurrencyWithDecimals(report.expectedTotal) : '—'}
           </p>
-          <p className="mt-2 text-xs text-slate-500">Future charges only; overdue items are excluded.</p>
+          <p className="mt-2 text-xs text-slate-500">Solo incluye cargos futuros; los atrasados se muestran por separado.</p>
         </article>
         <article className="rounded-3xl border border-slate-200 bg-white p-5 shadow-soft">
           <CalendarClock className="mb-4 text-brand-700" size={22} />
-          <p className="text-sm font-medium text-slate-500">Upcoming charges</p>
+          <p className="text-sm font-medium text-slate-500">Próximos cargos</p>
           <p className="mt-2 text-3xl font-bold tracking-tight text-slate-950">{report?.upcomingCount ?? '—'}</p>
-          <p className="mt-2 text-xs text-slate-500">Window {report ? `${report.windowStart} → ${report.windowEnd}` : 'loading…'}</p>
+          <p className="mt-2 text-xs text-slate-500">Periodo {report ? `${report.windowStart} → ${report.windowEnd}` : 'cargando…'}</p>
         </article>
         <article className="rounded-3xl border border-slate-200 bg-white p-5 shadow-soft">
           <AlertTriangle className="mb-4 text-amber-600" size={22} />
-          <p className="text-sm font-medium text-slate-500">Overdue schedules</p>
+          <p className="text-sm font-medium text-slate-500">Pagos recurrentes atrasados</p>
           <p className="mt-2 text-3xl font-bold tracking-tight text-slate-950">{report?.overdueCount ?? '—'}</p>
-          <p className="mt-2 text-xs text-slate-500">Shown separately until new activity confirms the stream.</p>
+          <p className="mt-2 text-xs text-slate-500">Se muestran aparte hasta que nueva actividad confirme el patrón.</p>
         </article>
       </section>
 
-      <section className="mt-8 space-y-8" aria-label="Upcoming recurring payment calendar">
+      <section className="mt-8 space-y-8" aria-label="Calendario de pagos recurrentes próximos">
         {isLoading && !report ? (
-          <p className="text-sm font-medium text-slate-500">Building recurring calendar…</p>
+          <p className="text-sm font-medium text-slate-500">Preparando calendario de pagos…</p>
         ) : null}
         {!isLoading && report && report.upcomingPayments.length === 0 ? (
           <EmptyStateCard
             icon={<Repeat size={22} />}
-            title="No recurring charges expected in this window"
-            description="Only active schedules with deterministic recurrence evidence are projected. Missing or dormant schedules are not rolled forward automatically."
+            title="No hay cargos recurrentes previstos en este periodo"
+            description="Aquí aparecerán los pagos recurrentes que se puedan estimar a partir de tu historial."
           />
         ) : null}
         {grouped.map(([month, items]) => (
@@ -249,10 +253,10 @@ export function PredictionsPage() {
       </section>
 
       {report && report.overduePayments.length > 0 ? (
-        <section className="mt-10" aria-label="Overdue recurring payments">
+        <section className="mt-10" aria-label="Pagos recurrentes atrasados">
           <div className="mb-4">
-            <p className="text-xs font-semibold uppercase tracking-[0.18em] text-amber-700">Needs attention</p>
-            <h2 className="mt-1 text-xl font-bold text-slate-950">Overdue recurring schedules</h2>
+            <p className="text-xs font-semibold uppercase tracking-[0.18em] text-amber-700">Requiere atención</p>
+            <h2 className="mt-1 text-xl font-bold text-slate-950">Pagos recurrentes atrasados</h2>
           </div>
           <div className="grid gap-4 xl:grid-cols-2">
             {report.overduePayments.map((item) => (
