@@ -2,7 +2,6 @@ import { minorUnitsToDecimal } from '@smart-expense-ai/domain-types';
 import { useCallback, useMemo, useRef, useState } from 'react';
 import type { ScrollView as NativeScrollView, TextInput as NativeTextInput } from 'react-native';
 import {
-  ActivityIndicator,
   Alert,
   Pressable,
   ScrollView,
@@ -21,7 +20,11 @@ import { WorkspaceNav } from '../../components/WorkspaceNav';
 import { ConnectionStatus } from '../../components/ConnectionStatus';
 import { useConflicts } from '../../sync/useConflicts';
 import { useForegroundSync } from '../../sync/useForegroundSync';
-import { useBudgets } from './useBudgets';
+import { usePresupuestos } from './usePresupuestos';
+import { Snackbar } from '../../ui/Snackbar';
+import { CardSkeleton } from '../../ui/Skeleton';
+import { ActionPressable } from '../../ui/ActionPressable';
+import { canonicalMoneyInput, formatMoneyInput } from '../../ui/moneyInput';
 
 const STATUS_LABEL = {
   synced: 'Synced',
@@ -40,7 +43,7 @@ export function BudgetScreen() {
   const [month, setMonth] = useState(localCurrentMonth());
   const api = useMemo(() => createServerDerivedApi(), []);
   const progressLoader = useCallback(async () => {
-    if (!/^\d{4}-(0[1-9]|1[0-2])$/.test(month)) throw new Error('Enter a month as YYYY-MM.');
+    if (!/^\d{4}-(0[1-9]|1[0-2])$/.test(month)) throw new Error('Introduce un mes con formato AAAA-MM.');
     return api.getBudgetProgress(month);
   }, [api, month]);
   const progress = useCachedServerResource(`server:budget-progress:v1:${month}`, progressLoader);
@@ -54,7 +57,7 @@ export function BudgetScreen() {
     create,
     update,
     remove,
-  } = useBudgets(month);
+  } = usePresupuestos(month);
   const {
     conflicts,
     isResolving,
@@ -76,6 +79,7 @@ export function BudgetScreen() {
   const [limitAmount, setLimitAmount] = useState('');
   const [categoryId, setCategoryId] = useState<string | null>(null);
   const [editingId, setEditingId] = useState<string | null>(null);
+  const [toast, setToast] = useState<string | null>(null);
   const scrollViewRef = useRef<NativeScrollView>(null);
   const limitInputRef = useRef<NativeTextInput>(null);
   const formYRef = useRef<number | null>(null);
@@ -97,9 +101,9 @@ export function BudgetScreen() {
 
   const categoryName = useMemo(() => {
     if (categoryId === null) {
-      return 'Overall monthly budget';
+      return 'Presupuesto mensual general';
     }
-    return expenseCategories.find((category) => category.id === categoryId)?.name ?? 'Category';
+    return expenseCategories.find((category) => category.id === categoryId)?.name ?? 'Categoría';
   }, [categoryId, expenseCategories]);
 
   const resetForm = () => {
@@ -110,12 +114,14 @@ export function BudgetScreen() {
 
   const submit = async () => {
     try {
+      const wasEditing = editingId !== null;
       if (editingId) {
         await update(editingId, limitAmount);
       } else {
         await create(categoryId, limitAmount);
       }
       resetForm();
+      setToast(wasEditing ? 'Presupuesto actualizado' : 'Presupuesto creado');
       await refreshHealth();
       void syncNow().then(reloadConflicts).catch(() => undefined);
     } catch {
@@ -123,14 +129,15 @@ export function BudgetScreen() {
     }
   };
 
-  const requestDelete = (budgetId: string, label: string) => {
-    Alert.alert('Delete budget?', label, [
-      { text: 'Cancel', style: 'cancel' },
+  const requestEliminar = (budgetId: string, label: string) => {
+    Alert.alert('¿Eliminar presupuesto?', label, [
+      { text: 'Cancelar', style: 'cancel' },
       {
-        text: 'Delete',
+        text: 'Eliminar',
         style: 'destructive',
         onPress: () => {
           void remove(budgetId)
+            .then(() => setToast('Presupuesto eliminado'))
             .then(refreshHealth)
             .then(() => syncNow())
             .then(reloadConflicts)
@@ -149,7 +156,7 @@ export function BudgetScreen() {
         refreshControl={<RefreshControl refreshing={isSyncing} onRefresh={() => { void syncNow().catch(() => undefined); }} />}>
         <View style={styles.accountRow}>
           <View style={styles.accountIdentity}>
-            <Text style={styles.eyebrow}>SMART EXPENSE AI · MOBILE</Text>
+            <Text style={styles.eyebrow}>SMART EXPENSE AI</Text>
             <Text style={styles.accountName}>{user?.displayName}</Text>
             <Text style={styles.accountEmail}>{user?.email}</Text>
           </View>
@@ -158,16 +165,16 @@ export function BudgetScreen() {
             onPress={() => void logout()}
             style={styles.logoutButton}
           >
-            <Text style={styles.logoutText}>Sign out</Text>
+            <Text style={styles.logoutText}>Cerrar sesión</Text>
           </Pressable>
         </View>
 
         <WorkspaceNav active="budgets" />
 
         <View style={styles.heading}>
-          <Text style={styles.title}>Budgets</Text>
+          <Text style={styles.title}>Presupuestos</Text>
           <Text style={styles.subtitle}>
-            Set monthly limits and track your spending. Changes sync across your phone and the web.
+            Define límites mensuales y sigue cómo avanza tu gasto.
           </Text>
         </View>
 
@@ -176,7 +183,7 @@ export function BudgetScreen() {
 
         {budgetConflicts.length > 0 ? (
           <View style={styles.conflictSection}>
-            <Text style={styles.sectionTitle}>Budget conflicts</Text>
+            <Text style={styles.sectionTitle}>Conflictos de presupuestos</Text>
             {budgetConflicts.map((conflict) => (
               <View key={conflict.id} style={styles.conflictCard}>
                 <Text style={styles.cardTitle}>{conflict.reason}</Text>
@@ -192,7 +199,7 @@ export function BudgetScreen() {
                     }
                     style={styles.secondaryButton}
                   >
-                    <Text style={styles.secondaryText}>Use server</Text>
+                    <Text style={styles.secondaryText}>Usar servidor</Text>
                   </Pressable>
                   {conflict.reason === 'stale_version' && conflict.local_payload_json ? (
                     <Pressable
@@ -205,7 +212,7 @@ export function BudgetScreen() {
                       }
                       style={styles.primaryButton}
                     >
-                      <Text style={styles.primaryButtonText}>Retry mine</Text>
+                      <Text style={styles.primaryButtonText}>Reintentar mis cambios</Text>
                     </Pressable>
                   ) : null}
                 </View>
@@ -222,7 +229,7 @@ export function BudgetScreen() {
             if (pendingRevealRef.current) revealForm();
           }}
         >
-          <Text style={styles.sectionTitle}>{editingId ? 'Edit budget limit' : 'New budget'}</Text>
+          <Text style={styles.sectionTitle}>{editingId ? 'Editar presupuesto' : 'Nuevo presupuesto'}</Text>
           <TextInput
             accessibilityLabel="Budget month"
             editable={!editingId}
@@ -235,13 +242,13 @@ export function BudgetScreen() {
 
           {!editingId ? (
             <>
-              <Text style={styles.fieldLabel}>Scope: {categoryName}</Text>
+              <Text style={styles.fieldLabel}>Ámbito: {categoryName}</Text>
               <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.scopeRow}>
                 <Pressable
                   onPress={() => setCategoryId(null)}
                   style={[styles.scopeButton, categoryId === null && styles.scopeButtonActive]}
                 >
-                  <Text style={styles.scopeText}>Overall</Text>
+                  <Text style={styles.scopeText}>General</Text>
                 </Pressable>
                 {expenseCategories.map((category) => (
                   <Pressable
@@ -261,39 +268,46 @@ export function BudgetScreen() {
             accessibilityLabel="Budget limit"
             keyboardType="decimal-pad"
             onChangeText={setLimitAmount}
-            placeholder="Limit (e.g. 400,00)"
+            onFocus={() => setLimitAmount((current) => canonicalMoneyInput(current))}
+            onBlur={() => { if (limitAmount.trim()) setLimitAmount(formatMoneyInput(limitAmount)); }}
+            placeholder="Límite (ej. 400,00 €)"
             style={styles.input}
             value={limitAmount}
           />
-          <Pressable disabled={busy} onPress={() => void submit()} style={styles.primaryButton}>
+          <ActionPressable haptic="success" disabled={busy} onPress={() => void submit()} style={styles.primaryButton}>
             <Text style={styles.primaryButtonText}>
-              {isSaving ? 'Saving…' : editingId ? 'Save limit' : 'Create budget'}
+              {isSaving ? 'Guardando…' : editingId ? 'Guardar límite' : 'Crear presupuesto'}
             </Text>
-          </Pressable>
+          </ActionPressable>
           {editingId ? (
             <Pressable onPress={resetForm} style={styles.secondaryButton}>
-              <Text style={styles.secondaryText}>Cancel</Text>
+              <Text style={styles.secondaryText}>Cancelar</Text>
             </Pressable>
           ) : null}
           {error ? <Text style={styles.error}>{error}</Text> : null}
         </View>
 
         <View style={styles.sectionHeader}>
-          <Text style={styles.sectionTitle}>Budgets for {month}</Text>
-          {isLoading ? <ActivityIndicator /> : null}
+          <Text style={styles.sectionTitle}>Presupuestos for {month}</Text>
+          {isLoading ? <View style={{ width: 150 }}><CardSkeleton /></View> : null}
         </View>
 
         {budgets.length === 0 && !isLoading ? (
-          <Text style={styles.empty}>No budgets for this month.</Text>
+          <View style={styles.emptyCard}>
+            <Text style={styles.empty}>No hay presupuestos para este mes. Crea uno para marcar un objetivo de gasto.</Text>
+            <ActionPressable haptic="selection" style={styles.primaryButton} onPress={revealForm}>
+              <Text style={styles.primaryButtonText}>Crear primer presupuesto</Text>
+            </ActionPressable>
+          </View>
         ) : null}
 
         <DataFreshness cachedAt={progress.cachedAt} isCachedFallback={progress.isCachedFallback} />
         {progress.error ? <Text style={styles.error}>{progress.error}</Text> : null}
         {budgets.map((budget) => {
-          const serverBudgets = progress.data?.month === month
-            ? [progress.data.totalBudget, ...progress.data.categoryBudgets] : [];
-          const spending = serverBudgets.find((item) => item?.id === budget.id);
-          const label = budget.category_name ?? 'Overall monthly budget';
+          const serverPresupuestos = progress.data?.month === month
+            ? [progress.data.totalBudget, ...progress.data.categoryPresupuestos] : [];
+          const spending = serverPresupuestos.find((item) => item?.id === budget.id);
+          const label = budget.category_name ?? 'General monthly budget';
           return (
             <View key={budget.id} style={styles.card}>
               <View style={styles.cardHeader}>
@@ -301,15 +315,15 @@ export function BudgetScreen() {
                   <Text style={styles.cardTitle}>{label}</Text>
                   <Text style={styles.muted}>
                     {STATUS_LABEL[budget.sync_status]}
-                    {budget.category_archived ? ' · category archived' : ''}
+                    {budget.category_archived ? ' · categoría archivada' : ''}
                   </Text>
                 </View>
                 <Text style={styles.amount}>{minorUnitsToDecimal(budget.limit_minor)} €</Text>
               </View>
               {spending && budget.sync_status === 'synced' ? <View>
-                <Text style={styles.muted}>Spent: {spending.spentAmount} € · Remaining: {spending.remainingAmount} €</Text>
+                <Text style={styles.muted}>Gastado: {spending.spentAmount} € · Restante: {spending.remainingAmount} €</Text>
                 <Text style={[styles.muted, spending.overBudget && styles.error]}>
-                  {spending.percentUsed}% used · {spending.daysRemaining} days remaining
+                  {spending.percentUsed}% usado · {spending.daysRemaining} días restantes
                 </Text>
               </View> : null}
               <View style={styles.actions}>
@@ -323,20 +337,21 @@ export function BudgetScreen() {
                   }}
                   style={styles.secondaryButton}
                 >
-                  <Text style={styles.secondaryText}>Edit limit</Text>
+                  <Text style={styles.secondaryText}>Editar límite</Text>
                 </Pressable>
                 <Pressable
                   disabled={busy || budget.sync_status === 'conflict'}
-                  onPress={() => requestDelete(budget.id, `${label} · ${minorUnitsToDecimal(budget.limit_minor)} €`)}
+                  onPress={() => requestEliminar(budget.id, `${label} · ${minorUnitsToDecimal(budget.limit_minor)} €`)}
                   style={styles.secondaryButton}
                 >
-                  <Text style={styles.deleteText}>Delete</Text>
+                  <Text style={styles.deleteText}>Eliminar</Text>
                 </Pressable>
               </View>
             </View>
           );
         })}
       </ScrollView>
+      <Snackbar message={toast} onDismiss={() => setToast(null)} />
     </SafeAreaView>
   );
 }
@@ -369,9 +384,9 @@ const styles = StyleSheet.create({
   scopeButton: { borderColor: '#c9ced6', borderRadius: 999, borderWidth: 1, paddingHorizontal: 12, paddingVertical: 8 },
   scopeButtonActive: { backgroundColor: '#e8ebef' },
   scopeText: { fontSize: 12, fontWeight: '700' },
-  primaryButton: { alignItems: 'center', backgroundColor: '#111827', borderRadius: 10, paddingHorizontal: 12, paddingVertical: 10 },
+  primaryButton: { minHeight: 44, justifyContent: 'center', alignItems: 'center', backgroundColor: '#111827', borderRadius: 10, paddingHorizontal: 12, paddingVertical: 10 },
   primaryButtonText: { color: '#fff', fontSize: 13, fontWeight: '700' },
-  secondaryButton: { alignItems: 'center', borderColor: '#c9ced6', borderRadius: 10, borderWidth: 1, paddingHorizontal: 12, paddingVertical: 9 },
+  secondaryButton: { minHeight: 44, justifyContent: 'center', alignItems: 'center', borderColor: '#c9ced6', borderRadius: 10, borderWidth: 1, paddingHorizontal: 12, paddingVertical: 9 },
   secondaryText: { fontSize: 13, fontWeight: '700' },
   deleteText: { color: '#b42318', fontSize: 13, fontWeight: '700' },
   disabled: { opacity: 0.45 },
@@ -386,4 +401,5 @@ const styles = StyleSheet.create({
   amount: { fontSize: 17, fontWeight: '800' },
   actions: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
   empty: { fontSize: 14, lineHeight: 21, opacity: 0.65 },
+  emptyCard: { backgroundColor: '#fff', borderRadius: 14, gap: 12, alignItems: 'flex-start', padding: 16 },
 });
