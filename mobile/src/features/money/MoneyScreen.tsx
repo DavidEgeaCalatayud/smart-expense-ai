@@ -587,8 +587,9 @@ export function MoneyScreen() {
               <Text style={styles.muted}>{relativeUpdated(account.balance_updated_at)}</Text>
             </View>
             <View style={styles.actionRow}>
-              <Pressable onPress={() => openEdit(account)} style={styles.secondaryButton}><Text style={styles.secondaryText}>Editar</Text></Pressable>
-              <Pressable
+              <ActionPressable haptic="selection" onPress={() => openEdit(account)} style={styles.secondaryButton}><Text style={styles.secondaryText}>Editar</Text></ActionPressable>
+              <ActionPressable
+                haptic="selection"
                 onPress={() => {
                   setBalanceAccount(account);
                   setNextBalance(minorUnitsToDecimal(account.current_balance_minor));
@@ -597,8 +598,8 @@ export function MoneyScreen() {
                 style={styles.primaryButton}
               >
                 <Text style={styles.primaryButtonText}>Actualizar saldo</Text>
-              </Pressable>
-              <Pressable onPress={() => requestArchive(account)} style={styles.archiveButton}><Text style={styles.archiveText}>Archivar</Text></Pressable>
+              </ActionPressable>
+              <ActionPressable haptic="warning" onPress={() => requestArchive(account)} style={styles.archiveButton}><Text style={styles.archiveText}>Archivar</Text></ActionPressable>
             </View>
           </View>
         ))}
