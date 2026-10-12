@@ -48,7 +48,7 @@ export function ReportsPage() {
       } catch (error) {
         if (!active) return;
         setReport(null);
-        setLoadError(getApiErrorMessage(error, 'Unable to load reports.'));
+        setLoadError(getApiErrorMessage(error, 'No se han podido cargar los informes.'));
       } finally {
         if (active) setIsLoading(false);
       }
@@ -74,9 +74,9 @@ export function ReportsPage() {
       link.click();
       link.remove();
       URL.revokeObjectURL(url);
-      setStatus(`Downloaded ${filename}.`);
+      setStatus(`Descargado ${filename}.`);
     } catch (error) {
-      setStatus(getApiErrorMessage(error, 'Unable to download the report.'));
+      setStatus(getApiErrorMessage(error, 'No se ha podido descargar el informe.'));
     } finally {
       setIsDownloading(false);
     }
@@ -85,9 +85,9 @@ export function ReportsPage() {
   return (
     <>
       <PageHeader
-        eyebrow="Premium reporting"
-        title="Reports"
-        description="Review a server-calculated monthly financial summary and export the same account-isolated data as a spreadsheet-safe CSV."
+        eyebrow="Informes"
+        title="Informes"
+        description="Revisa el resumen mensual de tus finanzas y exporta los datos cuando lo necesites."
       />
 
       <section className="mb-6 rounded-3xl border border-slate-200 bg-white p-6 shadow-soft">
@@ -110,7 +110,7 @@ export function ReportsPage() {
               className="inline-flex items-center justify-center gap-2 rounded-2xl bg-slate-950 px-5 py-3 text-sm font-semibold text-white transition hover:bg-slate-800 disabled:cursor-not-allowed disabled:opacity-50"
             >
               <Download size={17} />
-              {isDownloading ? 'Preparing CSV...' : 'Download CSV'}
+              {isDownloading ? 'Preparando CSV…' : 'Descargar CSV'}
             </button>
           ) : null}
         </div>
@@ -119,13 +119,13 @@ export function ReportsPage() {
 
       {isLoading ? (
         <section className="rounded-3xl border border-slate-200 bg-white p-8 text-sm text-slate-500 shadow-soft">
-          Loading report access and monthly totals...
+          Preparando tu informe mensual…
         </section>
       ) : entitlements === null ? (
         <section className="rounded-3xl border border-rose-200 bg-rose-50/60 p-7 shadow-soft" role="alert">
-          <h2 className="text-xl font-bold text-slate-950">Unable to verify report access</h2>
+          <h2 className="text-xl font-bold text-slate-950">No se ha podido comprobar el acceso a informes</h2>
           <p className="mt-2 max-w-2xl text-sm leading-6 text-slate-600">
-            {loadError ?? 'The report entitlement could not be checked. Try again after connectivity is restored.'}
+            {loadError ?? 'No se ha podido comprobar la disponibilidad del informe. Inténtalo de nuevo cuando recuperes conexión.'}
           </p>
         </section>
       ) : !isEnabled ? (
@@ -133,22 +133,22 @@ export function ReportsPage() {
           <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-amber-100 text-amber-700">
             <LockKeyhole size={22} />
           </div>
-          <h2 className="mt-4 text-xl font-bold text-slate-950">Premium report export</h2>
+          <h2 className="mt-4 text-xl font-bold text-slate-950">Exportación de informes Premium</h2>
           <p className="mt-2 max-w-2xl text-sm leading-6 text-slate-600">
-            Exportable reports are released as a Premium feature. Your current account does not have this entitlement enabled. Billing checkout is not yet exposed in the product, so this screen does not simulate an upgrade or payment flow.
+            La exportación de informes está disponible con Premium y no está incluida actualmente en tu cuenta.
           </p>
           <p className="mt-4 text-xs font-semibold uppercase tracking-wide text-amber-800">
-            Plan: {entitlements.planTier} · Policy: {entitlements.policyVersion}
+            Plan actual: {entitlements.planTier}
           </p>
         </section>
       ) : report ? (
         <>
           <section className="grid gap-5 md:grid-cols-2 xl:grid-cols-4">
             {[
-              ['Income', formatCurrencyWithDecimals(report.totalIncome)],
-              ['Expenses', formatCurrencyWithDecimals(report.totalExpenses)],
-              ['Net', formatCurrencyWithDecimals(report.net)],
-              ['Transactions', String(report.transactionCount)],
+              ['Ingresos', formatCurrencyWithDecimals(report.totalIncome)],
+              ['Gastos', formatCurrencyWithDecimals(report.totalExpenses)],
+              ['Neto', formatCurrencyWithDecimals(report.net)],
+              ['Movimientos', String(report.transactionCount)],
             ].map(([label, value]) => (
               <article key={label} className="rounded-3xl border border-slate-200 bg-white p-6 shadow-soft">
                 <p className="text-sm font-medium text-slate-500">{label}</p>
@@ -164,23 +164,23 @@ export function ReportsPage() {
                 <FileSpreadsheet size={20} />
               </div>
               <div>
-                <h2 className="text-lg font-bold text-slate-950">Category breakdown</h2>
-                <p className="text-sm text-slate-500">Exact totals calculated by FastAPI/PostgreSQL</p>
+                <h2 className="text-lg font-bold text-slate-950">Desglose por categorías</h2>
+                <p className="text-sm text-slate-500">Totales del mes agrupados por categoría</p>
               </div>
             </div>
 
             {report.categoryBreakdown.length === 0 ? (
               <p className="rounded-2xl bg-slate-50 p-5 text-sm text-slate-500">
-                No transactions exist for this month. You can still download an empty report with the monthly summary headers.
+                No hay movimientos este mes. Puedes descargar igualmente el informe con el resumen mensual.
               </p>
             ) : (
               <div className="overflow-x-auto">
                 <table className="w-full min-w-[560px] text-left text-sm">
                   <thead className="border-b border-slate-200 text-xs uppercase tracking-wide text-slate-400">
                     <tr>
-                      <th className="px-3 py-3 font-semibold">Category</th>
-                      <th className="px-3 py-3 font-semibold">Type</th>
-                      <th className="px-3 py-3 text-right font-semibold">Transactions</th>
+                      <th className="px-3 py-3 font-semibold">Categoría</th>
+                      <th className="px-3 py-3 font-semibold">Tipo</th>
+                      <th className="px-3 py-3 text-right font-semibold">Movimientos</th>
                       <th className="px-3 py-3 text-right font-semibold">Total</th>
                     </tr>
                   </thead>
@@ -203,9 +203,9 @@ export function ReportsPage() {
         </>
       ) : (
         <section className="rounded-3xl border border-rose-200 bg-rose-50/60 p-7 shadow-soft" role="alert">
-          <h2 className="text-xl font-bold text-slate-950">Report unavailable</h2>
+          <h2 className="text-xl font-bold text-slate-950">Informe no disponible</h2>
           <p className="mt-2 max-w-2xl text-sm leading-6 text-slate-600">
-            {loadError ?? 'The monthly report could not be loaded.'}
+            {loadError ?? 'No se ha podido cargar el informe mensual.'}
           </p>
         </section>
       )}
