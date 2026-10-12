@@ -182,7 +182,7 @@ export function SecurityPage() {
           </p>
           <form className="mt-5 space-y-4" onSubmit={handlePasswordChange}>
             <label className="block text-sm font-semibold text-slate-700">
-              Current password
+              Contraseña actual
               <input
                 type="password"
                 autoComplete="current-password"
@@ -193,7 +193,7 @@ export function SecurityPage() {
               />
             </label>
             <label className="block text-sm font-semibold text-slate-700">
-              New password
+              Nueva contraseña
               <input
                 type="password"
                 autoComplete="new-password"
@@ -245,7 +245,7 @@ export function SecurityPage() {
           </p>
           <form className="mt-5 space-y-4" onSubmit={openDeleteDialog}>
             <label className="block text-sm font-semibold text-slate-700">
-              Password to confirm deletion
+              Contraseña para confirmar
               <input
                 type="password"
                 autoComplete="current-password"
@@ -256,7 +256,7 @@ export function SecurityPage() {
               />
             </label>
             <label className="block text-sm font-semibold text-slate-700">
-              Type DELETE to confirm
+              Escribe DELETE para confirmar
               <input
                 type="text"
                 autoComplete="off"
@@ -270,7 +270,7 @@ export function SecurityPage() {
               type="submit"
               className="w-full rounded-2xl bg-red-600 px-4 py-3 text-sm font-semibold text-white transition hover:bg-red-700"
             >
-              Review account deletion
+              Revisar eliminación de cuenta
             </button>
           </form>
           {deleteError ? <p className="mt-4 text-sm leading-6 text-red-700" role="alert">{deleteError}</p> : null}
