@@ -27,12 +27,12 @@ export function ReportsScreen() {
     try {
       await online.run(() => shareMonthlyReport(api, month));
     } catch (reason) {
-      setShareError(reason instanceof Error ? reason.message : 'Could not export the report.');
+      setShareError(reason instanceof Error ? reason.message : 'No se ha podido exportar el informe.');
     } finally { setIsSharing(false); }
   };
 
-  return <ServerWorkspaceShell active="reports" title="Reports"
-    subtitle="Review your monthly income, spending and category totals. Export a CSV to save or share."
+  return <ServerWorkspaceShell active="reports" title="Informes"
+    subtitle="Revisa ingresos, gastos y categorías del mes y exporta un CSV cuando lo necesites."
     isRefreshing={resource.isRefreshing || isSharing}
     onRefresh={() => { void resource.refresh().catch(() => undefined); }}>
     <MonthSelector month={month} onChange={setMonth} />
@@ -40,29 +40,29 @@ export function ReportsScreen() {
     {resource.error ? <Text style={s.error}>{resource.error}</Text> : null}
     <DataFreshness cachedAt={resource.cachedAt} isCachedFallback={resource.isCachedFallback} />
     {resource.data && !resource.data.entitlements.features.exportableReports?.enabled ? (
-      <View style={s.card}><Text style={s.cardTitle}>Reports require Premium access</Text>
-        <Text style={s.body}>Report export is not enabled for your account.</Text>
-        <Text style={s.metadata}>Current plan: {resource.data.entitlements.planTier}</Text></View>
+      <View style={s.card}><Text style={s.cardTitle}>Los informes requieren acceso Premium</Text>
+        <Text style={s.body}>La exportación de informes no está disponible en tu cuenta.</Text>
+        <Text style={s.metadata}>Plan actual: {resource.data.entitlements.planTier}</Text></View>
     ) : null}
     {report && report.month === month ? <>
       <View style={s.row}>
-        <View style={s.rowCard}><Text style={s.metadata}>Income</Text><Text style={s.cardValue}>{report.totalIncome} €</Text></View>
-        <View style={s.rowCard}><Text style={s.metadata}>Expenses</Text><Text style={s.cardValue}>{report.totalExpenses} €</Text></View>
+        <View style={s.rowCard}><Text style={s.metadata}>Ingresos</Text><Text style={s.cardValue}>{report.totalIngresos} €</Text></View>
+        <View style={s.rowCard}><Text style={s.metadata}>Gastos</Text><Text style={s.cardValue}>{report.totalGastos} €</Text></View>
       </View>
-      <View style={s.card}><Text style={s.cardTitle}>Net: {report.net} €</Text>
-        <Text style={s.body}>{report.transactionCount} transactions in {month}</Text></View>
+      <View style={s.card}><Text style={s.cardTitle}>Neto: {report.net} €</Text>
+        <Text style={s.body}>{report.transactionCount} movimientos en {month}</Text></View>
       <Pressable accessibilityRole="button" disabled={!hasNetwork || isSharing || resource.isCachedFallback}
         onPress={() => { void share(); }} style={[s.primaryButton,
           (!hasNetwork || isSharing || resource.isCachedFallback) && { opacity: 0.5 }]}>
-        <Text style={s.primaryButtonText}>{isSharing ? 'Preparing CSV…' : 'Export CSV'}</Text>
+        <Text style={s.primaryButtonText}>{isSharing ? 'Preparando CSV…' : 'Exportar CSV'}</Text>
       </Pressable>
-      {!hasNetwork ? <Text style={s.metadata}>Reconnect to export a current report.</Text> : null}
-      <Text style={s.sectionTitle}>Categories</Text>
+      {!hasNetwork ? <Text style={s.metadata}>Vuelve a conectarte para exportar un informe actualizado.</Text> : null}
+      <Text style={s.sectionTitle}>Categorías</Text>
       {report.categoryBreakdown.map((category) => <View key={`${category.type}:${category.category}`} style={s.card}>
         <Text style={s.cardTitle}>{category.category}</Text>
-        <Text style={s.body}>{category.total} € · {category.type} · {category.transactionCount} transactions</Text>
+        <Text style={s.body}>{category.total} € · {category.type} · {category.transactionCount} movimientos</Text>
       </View>)}
-      {report.categoryBreakdown.length === 0 ? <Text style={s.empty}>No transactions for this month.</Text> : null}
+      {report.categoryBreakdown.length === 0 ? <Text style={s.empty}>No movimientos for this month.</Text> : null}
     </> : null}
     {shareError ? <Text style={s.error}>{shareError}</Text> : null}
   </ServerWorkspaceShell>;
