@@ -33,7 +33,7 @@ appId: com.davidegea.smartexpenseai
 - hideKeyboard
 - tapOn: "Guardar nuevo saldo"
 - scrollUntilVisible:
-    element: "PATRIMONIO · OFFLINE-FIRST"
+    element: "PATRIMONIO"
     direction: UP
     timeout: 10000
 - extendedWaitUntil:
@@ -83,7 +83,7 @@ appId: com.davidegea.smartexpenseai
     visible: "Bankinter Principal"
     timeout: 15000
 - scrollUntilVisible:
-    element: "PATRIMONIO · OFFLINE-FIRST"
+    element: "PATRIMONIO"
     direction: UP
     timeout: 10000
 - extendedWaitUntil:
@@ -116,7 +116,7 @@ appId: com.davidegea.smartexpenseai
 - tapOn:
     id: "money-account-submit"
 - scrollUntilVisible:
-    element: "PATRIMONIO · OFFLINE-FIRST"
+    element: "PATRIMONIO"
     direction: UP
     timeout: 10000
 - extendedWaitUntil:
@@ -173,7 +173,7 @@ appId: com.davidegea.smartexpenseai
     timeout: 15000
 
 - scrollUntilVisible:
-    element: "PATRIMONIO · OFFLINE-FIRST"
+    element: "PATRIMONIO"
     direction: UP
     timeout: 10000
 - extendedWaitUntil:
@@ -208,7 +208,7 @@ appId: com.davidegea.smartexpenseai
 - assertVisible: "Bankinter Principal"
 
 - scrollUntilVisible:
-    element: "PATRIMONIO · OFFLINE-FIRST"
+    element: "PATRIMONIO"
     direction: UP
     timeout: 10000
 - extendedWaitUntil:
@@ -240,5 +240,5 @@ appId: com.davidegea.smartexpenseai
 - tapOn:
     id: "tab-activity"
 - extendedWaitUntil:
-    visible: "Your transactions"
+    visible: "Tus movimientos"
     timeout: 15000
