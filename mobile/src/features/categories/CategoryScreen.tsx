@@ -1,6 +1,6 @@
-import { useState } from 'react';
+import { useRef, useState } from 'react';
+import type { ScrollView as NativeScrollView, TextInput as NativeTextInput } from 'react-native';
 import {
-  ActivityIndicator,
   Pressable,
   ScrollView,
   RefreshControl,
@@ -16,19 +16,22 @@ import { ConnectionStatus } from '../../components/ConnectionStatus';
 import { useConflicts } from '../../sync/useConflicts';
 import { useForegroundSync } from '../../sync/useForegroundSync';
 import type { CategoryTransactionType } from './offlineCategoryMutations';
-import { useCategories } from './useCategories';
+import { useCategorías } from './useCategorías';
+import { Snackbar } from '../../ui/Snackbar';
+import { CardSkeleton } from '../../ui/Skeleton';
+import { ActionPressable } from '../../ui/ActionPressable';
 
 const STATUS_LABEL = {
-  synced: 'Synced',
-  pending: 'Pending sync',
-  failed: 'Needs attention',
-  conflict: 'Conflict',
+  synced: 'Sincronizada',
+  pending: 'Pendiente',
+  failed: 'Revisar',
+  conflict: 'Conflicto',
 } as const;
 
 export function CategoryScreen() {
   const { user, logout, isSubmitting: isAuthSubmitting } = useAuth();
-  const { categories, isLoading, isSaving, error, reload, create, rename, setArchived } =
-    useCategories();
+  const { categories, isLoading, isSaving, error, reload, create, rename, setArchivada } =
+    useCategorías();
   const {
     conflicts,
     isResolving,
@@ -50,6 +53,21 @@ export function CategoryScreen() {
   const [name, setName] = useState('');
   const [transactionType, setTransactionType] = useState<CategoryTransactionType>('expense');
   const [editingId, setEditingId] = useState<string | null>(null);
+  const [toast, setToast] = useState<string | null>(null);
+  const [formHighlighted, setFormHighlighted] = useState(false);
+  const scrollViewRef = useRef<NativeScrollView>(null);
+  const formYRef = useRef<number | null>(null);
+  const nameInputRef = useRef<NativeTextInput>(null);
+
+  const revealForm = () => {
+    requestAnimationFrame(() => requestAnimationFrame(() => {
+      if (formYRef.current === null) return;
+      scrollViewRef.current?.scrollTo({ y: Math.max(0, formYRef.current - 12), animated: true });
+      setFormHighlighted(true);
+      setTimeout(() => setFormHighlighted(false), 900);
+      setTimeout(() => nameInputRef.current?.focus(), 260);
+    }));
+  };
 
   const resetForm = () => {
     setName('');
@@ -58,12 +76,14 @@ export function CategoryScreen() {
 
   const submit = async () => {
     try {
+      const wasEditing = editingId !== null;
       if (editingId) {
         await rename(editingId, name);
       } else {
         await create(name, transactionType);
       }
       resetForm();
+      setToast(wasEditing ? 'Categoría renombrada' : 'Categoría creada');
       await refreshHealth();
       void syncNow().then(reloadConflicts).catch(() => undefined);
     } catch {
@@ -76,11 +96,11 @@ export function CategoryScreen() {
 
   return (
     <SafeAreaView style={styles.safeArea}>
-      <ScrollView contentContainerStyle={styles.content}
+      <ScrollView ref={scrollViewRef} contentContainerStyle={styles.content}
         refreshControl={<RefreshControl refreshing={isSyncing} onRefresh={() => { void syncNow().catch(() => undefined); }} />}>
         <View style={styles.accountRow}>
           <View style={styles.accountIdentity}>
-            <Text style={styles.eyebrow}>SMART EXPENSE AI · MOBILE</Text>
+            <Text style={styles.eyebrow}>SMART EXPENSE AI</Text>
             <Text style={styles.accountName}>{user?.displayName}</Text>
             <Text style={styles.accountEmail}>{user?.email}</Text>
           </View>
@@ -89,17 +109,16 @@ export function CategoryScreen() {
             onPress={() => void logout()}
             style={styles.logoutButton}
           >
-            <Text style={styles.logoutText}>Sign out</Text>
+            <Text style={styles.logoutText}>Cerrar sesión</Text>
           </Pressable>
         </View>
 
         <WorkspaceNav active="categories" />
 
         <View style={styles.heading}>
-          <Text style={styles.title}>Categories</Text>
+          <Text style={styles.title}>Categorías</Text>
           <Text style={styles.subtitle}>
-            Organize your income and expenses. Create, rename or archive your own categories,
-            with changes shared across your devices.
+            Organiza tus ingresos y gastos. Crea, renombra o archiva tus propias categorías.
           </Text>
         </View>
 
@@ -108,7 +127,7 @@ export function CategoryScreen() {
 
         {categoryConflicts.length > 0 ? (
           <View style={styles.conflictSection}>
-            <Text style={styles.sectionTitle}>Category conflicts</Text>
+            <Text style={styles.sectionTitle}>Conflictos de categorías</Text>
             {categoryConflicts.map((conflict) => (
               <View key={conflict.id} style={styles.conflictCard}>
                 <Text style={styles.cardTitle}>{conflict.reason}</Text>
@@ -124,7 +143,7 @@ export function CategoryScreen() {
                     }
                     style={styles.secondaryButton}
                   >
-                    <Text style={styles.secondaryText}>Use server</Text>
+                    <Text style={styles.secondaryText}>Usar servidor</Text>
                   </Pressable>
                   {conflict.reason === 'stale_version' && conflict.local_payload_json ? (
                     <Pressable
@@ -137,7 +156,7 @@ export function CategoryScreen() {
                       }
                       style={styles.primaryButton}
                     >
-                      <Text style={styles.primaryButtonText}>Retry mine</Text>
+                      <Text style={styles.primaryButtonText}>Reintentar mis cambios</Text>
                     </Pressable>
                   ) : null}
                 </View>
@@ -147,13 +166,17 @@ export function CategoryScreen() {
           </View>
         ) : null}
 
-        <View style={styles.formCard}>
-          <Text style={styles.sectionTitle}>{editingId ? 'Rename category' : 'New category'}</Text>
+        <View
+          style={[styles.formCard, formHighlighted && styles.formCardHighlighted]}
+          onLayout={(event) => { formYRef.current = event.nativeEvent.layout.y; }}
+        >
+          <Text style={styles.sectionTitle}>{editingId ? 'Renombrar categoría' : 'Nueva categoría'}</Text>
           <TextInput
+            ref={nameInputRef}
             accessibilityLabel="Category name"
             maxLength={80}
             onChangeText={setName}
-            placeholder="Category name"
+            placeholder="Nombre de categoría"
             style={styles.input}
             value={name}
           />
@@ -168,49 +191,49 @@ export function CategoryScreen() {
                     transactionType === type && styles.typeButtonActive,
                   ]}
                 >
-                  <Text style={styles.typeLabel}>{type === 'expense' ? 'Expense' : 'Income'}</Text>
+                  <Text style={styles.typeLabel}>{type === 'expense' ? 'Gasto' : 'Ingreso'}</Text>
                 </Pressable>
               ))}
             </View>
           ) : null}
-          <Pressable disabled={busy} onPress={() => void submit()} style={styles.primaryButton}>
+          <ActionPressable haptic="success" disabled={busy} onPress={() => void submit()} style={styles.primaryButton}>
             <Text style={styles.primaryButtonText}>
-              {isSaving ? 'Saving…' : editingId ? 'Save rename' : 'Create category'}
+              {isSaving ? 'Guardando…' : editingId ? 'Guardar nombre' : 'Crear categoría'}
             </Text>
-          </Pressable>
+          </ActionPressable>
           {editingId ? (
             <Pressable onPress={resetForm} style={styles.secondaryButton}>
-              <Text style={styles.secondaryText}>Cancel</Text>
+              <Text style={styles.secondaryText}>Cancelar</Text>
             </Pressable>
           ) : null}
           {error ? <Text style={styles.error}>{error}</Text> : null}
         </View>
 
         <View style={styles.sectionHeader}>
-          <Text style={styles.sectionTitle}>Your categories</Text>
-          {isLoading ? <ActivityIndicator /> : null}
+          <Text style={styles.sectionTitle}>Tus categorías</Text>
+          {isLoading ? <View style={{ width: 170 }}><CardSkeleton /></View> : null}
         </View>
 
         {categories.map((category) => {
-          const isSystem = category.system_category === 1;
-          const isArchived = category.archived === 1;
+          const isSystem = category.sistema_category === 1;
+          const isArchivada = category.archived === 1;
           return (
-            <View key={category.id} style={[styles.card, isArchived && styles.archivedCard]}>
+            <View key={category.id} style={[styles.card, isArchivada && styles.archivedCard]}>
               <View style={styles.cardHeader}>
                 <View style={styles.cardIdentity}>
                   <Text style={styles.cardTitle}>{category.name}</Text>
                   <Text style={styles.muted}>
-                    {category.transaction_type} · {isSystem ? 'system' : 'personal'} ·{' '}
+                    {category.transaction_type} · {isSystem ? 'sistema' : 'personal'} ·{' '}
                     {STATUS_LABEL[category.sync_status]}
                   </Text>
                 </View>
-                {isArchived ? <Text style={styles.archivedBadge}>Archived</Text> : null}
+                {isArchivada ? <Text style={styles.archivedBadge}>Archivada</Text> : null}
               </View>
-              <Text style={styles.muted}>{category.transaction_count} local transactions</Text>
+              <Text style={styles.muted}>{category.transaction_count} movimientos locales</Text>
 
               {!isSystem ? (
                 <View style={styles.actions}>
-                  {!isArchived ? (
+                  {!isArchivada ? (
                     <>
                       <Pressable
                         disabled={busy || category.sync_status === 'conflict'}
@@ -218,15 +241,17 @@ export function CategoryScreen() {
                           setEditingId(category.id);
                           setName(category.name);
                           setTransactionType(category.transaction_type);
+                          revealForm();
                         }}
                         style={styles.secondaryButton}
                       >
-                        <Text style={styles.secondaryText}>Rename</Text>
+                        <Text style={styles.secondaryText}>Renombrar</Text>
                       </Pressable>
                       <Pressable
                         disabled={busy || category.transaction_count > 0 || category.sync_status === 'conflict'}
                         onPress={() =>
-                          void setArchived(category.id, true)
+                          void setArchivada(category.id, true)
+                            .then(() => setToast('Categoría archivada'))
                             .then(refreshHealth)
                             .then(() => syncNow())
                             .then(reloadConflicts)
@@ -237,14 +262,15 @@ export function CategoryScreen() {
                           category.transaction_count > 0 && styles.disabled,
                         ]}
                       >
-                        <Text style={styles.secondaryText}>Archive</Text>
+                        <Text style={styles.secondaryText}>Archivar</Text>
                       </Pressable>
                     </>
                   ) : (
                     <Pressable
                       disabled={busy || category.sync_status === 'conflict'}
                       onPress={() =>
-                        void setArchived(category.id, false)
+                        void setArchivada(category.id, false)
+                          .then(() => setToast('Categoría restaurada'))
                           .then(refreshHealth)
                           .then(() => syncNow())
                           .then(reloadConflicts)
@@ -252,20 +278,21 @@ export function CategoryScreen() {
                       }
                       style={styles.secondaryButton}
                     >
-                      <Text style={styles.secondaryText}>Restore</Text>
+                      <Text style={styles.secondaryText}>Restaurar</Text>
                     </Pressable>
                   )}
                 </View>
               ) : (
-                <Text style={styles.readOnly}>Built-in category</Text>
+                <Text style={styles.readOnly}>Categoría incluida</Text>
               )}
-              {!isArchived && !isSystem && category.transaction_count > 0 ? (
-                <Text style={styles.warning}>Reassign transactions before archiving.</Text>
+              {!isArchivada && !isSystem && category.transaction_count > 0 ? (
+                <Text style={styles.warning}>Reasigna los movimientos antes de archivar.</Text>
               ) : null}
             </View>
           );
         })}
       </ScrollView>
+      <Snackbar message={toast} onDismiss={() => setToast(null)} />
     </SafeAreaView>
   );
 }
@@ -287,15 +314,16 @@ const styles = StyleSheet.create({
   syncSummary: { flex: 1, gap: 3 },
   syncTitle: { fontSize: 15, fontWeight: '800' },
   syncMeta: { fontSize: 12, opacity: 0.65 },
-  formCard: { backgroundColor: '#fff', borderRadius: 14, gap: 10, padding: 14 },
+  formCard: { backgroundColor: '#fff', borderRadius: 14, borderWidth: 1, borderColor: 'transparent', gap: 10, padding: 14 },
+  formCardHighlighted: { borderColor: '#22a27c', shadowColor: '#22a27c', shadowOpacity: 0.18, shadowRadius: 10, elevation: 2 },
   input: { borderColor: '#d9dde3', borderRadius: 11, borderWidth: 1, fontSize: 16, paddingHorizontal: 13, paddingVertical: 12 },
   typeRow: { flexDirection: 'row', gap: 8 },
   typeButton: { borderColor: '#c9ced6', borderRadius: 10, borderWidth: 1, flex: 1, padding: 10 },
   typeButtonActive: { backgroundColor: '#e8ebef' },
   typeLabel: { fontSize: 13, fontWeight: '700', textAlign: 'center' },
-  primaryButton: { alignItems: 'center', backgroundColor: '#111827', borderRadius: 10, paddingHorizontal: 12, paddingVertical: 10 },
+  primaryButton: { minHeight: 44, justifyContent: 'center', alignItems: 'center', backgroundColor: '#111827', borderRadius: 10, paddingHorizontal: 12, paddingVertical: 10 },
   primaryButtonText: { color: '#fff', fontSize: 13, fontWeight: '700' },
-  secondaryButton: { alignItems: 'center', borderColor: '#c9ced6', borderRadius: 10, borderWidth: 1, paddingHorizontal: 12, paddingVertical: 9 },
+  secondaryButton: { minHeight: 44, justifyContent: 'center', alignItems: 'center', borderColor: '#c9ced6', borderRadius: 10, borderWidth: 1, paddingHorizontal: 12, paddingVertical: 9 },
   secondaryText: { fontSize: 13, fontWeight: '700' },
   disabled: { opacity: 0.45 },
   error: { color: '#b42318', fontSize: 13 },
