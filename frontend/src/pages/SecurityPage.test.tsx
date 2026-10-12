@@ -58,13 +58,13 @@ describe('SecurityPage', () => {
   it('changes the password through the protected account endpoint', async () => {
     render(<SecurityPage />);
 
-    fireEvent.change(screen.getByLabelText('Current password'), {
+    fireEvent.change(screen.getByLabelText('Contraseña actual'), {
       target: { value: 'correct-horse-battery-staple' },
     });
-    fireEvent.change(screen.getByLabelText('New password'), {
+    fireEvent.change(screen.getByLabelText('Nueva contraseña'), {
       target: { value: 'new-correct-horse-battery-staple' },
     });
-    fireEvent.click(screen.getByRole('button', { name: 'Update password' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Actualizar contraseña' }));
 
     await waitFor(() =>
       expect(changePassword).toHaveBeenCalledWith({
@@ -72,13 +72,13 @@ describe('SecurityPage', () => {
         newPassword: 'new-correct-horse-battery-staple',
       }),
     );
-    expect(await screen.findByText(/Previously issued sessions have been revoked/)).toBeInTheDocument();
+    expect(await screen.findByText(/sesiones anteriores se han cerrado/)).toBeInTheDocument();
   });
 
   it('downloads a privacy export returned by the authenticated API', async () => {
     render(<SecurityPage />);
 
-    fireEvent.click(screen.getByRole('button', { name: 'Download privacy export' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Descargar mis datos' }));
 
     await waitFor(() => expect(fetchPrivacyExport).toHaveBeenCalledOnce());
     expect(URL.createObjectURL).toHaveBeenCalledOnce();
@@ -89,16 +89,16 @@ describe('SecurityPage', () => {
   it('requires typed confirmation and a second dialog before deleting the account', async () => {
     render(<SecurityPage />);
 
-    fireEvent.change(screen.getByLabelText('Password to confirm deletion'), {
+    fireEvent.change(screen.getByLabelText('Contraseña para confirmar'), {
       target: { value: 'correct-horse-battery-staple' },
     });
-    fireEvent.change(screen.getByLabelText('Type DELETE to confirm'), { target: { value: 'DELETE' } });
-    fireEvent.click(screen.getByRole('button', { name: 'Review account deletion' }));
+    fireEvent.change(screen.getByLabelText('Escribe DELETE para confirmar'), { target: { value: 'DELETE' } });
+    fireEvent.click(screen.getByRole('button', { name: 'Revisar eliminación de cuenta' }));
 
     expect(deleteAccount).not.toHaveBeenCalled();
-    expect(screen.getByRole('dialog', { name: 'Permanently delete account?' })).toBeInTheDocument();
+    expect(screen.getByRole('dialog', { name: '¿Eliminar la cuenta permanentemente?' })).toBeInTheDocument();
 
-    fireEvent.click(screen.getByRole('button', { name: 'Delete account permanently' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Eliminar cuenta permanentemente' }));
 
     await waitFor(() =>
       expect(deleteAccount).toHaveBeenCalledWith({
