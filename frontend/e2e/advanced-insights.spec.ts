@@ -7,13 +7,13 @@ test('free account sees the real Premium advanced-insights entitlement boundary'
   const password = 'playwright-secure-password';
 
   await page.goto('/register');
-  await page.getByLabel('Display name').fill('Insights Playwright Owner');
-  await page.getByLabel('Email').fill(email);
-  await page.getByLabel('Password').fill(password);
-  await page.getByRole('button', { name: 'Create account' }).click();
-  await expect(page.getByRole('heading', { name: 'Your financial overview' })).toBeVisible();
+  await page.getByLabel('Nombre').fill('Insights Playwright Owner');
+  await page.getByLabel('Correo electrónico').fill(email);
+  await page.getByLabel('Contraseña').fill(password);
+  await page.getByRole('button', { name: 'Crear cuenta' }).click();
+  await expect(page.getByRole('heading', { name: 'Tu visión financiera' })).toBeVisible();
 
-  await page.getByRole('link', { name: 'Insights' }).click();
+  await page.getByRole('link', { name: 'Análisis' }).click();
   await expect(page.getByRole('heading', { name: 'Advanced Insights' })).toBeVisible();
   await expect(page.getByRole('heading', { name: 'Premium advanced insights' })).toBeVisible();
   await expect(page.getByText(/current account does not have this entitlement enabled/i)).toBeVisible();
