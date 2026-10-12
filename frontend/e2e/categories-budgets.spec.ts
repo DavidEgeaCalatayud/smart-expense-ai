@@ -8,18 +8,18 @@ test('authenticated user can create a custom category and monthly category budge
   const category = `Gym ${unique}`;
 
   await page.goto('/register');
-  await page.getByLabel('Display name').fill('Budget Playwright Owner');
-  await page.getByLabel('Email').fill(email);
-  await page.getByLabel('Password').fill(password);
-  await page.getByRole('button', { name: 'Create account' }).click();
-  await expect(page.getByRole('heading', { name: 'Your financial overview' })).toBeVisible();
+  await page.getByLabel('Nombre').fill('Budget Playwright Owner');
+  await page.getByLabel('Correo electrónico').fill(email);
+  await page.getByLabel('Contraseña').fill(password);
+  await page.getByRole('button', { name: 'Crear cuenta' }).click();
+  await expect(page.getByRole('heading', { name: 'Tu visión financiera' })).toBeVisible();
 
-  await page.getByRole('link', { name: 'Categories' }).click();
-  await expect(page.getByRole('heading', { name: 'Categories' })).toBeVisible();
+  await page.getByRole('link', { name: 'Categorías' }).click();
+  await expect(page.getByRole('heading', { name: 'Categorías' })).toBeVisible();
   await page.getByLabel('Category name').fill(category);
   await page.getByLabel('Category type').selectOption('expense');
   await page.getByRole('button', { name: 'Create category' }).click();
-  await expect(page.getByRole('status')).toContainText('Category created.');
+  await expect(page.getByRole('status')).toContainText('Categoría creada.');
   await expect(page.getByRole('heading', { name: category })).toBeVisible();
 
   await page.getByRole('link', { name: 'Budgets' }).click();
@@ -28,11 +28,11 @@ test('authenticated user can create a custom category and monthly category budge
   await page.getByLabel('Budget scope').selectOption({ label: category });
   await page.getByLabel('Budget limit').fill('400');
   await page.getByRole('button', { name: 'Create budget' }).click();
-  await expect(page.getByRole('status')).toContainText('Budget created.');
+  await expect(page.getByRole('status')).toContainText('Presupuesto creado.');
 
   const budgetCard = page.getByRole('article').filter({ hasText: category });
   await expect(budgetCard).toBeVisible();
   await expect(budgetCard).toContainText(category);
   await expect(budgetCard).toContainText('/ €400.00');
-  await expect(budgetCard.getByText('€400.00 remaining', { exact: true })).toBeVisible();
+  await expect(budgetCard.getByText('€400.00 restantes', { exact: true })).toBeVisible();
 });
