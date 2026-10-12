@@ -25,10 +25,7 @@ export function ActionPressable({ haptic = 'selection', onPress, style, ...props
         }
         onPress?.(event);
       }}
-      style={(state) => [
-        typeof style === 'function' ? style(state) : style,
-        state.pressed ? { opacity: 0.82, transform: [{ scale: 0.985 }] } : null,
-      ]}
+      style={style}
     />
   );
 }
