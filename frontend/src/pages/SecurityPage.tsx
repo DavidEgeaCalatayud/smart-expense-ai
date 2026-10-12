@@ -8,11 +8,11 @@ import { changePassword, deleteAccount, fetchPrivacyExport } from '../services/a
 import { getApiErrorMessage } from '../services/apiClient';
 
 const securityItems = [
-  'Passwords are hashed with Argon2 before persistence and are never returned by the API.',
-  'The signed session token is stored in an HttpOnly, SameSite=Lax cookie instead of browser storage.',
-  'Password changes rotate the current session and revoke previously issued session versions server-side.',
-  'Transaction list, update and delete queries are scoped by the authenticated user ID.',
-  'Cross-account transaction IDs return 404 so ownership information is not disclosed.',
+  'Tu contraseña se protege y nunca se muestra ni se devuelve desde la aplicación.',
+  'La sesión se guarda de forma segura para reducir el riesgo de acceso desde otras páginas o scripts.',
+  'Al cambiar tu contraseña, las sesiones anteriores dejan de ser válidas.',
+  'Tus movimientos y datos financieros solo están disponibles dentro de tu cuenta.',
+  'La aplicación evita revelar información sobre datos que pertenecen a otras cuentas.',
 ];
 
 export function SecurityPage() {
@@ -38,9 +38,9 @@ export function SecurityPage() {
       await changePassword({ currentPassword, newPassword });
       setCurrentPassword('');
       setNewPassword('');
-      setPasswordStatus('Password updated. Previously issued sessions have been revoked.');
+      setPasswordStatus('Contraseña actualizada. Las sesiones anteriores se han cerrado.');
     } catch (error) {
-      setPasswordStatus(getApiErrorMessage(error, 'Unable to change password.'));
+      setPasswordStatus(getApiErrorMessage(error, 'No se ha podido cambiar la contraseña.'));
     } finally {
       setIsChangingPassword(false);
     }
@@ -61,9 +61,9 @@ export function SecurityPage() {
       link.click();
       link.remove();
       URL.revokeObjectURL(url);
-      setExportStatus('Privacy export created from your authenticated account data.');
+      setExportStatus('La exportación de tus datos está lista.');
     } catch (error) {
-      setExportStatus(getApiErrorMessage(error, 'Unable to export account data.'));
+      setExportStatus(getApiErrorMessage(error, 'No se han podido exportar los datos de la cuenta.'));
     } finally {
       setIsExporting(false);
     }
@@ -73,7 +73,7 @@ export function SecurityPage() {
     event.preventDefault();
     setDeleteError(null);
     if (!deletePassword || deleteConfirmation !== 'DELETE') {
-      setDeleteError('Enter your current password and type DELETE exactly to continue.');
+      setDeleteError('Introduce tu contraseña actual y escribe DELETE exactamente para continuar.');
       return;
     }
     setIsDeleteDialogOpen(true);
@@ -88,7 +88,7 @@ export function SecurityPage() {
       setIsDeleteDialogOpen(false);
       clearLocalSession();
     } catch (error) {
-      setDeleteError(getApiErrorMessage(error, 'Unable to delete account.'));
+      setDeleteError(getApiErrorMessage(error, 'No se ha podido eliminar la cuenta.'));
       setIsDeleteDialogOpen(false);
     } finally {
       setIsDeleting(false);
@@ -98,30 +98,30 @@ export function SecurityPage() {
   return (
     <>
       <PageHeader
-        eyebrow="Privacy and security"
-        title="Security"
-        description="Authentication, session revocation, per-user financial data isolation and account privacy controls are active."
+        eyebrow="Privacidad y seguridad"
+        title="Seguridad"
+        description="Gestiona tu contraseña, sesiones, exportación de datos y privacidad desde un único lugar."
       />
 
       <section className="grid gap-5 md:grid-cols-3">
         <MetricCard
-          title="Authentication"
-          value="Active"
-          detail="FastAPI session authentication"
+          title="Autenticación"
+          value="Activa"
+          detail="Acceso protegido a tu cuenta"
           trend="down"
           icon={<KeyRound size={20} />}
         />
         <MetricCard
-          title="Data isolation"
-          value="Enforced"
-          detail="Financial data scoped by user ID"
+          title="Privacidad de datos"
+          value="Protegida"
+          detail="Tus datos financieros permanecen separados"
           trend="down"
           icon={<Database size={20} />}
         />
         <MetricCard
-          title="Session"
-          value="Revocable"
-          detail="HttpOnly JWT + server-side version"
+          title="Sesión"
+          value="Controlable"
+          detail="Puedes cerrar sesiones al cambiar la contraseña"
           trend="down"
           icon={<Cookie size={20} />}
         />
@@ -134,8 +134,8 @@ export function SecurityPage() {
               <LockKeyhole size={20} />
             </div>
             <div>
-              <h2 className="text-lg font-bold">Implemented controls</h2>
-              <p className="text-sm text-slate-500">Current account and API guarantees</p>
+              <h2 className="text-lg font-bold">Protecciones activas</h2>
+              <p className="text-sm text-slate-500">Medidas aplicadas a tu cuenta</p>
             </div>
           </div>
 
@@ -154,31 +154,31 @@ export function SecurityPage() {
               <ShieldCheck size={20} />
             </div>
             <div>
-              <h2 className="text-lg font-bold">Current session</h2>
-              <p className="text-sm text-slate-500">Authenticated account</p>
+              <h2 className="text-lg font-bold">Sesión actual</h2>
+              <p className="text-sm text-slate-500">Cuenta con sesión iniciada</p>
             </div>
           </div>
           <dl className="space-y-4 text-sm">
             <div className="rounded-2xl bg-slate-50 p-4">
-              <dt className="text-slate-400">Display name</dt>
+              <dt className="text-slate-400">Nombre</dt>
               <dd className="mt-1 font-semibold text-slate-900">{user?.displayName}</dd>
             </div>
             <div className="rounded-2xl bg-slate-50 p-4">
-              <dt className="text-slate-400">Email</dt>
+              <dt className="text-slate-400">Correo electrónico</dt>
               <dd className="mt-1 font-semibold text-slate-900">{user?.email}</dd>
             </div>
           </dl>
           <p className="mt-5 text-xs leading-5 text-slate-400">
-            Password reset by email and MFA remain deployment-readiness work because they require verified recovery and second-factor delivery channels.
+            La recuperación de contraseña está disponible por correo. Las opciones adicionales de seguridad se incorporarán cuando estén listas para producción.
           </p>
         </article>
       </section>
 
       <section className="mt-6 grid gap-6 xl:grid-cols-3">
         <article className="rounded-3xl border border-slate-200 bg-white p-6 shadow-soft">
-          <h2 className="text-lg font-bold text-slate-950">Change password</h2>
+          <h2 className="text-lg font-bold text-slate-950">Cambiar contraseña</h2>
           <p className="mt-2 text-sm leading-6 text-slate-500">
-            Changing your password revokes previously issued sessions and keeps this browser signed in with a newly versioned session.
+            Al cambiar la contraseña se cerrarán las sesiones anteriores y este navegador permanecerá conectado de forma segura.
           </p>
           <form className="mt-5 space-y-4" onSubmit={handlePasswordChange}>
             <label className="block text-sm font-semibold text-slate-700">
@@ -210,7 +210,7 @@ export function SecurityPage() {
               disabled={isChangingPassword}
               className="w-full rounded-2xl bg-slate-950 px-4 py-3 text-sm font-semibold text-white transition hover:bg-slate-800 disabled:cursor-not-allowed disabled:opacity-60"
             >
-              {isChangingPassword ? 'Updating...' : 'Update password'}
+              {isChangingPassword ? 'Actualizando…' : 'Actualizar contraseña'}
             </button>
           </form>
           {passwordStatus ? <p className="mt-4 text-sm leading-6 text-slate-600" role="status">{passwordStatus}</p> : null}
@@ -220,9 +220,9 @@ export function SecurityPage() {
           <div className="flex h-11 w-11 items-center justify-center rounded-2xl bg-brand-50 text-brand-700">
             <Download size={20} />
           </div>
-          <h2 className="mt-4 text-lg font-bold text-slate-950">Export your data</h2>
+          <h2 className="mt-4 text-lg font-bold text-slate-950">Exportar tus datos</h2>
           <p className="mt-2 text-sm leading-6 text-slate-500">
-            Download a JSON export of your account, transactions, intelligence findings, scans and historical snapshots. Password hashes and session tokens are never included.
+            Descarga una copia de los datos asociados a tu cuenta, incluidos movimientos, análisis e historial. Las credenciales y sesiones no se incluyen.
           </p>
           <button
             type="button"
@@ -230,7 +230,7 @@ export function SecurityPage() {
             disabled={isExporting}
             className="mt-5 w-full rounded-2xl border border-slate-200 px-4 py-3 text-sm font-semibold text-slate-700 transition hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-60"
           >
-            {isExporting ? 'Preparing export...' : 'Download privacy export'}
+            {isExporting ? 'Preparando exportación…' : 'Descargar mis datos'}
           </button>
           {exportStatus ? <p className="mt-4 text-sm leading-6 text-slate-600" role="status">{exportStatus}</p> : null}
         </article>
@@ -239,9 +239,9 @@ export function SecurityPage() {
           <div className="flex h-11 w-11 items-center justify-center rounded-2xl bg-red-100 text-red-700">
             <Trash2 size={20} />
           </div>
-          <h2 className="mt-4 text-lg font-bold text-slate-950">Delete account</h2>
+          <h2 className="mt-4 text-lg font-bold text-slate-950">Eliminar cuenta</h2>
           <p className="mt-2 text-sm leading-6 text-slate-600">
-            Permanently delete your account and all user-owned financial, intelligence and historical-analysis data. This cannot be undone.
+            Elimina permanentemente tu cuenta y todos tus datos financieros. Esta acción no se puede deshacer.
           </p>
           <form className="mt-5 space-y-4" onSubmit={openDeleteDialog}>
             <label className="block text-sm font-semibold text-slate-700">
@@ -279,9 +279,9 @@ export function SecurityPage() {
 
       <ConfirmDialog
         isOpen={isDeleteDialogOpen}
-        title="Permanently delete account?"
-        description="Your account and all user-owned transactions, findings, scans and historical-analysis snapshots will be deleted. There is no undo."
-        confirmLabel="Delete account permanently"
+        title="¿Eliminar la cuenta permanentemente?"
+        description="Se eliminarán tu cuenta y todos los datos financieros asociados. Esta acción no se puede deshacer."
+        confirmLabel="Eliminar cuenta permanentemente"
         isConfirming={isDeleting}
         onCancel={() => setIsDeleteDialogOpen(false)}
         onConfirm={() => void handleDeleteAccount()}
