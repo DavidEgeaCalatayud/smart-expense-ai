@@ -22,7 +22,7 @@ test('authenticated user can preview, import and safely re-import a CSV statemen
   await page.getByRole('link', { name: 'Importar CSV' }).click();
   await expect(page.getByRole('heading', { name: 'Importar movimientos desde CSV' })).toBeVisible();
 
-  const csvInput = page.getByLabel('CSV file');
+  const csvInput = page.getByLabel('Archivo CSV');
   await csvInput.setInputFiles({
     name: 'playwright-statement.csv',
     mimeType: 'text/csv',
