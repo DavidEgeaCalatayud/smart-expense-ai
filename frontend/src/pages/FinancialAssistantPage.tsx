@@ -5,21 +5,21 @@ import { queryFinancialAssistant } from '../services/financialAssistantApi';
 import type { FinancialAssistantAnswer } from '../types/financialAssistant';
 
 const examples = [
-  'How am I doing this month?',
-  'Why did I spend more than last month?',
-  'Which budgets need my attention?',
-  'What unusual expenses should I review?',
-  'Do I have duplicate-looking subscriptions?',
-  'What changed in my spending over the last six months?',
+  '¿Cómo voy este mes?',
+  '¿Por qué he gastado más que el mes pasado?',
+  '¿Qué presupuestos necesitan mi atención?',
+  '¿Qué gastos inusuales debería revisar?',
+  '¿Tengo suscripciones que parecen duplicadas?',
+  '¿Qué ha cambiado en mis gastos durante los últimos seis meses?',
 ];
 
 const sourceLabels = {
-  financial_summary: 'Transaction analytics',
-  period_comparison: 'Period comparison',
-  budget: 'Budget service',
-  financial_findings: 'Financial intelligence',
-  historical_analysis: 'Historical-v2.2',
-  transaction_search: 'Transaction search',
+  financial_summary: 'Resumen financiero',
+  period_comparison: 'Comparación de periodos',
+  budget: 'Presupuestos',
+  financial_findings: 'Inteligencia financiera',
+  historical_analysis: 'Histórico financiero',
+  transaction_search: 'Búsqueda de movimientos',
 } as const;
 
 export function FinancialAssistantPage() {
@@ -38,7 +38,7 @@ export function FinancialAssistantPage() {
     try {
       setAnswer(await queryFinancialAssistant(normalized));
     } catch (caught) {
-      const presentation = getApiErrorPresentation(caught, 'Unable to ask the Financial Assistant.');
+      const presentation = getApiErrorPresentation(caught, 'No se ha podido consultar el asistente financiero.');
       setError({ title: presentation.title, message: presentation.message });
     } finally {
       setIsSubmitting(false);
@@ -53,20 +53,20 @@ export function FinancialAssistantPage() {
             <div className="mb-4 flex h-12 w-12 items-center justify-center rounded-2xl bg-white/10">
               <Bot size={24} />
             </div>
-            <p className="mb-2 text-sm font-semibold uppercase tracking-[0.18em] text-brand-200">Financial Assistant v1</p>
-            <h1 className="text-3xl font-bold tracking-tight">Ask your financial data, not a black box</h1>
+            <p className="mb-2 text-sm font-semibold uppercase tracking-[0.18em] text-brand-200">Asistente financiero</p>
+            <h1 className="text-3xl font-bold tracking-tight">Pregunta directamente sobre tus finanzas</h1>
             <p className="mt-3 max-w-2xl text-sm leading-6 text-slate-300">
-              The assistant explains evidence produced by your authenticated analytics, budgets, rules-v2 findings and historical-v2.2 data. Financial calculations stay in backend services.
+              El asistente usa tus movimientos, presupuestos y análisis para responder con contexto de tus propias finanzas.
             </p>
           </div>
           <div className="grid gap-3 text-sm sm:grid-cols-2 lg:w-[28rem] lg:grid-cols-1">
             <div className="rounded-2xl border border-white/10 bg-white/5 p-4">
-              <div className="mb-2 flex items-center gap-2 font-semibold"><ShieldCheck size={17} /> Account scoped</div>
-              <p className="text-slate-300">The model cannot choose or submit a user ID.</p>
+              <div className="mb-2 flex items-center gap-2 font-semibold"><ShieldCheck size={17} /> Tus datos</div>
+              <p className="text-slate-300">Solo se utiliza la información financiera asociada a tu cuenta.</p>
             </div>
             <div className="rounded-2xl border border-white/10 bg-white/5 p-4">
-              <div className="mb-2 flex items-center gap-2 font-semibold"><Database size={17} /> Evidence grounded</div>
-              <p className="text-slate-300">Only evidence emitted by executed financial tools can be shown.</p>
+              <div className="mb-2 flex items-center gap-2 font-semibold"><Database size={17} /> Respuestas justificadas</div>
+              <p className="text-slate-300">Las respuestas se apoyan en datos disponibles de tu actividad financiera.</p>
             </div>
           </div>
         </div>
@@ -77,20 +77,20 @@ export function FinancialAssistantPage() {
           <div className="mb-5 flex items-center gap-3">
             <div className="flex h-10 w-10 items-center justify-center rounded-2xl bg-brand-50 text-brand-700"><Sparkles size={19} /></div>
             <div>
-              <h2 className="text-lg font-semibold text-slate-900">Ask a question</h2>
-              <p className="text-sm text-slate-500">One stateless question at a time. No persistent chat history.</p>
+              <h2 className="text-lg font-semibold text-slate-900">Haz una pregunta</h2>
+              <p className="text-sm text-slate-500">Haz una pregunta sobre tus finanzas y revisa la información que respalda la respuesta.</p>
             </div>
           </div>
 
           <form onSubmit={(event) => void submitQuestion(event)} className="space-y-4">
-            <label htmlFor="financial-question" className="block text-sm font-semibold text-slate-700">Ask about your finances</label>
+            <label htmlFor="financial-question" className="block text-sm font-semibold text-slate-700">Pregunta sobre tus finanzas</label>
             <textarea
               id="financial-question"
               value={question}
               onChange={(event) => setQuestion(event.target.value)}
               rows={4}
               maxLength={1200}
-              placeholder="Why did I spend more this month?"
+              placeholder="¿Por qué he gastado más este mes?"
               className="w-full resize-y rounded-2xl border border-slate-200 px-4 py-3 text-sm leading-6 text-slate-900 outline-none transition focus:border-brand-400 focus:ring-4 focus:ring-brand-50"
             />
             <div className="flex items-center justify-between gap-4">
@@ -101,7 +101,7 @@ export function FinancialAssistantPage() {
                 className="inline-flex items-center gap-2 rounded-2xl bg-brand-600 px-5 py-3 text-sm font-semibold text-white transition hover:bg-brand-700 disabled:cursor-not-allowed disabled:opacity-50"
               >
                 <Send size={16} />
-                {isSubmitting ? 'Checking evidence...' : 'Ask Financial Assistant'}
+                {isSubmitting ? 'Analizando tus datos…' : 'Preguntar al asistente'}
               </button>
             </div>
           </form>
@@ -115,11 +115,11 @@ export function FinancialAssistantPage() {
 
           {answer && (
             <section className="mt-6 rounded-3xl border border-slate-200 bg-slate-50 p-6" aria-label="Financial Assistant answer">
-              <div className="mb-4 flex items-center gap-2 text-sm font-semibold text-brand-700"><Bot size={18} /> Evidence-grounded answer</div>
+              <div className="mb-4 flex items-center gap-2 text-sm font-semibold text-brand-700"><Bot size={18} /> Respuesta</div>
               <p className="whitespace-pre-wrap text-base leading-7 text-slate-800">{answer.answer}</p>
 
               <div className="mt-6">
-                <h3 className="text-sm font-semibold text-slate-900">Based on</h3>
+                <h3 className="text-sm font-semibold text-slate-900">Basado en</h3>
                 {answer.evidence.length > 0 ? (
                   <div className="mt-3 grid gap-3 md:grid-cols-2">
                     {answer.evidence.map((item) => (
@@ -136,27 +136,27 @@ export function FinancialAssistantPage() {
                     ))}
                   </div>
                 ) : (
-                  <p className="mt-2 text-sm text-slate-500">No financial evidence was required for this answer.</p>
+                  <p className="mt-2 text-sm text-slate-500">No se han necesitado datos adicionales para esta respuesta.</p>
                 )}
               </div>
 
               {answer.limitations.length > 0 && (
                 <div className="mt-6 rounded-2xl border border-amber-200 bg-amber-50 p-4">
-                  <h3 className="flex items-center gap-2 text-sm font-semibold text-amber-900"><AlertTriangle size={16} /> Limitations</h3>
+                  <h3 className="flex items-center gap-2 text-sm font-semibold text-amber-900"><AlertTriangle size={16} /> Límites de la respuesta</h3>
                   <ul className="mt-2 list-disc space-y-1 pl-5 text-sm text-amber-800">
                     {answer.limitations.map((item) => <li key={item}>{item}</li>)}
                   </ul>
                 </div>
               )}
 
-              <p className="mt-5 text-xs text-slate-400">Request {answer.requestId}</p>
+              <p className="mt-5 text-xs text-slate-400">Consulta {answer.requestId}</p>
             </section>
           )}
         </div>
 
         <aside className="rounded-3xl border border-slate-200 bg-white p-6 shadow-sm">
-          <h2 className="text-lg font-semibold text-slate-900">Try asking</h2>
-          <p className="mt-1 text-sm leading-6 text-slate-500">These prompts map naturally to the read-only evidence tools available in v1.</p>
+          <h2 className="text-lg font-semibold text-slate-900">Prueba a preguntar</h2>
+          <p className="mt-1 text-sm leading-6 text-slate-500">Puedes empezar con cualquiera de estas preguntas.</p>
           <div className="mt-5 space-y-2">
             {examples.map((example) => (
               <button
@@ -170,7 +170,7 @@ export function FinancialAssistantPage() {
             ))}
           </div>
           <div className="mt-6 rounded-2xl bg-slate-50 p-4 text-sm leading-6 text-slate-600">
-            <strong className="text-slate-900">v1 boundaries:</strong> no RAG, vector database, persistent memory, multi-agent routing or autonomous financial actions.
+            <strong className="text-slate-900">Privacidad:</strong> el asistente no ejecuta pagos ni realiza cambios financieros por su cuenta.
           </div>
         </aside>
       </section>
