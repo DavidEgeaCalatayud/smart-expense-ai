@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import {
+  formatMoneyInput,
   formatMoneyRounded,
   formatMoneyWithDecimals,
   isNegativeMoney,
@@ -32,9 +33,15 @@ describe('fixed-point money helpers', () => {
     expect(isNegativeMoney('-0.01')).toBe(true);
   });
 
-  it('rejects more than two decimal places and ambiguous mixed separators', () => {
-    expect(() => normalizeMoneyAmount('10.001')).toThrow(/two decimal places/i);
-    expect(() => normalizeMoneyAmount('1.000,50')).toThrow(/decimal separator/i);
-    expect(() => normalizeMoneyAmount('1,000,50')).toThrow(/decimal separator/i);
+  it('accepts localized thousands separators and formatted euro input', () => {
+    expect(normalizeMoneyAmount('1.000,50 €')).toBe('1000.50');
+    expect(normalizeMoneyAmount('1,000.50')).toBe('1000.50');
+    expect(normalizeMoneyAmount('10.001')).toBe('10001.00');
+    expect(formatMoneyInput('1234.5')).toBe('1.234,50 €');
+  });
+
+  it('rejects malformed or ambiguous separators', () => {
+    expect(() => normalizeMoneyAmount('10.0012')).toThrow(/two decimal places/i);
+    expect(() => normalizeMoneyAmount('1,000,50')).toThrow(/ambiguous separators/i);
   });
 });
