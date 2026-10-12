@@ -24,7 +24,7 @@ import { useForegroundSync } from '../../sync/useForegroundSync';
 import { MobileBankLogo, MobileBankPicker } from './bankCatalog';
 import { suggestedMobileAccountNameForInstitution } from './bankCatalogData';
 import { useFinancialAccounts } from './useFinancialAccounts';
-import { Snackbar } from '../../ui/Snackbar';
+import { useSnackbar } from '../../ui/Snackbar';
 import { CardSkeleton } from '../../ui/Skeleton';
 import { ActionPressable } from '../../ui/ActionPressable';
 import { canonicalMoneyInput, formatMoneyInput } from '../../ui/moneyInput';
@@ -166,7 +166,7 @@ export function MoneyScreen() {
   const [form, setForm] = useState<AccountFormState>(EMPTY_FORM);
   const [balanceAccount, setBalanceAccount] = useState<LocalFinancialAccountRow | null>(null);
   const [nextBalance, setNextBalance] = useState('');
-  const [toast, setToast] = useState<string | null>(null);
+  const { showSnackbar } = useSnackbar();
   const nameInputRef = useRef<NativeTextInput>(null);
   const scrollViewRef = useRef<NativeScrollView>(null);
   const accountFormYRef = useRef<number | null>(null);
@@ -260,7 +260,7 @@ export function MoneyScreen() {
         });
       }
       closeForm();
-      setToast(wasCreating ? 'Cuenta añadida' : 'Cuenta actualizada');
+      showSnackbar(wasCreating ? 'Cuenta añadida' : 'Cuenta actualizada');
       await refreshHealth();
       void syncNow().then(reloadConflicts).catch(() => undefined);
     } catch {
@@ -274,7 +274,7 @@ export function MoneyScreen() {
       await updateBalance(balanceAccount.id, nextBalance);
       setBalanceAccount(null);
       setNextBalance('');
-      setToast('Saldo actualizado');
+      showSnackbar('Saldo actualizado');
       await refreshHealth();
       void syncNow().then(reloadConflicts).catch(() => undefined);
     } catch {
@@ -293,7 +293,7 @@ export function MoneyScreen() {
           style: 'destructive',
           onPress: () => {
             void archive(account.id)
-              .then(() => setToast('Cuenta archivada'))
+              .then(() => showSnackbar('Cuenta archivada'))
               .then(refreshHealth)
               .then(() => syncNow())
               .then(reloadConflicts)
@@ -620,7 +620,7 @@ export function MoneyScreen() {
           </Text>
         </View>
       </ScrollView>
-          <Snackbar message={toast} onDismiss={() => setToast(null)} />
+          <Snackbar message={toast} onDismiss={() => showSnackbar(null)} />
     </SafeAreaView>
   );
 }
