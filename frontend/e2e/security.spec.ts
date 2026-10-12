@@ -8,22 +8,22 @@ test('password change keeps the current session active and rotates credentials',
   const newPassword = 'playwright-security-new-password';
 
   await page.goto('/register');
-  await page.getByLabel('Display name').fill('Playwright Security');
-  await page.getByLabel('Email').fill(email);
-  await page.getByLabel('Password').fill(oldPassword);
-  await page.getByRole('button', { name: 'Create account' }).click();
-  await expect(page.getByRole('heading', { name: 'Your financial overview' })).toBeVisible();
+  await page.getByLabel('Nombre').fill('Playwright Security');
+  await page.getByLabel('Correo electrónico').fill(email);
+  await page.getByLabel('Contraseña').fill(oldPassword);
+  await page.getByRole('button', { name: 'Crear cuenta' }).click();
+  await expect(page.getByRole('heading', { name: 'Tu visión financiera' })).toBeVisible();
 
-  await page.getByRole('button', { name: 'Sign out' }).click();
-  await expect(page.getByRole('heading', { name: 'Sign in' })).toBeVisible();
+  await page.getByRole('button', { name: 'Cerrar sesión' }).click();
+  await expect(page.getByRole('heading', { name: 'Entrar' })).toBeVisible();
 
-  await page.getByLabel('Email').fill(email);
-  await page.getByLabel('Password').fill(oldPassword);
-  await page.getByRole('button', { name: 'Sign in' }).click();
-  await expect(page.getByRole('heading', { name: 'Your financial overview' })).toBeVisible();
+  await page.getByLabel('Correo electrónico').fill(email);
+  await page.getByLabel('Contraseña').fill(oldPassword);
+  await page.getByRole('button', { name: 'Entrar' }).click();
+  await expect(page.getByRole('heading', { name: 'Tu visión financiera' })).toBeVisible();
 
-  await page.getByRole('link', { name: 'Security' }).click();
-  await expect(page.getByRole('heading', { name: 'Security' })).toBeVisible();
+  await page.getByRole('link', { name: 'Seguridad' }).click();
+  await expect(page.getByRole('heading', { name: 'Seguridad' })).toBeVisible();
   await page.getByLabel('Current password').fill(oldPassword);
   await page.getByLabel('New password').fill(newPassword);
   await page.getByRole('button', { name: 'Update password' }).click();
@@ -35,19 +35,19 @@ test('password change keeps the current session active and rotates credentials',
   // Force a new authenticated page load so this verifies the rotated cookie,
   // rather than merely observing UI state that existed before the password change.
   await page.reload();
-  await expect(page.getByRole('heading', { name: 'Security' })).toBeVisible();
-  await expect(page.getByRole('button', { name: 'Sign out' })).toBeVisible();
+  await expect(page.getByRole('heading', { name: 'Seguridad' })).toBeVisible();
+  await expect(page.getByRole('button', { name: 'Cerrar sesión' })).toBeVisible();
 
-  await page.getByRole('button', { name: 'Sign out' }).click();
-  await expect(page.getByRole('heading', { name: 'Sign in' })).toBeVisible();
+  await page.getByRole('button', { name: 'Cerrar sesión' }).click();
+  await expect(page.getByRole('heading', { name: 'Entrar' })).toBeVisible();
 
-  await page.getByLabel('Email').fill(email);
-  await page.getByLabel('Password').fill(oldPassword);
-  await page.getByRole('button', { name: 'Sign in' }).click();
+  await page.getByLabel('Correo electrónico').fill(email);
+  await page.getByLabel('Contraseña').fill(oldPassword);
+  await page.getByRole('button', { name: 'Entrar' }).click();
   await expect(page.getByRole('alert')).toBeVisible();
-  await expect(page.getByRole('heading', { name: 'Sign in' })).toBeVisible();
+  await expect(page.getByRole('heading', { name: 'Entrar' })).toBeVisible();
 
-  await page.getByLabel('Password').fill(newPassword);
-  await page.getByRole('button', { name: 'Sign in' }).click();
-  await expect(page.getByRole('heading', { name: 'Your financial overview' })).toBeVisible();
+  await page.getByLabel('Contraseña').fill(newPassword);
+  await page.getByRole('button', { name: 'Entrar' }).click();
+  await expect(page.getByRole('heading', { name: 'Tu visión financiera' })).toBeVisible();
 });
