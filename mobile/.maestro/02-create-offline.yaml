@@ -2,7 +2,7 @@ appId: com.davidegea.smartexpenseai
 ---
 - launchApp
 - openLink: "smartexpenseai://transactions"
-- assertVisible: "Your transactions"
+- assertVisible: "Tus movimientos"
 - tapOn: "\\+ Add"
 - tapOn: "Merchant"
 - inputText: "Offline Coffee"
