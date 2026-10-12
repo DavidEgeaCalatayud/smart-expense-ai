@@ -1,4 +1,5 @@
 import { decimalToMinorUnits } from '@smart-expense-ai/domain-types';
+import { canonicalMoneyInput } from '../../ui/moneyInput';
 
 export function validateBudgetMonth(value: string): string {
   if (!/^\d{4}-\d{2}$/.test(value)) {
@@ -16,7 +17,7 @@ export function validateBudgetMonth(value: string): string {
 }
 
 export function validateBudgetLimitAmount(value: string): number {
-  const minorUnits = decimalToMinorUnits(value.replace(',', '.'));
+  const minorUnits = decimalToMinorUnits(canonicalMoneyInput(value));
   if (minorUnits <= 0) {
     throw new Error('Budget limit must be greater than zero');
   }
