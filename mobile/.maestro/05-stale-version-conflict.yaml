@@ -4,7 +4,7 @@ appId: com.davidegea.smartexpenseai
 # enabled. The host then advances the server to V2 while the client cannot synchronize. Edit V1
 # locally, restore connectivity, and require the real stale_version conflict path.
 - extendedWaitUntil:
-    visible: "Your transactions"
+    visible: "Tus movimientos"
     timeout: 15000
 - scrollUntilVisible:
     element: "Offline Coffee"
