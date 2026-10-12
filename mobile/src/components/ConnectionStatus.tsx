@@ -1,4 +1,6 @@
-import { ActivityIndicator, Pressable, StyleSheet, Text, View } from '../ui/primitives';
+import { ActivityIndicator, StyleSheet, Text, View } from '../ui/primitives';
+import { ActionPressable } from '../ui/ActionPressable';
+import { uiTokens } from '../ui/tokens';
 
 import { useOnlineSync } from '../sync/OnlineSyncProvider';
 
@@ -9,15 +11,39 @@ export function ConnectionStatus({
   const pending = sync.health.queued + sync.health.sending;
   const attention = sync.health.failed + sync.health.conflicts;
   const busy = sync.isSyncing || refreshing;
-  const label = { online: 'Online', offline: 'Offline mode',
-    checking: 'Connecting…', unavailable: 'Server unavailable' }[sync.mode];
-  const detail = busy ? 'Updating your account…'
-    : attention ? `${attention} change${attention === 1 ? '' : 's'} need attention`
-      : pending ? `${pending} change${pending === 1 ? '' : 's'} waiting to sync`
-        : sync.mode === 'offline' ? 'Your saved data is available. Changes sync when you reconnect.'
-          : sync.mode === 'unavailable' ? 'Your saved data is available. Try refreshing shortly.'
-            : sync.error ? 'Updates are incomplete. Refresh to try again.'
-              : sync.lastSyncedAt ? 'All changes synchronized' : 'Checking for your latest data…';
+  const healthy = sync.mode === 'online' && !busy && attention === 0 && pending === 0 && !sync.error;
+
+  const refresh = onRefresh ?? (() => { void sync.syncNow().catch(() => undefined); });
+
+  if (healthy) {
+    return (
+      <ActionPressable
+        accessibilityRole="button"
+        accessibilityLabel="Sincronizado. Pulsa para actualizar."
+        haptic="none"
+        onPress={refresh}
+        style={styles.compact}
+      >
+        <View style={[styles.dot, styles.online]} />
+        <Text style={styles.compactText}>Sincronizado</Text>
+      </ActionPressable>
+    );
+  }
+
+  const label = {
+    online: 'Sincronizando',
+    offline: 'Modo sin conexión',
+    checking: 'Conectando…',
+    unavailable: 'Servidor no disponible',
+  }[sync.mode];
+
+  const detail = busy ? 'Actualizando tus datos…'
+    : attention ? `${attention} cambio${attention === 1 ? '' : 's'} necesita${attention === 1 ? '' : 'n'} atención`
+      : pending ? `${pending} cambio${pending === 1 ? '' : 's'} pendiente${pending === 1 ? '' : 's'} de sincronizar`
+        : sync.mode === 'offline' ? 'Puedes seguir usando tus datos guardados. Los cambios se enviarán cuando recuperes conexión.'
+          : sync.mode === 'unavailable' ? 'Tus datos guardados siguen disponibles. Inténtalo de nuevo dentro de unos instantes.'
+            : sync.error ? 'La actualización no se completó. Puedes volver a intentarlo.'
+              : 'Comprobando los datos más recientes…';
 
   return (
     <View style={styles.panel}>
@@ -28,33 +54,58 @@ export function ConnectionStatus({
         </View>
         <Text style={styles.detail}>{detail}</Text>
         {sync.lastSyncedAt ? (
-          <Text style={styles.time}>Last sync: {new Date(sync.lastSyncedAt).toLocaleString()}</Text>
+          <Text style={styles.time}>Última sincronización: {new Date(sync.lastSyncedAt).toLocaleString('es-ES')}</Text>
         ) : null}
       </View>
-      <Pressable
+      <ActionPressable
         accessibilityRole="button"
-        accessibilityLabel="Refresh account"
+        accessibilityLabel="Actualizar datos"
+        haptic="selection"
         disabled={busy}
-        onPress={onRefresh ?? (() => { void sync.syncNow().catch(() => undefined); })}
+        onPress={refresh}
         style={[styles.button, busy && styles.disabled]}
       >
-        {busy ? <ActivityIndicator color="#ffffff" /> : <Text style={styles.buttonText}>Refresh</Text>}
-      </Pressable>
+        {busy ? <ActivityIndicator color="#ffffff" /> : <Text style={styles.buttonText}>Actualizar</Text>}
+      </ActionPressable>
     </View>
   );
 }
 
 const styles = StyleSheet.create({
-  panel: { backgroundColor: '#ffffff', borderRadius: 14, padding: 14, gap: 12,
-    flexDirection: 'row', alignItems: 'center' },
+  compact: {
+    minHeight: 36,
+    alignSelf: 'flex-start',
+    backgroundColor: '#edf7f2',
+    borderRadius: uiTokens.radius.pill,
+    paddingHorizontal: 12,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 7,
+  },
+  compactText: { color: uiTokens.color.brand, fontSize: 12, fontWeight: '800' },
+  panel: {
+    backgroundColor: uiTokens.color.surface,
+    borderRadius: uiTokens.radius.lg,
+    padding: 14,
+    gap: 12,
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
   copy: { flex: 1, gap: 5 },
   heading: { flexDirection: 'row', alignItems: 'center', gap: 7 },
   dot: { width: 8, height: 8, borderRadius: 4, backgroundColor: '#d97706' },
-  online: { backgroundColor: '#15803d' },
+  online: { backgroundColor: uiTokens.color.success },
   label: { fontSize: 14, fontWeight: '800' },
   detail: { fontSize: 12, lineHeight: 18, color: '#475569' },
   time: { fontSize: 11, color: '#64748b' },
-  button: { backgroundColor: '#111827', paddingHorizontal: 14, paddingVertical: 11, borderRadius: 10 },
+  button: {
+    minHeight: uiTokens.touchTarget,
+    justifyContent: 'center',
+    backgroundColor: uiTokens.color.text,
+    paddingHorizontal: 14,
+    paddingVertical: 11,
+    borderRadius: uiTokens.radius.sm,
+  },
   buttonText: { color: '#ffffff', fontWeight: '700', fontSize: 12 },
   disabled: { opacity: 0.55 },
 });
