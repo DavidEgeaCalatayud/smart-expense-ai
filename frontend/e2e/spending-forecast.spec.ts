@@ -24,11 +24,11 @@ test('historical spending becomes a causal month-end forecast with comparable ba
   const password = 'playwright-secure-password';
 
   await page.goto('/register');
-  await page.getByLabel('Display name').fill('Forecast User');
-  await page.getByLabel('Email').fill(email);
-  await page.getByLabel('Password').fill(password);
-  await page.getByRole('button', { name: 'Create account' }).click();
-  await expect(page.getByRole('heading', { name: 'Your financial overview' })).toBeVisible();
+  await page.getByLabel('Nombre').fill('Forecast User');
+  await page.getByLabel('Correo electrónico').fill(email);
+  await page.getByLabel('Contraseña').fill(password);
+  await page.getByRole('button', { name: 'Crear cuenta' }).click();
+  await expect(page.getByRole('heading', { name: 'Tu visión financiera' })).toBeVisible();
 
   const today = new Date();
   today.setHours(12, 0, 0, 0);
@@ -87,8 +87,8 @@ test('historical spending becomes a causal month-end forecast with comparable ba
     }
   }, transactions);
 
-  await page.getByRole('link', { name: 'Predictions' }).click();
-  await expect(page.getByRole('heading', { name: 'Predictions' })).toBeVisible();
+  await page.getByRole('link', { name: 'Predicciones' }).click();
+  await expect(page.getByRole('heading', { name: 'Predicciones' })).toBeVisible();
 
   const forecast = page.getByRole('region', { name: 'Month-end spending forecast' });
   await expect(forecast.getByText('spending-forecast-v1')).toBeVisible();
