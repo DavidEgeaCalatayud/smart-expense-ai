@@ -74,9 +74,9 @@ export function TransactionScreen() {
       ListHeaderComponent={<View style={{ gap: 16 }}>
         <View style={[s.row, { justifyContent: 'space-between', alignItems: 'center' }]}>
           <View><Text style={styles.title}>Actividad</Text><Text style={s.metadata}>Tus movimientos</Text></View>
-          <Pressable accessibilityRole="button" onPress={() => { setInitialType('expense'); setEditing(null); setActionError(null); setEditor(true); }} style={s.primaryButton}>
+          <ActionPressable accessibilityRole="button" haptic="selection" onPress={() => { setInitialType('expense'); setEditing(null); setActionError(null); setEditor(true); }} style={s.primaryButton}>
             <Text style={s.primaryButtonText}>+ Añadir</Text>
-          </Pressable>
+          </ActionPressable>
         </View>
         <ConnectionStatus onRefresh={refresh} />
         <View style={s.row}><TextInput accessibilityLabel="Search transactions" placeholder="Buscar movimientos" value={filters.search ?? ''}
@@ -112,9 +112,9 @@ export function TransactionScreen() {
         <Text style={s.metadata}>{item.category_name} · {item.transaction_date} · {item.payment_method.replace('_', ' ')}{item.is_recurring ? ' · Recurrente' : ''}</Text>
         {item.description ? <Text style={s.body}>{item.description}</Text> : null}
         <View style={[s.row, { alignItems: 'center' }]}><Text style={[s.metadata, { flex: 1 }]}>{STATUS_LABEL[item.sync_status]}</Text>
-          <Pressable accessibilityRole="button" disabled={busy || item.sync_status === 'conflict'} style={styles.action}
-            onPress={() => { setEditing(item); setActionError(null); setEditor(true); }}><Text style={styles.link}>Editar</Text></Pressable>
-          <Pressable accessibilityRole="button" disabled={busy || item.sync_status === 'conflict'} style={styles.action} onPress={() => requestDelete(item)}><Text style={{ color: '#b42318' }}>Eliminar</Text></Pressable>
+          <ActionPressable accessibilityRole="button" haptic="selection" disabled={busy || item.sync_status === 'conflict'} style={styles.action}
+            onPress={() => { setEditing(item); setActionError(null); setEditor(true); }}><Text style={styles.link}>Editar</Text></ActionPressable>
+          <ActionPressable accessibilityRole="button" haptic="warning" disabled={busy || item.sync_status === 'conflict'} style={styles.action} onPress={() => requestDelete(item)}><Text style={{ color: '#b42318' }}>Eliminar</Text></ActionPressable>
         </View>
       </View>}
       ListEmptyComponent={isLoading ? null : (
