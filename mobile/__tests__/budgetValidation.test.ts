@@ -21,9 +21,10 @@ describe('offline budget validation', () => {
     expect(validateBudgetLimitAmount('21,35')).toBe(2135);
   });
 
-  it('rejects zero, negative and over-precision limits locally', () => {
+  it('accepts Spanish thousands grouping and rejects genuine over-precision locally', () => {
+    expect(validateBudgetLimitAmount('10.001')).toBe(1000100);
     expect(() => validateBudgetLimitAmount('0')).toThrow('greater than zero');
     expect(() => validateBudgetLimitAmount('-1.00')).toThrow('greater than zero');
-    expect(() => validateBudgetLimitAmount('10.001')).toThrow();
+    expect(() => validateBudgetLimitAmount('10.0012')).toThrow();
   });
 });
