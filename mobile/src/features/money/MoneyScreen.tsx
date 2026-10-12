@@ -1,6 +1,7 @@
 import type { FinancialAccountPurpose, FinancialAccountType } from '@smart-expense-ai/api-contracts';
 import { minorUnitsToDecimal } from '@smart-expense-ai/domain-types';
-import { useMemo, useState } from 'react';
+import { useMemo, useRef, useState } from 'react';
+import type { ScrollView as NativeScrollView } from 'react-native';
 
 import Ionicons from '../../ui/Icon';
 import {
@@ -112,6 +113,8 @@ interface AccountFormState {
   includeInNetWorth: boolean;
 }
 
+type RevealedSection = 'account-form' | 'balance-form';
+
 const EMPTY_FORM: AccountFormState = {
   name: '',
   institution: '',
@@ -160,6 +163,29 @@ export function MoneyScreen() {
   const [form, setForm] = useState<AccountFormState>(EMPTY_FORM);
   const [balanceAccount, setBalanceAccount] = useState<LocalFinancialAccountRow | null>(null);
   const [nextBalance, setNextBalance] = useState('');
+  const scrollViewRef = useRef<NativeScrollView>(null);
+  const accountFormYRef = useRef<number | null>(null);
+  const balanceFormYRef = useRef<number | null>(null);
+  const pendingRevealRef = useRef<RevealedSection | null>(null);
+
+  const revealSectionAt = (section: RevealedSection, y: number) => {
+    if (pendingRevealRef.current !== section) return;
+    pendingRevealRef.current = null;
+    scrollViewRef.current?.scrollTo({
+      y: Math.max(0, y - 12),
+      animated: true,
+    });
+  };
+
+  const scheduleReveal = (section: RevealedSection) => {
+    pendingRevealRef.current = section;
+    requestAnimationFrame(() => {
+      requestAnimationFrame(() => {
+        const y = section === 'account-form' ? accountFormYRef.current : balanceFormYRef.current;
+        if (y !== null) revealSectionAt(section, y);
+      });
+    });
+  };
 
   const accountConflicts = conflicts.filter((conflict) => conflict.entity_type === 'financial_account');
   const changeMinor = history.length >= 2
@@ -174,6 +200,7 @@ export function MoneyScreen() {
   ] as const, [summary]);
 
   const closeForm = () => {
+    if (pendingRevealRef.current === 'account-form') pendingRevealRef.current = null;
     setFormMode('closed');
     setEditingId(null);
     setForm(EMPTY_FORM);
@@ -183,6 +210,7 @@ export function MoneyScreen() {
     setEditingId(null);
     setForm(EMPTY_FORM);
     setFormMode('create');
+    scheduleReveal('account-form');
   };
 
   const openEdit = (account: LocalFinancialAccountRow) => {
@@ -196,6 +224,7 @@ export function MoneyScreen() {
       includeInNetWorth: account.include_in_net_worth === 1,
     });
     setFormMode('edit');
+    scheduleReveal('account-form');
   };
 
   const submitForm = async () => {
@@ -265,6 +294,7 @@ export function MoneyScreen() {
   return (
     <SafeAreaView style={styles.safeArea} edges={['top']}>
       <ScrollView
+        ref={scrollViewRef}
         contentContainerStyle={styles.content}
         refreshControl={(
           <RefreshControl
@@ -344,7 +374,14 @@ export function MoneyScreen() {
         ) : null}
 
         {formMode !== 'closed' ? (
-          <View style={styles.sectionCard}>
+          <View
+            style={styles.sectionCard}
+            onLayout={(event) => {
+              const y = event.nativeEvent.layout.y;
+              accountFormYRef.current = y;
+              revealSectionAt('account-form', y);
+            }}
+          >
             <View style={styles.sectionHeader}>
               <Text style={styles.sectionTitle}>{formMode === 'create' ? 'Añadir cuenta' : 'Editar cuenta'}</Text>
               <Pressable onPress={closeForm}><Ionicons name="close" size={24} color="#596575" /></Pressable>
@@ -460,7 +497,14 @@ export function MoneyScreen() {
         ) : null}
 
         {balanceAccount ? (
-          <View style={styles.sectionCard}>
+          <View
+            style={styles.sectionCard}
+            onLayout={(event) => {
+              const y = event.nativeEvent.layout.y;
+              balanceFormYRef.current = y;
+              revealSectionAt('balance-form', y);
+            }}
+          >
             <View style={styles.sectionHeader}>
               <View style={styles.balanceHeading}>
                 <MobileBankLogo institution={balanceAccount.institution} fallbackName={balanceAccount.name} size={40} />
@@ -521,6 +565,7 @@ export function MoneyScreen() {
                 onPress={() => {
                   setBalanceAccount(account);
                   setNextBalance(minorUnitsToDecimal(account.current_balance_minor));
+                  scheduleReveal('balance-form');
                 }}
                 style={styles.primaryButton}
               >
