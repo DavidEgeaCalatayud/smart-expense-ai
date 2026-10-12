@@ -92,3 +92,30 @@ export function formatMoneyInput(value: string): string {
   const grouped = whole.replace(/\B(?=(\d{3})+(?!\d))/g, '.');
   return `${negative ? '-' : ''}${grouped},${fraction} €`;
 }
+
+
+export function formatMoneyEditingInput(value: string): string {
+  let input = value.trim().replace(/\s/g, '').replace(/€/g, '');
+  if (!input) return '';
+
+  const negative = input.startsWith('-');
+  if (negative) input = input.slice(1);
+
+  const comma = input.lastIndexOf(',');
+  const dot = input.lastIndexOf('.');
+  let decimalIndex = -1;
+  if (comma >= 0) {
+    decimalIndex = comma;
+  } else if (dot >= 0 && !/^\d{1,3}(\.\d{3})+$/.test(input)) {
+    decimalIndex = dot;
+  }
+
+  const wholeRaw = (decimalIndex >= 0 ? input.slice(0, decimalIndex) : input)
+    .replace(/[.,]/g, '')
+    .replace(/[^0-9]/g, '');
+  const fractionRaw = decimalIndex >= 0
+    ? input.slice(decimalIndex + 1).replace(/[^0-9]/g, '').slice(0, 2)
+    : '';
+  const whole = (wholeRaw.replace(/^0+(?=\d)/, '') || '0').replace(/\B(?=(\d{3})+(?!\d))/g, '.');
+  return `${negative ? '-' : ''}${whole}${decimalIndex >= 0 ? `,${fractionRaw}` : ''}`;
+}
