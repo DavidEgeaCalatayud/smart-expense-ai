@@ -1,6 +1,6 @@
 import { Check, LoaderCircle, Plus, Sparkles, X } from 'lucide-react';
 import { useRef, type FormEvent } from 'react';
-import { formatMoneyInput, normalizeMoneyAmount } from '../../utils/money';
+import { formatMoneyEditingInput, formatMoneyInput } from '../../utils/money';
 import type {
   CategorySuggestionPreview,
   TransactionCategory,
@@ -98,10 +98,10 @@ export function TransactionForm({
           <input
             aria-label="Amount"
             value={values.amount}
-            onChange={(event) => onChange({ ...values, amount: event.target.value })}
+            onChange={(event) => onChange({ ...values, amount: formatMoneyEditingInput(event.target.value) })}
             onFocus={() => {
               if (!values.amount.trim()) return;
-              try { onChange({ ...values, amount: normalizeMoneyAmount(values.amount) }); } catch { /* Keep invalid input editable. */ }
+              onChange({ ...values, amount: formatMoneyEditingInput(values.amount) });
             }}
             onBlur={() => {
               if (!values.amount.trim()) return;
