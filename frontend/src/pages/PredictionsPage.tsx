@@ -22,6 +22,14 @@ const statusLabel: Record<UpcomingPaymentItem['status'], string> = {
   overdue: 'Atrasado',
 };
 
+const cadenceLabel: Record<string, string> = {
+  weekly: 'semanal',
+  biweekly: 'cada dos semanas',
+  monthly: 'mensual',
+  quarterly: 'trimestral',
+  yearly: 'anual',
+};
+
 const baselineLabel: Record<SpendingForecastBaseline['baseline'], string> = {
   three_month_mean: 'Media de los últimos 3 meses',
   run_rate: 'Ritmo de gasto del mes',
@@ -55,12 +63,14 @@ function PaymentCard({ item }: { item: UpcomingPaymentItem }) {
             </span>
           </div>
           <p className="mt-1 text-sm text-slate-500">
-            {formatDate(item.expectedDate)} · {item.cadence}
+            {formatDate(item.expectedDate)} · {cadenceLabel[item.cadence] ?? item.cadence}
           </p>
         </div>
         <p className="text-lg font-bold text-slate-950">{formatCurrencyWithDecimals(item.expectedAmount)}</p>
       </div>
-      <p className="mt-4 text-sm leading-6 text-slate-500">{item.explanation}</p>
+      <p className="mt-4 text-sm leading-6 text-slate-500">
+        Estimación basada en la regularidad y el importe de tus pagos anteriores.
+      </p>
       <div className="mt-4 flex flex-wrap gap-2 text-xs font-medium text-slate-500">
         <span className="rounded-full bg-slate-50 px-3 py-1.5">Patrón {item.patternScore}/100</span>
         <span className="rounded-full bg-slate-50 px-3 py-1.5">{item.occurrenceCount} registros</span>
@@ -78,7 +88,7 @@ function ForecastCard({ baseline }: { baseline: SpendingForecastBaseline }) {
     <article className="rounded-3xl border border-slate-200 bg-white p-5 shadow-soft">
       <div className="flex items-start justify-between gap-3">
         <div>
-          <p className="text-xs font-semibold uppercase tracking-[0.16em] text-brand-700">{baseline.baseline}</p>
+          <p className="text-xs font-semibold uppercase tracking-[0.16em] text-brand-700">Estimación</p>
           <h3 className="mt-1 font-bold text-slate-950">{baselineLabel[baseline.baseline]}</h3>
         </div>
         <TrendingUp size={20} className="text-brand-700" />
@@ -166,7 +176,7 @@ export function PredictionsPage() {
             className="inline-flex items-center gap-2 rounded-2xl border border-slate-200 bg-white px-4 py-2.5 text-sm font-semibold text-slate-700 transition hover:bg-slate-50 disabled:opacity-60"
           >
             <RefreshCw size={16} className={isLoading ? 'animate-spin' : ''} />
-            Refresh
+            Actualizar
           </button>
         )}
       />
