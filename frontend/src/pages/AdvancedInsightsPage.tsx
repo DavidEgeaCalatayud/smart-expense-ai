@@ -25,9 +25,9 @@ function formatMetric(metric: AdvancedInsightMetric): string {
 }
 
 function priorityLabel(priority: string): string {
-  if (priority === 'attention') return 'Needs attention';
-  if (priority === 'positive') return 'Positive';
-  return 'Informational';
+  if (priority === 'attention') return 'Necesita atención';
+  if (priority === 'positive') return 'Positivo';
+  return 'Informativo';
 }
 
 export function AdvancedInsightsPage() {
@@ -59,7 +59,7 @@ export function AdvancedInsightsPage() {
         }
       } catch (error) {
         if (!active) return;
-        setLoadError(getApiErrorMessage(error, 'Unable to load advanced insights.'));
+        setLoadError(getApiErrorMessage(error, 'No se han podido cargar los análisis avanzados.'));
       } finally {
         if (active) setIsLoading(false);
       }
@@ -74,9 +74,9 @@ export function AdvancedInsightsPage() {
   return (
     <>
       <PageHeader
-        eyebrow="Premium intelligence"
-        title="Advanced Insights"
-        description="Prioritized, explainable financial signals composed from exact server-side evidence already owned by your account."
+        eyebrow="Análisis Premium"
+        title="Análisis avanzados"
+        description="Señales financieras priorizadas para ayudarte a detectar cambios, oportunidades y aspectos que conviene revisar."
       />
 
       <section className="mb-6 rounded-3xl border border-slate-200 bg-white p-6 shadow-soft">
@@ -94,14 +94,14 @@ export function AdvancedInsightsPage() {
 
       {isLoading ? (
         <section className="rounded-3xl border border-slate-200 bg-white p-8 text-sm text-slate-500 shadow-soft">
-          Verifying Premium access and composing account evidence...
+          Preparando tus análisis…
         </section>
       ) : loadError && entitlements === null ? (
         <section className="rounded-3xl border border-rose-200 bg-rose-50/60 p-7 shadow-soft" role="alert">
           <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-rose-100 text-rose-700">
             <AlertTriangle size={22} />
           </div>
-          <h2 className="mt-4 text-xl font-bold text-slate-950">Unable to verify insight access</h2>
+          <h2 className="mt-4 text-xl font-bold text-slate-950">No se ha podido comprobar el acceso a análisis</h2>
           <p className="mt-2 text-sm leading-6 text-slate-600">{loadError}</p>
         </section>
       ) : !isEnabled ? (
@@ -109,17 +109,17 @@ export function AdvancedInsightsPage() {
           <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-amber-100 text-amber-700">
             <LockKeyhole size={22} />
           </div>
-          <h2 className="mt-4 text-xl font-bold text-slate-950">Premium advanced insights</h2>
+          <h2 className="mt-4 text-xl font-bold text-slate-950">Análisis avanzados Premium</h2>
           <p className="mt-2 max-w-2xl text-sm leading-6 text-slate-600">
-            Advanced insights are released as a Premium feature. Your current account does not have this entitlement enabled. Billing checkout is not yet exposed in the product, so this screen does not simulate an upgrade or payment flow.
+            Los análisis avanzados están disponibles con Premium y no están incluidos actualmente en tu cuenta.
           </p>
           <p className="mt-4 text-xs font-semibold uppercase tracking-wide text-amber-800">
-            Plan: {entitlements?.planTier ?? 'unknown'} · Policy: {entitlements?.policyVersion ?? 'unavailable'}
+            Plan actual: {entitlements?.planTier ?? 'desconocido'}
           </p>
         </section>
       ) : loadError ? (
         <section className="rounded-3xl border border-rose-200 bg-rose-50/60 p-7 shadow-soft" role="alert">
-          <h2 className="text-xl font-bold text-slate-950">Advanced insights unavailable</h2>
+          <h2 className="text-xl font-bold text-slate-950">Análisis avanzados no disponibles</h2>
           <p className="mt-2 text-sm leading-6 text-slate-600">{loadError}</p>
         </section>
       ) : payload ? (
@@ -130,7 +130,7 @@ export function AdvancedInsightsPage() {
                 <Sparkles size={22} />
               </div>
               <div>
-                <h2 className="text-lg font-bold text-slate-950">Explainable monthly signal set</h2>
+                <h2 className="text-lg font-bold text-slate-950">Resumen de señales del mes</h2>
                 <p className="mt-1 text-sm leading-6 text-slate-500">
                   {payload.insightVersion} · {payload.month} · {payload.currency}
                 </p>
@@ -140,10 +140,10 @@ export function AdvancedInsightsPage() {
 
           {payload.insights.length === 0 ? (
             <section className="rounded-3xl border border-slate-200 bg-white p-8 text-sm text-slate-500 shadow-soft">
-              No advanced insight cards are available for this month yet.
+              Todavía no hay análisis avanzados disponibles para este mes.
             </section>
           ) : (
-            <section className="grid gap-5 xl:grid-cols-2" aria-label="Advanced insight cards">
+            <section className="grid gap-5 xl:grid-cols-2" aria-label="Tarjetas de análisis avanzados">
               {payload.insights.map((insight) => (
                 <article key={insight.id} className="rounded-3xl border border-slate-200 bg-white p-6 shadow-soft">
                   <div className="flex flex-wrap items-start justify-between gap-3">
@@ -184,7 +184,7 @@ export function AdvancedInsightsPage() {
           )}
 
           <section className="mt-6 rounded-3xl border border-slate-200 bg-slate-50 p-6">
-            <h2 className="text-sm font-bold text-slate-800">Interpretation boundaries</h2>
+            <h2 className="text-sm font-bold text-slate-800">Cómo interpretar estos resultados</h2>
             <ul className="mt-3 space-y-2 text-sm leading-6 text-slate-500">
               {payload.limitations.map((limitation) => (
                 <li key={limitation}>• {limitation}</li>
