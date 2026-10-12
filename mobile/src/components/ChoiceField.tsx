@@ -3,14 +3,20 @@ import { useState } from 'react';
 import { Modal, Pressable, ScrollView, Text, View , SafeAreaView } from '../ui/primitives';
 import { serverWorkspaceStyles as s } from './ServerWorkspaceShell';
 
-export function ChoiceField<T extends string>({ label, value, options, onChange, disabled = false }: {
-  label: string; value: T; options: { value: T; label: string }[]; onChange(value: T): void; disabled?: boolean;
+export function ChoiceField<T extends string>({ label, value, options, onChange, disabled = false, testID, accessibilityLabel }: {
+  label: string;
+  value: T;
+  options: { value: T; label: string }[];
+  onChange(value: T): void;
+  disabled?: boolean;
+  testID?: string;
+  accessibilityLabel?: string;
 }) {
   const { locked } = useAppLock();
   const [open, setOpen] = useState(false);
   return <View style={{ gap: 6 }}>
     <Text style={s.metadata}>{label}</Text>
-    <Pressable accessibilityRole="button" accessibilityLabel={label} testID={`choice-${label.toLowerCase().replaceAll(' ', '-')}`} disabled={disabled}
+    <Pressable accessibilityRole="button" accessibilityLabel={accessibilityLabel ?? label} testID={testID ?? `choice-${label.toLowerCase().replaceAll(' ', '-')}`} disabled={disabled}
       style={s.input} onPress={() => setOpen(true)}>
       <Text style={s.body}>{options.find((option) => option.value === value)?.label ?? 'Choose…'} ▾</Text>
     </Pressable>
