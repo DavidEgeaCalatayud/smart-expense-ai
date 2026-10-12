@@ -1,5 +1,6 @@
 import { Download, ReceiptText, RefreshCw } from 'lucide-react';
 import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useRevealTarget } from '../hooks/useRevealTarget';
 import { MetricCard } from '../components/dashboard/MetricCard';
 import { PageHeader } from '../components/layout/PageHeader';
 import { PaginationControls } from '../components/transactions/PaginationControls';
@@ -101,6 +102,7 @@ export function TransactionsPage() {
   const [deletingTransactionId, setDeletingTransactionId] = useState<string | null>(null);
   const [error, setError] = useState<ApiErrorPresentation | null>(null);
   const [successMessage, setSuccessMessage] = useState<string | null>(null);
+  const transactionFormReveal = useRevealTarget();
 
   const loadPage = useCallback(async () => {
     setIsPageLoading(true);
@@ -256,6 +258,7 @@ export function TransactionsPage() {
     setSuggestion(null);
     setEditingTransactionId(transaction.id);
     setFormValues(mapTransactionToFormValues(transaction));
+    transactionFormReveal.reveal();
   };
 
   const handleDeleteRequest = (transactionId: string) => {
@@ -356,20 +359,25 @@ export function TransactionsPage() {
       </section>
 
       <section className="grid gap-6 xl:grid-cols-[0.75fr_1.25fr]">
-        <TransactionForm
-          categories={compatibleFormCategories}
-          values={formValues}
-          suggestion={suggestion}
-          isEditing={editingTransactionId !== null}
-          isSubmitting={isSubmitting || !hasLoadedPage || compatibleFormCategories.length === 0}
-          isSuggesting={isSuggesting}
-          onChange={handleFormChange}
-          onSubmit={handleSubmitTransaction}
-          onRequestSuggestion={() => void handleRequestSuggestion()}
-          onAcceptSuggestion={handleAcceptSuggestion}
-          onDismissSuggestion={() => setSuggestion(null)}
-          onCancelEdit={handleCancelEdit}
-        />
+        <div
+          ref={transactionFormReveal.ref}
+          className={transactionFormReveal.highlighted ? 'reveal-highlight rounded-3xl' : ''}
+        >
+          <TransactionForm
+            categories={compatibleFormCategories}
+            values={formValues}
+            suggestion={suggestion}
+            isEditing={editingTransactionId !== null}
+            isSubmitting={isSubmitting || !hasLoadedPage || compatibleFormCategories.length === 0}
+            isSuggesting={isSuggesting}
+            onChange={handleFormChange}
+            onSubmit={handleSubmitTransaction}
+            onRequestSuggestion={() => void handleRequestSuggestion()}
+            onAcceptSuggestion={handleAcceptSuggestion}
+            onDismissSuggestion={() => setSuggestion(null)}
+            onCancelEdit={handleCancelEdit}
+          />
+        </div>
 
         <div className="space-y-6">
           <TransactionFilters categories={categories} filters={filters} onChange={setFilters} />
