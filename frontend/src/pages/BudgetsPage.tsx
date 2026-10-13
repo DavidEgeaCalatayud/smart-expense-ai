@@ -192,8 +192,8 @@ export function BudgetsPage() {
       <section className="mb-8 rounded-3xl border border-slate-200 bg-white p-6 shadow-soft">
         <div className="mb-5 flex items-center gap-3"><div className="flex h-10 w-10 items-center justify-center rounded-2xl bg-brand-50 text-brand-700"><Plus size={18} /></div><div><h2 className="font-bold text-slate-950">Añadir presupuesto</h2><p className="text-sm text-slate-500">Puedes crear un límite general o uno específico para cada categoría de gasto.</p></div></div>
         <form onSubmit={(event) => void handleCreate(event)} className="grid gap-4 md:grid-cols-[1fr_220px_auto]">
-          <label className="text-sm font-semibold text-slate-700">Scope
-            <select aria-label="Budget scope" value={scope} onChange={(event) => setScope(event.target.value)} className="mt-2 w-full rounded-2xl border border-slate-200 px-4 py-3 font-normal">
+          <label className="text-sm font-semibold text-slate-700">Ámbito
+            <select aria-label="Ámbito del presupuesto" value={scope} onChange={(event) => setScope(event.target.value)} className="mt-2 w-full rounded-2xl border border-slate-200 px-4 py-3 font-normal">
               <option value="overall">Gasto general</option>
               {expenseCategories.map((category) => <option key={category.id} value={category.id}>{category.name}</option>)}
             </select>
