@@ -52,8 +52,8 @@ function BudgetCard({
           {budget.categoryArchived && <p className="mt-2 text-xs font-semibold text-amber-700">Categoría archivada · se conserva el historial</p>}
         </div>
         <div className="flex gap-2">
-          <button type="button" aria-label={`Edit ${budget.categoryName ?? 'overall'} budget`} onClick={onEdit} className="inline-flex h-11 w-11 items-center justify-center rounded-xl border border-slate-200 text-slate-500"><Pencil size={15} /></button>
-          <button type="button" aria-label={`Delete ${budget.categoryName ?? 'overall'} budget`} onClick={onDelete} className="inline-flex h-11 w-11 items-center justify-center rounded-xl border border-slate-200 text-slate-500"><Trash2 size={15} /></button>
+          <button type="button" aria-label={`Editar presupuesto ${budget.categoryName ?? 'general'}`} onClick={onEdit} className="inline-flex h-11 w-11 items-center justify-center rounded-xl border border-slate-200 text-slate-500"><Pencil size={15} /></button>
+          <button type="button" aria-label={`Eliminar presupuesto ${budget.categoryName ?? 'general'}`} onClick={onDelete} className="inline-flex h-11 w-11 items-center justify-center rounded-xl border border-slate-200 text-slate-500"><Trash2 size={15} /></button>
         </div>
       </div>
       <div className="mt-5 h-3 overflow-hidden rounded-full bg-slate-100"><div className={`h-full rounded-full ${budget.overBudget ? 'bg-rose-500' : 'bg-brand-600'}`} style={{ width: progressWidth(budget.percentUsed) }} /></div>
@@ -65,7 +65,7 @@ function BudgetCard({
         <div className="mt-4 flex gap-2 border-t border-slate-100 pt-4">
           <input
             autoFocus
-            aria-label="Updated budget amount"
+            aria-label="Importe actualizado del presupuesto"
             value={editAmount}
             onChange={(event) => onEditAmount(formatMoneyEditingInput(event.target.value))}
             onFocus={() => {
@@ -80,7 +80,7 @@ function BudgetCard({
             className="min-w-0 flex-1 rounded-xl border border-slate-200 px-3 py-2 text-sm"
           />
           <button type="button" disabled={busy} onClick={onSave} className="rounded-xl bg-brand-600 px-4 py-2 text-xs font-semibold text-white disabled:opacity-50">Guardar</button>
-          <button type="button" aria-label="Cancel budget edit" onClick={onCancel} className="inline-flex h-11 w-11 items-center justify-center rounded-xl border border-slate-200 text-slate-500"><X size={15} /></button>
+          <button type="button" aria-label="Cancelar edición del presupuesto" onClick={onCancel} className="inline-flex h-11 w-11 items-center justify-center rounded-xl border border-slate-200 text-slate-500"><X size={15} /></button>
         </div>
       )}
     </article>
@@ -183,7 +183,7 @@ export function BudgetsPage() {
         eyebrow="Planificación"
         title="Presupuestos"
         description="Define límites mensuales y controla cuánto te queda disponible en cada categoría."
-        action={<label className="text-sm font-semibold text-slate-700">Mes<input aria-label="Budget month" type="month" value={month} onChange={(event) => setMonth(event.target.value)} className="ml-3 rounded-xl border border-slate-200 px-3 py-2 font-normal" /></label>}
+        action={<label className="text-sm font-semibold text-slate-700">Mes<input aria-label="Mes del presupuesto" type="month" value={month} onChange={(event) => setMonth(event.target.value)} className="ml-3 rounded-xl border border-slate-200 px-3 py-2 font-normal" /></label>}
       />
 
       {error && <ApiErrorAlert error={error} className="mb-6" onRetry={() => void load()} />}
@@ -200,7 +200,7 @@ export function BudgetsPage() {
           </label>
           <label className="text-sm font-semibold text-slate-700">Límite mensual
             <input
-              aria-label="Budget limit"
+              aria-label="Límite del presupuesto"
               required
               inputMode="decimal"
               placeholder="400,00 €"
@@ -217,7 +217,7 @@ export function BudgetsPage() {
               className="mt-2 w-full rounded-2xl border border-slate-200 px-4 py-3 font-normal"
             />
           </label>
-          <button type="submit" aria-label="Create budget" disabled={busyId === 'create'} className="self-end rounded-2xl bg-brand-600 px-5 py-3 text-sm font-semibold text-white disabled:opacity-60">{busyId === 'create' ? 'Creando…' : 'Crear presupuesto'}</button>
+          <button type="submit" aria-label="Crear presupuesto" disabled={busyId === 'create'} className="self-end rounded-2xl bg-brand-600 px-5 py-3 text-sm font-semibold text-white disabled:opacity-60">{busyId === 'create' ? 'Creando…' : 'Crear presupuesto'}</button>
         </form>
       </section>
 
@@ -236,7 +236,7 @@ export function BudgetsPage() {
       <ConfirmDialog
         isOpen={deleteCandidate !== null}
         title="¿Eliminar este presupuesto?"
-        description={`Se eliminará el presupuesto ${deleteCandidate?.categoryName ?? 'overall'} de ${deleteCandidate?.month ?? month}. Tus movimientos no se eliminarán.`}
+        description={`Se eliminará el presupuesto ${deleteCandidate?.categoryName ?? 'general'} de ${deleteCandidate?.month ?? month}. Tus movimientos no se eliminarán.`}
         confirmLabel="Eliminar presupuesto"
         isConfirming={deleteCandidate ? busyId === deleteCandidate.id : false}
         onCancel={() => setDeleteCandidate(null)}
