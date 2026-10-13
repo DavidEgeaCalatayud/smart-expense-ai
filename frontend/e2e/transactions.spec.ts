@@ -62,7 +62,7 @@ test('authenticated users only see and mutate their own persisted transactions',
 
   row = page.getByRole('row').filter({ hasText: merchant });
   await expect(row).toContainText('€42.50');
-  await row.getByRole('button', { name: `Edit ${merchant}` }).click();
+  await row.getByRole('button', { name: `Editar ${merchant}` }).click();
   await page.getByLabel('Importe').fill('150.25');
   await page.getByRole('button', { name: 'Guardar cambios' }).click();
 
@@ -70,7 +70,7 @@ test('authenticated users only see and mutate their own persisted transactions',
   await expect(row).toContainText('€150.25');
   await expect(row).toContainText('Requiere revisión');
 
-  await row.getByRole('button', { name: `Delete ${merchant}` }).click();
+  await row.getByRole('button', { name: `Eliminar ${merchant}` }).click();
   const dialog = page.getByRole('dialog', { name: '¿Eliminar movimiento?' });
   await expect(dialog).toBeVisible();
   await dialog.getByRole('button', { name: 'Eliminar movimiento' }).click();
