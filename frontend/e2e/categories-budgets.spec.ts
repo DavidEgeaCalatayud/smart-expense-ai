@@ -16,9 +16,9 @@ test('authenticated user can create a custom category and monthly category budge
 
   await page.getByRole('link', { name: 'Categorías' }).click();
   await expect(page.getByRole('heading', { name: 'Categorías' })).toBeVisible();
-  await page.getByLabel('Category name').fill(category);
-  await page.getByLabel('Category type').selectOption('expense');
-  await page.getByRole('button', { name: 'Create category' }).click();
+  await page.getByLabel('Nombre de categoría').fill(category);
+  await page.getByLabel('Tipo de categoría').selectOption('expense');
+  await page.getByRole('button', { name: 'Crear categoría' }).click();
   await expect(page.getByRole('status')).toContainText('Categoría creada.');
   await expect(page.getByRole('heading', { name: category })).toBeVisible();
 
