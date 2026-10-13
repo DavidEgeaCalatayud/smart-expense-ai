@@ -146,15 +146,15 @@ export function CategoriesPage() {
         </div>
         <form onSubmit={(event) => void handleCreate(event)} className="grid gap-4 md:grid-cols-[1fr_180px_auto]">
           <label className="text-sm font-semibold text-slate-700">Nombre
-            <input aria-label="Category name" value={name} onChange={(event) => setName(event.target.value)} required maxLength={80} className="mt-2 w-full rounded-2xl border border-slate-200 px-4 py-3 font-normal outline-none focus:border-brand-500" />
+            <input aria-label="Nombre de categoría" value={name} onChange={(event) => setName(event.target.value)} required maxLength={80} className="mt-2 w-full rounded-2xl border border-slate-200 px-4 py-3 font-normal outline-none focus:border-brand-500" />
           </label>
           <label className="text-sm font-semibold text-slate-700">Tipo
-            <select aria-label="Category type" value={transactionType} onChange={(event) => setTransactionType(event.target.value as TransactionType)} className="mt-2 w-full rounded-2xl border border-slate-200 px-4 py-3 font-normal outline-none focus:border-brand-500">
+            <select aria-label="Tipo de categoría" value={transactionType} onChange={(event) => setTransactionType(event.target.value as TransactionType)} className="mt-2 w-full rounded-2xl border border-slate-200 px-4 py-3 font-normal outline-none focus:border-brand-500">
               <option value="expense">Gasto</option>
               <option value="income">Ingreso</option>
             </select>
           </label>
-          <button type="submit" aria-label="Create category" disabled={busyId === 'create'} className="self-end rounded-2xl bg-brand-600 px-5 py-3 text-sm font-semibold text-white disabled:opacity-60">{busyId === 'create' ? 'Creando…' : 'Crear categoría'}</button>
+          <button type="submit" aria-label="Crear categoría" disabled={busyId === 'create'} className="self-end rounded-2xl bg-brand-600 px-5 py-3 text-sm font-semibold text-white disabled:opacity-60">{busyId === 'create' ? 'Creando…' : 'Crear categoría'}</button>
         </form>
       </section>
 
@@ -178,7 +178,7 @@ export function CategoriesPage() {
                       {editingId === category.id ? (
                         <div className="flex gap-2">
                           <input aria-label={`Renombrar ${category.name}`} value={editingName} onChange={(event) => setEditingName(event.target.value)} className="rounded-xl border border-slate-200 px-3 py-2 text-sm" />
-                          <button type="button" aria-label="Save category name" onClick={() => void handleRename(category.id)} className="inline-flex h-11 w-11 items-center justify-center rounded-xl bg-brand-600 text-white"><Check size={16} /></button>
+                          <button type="button" aria-label="Guardar nombre de categoría" onClick={() => void handleRename(category.id)} className="inline-flex h-11 w-11 items-center justify-center rounded-xl bg-brand-600 text-white"><Check size={16} /></button>
                         </div>
                       ) : <h2 className="font-bold text-slate-950">{category.name}</h2>}
                       <p className="mt-1 text-sm text-slate-500">{category.transactionType === 'expense' ? 'Gasto' : 'Ingreso'} · {isPersonal ? 'personal' : 'sistema'} · {category.transactionCount ?? 0} movimientos</p>
