@@ -69,12 +69,12 @@ describe('BudgetsPage', () => {
   it('renders persisted overall and category budget progress', async () => {
     render(<BudgetsPage />);
 
-    const overallEditButton = await screen.findByRole('button', { name: 'Edit overall budget' });
+    const overallEditButton = await screen.findByRole('button', { name: 'Editar presupuesto general' });
     const overallCard = overallEditButton.closest('article');
     expect(overallCard).not.toBeNull();
     expect(within(overallCard as HTMLElement).getByText('Gasto general')).toBeInTheDocument();
 
-    const gymEditButton = screen.getByRole('button', { name: 'Edit Gym budget' });
+    const gymEditButton = screen.getByRole('button', { name: 'Editar presupuesto Gym' });
     const gymCard = gymEditButton.closest('article');
     expect(gymCard).not.toBeNull();
     expect(within(gymCard as HTMLElement).getByText('Gym')).toBeInTheDocument();
@@ -86,9 +86,9 @@ describe('BudgetsPage', () => {
     render(<BudgetsPage />);
     await screen.findByRole('option', { name: 'Gym' });
 
-    fireEvent.change(screen.getByLabelText('Budget scope'), { target: { value: 'gym-category' } });
-    fireEvent.change(screen.getByLabelText('Budget limit'), { target: { value: '500' } });
-    fireEvent.click(screen.getByRole('button', { name: 'Create budget' }));
+    fireEvent.change(screen.getByLabelText('Ámbito del presupuesto'), { target: { value: 'gym-category' } });
+    fireEvent.change(screen.getByLabelText('Límite del presupuesto'), { target: { value: '500' } });
+    fireEvent.click(screen.getByRole('button', { name: 'Crear presupuesto' }));
 
     await waitFor(() => {
       expect(createBudget).toHaveBeenCalledWith(
