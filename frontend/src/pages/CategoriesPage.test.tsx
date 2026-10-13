@@ -58,9 +58,9 @@ describe('CategoriesPage', () => {
     render(<CategoriesPage />);
     expect(await screen.findByText('Gym')).toBeInTheDocument();
 
-    fireEvent.change(screen.getByLabelText('Category name'), { target: { value: 'Travel' } });
-    fireEvent.change(screen.getByLabelText('Category type'), { target: { value: 'expense' } });
-    fireEvent.click(screen.getByRole('button', { name: 'Create category' }));
+    fireEvent.change(screen.getByLabelText('Nombre de categoría'), { target: { value: 'Travel' } });
+    fireEvent.change(screen.getByLabelText('Tipo de categoría'), { target: { value: 'expense' } });
+    fireEvent.click(screen.getByRole('button', { name: 'Crear categoría' }));
 
     await waitFor(() => {
       expect(createCategory).toHaveBeenCalledWith({ name: 'Travel', transactionType: 'expense' });
