@@ -210,7 +210,7 @@ describe('TransactionsPage', () => {
     render(<TransactionsPage />);
     const cards = await getTransactionCards();
 
-    fireEvent.click(within(cards).getByRole('button', { name: 'Delete Persisted Market' }));
+    fireEvent.click(within(cards).getByRole('button', { name: 'Eliminar Persisted Market' }));
     expect(deleteTransaction).not.toHaveBeenCalled();
     expect(screen.getByRole('dialog', { name: '¿Eliminar movimiento?' })).toBeInTheDocument();
 
@@ -219,7 +219,7 @@ describe('TransactionsPage', () => {
 
     fireEvent.click(
       within(screen.getByTestId('transaction-cards')).getByRole('button', {
-        name: 'Delete Persisted Market',
+        name: 'Eliminar Persisted Market',
       }),
     );
     fireEvent.click(screen.getByRole('button', { name: 'Eliminar movimiento' }));
