@@ -27,21 +27,21 @@ test('recurring transaction history becomes an explainable upcoming-payments cal
 
   await page.getByRole('link', { name: 'Movimientos' }).click();
   await expect(page.getByRole('heading', { name: 'Movimientos' })).toBeVisible();
-  const form = page.getByRole('form', { name: 'Add transaction form' });
-  const categorySelect = form.getByRole('combobox', { name: 'Category', exact: true });
+  const form = page.getByRole('form', { name: 'Formulario para añadir movimiento' });
+  const categorySelect = form.getByRole('combobox', { name: 'Categoría', exact: true });
   await expect(categorySelect).toHaveValue('Food');
 
   for (const daysAgo of [28, 21, 14, 7]) {
-    await form.getByLabel('Merchant').fill(merchant);
-    await form.getByLabel('Amount').fill('10.99');
-    await form.getByLabel('Description').fill(`Recurring calendar occurrence ${daysAgo}`);
-    await form.getByLabel('Date').fill(localDateDaysAgo(daysAgo));
+    await form.getByLabel('Comercio').fill(merchant);
+    await form.getByLabel('Importe').fill('10.99');
+    await form.getByLabel('Descripción').fill(`Recurring calendar occurrence ${daysAgo}`);
+    await form.getByLabel('Fecha').fill(localDateDaysAgo(daysAgo));
     await categorySelect.selectOption({ label: 'Subscriptions' });
-    await form.getByRole('button', { name: 'Add transaction' }).click();
+    await form.getByRole('button', { name: 'Añadir movimiento' }).click();
 
     await expect(page.getByRole('status')).toContainText('Movimiento guardado.');
-    await expect(form.getByLabel('Merchant')).toHaveValue('');
-    await expect(form.getByRole('button', { name: 'Add transaction' })).toBeEnabled();
+    await expect(form.getByLabel('Comercio')).toHaveValue('');
+    await expect(form.getByRole('button', { name: 'Añadir movimiento' })).toBeEnabled();
   }
 
   await page.getByRole('link', { name: 'Predicciones' }).click();
