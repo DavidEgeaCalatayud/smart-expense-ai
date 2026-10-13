@@ -13,7 +13,7 @@ test('authenticated users only see and mutate their own persisted transactions',
   await page.goto('/register');
   await page.getByLabel('Nombre').fill('Playwright Owner');
   await page.getByLabel('Correo electrónico').fill(firstEmail);
-  await page.getByLabel('Contraseña').fill(password);
+  await page.getByLabel('Contraseña', { exact: true }).fill(password);
   await page.getByRole('button', { name: 'Crear cuenta' }).click();
   await expect(page.getByRole('heading', { name: 'Tu visión financiera' })).toBeVisible();
 
@@ -44,7 +44,7 @@ test('authenticated users only see and mutate their own persisted transactions',
 
   await page.getByLabel('Nombre').fill('Second Playwright User');
   await page.getByLabel('Correo electrónico').fill(secondEmail);
-  await page.getByLabel('Contraseña').fill(password);
+  await page.getByLabel('Contraseña', { exact: true }).fill(password);
   await page.getByRole('button', { name: 'Crear cuenta' }).click();
   await expect(page.getByRole('heading', { name: 'Tu visión financiera' })).toBeVisible();
   await page.getByRole('link', { name: 'Movimientos' }).click();
@@ -54,7 +54,7 @@ test('authenticated users only see and mutate their own persisted transactions',
 
   await page.getByRole('button', { name: 'Cerrar sesión' }).click();
   await page.getByLabel('Correo electrónico').fill(firstEmail);
-  await page.getByLabel('Contraseña').fill(password);
+  await page.getByLabel('Contraseña', { exact: true }).fill(password);
   await page.getByRole('button', { name: 'Entrar' }).click();
   await expect(page.getByRole('heading', { name: 'Tu visión financiera' })).toBeVisible();
   await page.getByRole('link', { name: 'Movimientos' }).click();
