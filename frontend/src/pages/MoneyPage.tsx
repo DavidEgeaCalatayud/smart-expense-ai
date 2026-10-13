@@ -10,6 +10,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { PageHeader } from '../components/layout/PageHeader';
 import { ApiErrorAlert } from '../components/ui/ApiErrorAlert';
 import { ConfirmDialog } from '../components/ui/ConfirmDialog';
+import { Skeleton } from '../components/ui/Skeleton';
 import {
   buildFinancialAccountEditPayload,
   purposeForAccountType,
@@ -499,7 +500,24 @@ export function MoneyPage() {
       {message && <p role="status" className="mb-6 rounded-2xl bg-emerald-50 px-4 py-3 text-sm font-medium text-emerald-700">{message}</p>}
 
       {loading || !summary ? (
-        <p className="text-sm text-slate-500">Cargando patrimonio...</p>
+        <div role="status" aria-label="Cargando patrimonio" className="space-y-6">
+          <div className="rounded-3xl bg-slate-950 p-7">
+            <Skeleton className="mx-auto h-4 w-32 bg-slate-700/80" />
+            <Skeleton className="mx-auto mt-4 h-12 w-56 bg-slate-700/80" />
+            <div className="mt-8 grid gap-3 md:grid-cols-3">
+              {[0, 1, 2].map((item) => <Skeleton key={item} className="h-20 w-full bg-slate-800/80" />)}
+            </div>
+          </div>
+          <div className="grid gap-4 md:grid-cols-2 2xl:grid-cols-3">
+            {[0, 1, 2].map((item) => (
+              <div key={item} className="rounded-3xl border border-slate-200 bg-white p-5">
+                <Skeleton className="h-5 w-2/5" />
+                <Skeleton className="mt-4 h-8 w-3/5" />
+                <Skeleton className="mt-4 h-4 w-full" />
+              </div>
+            ))}
+          </div>
+        </div>
       ) : (
         <>
           <section className="mb-8 overflow-hidden rounded-3xl bg-slate-950 p-7 text-white shadow-soft">
