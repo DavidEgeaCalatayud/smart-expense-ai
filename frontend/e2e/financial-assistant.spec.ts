@@ -9,7 +9,7 @@ test('Financial Assistant renders only backend-grounded evidence for a stateless
   await page.goto('/register');
   await page.getByLabel('Nombre').fill('Assistant User');
   await page.getByLabel('Correo electrónico').fill(email);
-  await page.getByLabel('Contraseña').fill(password);
+  await page.getByLabel('Contraseña', { exact: true }).fill(password);
   await page.getByRole('button', { name: 'Crear cuenta' }).click();
   await expect(page.getByRole('heading', { name: 'Tu visión financiera' })).toBeVisible();
 
