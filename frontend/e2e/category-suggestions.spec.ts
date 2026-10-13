@@ -15,9 +15,9 @@ test('user can correct an AI suggestion and reuse that merchant preference', asy
   await expect(page.getByRole('heading', { name: 'Tu visión financiera' })).toBeVisible();
 
   await page.getByRole('link', { name: 'Categorías' }).click();
-  await page.getByLabel('Category name').fill(customCategory);
-  await page.getByLabel('Category type').selectOption('expense');
-  await page.getByRole('button', { name: 'Create category' }).click();
+  await page.getByLabel('Nombre de categoría').fill(customCategory);
+  await page.getByLabel('Tipo de categoría').selectOption('expense');
+  await page.getByRole('button', { name: 'Crear categoría' }).click();
   await expect(page.getByRole('status')).toContainText('Categoría creada.');
 
   await page.getByRole('link', { name: 'Movimientos' }).click();
