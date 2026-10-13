@@ -66,7 +66,7 @@ export function AuthFormScreen({ mode }: AuthFormScreenProps) {
           <View style={styles.form}>
             {isRegister ? (
               <Input
-                accessibilityLabel="Display name"
+                accessibilityLabel="Nombre"
                 autoFocus
                 autoCapitalize="words"
                 autoComplete="name"
@@ -78,7 +78,7 @@ export function AuthFormScreen({ mode }: AuthFormScreenProps) {
               />
             ) : null}
             <Input
-              accessibilityLabel="Email"
+              accessibilityLabel="Correo electrónico"
               autoFocus={!isRegister}
               autoCapitalize="none"
               autoComplete="email"
@@ -90,7 +90,7 @@ export function AuthFormScreen({ mode }: AuthFormScreenProps) {
             />
             <View style={styles.passwordWrap}>
               <Input
-                accessibilityLabel="Password"
+                accessibilityLabel="Contraseña"
                 autoCapitalize="none"
                 autoComplete={isRegister ? 'new-password' : 'current-password'}
                 maxLength={128}
@@ -117,7 +117,7 @@ export function AuthFormScreen({ mode }: AuthFormScreenProps) {
 
             {!isRegister ? (
               <Link href="/forgot-password" asChild>
-                <Pressable accessibilityLabel="Forgot password link" accessibilityRole="link" disabled={isSubmitting} testID="forgot-password-link">
+                <Pressable accessibilityLabel="Recuperar contraseña" accessibilityRole="link" disabled={isSubmitting} testID="forgot-password-link">
                   <Text style={styles.linkText}>¿Has olvidado la contraseña?</Text>
                 </Pressable>
               </Link>
@@ -128,7 +128,7 @@ export function AuthFormScreen({ mode }: AuthFormScreenProps) {
             {error ? <Text style={styles.error}>{error}</Text> : null}
 
             <Button
-              accessibilityLabel={isRegister ? 'Submit create account' : 'Submit sign in'}
+              accessibilityLabel={isRegister ? 'Crear cuenta' : 'Iniciar sesión'}
               haptic="success"
               disabled={disabled}
               loading={isSubmitting}
