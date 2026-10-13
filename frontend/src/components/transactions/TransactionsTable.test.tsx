@@ -47,21 +47,24 @@ describe('TransactionsTable', () => {
     }
     expect(cards).toHaveTextContent('Recurrente');
 
-    fireEvent.click(within(cards).getByRole('button', { name: 'Edit Test Market' }));
+    fireEvent.click(within(cards).getByRole('button', { name: 'Editar Test Market' }));
     expect(onEdit).toHaveBeenCalledWith(transaction);
 
-    fireEvent.click(within(table).getByRole('button', { name: 'Delete Test Market' }));
+    fireEvent.click(within(table).getByRole('button', { name: 'Eliminar Test Market' }));
     expect(onDelete).toHaveBeenCalledWith(transaction.id);
   });
 
   it('shows one explicit empty state instead of duplicating responsive representations', () => {
+    const onAddFirst = vi.fn();
     render(
-      <TransactionsTable transactions={[]} onEdit={vi.fn()} onDelete={vi.fn()} />,
+      <TransactionsTable transactions={[]} onAddFirst={onAddFirst} onEdit={vi.fn()} onDelete={vi.fn()} />,
     );
 
     expect(screen.getByTestId('transactions-empty-state')).toBeInTheDocument();
     expect(screen.getAllByText('No hay movimientos que coincidan con los filtros.')).toHaveLength(1);
     expect(screen.queryByTestId('transaction-cards')).not.toBeInTheDocument();
     expect(screen.queryByTestId('transaction-table')).not.toBeInTheDocument();
+    fireEvent.click(screen.getByRole('button', { name: 'Añadir mi primer movimiento' }));
+    expect(onAddFirst).toHaveBeenCalledOnce();
   });
 });
