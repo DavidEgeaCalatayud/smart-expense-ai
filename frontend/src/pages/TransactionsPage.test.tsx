@@ -70,7 +70,7 @@ async function getTransactionCards() {
 }
 
 function getTransactionForm() {
-  return screen.getByRole('form', { name: 'Add transaction form' });
+  return screen.getByRole('form', { name: 'Formulario para añadir movimiento' });
 }
 
 describe('TransactionsPage', () => {
@@ -115,8 +115,8 @@ describe('TransactionsPage', () => {
     await getTransactionCards();
 
     const form = within(getTransactionForm());
-    const merchantInput = form.getByLabelText('Merchant') as HTMLInputElement;
-    const amountInput = form.getByLabelText('Amount') as HTMLInputElement;
+    const merchantInput = form.getByLabelText('Comercio') as HTMLInputElement;
+    const amountInput = form.getByLabelText('Importe') as HTMLInputElement;
 
     fireEvent.change(merchantInput, { target: { value: 'Early merchant input' } });
     fireEvent.change(amountInput, { target: { value: '19.95' } });
@@ -126,7 +126,7 @@ describe('TransactionsPage', () => {
     resolveCategories(categories);
 
     await waitFor(() =>
-      expect(form.getByRole('combobox', { name: 'Category' })).toHaveValue('Food'),
+      expect(form.getByRole('combobox', { name: 'Categoría' })).toHaveValue('Food'),
     );
     expect(merchantInput.value).toBe('Early merchant input');
     expect(amountInput.value).toBe('19,95');
@@ -138,14 +138,14 @@ describe('TransactionsPage', () => {
 
     const transactionForm = getTransactionForm();
     const form = within(transactionForm);
-    const categorySelect = form.getByRole('combobox', { name: 'Category' }) as HTMLSelectElement;
+    const categorySelect = form.getByRole('combobox', { name: 'Categoría' }) as HTMLSelectElement;
     expect(categorySelect.value).toBe('Food');
 
-    fireEvent.change(form.getByLabelText('Merchant'), { target: { value: 'Amazon' } });
+    fireEvent.change(form.getByLabelText('Comercio'), { target: { value: 'Amazon' } });
     fireEvent.click(form.getByRole('button', { name: 'Sugerir categoría' }));
 
     await waitFor(() => expect(previewCategorySuggestion).toHaveBeenCalledWith('Amazon', 'expense'));
-    const suggestion = await screen.findByRole('region', { name: 'AI category suggestion' });
+    const suggestion = await screen.findByRole('region', { name: 'Sugerencia de categoría' });
     expect(within(suggestion).getByText('Shopping')).toBeInTheDocument();
     expect(categorySelect.value).toBe('Food');
 
@@ -186,9 +186,9 @@ describe('TransactionsPage', () => {
     render(<TransactionsPage />);
     await getTransactionCards();
 
-    fireEvent.change(screen.getByLabelText('Merchant'), { target: { value: 'New Market' } });
-    fireEvent.change(screen.getByLabelText('Amount'), { target: { value: '40' } });
-    fireEvent.click(screen.getByRole('button', { name: 'Add transaction' }));
+    fireEvent.change(screen.getByLabelText('Comercio'), { target: { value: 'New Market' } });
+    fireEvent.change(screen.getByLabelText('Importe'), { target: { value: '40' } });
+    fireEvent.click(screen.getByRole('button', { name: 'Añadir movimiento' }));
 
     await waitFor(() =>
       expect(createTransaction).toHaveBeenCalledWith(
