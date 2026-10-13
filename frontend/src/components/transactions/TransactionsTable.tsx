@@ -6,6 +6,7 @@ import { Badge } from '../ui/Badge';
 interface TransactionsTableProps {
   transactions: DetailedTransaction[];
   emptyMessage?: string;
+  onAddFirst?: () => void;
   onEdit: (transaction: DetailedTransaction) => void;
   onDelete: (transactionId: string) => void;
 }
@@ -52,7 +53,7 @@ function TransactionActions({
         type="button"
         onClick={() => onEdit(transaction)}
         className="inline-flex h-11 w-11 items-center justify-center rounded-xl border border-slate-200 text-slate-500 transition hover:bg-slate-50 hover:text-slate-900"
-        aria-label={`Edit ${transaction.merchant}`}
+        aria-label={`Editar ${transaction.merchant}`}
       >
         <Pencil size={16} />
       </button>
@@ -60,7 +61,7 @@ function TransactionActions({
         type="button"
         onClick={() => onDelete(transaction.id)}
         className="inline-flex h-11 w-11 items-center justify-center rounded-xl border border-red-100 text-red-500 transition hover:bg-red-50"
-        aria-label={`Delete ${transaction.merchant}`}
+        aria-label={`Eliminar ${transaction.merchant}`}
       >
         <Trash2 size={16} />
       </button>
@@ -91,6 +92,7 @@ function TransactionAmount({ transaction }: { transaction: DetailedTransaction }
 export function TransactionsTable({
   transactions,
   emptyMessage = 'No hay movimientos que coincidan con los filtros.',
+  onAddFirst,
   onEdit,
   onDelete,
 }: TransactionsTableProps) {
@@ -108,6 +110,15 @@ export function TransactionsTable({
         <div className="py-12 text-center" data-testid="transactions-empty-state">
           <p className="font-semibold text-slate-700">Todavía no hay nada que mostrar</p>
           <p className="mx-auto mt-2 max-w-md text-sm leading-6 text-slate-500">{emptyMessage}</p>
+          {onAddFirst ? (
+            <button
+              type="button"
+              onClick={onAddFirst}
+              className="mt-5 min-h-11 rounded-2xl bg-brand-600 px-5 py-3 text-sm font-semibold text-white"
+            >
+              Añadir mi primer movimiento
+            </button>
+          ) : null}
         </div>
       ) : (
         <>
@@ -116,7 +127,7 @@ export function TransactionsTable({
               <article
                 key={transaction.id}
                 className="rounded-2xl border border-slate-200 bg-slate-50/50 p-4"
-                aria-label={`${transaction.merchant} transaction`}
+                aria-label={`Movimiento ${transaction.merchant}`}
               >
                 <div className="flex items-start justify-between gap-3">
                   <div className="min-w-0">
