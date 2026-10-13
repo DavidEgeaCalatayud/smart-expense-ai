@@ -40,14 +40,14 @@ describe('TransactionForm', () => {
       />,
     );
 
-    fireEvent.change(screen.getByLabelText('Merchant'), {
+    fireEvent.change(screen.getByLabelText('Comercio'), {
       target: { value: 'Local Market' },
     });
 
     expect(onChange).toHaveBeenCalledWith({ ...validValues, merchant: 'Local Market' });
     expect(screen.getByRole('option', { name: 'Food' })).toBeInTheDocument();
 
-    fireEvent.click(screen.getByRole('button', { name: 'Add transaction' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Añadir movimiento' }));
     expect(onSubmit).toHaveBeenCalledOnce();
   });
 
@@ -74,7 +74,7 @@ describe('TransactionForm', () => {
       />,
     );
 
-    const suggestion = screen.getByRole('region', { name: 'AI category suggestion' });
+    const suggestion = screen.getByRole('region', { name: 'Sugerencia de categoría' });
     expect(suggestion).toHaveTextContent('Categoría sugerida');
     expect(suggestion).toHaveTextContent('Shopping');
     expect(suggestion).not.toHaveTextContent('%');
@@ -85,7 +85,7 @@ describe('TransactionForm', () => {
 
     fireEvent.click(screen.getByRole('button', { name: 'Cambiar' }));
     expect(onDismissSuggestion).toHaveBeenCalledOnce();
-    expect(screen.getByLabelText('Category')).toHaveFocus();
+    expect(screen.getByLabelText('Categoría')).toHaveFocus();
   });
 
   it('prevents duplicate submits while a request is in flight', () => {
@@ -101,7 +101,7 @@ describe('TransactionForm', () => {
       />,
     );
 
-    const submitButton = screen.getByRole('button', { name: 'Saving...' });
+    const submitButton = screen.getByRole('button', { name: 'Guardando…' });
     expect(submitButton).toBeDisabled();
 
     fireEvent.click(submitButton);
