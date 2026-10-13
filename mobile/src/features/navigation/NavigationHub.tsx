@@ -4,6 +4,7 @@ import { Link } from '../../ui/Link';
 import { Pressable, StyleSheet, Text, View } from '../../ui/primitives';
 import { ServerWorkspaceShell, serverWorkspaceStyles as s } from '../../components/ServerWorkspaceShell';
 import { useOnlineSync } from '../../sync/OnlineSyncProvider';
+import { uiTokens } from '../../ui/tokens';
 
 const insights = [
   ['Inteligencia', 'Patrones, gastos inusuales y suscripciones', '/intelligence', 'sparkles-outline'],
@@ -33,9 +34,9 @@ export function NavigationHub({ area }: { area: 'insights' | 'more' }) {
     isRefreshing={isSyncing} onRefresh={() => void syncNow().catch(() => undefined)}>
     {(area === 'insights' ? insights : more).map(([title, description, href, icon]) =>
       <Link key={href} href={href as Href} asChild><Pressable accessibilityRole="button" style={StyleSheet.flatten([s.card, { flexDirection: 'row', alignItems: 'center', gap: 14 }])}>
-        <Ionicons name={icon} size={26} color="#125c47" />
+        <Ionicons name={icon} size={26} color={uiTokens.color.brand} />
         <View style={{ flex: 1, gap: 4 }}><Text style={s.cardTitle}>{title}</Text><Text style={s.metadata}>{description}</Text></View>
-        <Ionicons name="chevron-forward" size={18} color="#596575" />
+        <Ionicons name="chevron-forward" size={18} color={uiTokens.color.muted} />
       </Pressable></Link>)}
     {area === 'more' ? <View style={s.card}>
       <Text style={s.cardTitle}>Añade un gasto sin buscar</Text>
