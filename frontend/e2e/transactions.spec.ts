@@ -19,13 +19,13 @@ test('authenticated users only see and mutate their own persisted transactions',
 
   await page.getByRole('link', { name: 'Movimientos' }).click();
   await expect(page.getByRole('heading', { name: 'Movimientos' })).toBeVisible();
-  await expect(page.getByLabel('Category').first()).toHaveValue('Food');
+  await expect(page.getByLabel('Categoría').first()).toHaveValue('Food');
 
-  await page.getByLabel('Merchant').fill(merchant);
-  await page.getByLabel('Amount').fill('42.50');
-  await page.getByLabel('Description').fill('Authenticated critical E2E transaction');
-  await page.getByLabel('Date').fill(transactionDate);
-  await page.getByRole('button', { name: 'Add transaction' }).click();
+  await page.getByLabel('Comercio').fill(merchant);
+  await page.getByLabel('Importe').fill('42.50');
+  await page.getByLabel('Descripción').fill('Authenticated critical E2E transaction');
+  await page.getByLabel('Fecha').fill(transactionDate);
+  await page.getByRole('button', { name: 'Añadir movimiento' }).click();
 
   let row = page.getByRole('row').filter({ hasText: merchant });
   await expect(row).toContainText('€42.50');
@@ -63,8 +63,8 @@ test('authenticated users only see and mutate their own persisted transactions',
   row = page.getByRole('row').filter({ hasText: merchant });
   await expect(row).toContainText('€42.50');
   await row.getByRole('button', { name: `Edit ${merchant}` }).click();
-  await page.getByLabel('Amount').fill('150.25');
-  await page.getByRole('button', { name: 'Save changes' }).click();
+  await page.getByLabel('Importe').fill('150.25');
+  await page.getByRole('button', { name: 'Guardar cambios' }).click();
 
   row = page.getByRole('row').filter({ hasText: merchant });
   await expect(row).toContainText('€150.25');
