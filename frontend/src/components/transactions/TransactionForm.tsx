@@ -53,7 +53,7 @@ export function TransactionForm({
 
   return (
     <form
-      aria-label={isEditing ? 'Edit transaction form' : 'Add transaction form'}
+      aria-label={isEditing ? 'Formulario para editar movimiento' : 'Formulario para añadir movimiento'}
       onSubmit={handleSubmit}
       className="rounded-3xl border border-slate-200 bg-white p-6 shadow-soft"
     >
@@ -73,7 +73,7 @@ export function TransactionForm({
             onClick={onCancelEdit}
             disabled={isSubmitting}
             className="inline-flex h-10 w-10 items-center justify-center rounded-2xl border border-slate-200 text-slate-500 transition hover:bg-slate-50 hover:text-slate-900 disabled:cursor-not-allowed disabled:opacity-50"
-            aria-label="Cancel edit"
+            aria-label="Cancelar edición"
           >
             <X size={18} />
           </button>
@@ -84,7 +84,7 @@ export function TransactionForm({
         <label className="space-y-2">
           <span className="text-sm font-semibold text-slate-700">Comercio</span>
           <input
-            aria-label="Merchant"
+            aria-label="Comercio"
             value={values.merchant}
             onChange={(event) => onChange({ ...values, merchant: event.target.value })}
             placeholder="Ej. Mercadona"
@@ -96,7 +96,7 @@ export function TransactionForm({
         <label className="space-y-2">
           <span className="text-sm font-semibold text-slate-700">Importe</span>
           <input
-            aria-label="Amount"
+            aria-label="Importe"
             value={values.amount}
             onChange={(event) => onChange({ ...values, amount: formatMoneyEditingInput(event.target.value) })}
             onFocus={() => {
@@ -119,7 +119,7 @@ export function TransactionForm({
           <div className="md:col-span-2">
             {suggestion ? (
               <section
-                aria-label="AI category suggestion"
+                aria-label="Sugerencia de categoría"
                 className="rounded-2xl border border-brand-100 bg-brand-50 p-4"
               >
                 <div className="flex items-start gap-3">
@@ -171,7 +171,7 @@ export function TransactionForm({
 
         <label className="space-y-2 md:col-span-2">
           <span className="text-sm font-semibold text-slate-700">Descripción</span>
-          <input aria-label="Description"
+          <input aria-label="Descripción"
             value={values.description}
             onChange={(event) => onChange({ ...values, description: event.target.value })}
             placeholder="Ej. Compra semanal"
@@ -181,7 +181,7 @@ export function TransactionForm({
 
         <label className="space-y-2">
           <span className="text-sm font-semibold text-slate-700">Categoría</span>
-          <select aria-label="Category"
+          <select aria-label="Categoría"
             ref={categorySelectRef}
             value={values.category}
             onChange={(event) => onChange({ ...values, category: event.target.value })}
@@ -197,7 +197,7 @@ export function TransactionForm({
 
         <label className="space-y-2">
           <span className="text-sm font-semibold text-slate-700">Fecha</span>
-          <input aria-label="Date"
+          <input aria-label="Fecha"
             value={values.date}
             onChange={(event) => onChange({ ...values, date: event.target.value })}
             type="date"
@@ -208,7 +208,7 @@ export function TransactionForm({
 
         <label className="space-y-2">
           <span className="text-sm font-semibold text-slate-700">Tipo</span>
-          <select aria-label="Type"
+          <select aria-label="Tipo"
             value={values.type}
             onChange={(event) => onChange({ ...values, type: event.target.value as TransactionFormValues['type'] })}
             className="w-full rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm outline-none transition focus:border-brand-500 focus:ring-4 focus:ring-brand-50"
@@ -220,7 +220,7 @@ export function TransactionForm({
 
         <label className="space-y-2">
           <span className="text-sm font-semibold text-slate-700">Método de pago</span>
-          <select aria-label="Payment method"
+          <select aria-label="Método de pago"
             value={values.paymentMethod}
             onChange={(event) =>
               onChange({ ...values, paymentMethod: event.target.value as TransactionFormValues['paymentMethod'] })
@@ -247,7 +247,7 @@ export function TransactionForm({
 
       <button
         type="submit"
-        aria-label={isSubmitting ? 'Saving...' : isEditing ? 'Save changes' : 'Add transaction'}
+        aria-label={isSubmitting ? 'Guardando…' : isEditing ? 'Guardar cambios' : 'Añadir movimiento'}
         disabled={isSubmitting}
         className="mt-6 inline-flex w-full items-center justify-center gap-2 rounded-2xl bg-slate-950 px-5 py-3 text-sm font-semibold text-white shadow-soft transition hover:-translate-y-0.5 hover:bg-slate-800 disabled:cursor-not-allowed disabled:opacity-60 disabled:hover:translate-y-0"
       >
