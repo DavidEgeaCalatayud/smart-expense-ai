@@ -5,6 +5,7 @@ import { Fragment, useEffect, useState } from 'react';
 import { Keyboard, Pressable, StyleSheet, Text, View } from '../ui/primitives';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { t } from '../i18n';
+import { uiTokens } from '../ui/tokens';
 
 export type WorkspaceName = 'transactions' | 'categories' | 'budgets' | 'dashboard' | 'intelligence'
   | 'historical' | 'predictions' | 'suggestions' | 'assistant' | 'reports' | 'advanced-insights'
@@ -41,7 +42,7 @@ export function BottomNavigation() {
       return <Fragment key={tab.label}>
         {index === 2 ? <Pressable accessibilityRole="button" accessibilityLabel="Añadir movimiento" testID="quick-add"
           onPress={() => router.push('/transactions?quickAdd=expense')} style={[styles.tab, { justifyContent: 'center', flex: 0.85 }]}>
-          <View style={{ backgroundColor: '#125c47', borderRadius: 24, width: 46, height: 46, alignItems: 'center', justifyContent: 'center' }}><Ionicons name="add" color="#fff" size={30} /></View>
+          <View style={{ backgroundColor: uiTokens.color.brand, borderRadius: 24, width: 46, height: 46, alignItems: 'center', justifyContent: 'center' }}><Ionicons name="add" color="#fff" size={30} /></View>
         </Pressable> : null}
         <Pressable accessibilityRole="tab" accessibilityLabel={tab.label}
         accessibilityState={{ selected: active }} testID={`tab-${tab.id}`}
@@ -60,9 +61,9 @@ export function WorkspaceNav({ active }: { active: WorkspaceName }) {
   if (active === 'money') {
     return <Link href="/payment-detection" asChild>
       <Pressable accessibilityRole="button" accessibilityLabel="Pagos automáticos" style={styles.paymentShortcut}>
-        <Ionicons name="notifications-outline" size={18} color="#125c47" />
+        <Ionicons name="notifications-outline" size={18} color={uiTokens.color.brand} />
         <Text style={styles.selectedLabel}>Pagos automáticos</Text>
-        <Ionicons name="chevron-forward" size={17} color="#596575" />
+        <Ionicons name="chevron-forward" size={17} color={uiTokens.color.muted} />
       </Pressable>
     </Link>;
   }
@@ -70,18 +71,18 @@ export function WorkspaceNav({ active }: { active: WorkspaceName }) {
   const insight = INSIGHTS.includes(active);
   return <Link href={insight ? '/insights' : '/more'} asChild>
     <Pressable accessibilityRole="button" style={styles.back}>
-      <Ionicons name="chevron-back" size={20} color="#125c47" />
+      <Ionicons name="chevron-back" size={20} color={uiTokens.color.brand} />
       <Text style={styles.selectedLabel}>{insight ? 'Todos los análisis' : 'Más'}</Text>
     </Pressable>
   </Link>;
 }
 const styles = StyleSheet.create({
-  tabs: { flexDirection: 'row', backgroundColor: '#fff', paddingTop: 8, borderTopWidth: 1, borderTopColor: '#e7ece9' },
+  tabs: { flexDirection: 'row', backgroundColor: uiTokens.color.surface, paddingTop: 8, borderTopWidth: 1, borderTopColor: uiTokens.color.border },
   tab: { flex: 1, alignItems: 'center', gap: 3, minHeight: 54 },
   icon: { width: 58, height: 30, borderRadius: 16, alignItems: 'center', justifyContent: 'center' },
-  selected: { backgroundColor: '#dff3e9' },
-  label: { color: '#596575', fontSize: 12, fontWeight: '600' },
-  selectedLabel: { color: '#125c47', fontWeight: '700' },
-  back: { flexDirection: 'row', alignItems: 'center', alignSelf: 'flex-start', minHeight: 44, gap: 4 },
-  paymentShortcut: { alignItems: 'center', alignSelf: 'flex-start', backgroundColor: '#f2f6f4', borderRadius: 999, flexDirection: 'row', gap: 6, minHeight: 38, paddingHorizontal: 12 },
+  selected: { backgroundColor: uiTokens.color.brandSoft },
+  label: { color: uiTokens.color.muted, fontSize: 12, fontWeight: '600' },
+  selectedLabel: { color: uiTokens.color.brand, fontWeight: '700' },
+  back: { flexDirection: 'row', alignItems: 'center', alignSelf: 'flex-start', minHeight: uiTokens.touchTarget, gap: 4 },
+  paymentShortcut: { alignItems: 'center', alignSelf: 'flex-start', backgroundColor: uiTokens.color.background, borderRadius: 999, flexDirection: 'row', gap: 6, minHeight: uiTokens.touchTarget, paddingHorizontal: 12 },
 });
