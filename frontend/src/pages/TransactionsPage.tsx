@@ -402,6 +402,7 @@ export function TransactionsPage() {
               <TransactionsTable
                 transactions={pageData.items}
                 emptyMessage={emptyMessage}
+                onAddFirst={summary.transactionCount === 0 ? transactionFormReveal.reveal : undefined}
                 onEdit={handleEditTransaction}
                 onDelete={handleDeleteRequest}
               />
