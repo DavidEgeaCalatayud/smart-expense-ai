@@ -39,7 +39,7 @@ export function BottomNavigation() {
     {TABS.map((tab, index) => {
       const active = navigationArea(pathname) === index;
       return <Fragment key={tab.label}>
-        {index === 2 ? <Pressable accessibilityRole="button" accessibilityLabel="Add transaction" testID="quick-add"
+        {index === 2 ? <Pressable accessibilityRole="button" accessibilityLabel="Añadir movimiento" testID="quick-add"
           onPress={() => router.push('/transactions?quickAdd=expense')} style={[styles.tab, { justifyContent: 'center', flex: 0.85 }]}>
           <View style={{ backgroundColor: '#125c47', borderRadius: 24, width: 46, height: 46, alignItems: 'center', justifyContent: 'center' }}><Ionicons name="add" color="#fff" size={30} /></View>
         </Pressable> : null}
