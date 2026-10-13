@@ -213,7 +213,7 @@ wait_for_login_ui() {
     local ui_dump=''
     if adb shell uiautomator dump "$PREWARM_UI_DUMP" > /dev/null 2>&1; then
       ui_dump="$(adb shell cat "$PREWARM_UI_DUMP" 2>/dev/null || true)"
-      if grep -q 'Welcome back' <<<"$ui_dump"; then
+      if grep -q 'Bienvenido de nuevo' <<<"$ui_dump"; then
         adb shell rm -f "$PREWARM_UI_DUMP" || true
         return 0
       fi
