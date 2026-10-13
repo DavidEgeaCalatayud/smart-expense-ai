@@ -22,12 +22,12 @@ test('authenticated user can create a custom category and monthly category budge
   await expect(page.getByRole('status')).toContainText('Categoría creada.');
   await expect(page.getByRole('heading', { name: category })).toBeVisible();
 
-  await page.getByRole('link', { name: 'Budgets' }).click();
-  await expect(page.getByRole('heading', { name: 'Budgets' })).toBeVisible();
-  await page.getByLabel('Budget month').fill('2026-08');
-  await page.getByLabel('Budget scope').selectOption({ label: category });
-  await page.getByLabel('Budget limit').fill('400');
-  await page.getByRole('button', { name: 'Create budget' }).click();
+  await page.getByRole('link', { name: 'Presupuestos' }).click();
+  await expect(page.getByRole('heading', { name: 'Presupuestos' })).toBeVisible();
+  await page.getByLabel('Mes del presupuesto').fill('2026-08');
+  await page.getByLabel('Ámbito del presupuesto').selectOption({ label: category });
+  await page.getByLabel('Límite del presupuesto').fill('400');
+  await page.getByRole('button', { name: 'Crear presupuesto' }).click();
   await expect(page.getByRole('status')).toContainText('Presupuesto creado.');
 
   const budgetCard = page.getByRole('article').filter({ hasText: category });
